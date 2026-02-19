@@ -1072,9 +1072,15 @@ export default function App(){
       // Look for existing app user matched by email or supabase auth id
       let found=users.find(u=>u.email===email||u.authId===authUser.id);
       if(!found){
-        // Might not have loaded yet — try DB directly
-        const {data}=await supabase.from("users").select("*").or(`email.eq.${email},auth_id.eq.${authUser.id}`).maybeSingle();
-        if(data)found={...data,authProvider:data.auth_provider,needsRewaiverDocId:data.needs_rewaiver_doc_id,waivers:data.waivers??[]};
+        // Try by email first
+        const {data:byEmail}=await supabase.from("users").select("*").eq("email",email).maybeSingle();
+        if(byEmail){
+          found={...byEmail,authProvider:byEmail.auth_provider,needsRewaiverDocId:byEmail.needs_rewaiver_doc_id,waivers:byEmail.waivers??[]};
+        } else {
+          // Try by auth_id
+          const {data:byAuthId}=await supabase.from("users").select("*").eq("auth_id",authUser.id).maybeSingle();
+          if(byAuthId)found={...byAuthId,authProvider:byAuthId.auth_provider,needsRewaiverDocId:byAuthId.needs_rewaiver_doc_id,waivers:byAuthId.waivers??[]};
+        }
       }
       if(found){
         // Existing user — update provider if needed and log in
