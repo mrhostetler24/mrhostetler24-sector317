@@ -967,7 +967,7 @@ function LoginScreen({onLogin}){
     setPending(id);
     const {error}=await supabase.auth.signInWithOAuth({
       provider,
-      options:{redirectTo:window.location.origin},
+      options:{redirectTo:"https://mrhostetler24-sector317.vercel.app"},
     });
     if(error){setAuthError(error.message);setPending(null);}
     // On success the browser redirects to the OAuth provider — no further code runs here
