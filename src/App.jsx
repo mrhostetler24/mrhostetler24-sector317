@@ -611,6 +611,84 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   );
 }
 
+// ── Profanity filter — checks against a blocklist of common explicit terms
+// Leet-speak normalisation catches basic substitutions (3→e, 0→o, @→a, etc.)
+const BLOCKED = ["fuck","shit","ass","bitch","cunt","dick","cock","pussy","nigger","nigga","faggot","fag","whore","slut","bastard","piss","damn","crap","twat","wank","spic","chink","kike","wetback","retard","rape","nazi","porn","sex","nude","naked","cum","jizz","tits","boob","penis","vagina","anus","dildo","boner","horny","milf","hentai","tranny","homo","dyke"].map(w=>w.toLowerCase());
+function normalizeLeet(str){return str.toLowerCase().replace(/3/g,"e").replace(/0/g,"o").replace(/@/g,"a").replace(/1/g,"i").replace(/\$/g,"s").replace(/5/g,"s").replace(/!/g,"i").replace(/\+/g,"t");}
+function containsProfanity(str){
+  if(!str||!str.trim())return false;
+  const norm=normalizeLeet(str.replace(/[^a-zA-Z0-9@$!+]/g,""));
+  return BLOCKED.some(w=>norm.includes(w));
+}
+function validateLeaderboardName(val){
+  if(!val||!val.trim())return null; // empty is fine — it's optional
+  if(val.trim().length<2)return "Must be at least 2 characters";
+  if(val.trim().length>24)return "Max 24 characters";
+  if(!/^[a-zA-Z0-9 _\-\.]+$/.test(val.trim()))return "Letters, numbers, spaces, _ - . only";
+  if(containsProfanity(val))return "That name isn't allowed — please choose another";
+  return null;
+}
+
+function LeaderboardNameCard({user,setUsers}){
+  const [editing,setEditing]=useState(false);
+  const [val,setVal]=useState(user.leaderboardName||"");
+  const [err,setErr]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [saved,setSaved]=useState(false);
+
+  const handleSave=async()=>{
+    const trimmed=val.trim();
+    const validErr=validateLeaderboardName(trimmed);
+    if(validErr){setErr(validErr);return;}
+    setSaving(true);setErr(null);
+    try{
+      const updated=await updateUser(user.id,{leaderboardName:trimmed||null});
+      setUsers(prev=>prev.map(u=>u.id===user.id?updated:u));
+      setEditing(false);setSaved(true);
+      setTimeout(()=>setSaved(false),3000);
+    }catch(e){setErr("Save failed: "+e.message);}
+    finally{setSaving(false);}
+  };
+
+  const current=user.leaderboardName;
+  return(
+    <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderLeft:"4px solid var(--acc2)",borderRadius:6,padding:"1rem 1.25rem",marginBottom:"1.5rem"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem",marginBottom:editing?".75rem":0}}>
+        <div>
+          <div style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:"var(--accB)"}}>
+            🏆 Leaderboard Name
+          </div>
+          {!editing&&<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>
+            {current?<span>Showing as <strong style={{color:"var(--txt)"}}>{current}</strong> on public leaderboard</span>:"Not set — your real name will be used"}
+            {saved&&<span style={{color:"var(--acc2)",marginLeft:".75rem"}}>✓ Saved</span>}
+          </div>}
+        </div>
+        {!editing&&<button className="btn btn-s btn-sm" onClick={()=>{setVal(current||"");setErr(null);setEditing(true);}}>{current?"Edit":"Set Name"}</button>}
+      </div>
+      {editing&&<>
+        <div style={{fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem"}}>Optional · 2–24 characters · Letters, numbers, spaces, _ - . only · Displayed publicly on the leaderboard instead of your real name</div>
+        <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",alignItems:"flex-start"}}>
+          <div style={{flex:1,minWidth:180}}>
+            <input
+              className="inp" maxLength={24}
+              value={val}
+              onChange={e=>{setVal(e.target.value);setErr(null);}}
+              onKeyDown={e=>{if(e.key==="Enter")handleSave();if(e.key==="Escape"){setEditing(false);setErr(null);}}}
+              placeholder="e.g. GhostSniper, Alpha1, DesertFox"
+              style={{width:"100%"}}
+              autoFocus
+            />
+            {err&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ {err}</div>}
+          </div>
+          <button className="btn btn-p btn-sm" disabled={saving} onClick={handleSave}>{saving?"Saving…":"Save"}</button>
+          <button className="btn btn-s btn-sm" disabled={saving} onClick={()=>{setEditing(false);setErr(null);}}>Cancel</button>
+        </div>
+        {val.trim()&&!err&&<div style={{fontSize:".72rem",color:"var(--acc2)",marginTop:".4rem"}}>Preview: <strong>{val.trim()}</strong></div>}
+      </>}
+    </div>
+  );
+}
+
 function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onSignWaiver}){
   const [tab,setTab]=useState("upcoming");
   const [showBook,setShowBook]=useState(false);
@@ -680,6 +758,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <div><div style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:valid?"var(--accB)":"var(--dangerL)"}}>{valid?"✓ Waiver On File":"⚠ Waiver Required"}</div><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>{valid?`Signed ${fmtTS(wDate)} · Valid 12 months`:wDate?`Expired — last signed ${fmtTS(wDate)}`:"No waiver on file — sign before your session"}</div></div>
         <div style={{display:"flex",gap:".5rem"}}>{wDate&&<button className="btn btn-s btn-sm" onClick={()=>setWViewOpen(true)}>View</button>}<button className={`btn btn-sm ${valid?"btn-s":"btn-p"}`} onClick={()=>setWOpen(true)}>{valid?"Re-sign":"Sign Now"}</button></div>
       </div>
+      {/* Leaderboard Name */}
+      <LeaderboardNameCard user={user} setUsers={setUsers}/>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.1rem",flexWrap:"wrap",gap:".75rem"}}>
         <div className="tabs" style={{marginBottom:0,borderBottom:"none"}}><button className={`tab${tab==="upcoming"?" on":""}`} onClick={()=>setTab("upcoming")}>Upcoming ({upcoming.length})</button><button className={`tab${tab==="past"?" on":""}`} onClick={()=>setTab("past")}>Past ({past.length})</button></div>
         <button className="btn btn-p" onClick={()=>setShowBook(true)}>+ Book Mission</button>
