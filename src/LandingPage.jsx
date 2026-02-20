@@ -242,7 +242,6 @@ export default function LandingPage({ onEnterApp }) {
           ))}
           <a className="lp-navlink" href="/leaderboard.html" target="_blank" rel="noreferrer" style={{textDecoration:"none"}}>Leaderboard</a>
         </div>
-        <div className="lp-nav-btns">
           <button className="lp-btn-login" onClick={onEnterApp}>Sign In</button>
           <button className="lp-btn-book" onClick={onEnterApp}>Book Now</button>
         </div>
@@ -496,6 +495,40 @@ export default function LandingPage({ onEnterApp }) {
             <button className="lp-cta-p" style={{fontSize:"1.05rem",padding:"1rem 3.5rem"}} onClick={onEnterApp}>Book Now</button>
             <button className="lp-cta-s" style={{fontSize:".95rem",padding:".9rem 2.2rem"}} onClick={onEnterApp}>Sign In</button>
           </div>
+        </div>
+      </section>
+
+      {/* NEWSLETTER / STAY IN THE LOOP */}
+      <section style={{background:"linear-gradient(135deg,#1a1b13 0%,#111209 100%)",borderTop:"1px solid rgba(200,224,58,.15)",borderBottom:"1px solid rgba(200,224,58,.15)",padding:"5rem 2rem",textAlign:"center"}}>
+        <div style={{maxWidth:560,margin:"0 auto"}}>
+          <div style={{fontFamily:"'Black Ops One',sans-serif",fontSize:"clamp(1.6rem,4vw,2.4rem)",color:"#d4ec46",letterSpacing:".06em",textTransform:"uppercase",marginBottom:".6rem",lineHeight:1.1}}>
+            Stay In The Loop
+          </div>
+          <p style={{fontFamily:"'Barlow',sans-serif",fontSize:"1rem",color:"rgba(232,228,220,.65)",lineHeight:1.7,marginBottom:"2rem"}}>
+            New missions. Limited runs. Leaderboard resets. Exclusive events.<br/>
+            Be the first to know — create your account and we'll keep you in the fight.
+          </p>
+          <div style={{display:"flex",gap:"1rem",justifyContent:"center",flexWrap:"wrap"}}>
+            <button
+              onClick={onEnterApp}
+              style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:"1rem",fontWeight:800,letterSpacing:".15em",textTransform:"uppercase",background:"#c8e03a",color:"#111209",border:"none",borderRadius:3,padding:".75rem 2.2rem",cursor:"pointer",transition:"all .25s",clipPath:"polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)"}}
+              onMouseOver={e=>{e.currentTarget.style.background="#d4ec46";e.currentTarget.style.boxShadow="0 0 32px rgba(200,224,58,.45)";}}
+              onMouseOut={e=>{e.currentTarget.style.background="#c8e03a";e.currentTarget.style.boxShadow="none";}}
+            >
+              Create Account →
+            </button>
+            <button
+              onClick={onEnterApp}
+              style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:"1rem",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",background:"none",border:"1px solid rgba(200,224,58,.35)",color:"#c8e03a",borderRadius:3,padding:".75rem 2rem",cursor:"pointer",transition:"all .2s"}}
+              onMouseOver={e=>{e.currentTarget.style.borderColor="#c8e03a";e.currentTarget.style.background="rgba(200,224,58,.08)";}}
+              onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(200,224,58,.35)";e.currentTarget.style.background="none";}}
+            >
+              Sign In
+            </button>
+          </div>
+          <p style={{fontFamily:"'Barlow',sans-serif",fontSize:".75rem",color:"rgba(232,228,220,.3)",marginTop:"1.25rem",letterSpacing:".04em"}}>
+            No spam. No noise. Just what matters for Sector 317 operatives.
+          </p>
         </div>
       </section>
 

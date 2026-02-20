@@ -40,6 +40,7 @@ const toUser = r => r ? ({
   needsRewaiverDocId: r.needs_rewaiver_doc_id,
   waivers:            r.waivers ?? [],
   leaderboardName:    r.leaderboard_name ?? null,
+  isReal:             r.is_real ?? true,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -169,6 +170,8 @@ export async function createUser(user) {
     auth_provider:         user.authProvider ?? null,
     needs_rewaiver_doc_id: user.needsRewaiverDocId ?? null,
     waivers:               user.waivers ?? [],
+    leaderboard_name:      user.leaderboardName ?? null,
+    is_real:               true, // always true — test accounts set via DB directly
   }).select().single()
   if (error) throw error
   return toUser(data)

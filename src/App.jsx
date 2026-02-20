@@ -154,7 +154,9 @@ body{background:var(--bg2);color:var(--txt);font-family:var(--fb);min-height:100
 .nav-brand{display:flex;align-items:center;cursor:pointer;}
 .nav-logo{height:48px;width:auto;object-fit:contain;}
 .nav-right{display:flex;align-items:center;gap:.75rem;}
-.nav-user{font-size:.76rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;}
+.nav-user{font-size:.76rem;color:var(--txt);font-weight:600;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;padding:.25rem .5rem;border-radius:4px;transition:color .2s;}
+.nav-user:hover{color:var(--accB);}
+.nbtn{background:none;border:1px solid transparent;color:var(--txt);padding:.35rem .9rem;border-radius:4px;cursor:pointer;font-family:var(--fb);font-size:.8rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;transition:all .2s;}
 .nbadge{font-size:.66rem;background:var(--acc2);color:#e2dfd8;padding:.13rem .45rem;border-radius:3px;text-transform:uppercase;font-weight:700;}
 .nbtn{background:none;border:1px solid transparent;color:var(--muted);padding:.35rem .9rem;border-radius:4px;cursor:pointer;font-family:var(--fb);font-size:.8rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;transition:all .2s;}
 .nbtn:hover{color:var(--accB);border-color:var(--bdr);}
@@ -319,6 +321,16 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .alert-banner{background:rgba(184,150,12,.08);border:1px solid var(--warn);border-radius:6px;padding:.85rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem;font-size:.85rem;}
 .alert-dot{width:8px;height:8px;background:var(--warnL);border-radius:50%;flex-shrink:0;animation:pulse 1.5s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.slide-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.slide-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--surf);border-left:2px solid var(--acc2);z-index:301;display:flex;flex-direction:column;animation:slideIn .25s ease;}
+@keyframes slideIn{from{transform:translateX(100%);}to{transform:translateX(0);}}
+.slide-panel-head{padding:1.25rem 1.5rem;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:var(--surf2);}
+.slide-panel-head-title{font-family:var(--fd);font-size:1.1rem;color:var(--accB);letter-spacing:.08em;text-transform:uppercase;}
+.slide-panel-body{flex:1;overflow-y:auto;padding:1.5rem;}
+.dup-alert{background:rgba(184,150,12,.08);border:1px solid var(--warn);border-left:4px solid var(--warnL);border-radius:6px;padding:.85rem 1.1rem;margin-bottom:.75rem;}
+.dup-alert-title{font-weight:700;color:var(--warnL);font-size:.85rem;margin-bottom:.3rem;}
+.dup-alert-sub{font-size:.78rem;color:var(--muted);margin-bottom:.65rem;}
 `;
 
 function Toast({msg,variant="",onClose}){
@@ -358,9 +370,13 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
   const [scrolled,setScrolled]=useState(false);
   const [name,setName]=useState("");
   const [agreed,setAgreed]=useState(false);
+  const [isMinor,setIsMinor]=useState(false);
+  const [guardianExpanded,setGuardianExpanded]=useState(false);
+  const [guardianAgreed,setGuardianAgreed]=useState(false);
   const ref=useRef(null);
   const onScroll=()=>{const el=ref.current;if(el&&el.scrollTop+el.clientHeight>=el.scrollHeight-8)setScrolled(true);};
   const doc=waiverDoc||{name:"Liability Waiver",body:"Content unavailable."};
+  const canSign=scrolled&&name.trim()&&agreed&&(!isMinor||guardianAgreed);
   return(
     <div className="mo"><div className="mc" style={{maxWidth:600}}>
       <div className="mt2">Waiver — {playerName}</div>
@@ -368,13 +384,32 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
       <div className="wvr-scroll" ref={ref} onScroll={onScroll}><span className="wvr-title">{doc.name}</span>{doc.body}</div>
       {!scrolled&&<div style={{fontSize:".73rem",color:"var(--dangerL)",textAlign:"center",marginBottom:".75rem"}}>Scroll to bottom to enable signing.</div>}
       <div className="f"><label>Full Legal Name (signature)</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Type your full legal name" disabled={!scrolled}/></div>
-      <label style={{display:"flex",gap:".65rem",alignItems:"flex-start",fontSize:".82rem",color:scrolled?"var(--txt)":"var(--muted)",cursor:scrolled?"pointer":"not-allowed",opacity:scrolled?1:.6}}>
-        <input type="checkbox" checked={agreed} onChange={e=>scrolled&&setAgreed(e.target.checked)} style={{width:"auto",marginTop:"3px"}} disabled={!scrolled}/>
-        I have read and voluntarily agree to all terms of this waiver.
+      <label style={{display:"flex",gap:".65rem",alignItems:"flex-start",fontSize:".82rem",color:scrolled?"var(--txt)":"var(--muted)",cursor:scrolled?"pointer":"not-allowed",opacity:scrolled?1:.6,marginBottom:".85rem"}}>
+        <input type="checkbox" checked={agreed} onChange={e=>scrolled&&setAgreed(e.target.checked)} style={{width:"auto",marginTop:"3px",flexShrink:0}} disabled={!scrolled}/>
+        <span>☐ I HAVE READ AND AGREE TO THIS RELEASE AND WAIVER AND INTEND MY TYPED NAME TO SERVE AS MY LEGAL SIGNATURE.</span>
       </label>
+      {/* Minor participant — collapsed by default to prevent accidental click */}
+      <div style={{border:"1px solid var(--bdr)",borderRadius:5,marginBottom:".85rem",overflow:"hidden"}}>
+        <button type="button"
+          style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:".6rem .9rem",background:"var(--surf2)",border:"none",cursor:scrolled?"pointer":"not-allowed",color:scrolled?"var(--txt)":"var(--muted)",fontSize:".8rem",fontWeight:600,textTransform:"uppercase",letterSpacing:".06em"}}
+          disabled={!scrolled}
+          onClick={()=>{if(!scrolled)return;setGuardianExpanded(e=>!e);if(guardianExpanded){setIsMinor(false);setGuardianAgreed(false);}else{setIsMinor(true);}}}>
+          <span>⚠ Participant is a Minor (Under 18)</span>
+          <span style={{fontSize:".9rem"}}>{guardianExpanded?"▲":"▼"}</span>
+        </button>
+        {guardianExpanded&&(
+          <div style={{padding:".85rem .9rem",borderTop:"1px solid var(--warn)",background:"rgba(184,150,12,.04)"}}>
+            <div style={{fontSize:".74rem",color:"var(--warnL)",marginBottom:".65rem",fontWeight:700}}>PARENT/GUARDIAN CERTIFICATION REQUIRED</div>
+            <label style={{display:"flex",gap:".65rem",alignItems:"flex-start",fontSize:".8rem",color:"var(--txt)",cursor:"pointer",lineHeight:1.5}}>
+              <input type="checkbox" checked={guardianAgreed} onChange={e=>setGuardianAgreed(e.target.checked)} style={{width:"auto",marginTop:"3px",flexShrink:0}}/>
+              <span>☐ I certify that I am the legal parent or court-appointed guardian of the minor participant, that I have legal authority to sign this agreement on their behalf, and that I agree to all terms of this Release of Liability, including the waiver of claims and indemnification provisions, on behalf of the minor. I intend my typed name to serve as my legal electronic signature.</span>
+            </label>
+          </div>
+        )}
+      </div>
       <div className="ma">
         <button className="btn btn-s" onClick={onClose}>Cancel</button>
-        <button className="btn btn-p" disabled={!scrolled||!name.trim()||!agreed} onClick={()=>onSign(name.trim())}>Sign Waiver</button>
+        <button className="btn btn-p" disabled={!canSign} onClick={()=>onSign(name.trim(),isMinor)}>Sign Waiver</button>
       </div>
     </div></div>
   );
@@ -400,7 +435,45 @@ function WaiverViewModal({user,waiverDocs,activeWaiverDoc,onClose}){
 }
 
 const getInitials=name=>{if(!name)return"??";const p=name.trim().split(/\s+/);return p.length>=2?p[0][0].toUpperCase()+p[p.length-1][0].toUpperCase():name.slice(0,2).toUpperCase();};
-function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=false}){
+
+// Phone mask — formats as (XXX) XXX-XXXX for display, stores clean 10-digit
+function fmtPhoneMask(raw){const d=cleanPh(raw);if(d.length<=3)return d;if(d.length<=6)return`(${d.slice(0,3)}) ${d.slice(3)}`;return`(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6,10)}`;}
+function PhoneInput({value,onChange,placeholder="(555) 555-5555",disabled=false,autoFocus=false,onEnter}){
+  const [display,setDisplay]=useState(value?fmtPhoneMask(value):"");
+  useEffect(()=>{setDisplay(value?fmtPhoneMask(value):"");},[value]);
+  const handleChange=e=>{const raw=cleanPh(e.target.value);setDisplay(fmtPhoneMask(raw));onChange(raw);};
+  return(
+    <div className="phone-wrap" style={{opacity:disabled?.5:1}}>
+      <span className="phone-prefix">+1</span>
+      <input type="tel" value={display} onChange={handleChange} placeholder={placeholder}
+        disabled={disabled} autoFocus={autoFocus} onKeyDown={e=>e.key==="Enter"&&onEnter?.()} maxLength={14}/>
+    </div>
+  );
+}
+
+// Default leaderboard name: initials + last 4 of phone
+function genDefaultLeaderboardName(name,phone){
+  const initials=getInitials(name);
+  const last4=phone?cleanPh(phone).slice(-4):"0000";
+  return`${initials}-${last4}`;
+}
+
+// Profanity filter
+const BLOCKED=["fuck","shit","ass","bitch","cunt","dick","cock","pussy","nigger","nigga","faggot","fag","whore","slut","bastard","piss","twat","wank","spic","chink","kike","wetback","retard","rape","nazi","porn","sex","nude","naked","cum","jizz","tits","boob","penis","vagina","anus","dildo","boner","horny","milf","hentai","tranny","homo","dyke"];
+function normLeet(s){return s.toLowerCase().replace(/3/g,"e").replace(/0/g,"o").replace(/@/g,"a").replace(/1/g,"i").replace(/\$/g,"s").replace(/5/g,"s").replace(/!/g,"i").replace(/\+/g,"t");}
+function hasProfanity(s){if(!s)return false;const n=normLeet(s.replace(/[^a-zA-Z0-9@$!+]/g,""));return BLOCKED.some(w=>n.includes(w));}
+function validateLbName(val,allUsers,currentUserId){
+  if(!val||!val.trim())return null;
+  const t=val.trim();
+  if(t.length<2)return"Must be at least 2 characters";
+  if(t.length>24)return"Max 24 characters";
+  if(!/^[a-zA-Z0-9 _\-\.]+$/.test(t))return"Letters, numbers, spaces, _ - . only";
+  if(hasProfanity(t))return"That name isn't allowed — please choose another";
+  const taken=allUsers.some(u=>u.id!==currentUserId&&u.leaderboardName?.toLowerCase()===t.toLowerCase());
+  if(taken)return"That leaderboard name is already taken";
+  return null;
+}
+({index,value,onChange,users,bookerUserId,showFullName=false}){
   const {phone="",userId=null,name="",status="idle"}=value;
   const clean=cleanPh(phone);
   const lookup=useCallback(()=>{
@@ -611,82 +684,77 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   );
 }
 
-// ── Profanity filter — checks against a blocklist of common explicit terms
-// Leet-speak normalisation catches basic substitutions (3→e, 0→o, @→a, etc.)
-const BLOCKED = ["fuck","shit","ass","bitch","cunt","dick","cock","pussy","nigger","nigga","faggot","fag","whore","slut","bastard","piss","damn","crap","twat","wank","spic","chink","kike","wetback","retard","rape","nazi","porn","sex","nude","naked","cum","jizz","tits","boob","penis","vagina","anus","dildo","boner","horny","milf","hentai","tranny","homo","dyke"].map(w=>w.toLowerCase());
-function normalizeLeet(str){return str.toLowerCase().replace(/3/g,"e").replace(/0/g,"o").replace(/@/g,"a").replace(/1/g,"i").replace(/\$/g,"s").replace(/5/g,"s").replace(/!/g,"i").replace(/\+/g,"t");}
-function containsProfanity(str){
-  if(!str||!str.trim())return false;
-  const norm=normalizeLeet(str.replace(/[^a-zA-Z0-9@$!+]/g,""));
-  return BLOCKED.some(w=>norm.includes(w));
-}
-function validateLeaderboardName(val){
-  if(!val||!val.trim())return null; // empty is fine — it's optional
-  if(val.trim().length<2)return "Must be at least 2 characters";
-  if(val.trim().length>24)return "Max 24 characters";
-  if(!/^[a-zA-Z0-9 _\-\.]+$/.test(val.trim()))return "Letters, numbers, spaces, _ - . only";
-  if(containsProfanity(val))return "That name isn't allowed — please choose another";
-  return null;
-}
-
-function LeaderboardNameCard({user,setUsers}){
-  const [editing,setEditing]=useState(false);
-  const [val,setVal]=useState(user.leaderboardName||"");
-  const [err,setErr]=useState(null);
+function AccountPanel({user,users,setUsers,onClose}){
+  const [name,setName]=useState(user.name||"");
+  const [phone,setPhone]=useState(user.phone||"");
+  const [lbName,setLbName]=useState(user.leaderboardName||"");
   const [saving,setSaving]=useState(false);
   const [saved,setSaved]=useState(false);
+  const [err,setErr]=useState(null);
+  const lbErr=validateLbName(lbName,users,user.id);
+  const phoneClean=cleanPh(phone);
+  const canSave=name.trim().length>=2&&phoneClean.length===10&&!lbErr;
 
   const handleSave=async()=>{
-    const trimmed=val.trim();
-    const validErr=validateLeaderboardName(trimmed);
-    if(validErr){setErr(validErr);return;}
+    if(!canSave)return;
     setSaving(true);setErr(null);
     try{
-      const updated=await updateUser(user.id,{leaderboardName:trimmed||null});
+      const defaultLb=genDefaultLeaderboardName(name.trim(),phoneClean);
+      const updated=await updateUser(user.id,{
+        name:name.trim(),
+        phone:phoneClean,
+        leaderboardName:lbName.trim()||defaultLb,
+      });
       setUsers(prev=>prev.map(u=>u.id===user.id?updated:u));
-      setEditing(false);setSaved(true);
-      setTimeout(()=>setSaved(false),3000);
-    }catch(e){setErr("Save failed: "+e.message);}
+      setSaved(true);setTimeout(()=>setSaved(false),3000);
+    }catch(e){setErr(e.message);}
     finally{setSaving(false);}
   };
 
-  const current=user.leaderboardName;
-  return(
-    <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderLeft:"4px solid var(--acc2)",borderRadius:6,padding:"1rem 1.25rem",marginBottom:"1.5rem"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem",marginBottom:editing?".75rem":0}}>
-        <div>
-          <div style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:"var(--accB)"}}>
-            🏆 Leaderboard Name
-          </div>
-          {!editing&&<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>
-            {current?<span>Showing as <strong style={{color:"var(--txt)"}}>{current}</strong> on public leaderboard</span>:"Not set — your real name will be used"}
-            {saved&&<span style={{color:"var(--acc2)",marginLeft:".75rem"}}>✓ Saved</span>}
-          </div>}
-        </div>
-        {!editing&&<button className="btn btn-s btn-sm" onClick={()=>{setVal(current||"");setErr(null);setEditing(true);}}>{current?"Edit":"Set Name"}</button>}
+  return(<>
+    <div className="slide-panel-overlay" onClick={onClose}/>
+    <div className="slide-panel">
+      <div className="slide-panel-head">
+        <span className="slide-panel-head-title">⚙ Account Settings</span>
+        <button className="btn btn-s btn-sm" onClick={onClose}>✕ Close</button>
       </div>
-      {editing&&<>
-        <div style={{fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem"}}>Optional · 2–24 characters · Letters, numbers, spaces, _ - . only · Displayed publicly on the leaderboard instead of your real name</div>
-        <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",alignItems:"flex-start"}}>
-          <div style={{flex:1,minWidth:180}}>
-            <input
-              className="inp" maxLength={24}
-              value={val}
-              onChange={e=>{setVal(e.target.value);setErr(null);}}
-              onKeyDown={e=>{if(e.key==="Enter")handleSave();if(e.key==="Escape"){setEditing(false);setErr(null);}}}
-              placeholder="e.g. GhostSniper, Alpha1, DesertFox"
-              style={{width:"100%"}}
-              autoFocus
-            />
-            {err&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ {err}</div>}
-          </div>
-          <button className="btn btn-p btn-sm" disabled={saving} onClick={handleSave}>{saving?"Saving…":"Save"}</button>
-          <button className="btn btn-s btn-sm" disabled={saving} onClick={()=>{setEditing(false);setErr(null);}}>Cancel</button>
+      <div className="slide-panel-body">
+        <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".75rem 1rem",marginBottom:"1.25rem",fontSize:".8rem",color:"var(--muted)"}}>
+          {user.authProvider
+            ?<span>Signed in via <strong style={{color:"var(--accB)"}}>{user.authProvider}</strong> · {user.email}</span>
+            :<span style={{color:"var(--warnL)"}}>⚠ No social account linked — link Google or Microsoft to book</span>}
         </div>
-        {val.trim()&&!err&&<div style={{fontSize:".72rem",color:"var(--acc2)",marginTop:".4rem"}}>Preview: <strong>{val.trim()}</strong></div>}
-      </>}
+        <div className="f">
+          <label>Full Name <span style={{color:"var(--dangerL)"}}>*</span></label>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="First Last"/>
+        </div>
+        <div className="f">
+          <label>Mobile Number <span style={{color:"var(--dangerL)"}}>*</span></label>
+          <PhoneInput value={phone} onChange={setPhone}/>
+          <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".25rem"}}>Used for check-in and group management. Never shared.</div>
+        </div>
+        <div className="f">
+          <label>Leaderboard Name <span style={{color:"var(--muted)",fontWeight:400}}>(optional)</span></label>
+          <input value={lbName} onChange={e=>setLbName(e.target.value)} placeholder={genDefaultLeaderboardName(name||user.name,phone||user.phone)} maxLength={24}/>
+          <div style={{fontSize:".7rem",color:lbErr?"var(--dangerL)":"var(--muted)",marginTop:".25rem"}}>
+            {lbErr||"Shown on the public leaderboard. Leave blank to use your initials + last 4 of phone."}
+          </div>
+        </div>
+        {err&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginBottom:".75rem"}}>⚠ {err}</div>}
+        {saved&&<div style={{color:"var(--okB)",fontSize:".85rem",marginBottom:".75rem"}}>✓ Changes saved</div>}
+        <button className="btn btn-p btn-full" disabled={!canSave||saving} onClick={handleSave}>{saving?"Saving…":"Save Changes"}</button>
+        {!user.authProvider&&<div style={{marginTop:"1.25rem"}}>
+          <div style={{fontSize:".74rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".08em",fontWeight:700,marginBottom:".65rem"}}>Link Social Account</div>
+          {[{id:"google",label:"Link Google"},{id:"microsoft",label:"Link Microsoft"}].map(p=>(
+            <button key={p.id} className="btn btn-s btn-full" style={{marginBottom:".5rem",textTransform:"none"}}
+              onClick={async()=>{const{error}=await supabase.auth.signInWithOAuth({provider:p.id==="microsoft"?"azure":p.id,options:{redirectTo:"https://www.sector317.com"}});if(error)setErr("Error linking: "+error.message);}}>
+              🔗 {p.label}
+            </button>
+          ))}
+        </div>}
+      </div>
     </div>
-  );
+  </>);
 }
 
 function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onSignWaiver}){
@@ -694,6 +762,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [showBook,setShowBook]=useState(false);
   const [wOpen,setWOpen]=useState(false);
   const [wViewOpen,setWViewOpen]=useState(false);
+  const [showAccount,setShowAccount]=useState(false);
   const [editResId,setEditResId]=useState(null);
   const [playerInputs,setPlayerInputs]=useState([]);
   const today=todayStr();
@@ -723,8 +792,9 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   };
   return(
     <div className="content">
+      {showAccount&&<AccountPanel user={user} users={users} setUsers={setUsers} onClose={()=>setShowAccount(false)}/>}
       {showBook&&<BookingWizard resTypes={resTypes} sessionTemplates={sessionTemplates} reservations={reservations} currentUser={user} users={users} activeWaiverDoc={activeWaiverDoc} onBook={b=>{onBook(b);setShowBook(false);}} onClose={()=>setShowBook(false)}/>}
-      {wOpen&&<WaiverModal playerName={user.name} waiverDoc={activeWaiverDoc} onClose={()=>setWOpen(false)} onSign={name=>{onSignWaiver(user.id,name);setWOpen(false);}}/>}
+      {wOpen&&<WaiverModal playerName={user.name} waiverDoc={activeWaiverDoc} onClose={()=>setWOpen(false)} onSign={(name,isMinor)=>{onSignWaiver(user.id,name,isMinor);setWOpen(false);}}/>}
       {wViewOpen&&<WaiverViewModal user={user} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} onClose={()=>setWViewOpen(false)}/>}
       {editResId&&editRes&&<div className="mo"><div className="mc" style={{maxWidth:540}}>
         <div className="mt2">Manage Group</div>
@@ -742,24 +812,19 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <div className="ma"><button className="btn btn-s" onClick={()=>setEditResId(null)}>Cancel</button><button className="btn btn-p" onClick={saveGroup}>Save Group</button></div>
       </div></div>}
       <div className="hero"><h2>Welcome, Operative {user.name.split(" ")[0]}</h2><p>Manage your missions, group roster, and waiver status.</p></div>
-      {/* Auth Status */}
-      <div style={{background:"var(--surf)",border:`1px solid ${user.authProvider?"var(--acc2)":"var(--warn)"}`,borderLeft:`4px solid ${user.authProvider?"var(--acc)":"var(--warn)"}`,borderRadius:6,padding:"1rem 1.25rem",marginBottom:".75rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".75rem"}}>
-        <div><div style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:user.authProvider?"var(--accB)":"var(--warnL)"}}>
-          {user.authProvider?`✓ ${user.authProvider.charAt(0).toUpperCase()+user.authProvider.slice(1)} Connected`:"⚠ No Social Account Linked"}
-        </div><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>{user.authProvider?"Identity verified — payments enabled":"Required to book · Link Google, Microsoft, or Apple"}</div></div>
-        {!user.authProvider&&<div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
-          {[{id:"google",label:"Google"},{id:"microsoft",label:"Microsoft"}].map(p=>(
-            <button key={p.id} className="btn btn-s btn-sm" onClick={async()=>{const{error}=await supabase.auth.signInWithOAuth({provider:p.id==="microsoft"?"azure":p.id,options:{redirectTo:"https://www.sector317.com"}});if(error)showToast("Error linking: "+error.message);}}>Link {p.label}</button>
-          ))}
-        </div>}
-      </div>
+      {/* Leaderboard Name Card */}
+      {<div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderLeft:"4px solid var(--acc2)",borderRadius:6,padding:".85rem 1.25rem",marginBottom:".75rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
+        <div>
+          <div style={{fontFamily:"var(--fd)",fontSize:".95rem",color:"var(--accB)",letterSpacing:".06em",textTransform:"uppercase"}}>🏆 Leaderboard Name</div>
+          <div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".15rem"}}>{user.leaderboardName?<span>Showing as <strong style={{color:"var(--txt)"}}>{user.leaderboardName}</strong></span>:"Using default: "+genDefaultLeaderboardName(user.name,user.phone)}</div>
+        </div>
+        <button className="btn btn-s btn-sm" onClick={()=>setShowAccount(true)}>Edit Account</button>
+      </div>}
       {/* Waiver Status */}
       <div style={{background:"var(--surf)",border:`1px solid ${valid?"var(--acc2)":"var(--danger)"}`,borderLeft:`4px solid ${valid?"var(--acc)":"var(--danger)"}`,borderRadius:6,padding:"1rem 1.25rem",marginBottom:"1.5rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".75rem"}}>
         <div><div style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:valid?"var(--accB)":"var(--dangerL)"}}>{valid?"✓ Waiver On File":"⚠ Waiver Required"}</div><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>{valid?`Signed ${fmtTS(wDate)} · Valid 12 months`:wDate?`Expired — last signed ${fmtTS(wDate)}`:"No waiver on file — sign before your session"}</div></div>
         <div style={{display:"flex",gap:".5rem"}}>{wDate&&<button className="btn btn-s btn-sm" onClick={()=>setWViewOpen(true)}>View</button>}<button className={`btn btn-sm ${valid?"btn-s":"btn-p"}`} onClick={()=>setWOpen(true)}>{valid?"Re-sign":"Sign Now"}</button></div>
       </div>
-      {/* Leaderboard Name */}
-      <LeaderboardNameCard user={user} setUsers={setUsers}/>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.1rem",flexWrap:"wrap",gap:".75rem"}}>
         <div className="tabs" style={{marginBottom:0,borderBottom:"none"}}><button className={`tab${tab==="upcoming"?" on":""}`} onClick={()=>setTab("upcoming")}>Upcoming ({upcoming.length})</button><button className={`tab${tab==="past"?" on":""}`} onClick={()=>setTab("past")}>Past ({past.length})</button></div>
         <button className="btn btn-p" onClick={()=>setShowBook(true)}>+ Book Mission</button>
@@ -802,6 +867,11 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [tab,setTab]=useState("dashboard");
   const [toastMsg,setToastMsg]=useState(null);
   const [modal,setModal]=useState(null);
+  const [showAccountFor,setShowAccountFor]=useState(null);
+  const [dashPeriod,setDashPeriod]=useState("all");
+  const [dashFrom,setDashFrom]=useState("");
+  const [dashTo,setDashTo]=useState("");
+  const [dismissedDups,setDismissedDups]=useState([]);
   const showToast=msg=>{setToastMsg(msg);setTimeout(()=>setToastMsg(null),3200);};
   const isAdmin=user.access==="admin";
   const isManager=user.access==="manager"||isAdmin;
@@ -841,8 +911,38 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const wiSlots=wi.date?getSessionsForDate(wi.date,sessionTemplates):[];
   const selWIType=resTypes.find(rt=>rt.active&&rt.id===wi.typeId);
   const calcWI=(tid,pc)=>{const rt=resTypes.find(x=>x.id===tid&&x.active);if(!rt)return 0;return rt.pricingMode==="flat"?rt.price:rt.price*pc;};
+
+  // Dashboard date filter
+  const dashRes=useMemo(()=>{
+    const now=new Date();
+    let from="",to="";
+    if(dashPeriod==="day"){from=to=today;}
+    else if(dashPeriod==="week"){const d=new Date(now);d.setDate(d.getDate()-d.getDay());from=d.toISOString().slice(0,10);to=today;}
+    else if(dashPeriod==="month"){from=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;to=today;}
+    else if(dashPeriod==="year"){from=`${now.getFullYear()}-01-01`;to=today;}
+    else if(dashPeriod==="custom"){from=dashFrom;to=dashTo;}
+    if(!from)return reservations;
+    return reservations.filter(r=>(!from||r.date>=from)&&(!to||r.date<=to));
+  },[reservations,dashPeriod,dashFrom,dashTo,today]);
+
+  // Duplicate account detection — phone-only users whose phone/email matches a social auth user
+  const dupAlerts=useMemo(()=>{
+    const authUsers=users.filter(u=>u.authProvider);
+    const phoneOnly=users.filter(u=>!u.authProvider&&u.access==="customer");
+    const dups=[];
+    phoneOnly.forEach(po=>{
+      const matchPhone=po.phone&&authUsers.find(a=>a.phone&&cleanPh(a.phone)===cleanPh(po.phone)&&a.id!==po.id);
+      const matchEmail=po.email&&authUsers.find(a=>a.email&&a.email.toLowerCase()===po.email.toLowerCase()&&a.id!==po.id);
+      if((matchPhone||matchEmail)&&!dismissedDups.includes(po.id)){
+        dups.push({phoneOnlyUser:po,authUser:matchPhone||matchEmail,reason:matchPhone?"phone":"email"});
+      }
+    });
+    return dups;
+  },[users,dismissedDups]);
+
   return(
     <div className="content">
+      {showAccountFor&&<AccountPanel user={showAccountFor} users={users} setUsers={setUsers} onClose={()=>setShowAccountFor(null)}/>}
       {toastMsg&&<Toast msg={toastMsg} onClose={()=>setToastMsg(null)}/>}
       {alertShifts.length>0&&<div className="alert-banner"><div className="alert-dot"/><strong style={{color:"var(--warnL)"}}>⚠ {alertShifts.length} shift conflict{alertShifts.length!==1?"s":""} need attention</strong><button className="btn btn-warn btn-sm" style={{marginLeft:"auto"}} onClick={()=>setTab("schedule")}>View →</button></div>}
       {modal==="rt"&&<div className="mo"><div className="mc"><div className="mt2">{editRT?"Edit":"New"} Type</div>
@@ -897,23 +997,37 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
-        {isAdmin&&<button className={`tab${tab==="accounts"?" on":""}`} onClick={()=>setTab("accounts")}>Accounts</button>}
+        {isAdmin&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
       </div>
+
       {tab==="dashboard"&&<>
+        {/* Date filter bar */}
+        <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",alignItems:"center",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".65rem 1rem",marginBottom:"1.1rem"}}>
+          {[["all","All Time"],["day","Today"],["week","This Week"],["month","This Month"],["year","This Year"],["custom","Custom"]].map(([v,l])=>(
+            <button key={v} className={`btn btn-sm ${dashPeriod===v?"btn-p":"btn-s"}`} onClick={()=>setDashPeriod(v)}>{l}</button>
+          ))}
+          {dashPeriod==="custom"&&<>
+            <input type="date" value={dashFrom} onChange={e=>setDashFrom(e.target.value)} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,color:"var(--txt)",padding:".28rem .6rem",fontSize:".8rem"}}/>
+            <span style={{color:"var(--muted)",fontSize:".8rem"}}>→</span>
+            <input type="date" value={dashTo} onChange={e=>setDashTo(e.target.value)} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,color:"var(--txt)",padding:".28rem .6rem",fontSize:".8rem"}}/>
+          </>}
+          <span style={{marginLeft:"auto",fontSize:".75rem",color:"var(--muted)"}}>{dashRes.length} reservation{dashRes.length!==1?"s":""}</span>
+        </div>
         <div className="stats-grid">
-          <div className="stat-card"><div className="stat-lbl">Revenue</div><div className="stat-val">{fmtMoney(reservations.reduce((s,r)=>s+r.amount,0))}</div></div>
-          <div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{reservations.length}</div></div>
+          <div className="stat-card"><div className="stat-lbl">Revenue</div><div className="stat-val">{fmtMoney(dashRes.reduce((s,r)=>s+r.amount,0))}</div></div>
+          <div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{dashRes.length}</div></div>
           <div className="stat-card"><div className="stat-lbl">Active Types</div><div className="stat-val">{resTypes.filter(rt=>rt.active).length}</div></div>
           <div className="stat-card"><div className="stat-lbl">Session Slots</div><div className="stat-val">{sessionTemplates.filter(s=>s.active).length}</div></div>
         </div>
         {alertShifts.length>0&&<div className="alert-banner"><div className="alert-dot"/><strong style={{color:"var(--warnL)"}}>⚠ {alertShifts.length} shift conflict{alertShifts.length!==1?"s":""} need coverage</strong></div>}
         <div className="tw"><div className="th"><span className="ttl">Recent Bookings</span></div>
           <table><thead><tr><th>Customer</th><th>Type</th><th>Date</th><th>Players</th><th>Amount</th><th>Status</th></tr></thead>
-            <tbody>{[...reservations].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td><td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td><td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td></tr>;})}
+            <tbody>{[...dashRes].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10).map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td><td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td><td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td></tr>;})}
             </tbody>
           </table>
         </div>
       </>}
+
       {tab==="reservations"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Reservations</div></div><button className="btn btn-p" onClick={()=>setShowWI(true)}>+ Walk-In</button></div>
         <div style={{display:"flex",gap:".65rem",flexWrap:"wrap",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".7rem 1.1rem",marginBottom:"1rem"}}>
@@ -928,6 +1042,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           <tbody>{!filtered.length&&<tr><td colSpan={5} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No reservations.</td></tr>}{filtered.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes}/>)}</tbody>
         </table></div>
       </>}
+
       {tab==="types"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Reservation Types</div></div>{isAdmin&&<button className="btn btn-p" onClick={()=>{setEditRT(null);setNewRT({name:"",mode:"coop",style:"open",pricingMode:"per_person",price:55,maxPlayers:"",description:"",active:true,availableForBooking:true});setModal("rt");}}>+ Add</button>}</div>
         <div className="rt-grid">{resTypes.map(rt=><div key={rt.id} className={`rt-card${rt.active?"":" inactive"}`}>
@@ -938,34 +1053,82 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           {isManager&&<div style={{display:"flex",gap:".5rem",flexWrap:"wrap",marginTop:".5rem"}}><button className="btn btn-sm btn-s" onClick={()=>{setEditRT({...rt});setModal("rt");}}>Edit</button><button className="btn btn-sm btn-s" onClick={()=>{setResTypes(p=>p.map(r=>r.id===rt.id?{...r,active:!r.active}:r));showToast("Updated");}}>{rt.active?"Deactivate":"Activate"}</button>{isAdmin&&<button className="btn btn-sm btn-d" onClick={()=>{setResTypes(p=>p.filter(r=>r.id!==rt.id));showToast("Removed");}}>Remove</button>}</div>}
         </div>)}</div>
       </>}
+
       {tab==="sessions"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Session Slots</div></div>{isManager&&<button className="btn btn-p" onClick={()=>{setEditST(null);setNewST({dayOfWeek:"Monday",startTime:"18:00",maxSessions:2,active:true});setModal("st");}}>+ Add</button>}</div>
         {DAYS_OF_WEEK.map(day=>{const ds=sortTemplates(sessionTemplates.filter(s=>s.dayOfWeek===day));if(!ds.length)return null;return <div key={day} className="tw" style={{marginBottom:"1rem"}}><div className="th"><span className="ttl">{day}</span></div>{ds.map(st=><div key={st.id} className="st-row" style={{opacity:st.active?1:.45}}><span style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,color:"var(--accB)",width:90}}>{fmt12(st.startTime)}</span><span style={{fontSize:".85rem",flex:1}}>{st.maxSessions} concurrent open-play</span><span className={`badge ${st.active?"b-ok":"b-cancel"}`} style={{marginRight:".5rem"}}>{st.active?"Active":"Off"}</span>{isManager&&<div style={{display:"flex",gap:".4rem"}}><button className="btn btn-sm btn-s" onClick={()=>{setEditST({...st});setModal("st");}}>Edit</button><button className="btn btn-sm btn-s" onClick={()=>{sortTmpl(p=>p.map(s=>s.id===st.id?{...s,active:!s.active}:s));showToast("Updated");}}>{st.active?"Disable":"Enable"}</button>{isAdmin&&<button className="btn btn-sm btn-d" onClick={()=>{sortTmpl(p=>p.filter(s=>s.id!==st.id));showToast("Removed");}}>Remove</button>}</div>}</div>)}</div>;})}
       </>}
+
       {tab==="waivers"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Waivers</div><div className="ps">Only admins can edit. All roles can view waiver status.</div></div>{isAdmin&&<button className="btn btn-p" onClick={()=>{setEditWaiver(null);setNewWaiver({name:"",version:"1.0",body:"",active:false});setModal("waiver");}}>+ New</button>}</div>
         {waiverDocs.map(w=><div key={w.id} className="waiver-doc-card" style={{borderLeftColor:w.active?"var(--acc)":"var(--bdr)"}}><div className="fb" style={{marginBottom:".6rem"}}><div><div style={{fontFamily:"var(--fd)",fontSize:"1.05rem",fontWeight:700,textTransform:"uppercase"}}>{w.name} <span style={{fontWeight:400,color:"var(--muted)"}}>v{w.version}</span></div><div style={{fontSize:".74rem",color:"var(--muted)",marginTop:".1rem"}}>Created {fmtTS(w.createdAt)}</div></div><div>{w.active?<span className="badge b-ok">● Active</span>:<span className="badge" style={{background:"var(--surf2)",color:"var(--muted)"}}>Inactive</span>}</div></div><div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".75rem",fontSize:".78rem",color:"var(--muted)",maxHeight:100,overflowY:"auto",whiteSpace:"pre-wrap",lineHeight:1.6,marginBottom:".75rem"}}>{w.body.slice(0,350)}{w.body.length>350?"…":""}</div><div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>{isAdmin&&<button className="btn btn-sm btn-s" onClick={()=>{setEditWaiver({...w});setModal("waiver");}}>Edit</button>}{!w.active&&isAdmin&&<button className="btn btn-sm btn-ok" onClick={()=>setActiveWaiver(w.id)}>Set Active</button>}{!w.active&&isAdmin&&<button className="btn btn-sm btn-d" onClick={()=>{setWaiverDocs(p=>p.filter(x=>x.id!==w.id));showToast("Removed");}}>Remove</button>}</div></div>)}
       </>}
+
       {tab==="staff"&&<>
-        <div className="ph"><div className="ph-left"><div className="pt">Staff Management</div><div className="ps">{isAdmin?"Full access":"Managers can manage staff"}</div></div><button className="btn btn-p" onClick={()=>{setEditUser(null);setNewUser({name:"",phone:"",access:"staff",role:"Game Master",active:true,waivers:[],needsRewaiverDocId:null});setModal("user");}}>+ Add</button></div>
+        <div className="ph"><div className="ph-left"><div className="pt">Staff Management</div><div className="ps">{isAdmin?"Full access":"Managers can manage staff"}</div></div><button className="btn btn-p" onClick={()=>{setEditUser(null);setNewUser({name:"",phone:"",access:"staff",role:"Game Master",active:true,waivers:[],needsRewaiverDocId:null});setModal("user");}}>+ Add Staff</button></div>
         <div className="tw"><table><thead><tr><th>Name</th><th>Mobile</th><th>Role</th><th>Access</th><th>Auth</th><th>Waiver</th><th>Status</th><th></th></tr></thead>
-          <tbody>{users.filter(u=>canManageUser(u)).map(u=><tr key={u.id}><td><strong>{u.name}</strong></td><td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(u.phone)}</td><td>{u.role||"—"}</td><td><span className={`badge al-${u.access}`}>{ACCESS_LEVELS[u.access]?.label}</span></td>
+          <tbody>{users.filter(u=>u.access!=="customer"&&canManageUser(u)).map(u=><tr key={u.id}>
+            <td><strong>{u.name}</strong></td><td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(u.phone)}</td><td>{u.role||"—"}</td>
+            <td><span className={`badge al-${u.access}`}>{ACCESS_LEVELS[u.access]?.label}</span></td>
             <td><AuthBadge provider={u.authProvider}/></td>
             <td><WaiverTooltip user={u} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} readOnly={true}/></td>
             <td><span className={`badge ${u.active?"b-ok":"b-cancel"}`}>{u.active?"Active":"Off"}</span></td>
-            <td><div style={{display:"flex",gap:".4rem"}}>{canManageUser(u)&&!(u.access==="admin"&&!isAdmin)&&<><button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...u});setModal("user");}}>Edit</button><button className="btn btn-sm btn-d" onClick={()=>{setUsers(p=>p.filter(x=>x.id!==u.id));showToast(`${u.name} removed`);}}>Remove</button></>}{u.access==="admin"&&!isAdmin&&<span style={{fontSize:".72rem",color:"var(--muted)",fontStyle:"italic"}}>Protected</span>}</div></td>
+            <td><div style={{display:"flex",gap:".4rem"}}>
+              {canManageUser(u)&&!(u.access==="admin"&&!isAdmin)&&<>
+                <button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...u});setModal("user");}}>Edit</button>
+                <button className="btn btn-sm btn-d" onClick={()=>{setUsers(p=>p.filter(x=>x.id!==u.id));showToast(`${u.name} removed`);}}>Remove</button>
+              </>}
+              {u.access==="admin"&&!isAdmin&&<span style={{fontSize:".72rem",color:"var(--muted)",fontStyle:"italic"}}>Protected</span>}
+            </div></td>
           </tr>)}
           </tbody>
         </table></div>
       </>}
+
       {tab==="schedule"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Schedule</div></div><button className="btn btn-p" onClick={()=>setModal("shift")}>+ Add Shift</button></div>
         <SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)}/>
       </>}
-      {tab==="accounts"&&isAdmin&&<>
-        <div className="ph"><div className="ph-left"><div className="pt">Customer Accounts</div><div className="ps">All customers — social auth and phone-only</div></div></div>
-        <div className="tw"><table><thead><tr><th>Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Spent</th><th>Waiver</th><th>Last Signed</th></tr></thead>
-          <tbody>{users.filter(u=>u.access==="customer").map(c=>{const cr=reservations.filter(r=>r.userId===c.id);const valid=hasValidWaiver(c,activeWaiverDoc);const wd=latestWaiverDate(c);return <tr key={c.id}><td>{c.name}</td><td style={{fontFamily:"monospace"}}>{fmtPhone(c.phone)}</td><td><AuthBadge provider={c.authProvider}/></td><td>{cr.length}</td><td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(cr.reduce((s,r)=>s+r.amount,0))}</td><td>{valid?<span className="badge b-ok">Valid</span>:wd?<span className="badge b-warn">Expired</span>:<span className="badge b-cancel">None</span>}</td><td style={{fontSize:".78rem",color:"var(--muted)"}}>{wd?fmtTS(wd):"—"}</td></tr>;})}
+
+      {tab==="customers"&&isAdmin&&<>
+        <div className="ph"><div className="ph-left"><div className="pt">Customers</div><div className="ps">All customers — social auth and phone-only</div></div></div>
+        {/* Duplicate account alerts */}
+        {dupAlerts.map(d=>(
+          <div key={d.phoneOnlyUser.id} className="dup-alert">
+            <div className="dup-alert-title">⚠ Potential Duplicate Account</div>
+            <div className="dup-alert-sub">
+              Phone-only user <strong style={{color:"var(--txt)"}}>{d.phoneOnlyUser.name}</strong> ({fmtPhone(d.phoneOnlyUser.phone)}) matches authenticated user <strong style={{color:"var(--txt)"}}>{d.authUser.name}</strong> by {d.reason}.
+              Review to merge or dismiss.
+            </div>
+            <div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
+              <button className="btn btn-sm btn-ok" onClick={()=>{
+                // Merge: move reservations from phone-only to auth user, soft-delete phone-only
+                setReservations(p=>p.map(r=>r.userId===d.phoneOnlyUser.id?{...r,userId:d.authUser.id,customerName:d.authUser.name}:r));
+                setUsers(p=>p.filter(u=>u.id!==d.phoneOnlyUser.id));
+                setDismissedDups(p=>[...p,d.phoneOnlyUser.id]);
+                showToast(`Merged ${d.phoneOnlyUser.name} into ${d.authUser.name}`);
+              }}>Merge → Keep Auth User</button>
+              <button className="btn btn-sm btn-s" onClick={()=>setDismissedDups(p=>[...p,d.phoneOnlyUser.id])}>Dismiss (False Positive)</button>
+            </div>
+          </div>
+        ))}
+        <div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Spent</th><th>Waiver</th><th></th></tr></thead>
+          <tbody>{users.filter(u=>u.access==="customer").map(c=>{
+            const cr=reservations.filter(r=>r.userId===c.id);
+            const valid=hasValidWaiver(c,activeWaiverDoc);
+            const wd=latestWaiverDate(c);
+            const isDup=dupAlerts.some(d=>d.phoneOnlyUser.id===c.id||d.authUser.id===c.id);
+            return <tr key={c.id} style={{background:isDup?"rgba(184,150,12,.04)":""}}>
+              <td><strong>{c.name}</strong>{isDup&&<span className="badge b-warn" style={{marginLeft:".4rem",fontSize:".6rem"}}>⚠ dup</span>}</td>
+              <td style={{fontFamily:"monospace",fontSize:".8rem",color:"var(--muted)"}}>{c.leaderboardName||genDefaultLeaderboardName(c.name,c.phone)}</td>
+              <td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(c.phone)}</td>
+              <td><AuthBadge provider={c.authProvider}/></td>
+              <td>{cr.length}</td>
+              <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(cr.reduce((s,r)=>s+r.amount,0))}</td>
+              <td>{valid?<span className="badge b-ok">Valid</span>:wd?<span className="badge b-warn">Exp.</span>:<span className="badge b-cancel">None</span>}</td>
+              <td><button className="btn btn-sm btn-s" onClick={()=>setShowAccountFor(c)}>Edit</button></td>
+            </tr>;
+          })}
           </tbody></table></div>
       </>}
     </div>
@@ -983,14 +1146,9 @@ function CompleteProfile({user,onComplete,onSignOut}){
 
   const handleSave=async()=>{
     if(!canSave)return;
-    setSaving(true);
-    setError(null);
-    try{
-      await onComplete({name:name.trim(),phone:clean});
-    }catch(err){
-      setError(err.message);
-      setSaving(false);
-    }
+    setSaving(true);setError(null);
+    try{await onComplete({name:name.trim(),phone:clean});}
+    catch(err){setError(err.message);setSaving(false);}
   };
 
   return(
@@ -1007,36 +1165,19 @@ function CompleteProfile({user,onComplete,onSignOut}){
         </div>
         <div className="f">
           <label>Full Name <span style={{color:"var(--dangerL)"}}>*</span></label>
-          <input
-            value={name}
-            onChange={e=>setName(e.target.value)}
-            placeholder="First Last"
-            autoFocus
-          />
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="First Last" autoFocus/>
           <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>This is how staff will greet you at check-in</div>
         </div>
         <div className="f">
           <label>Mobile Number <span style={{color:"var(--dangerL)"}}>*</span></label>
-          <div className="phone-wrap">
-            <span className="phone-prefix">+1</span>
-            <input
-              type="tel"
-              maxLength={10}
-              value={phone}
-              onChange={e=>setPhone(cleanPh(e.target.value))}
-              onKeyDown={e=>e.key==="Enter"&&handleSave()}
-              placeholder="Enter phone number with area code"
-            />
-          </div>
-          <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>Used for check-in, waiver signing, and group management. Never shared.</div>
+          <PhoneInput value={phone} onChange={setPhone} onEnter={handleSave}/>
+          <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>Used for check-in and group management. Never shared.</div>
         </div>
+        {name.trim()&&clean.length===10&&<div style={{fontSize:".72rem",color:"var(--muted)",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".5rem .75rem",marginBottom:".75rem"}}>
+          🏆 Your leaderboard name will be <strong style={{color:"var(--accB)"}}>{genDefaultLeaderboardName(name.trim(),clean)}</strong> — you can change it later in account settings.
+        </div>}
         {error&&<div style={{background:"rgba(239,68,68,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginBottom:".75rem"}}>⚠ {error}</div>}
-        <button
-          className="btn btn-p btn-full"
-          disabled={!canSave||saving}
-          onClick={handleSave}
-          style={{marginBottom:".65rem"}}
-        >{saving?"Saving…":"Complete Setup →"}</button>
+        <button className="btn btn-p btn-full" disabled={!canSave||saving} onClick={handleSave} style={{marginBottom:".65rem"}}>{saving?"Saving…":"Complete Setup →"}</button>
         <button className="btn btn-s btn-full" style={{fontSize:".8rem",textTransform:"none"}} onClick={onSignOut}>← Sign out and use a different account</button>
         <div className="sms-note" style={{marginTop:".85rem"}}>Your information is private and secure.</div>
       </div>
@@ -1046,8 +1187,6 @@ function CompleteProfile({user,onComplete,onSignOut}){
 
 function LoginScreen({onLogin}){
   const [pending,setPending]=useState(null);
-  const [demoPhone,setDemoPhone]=useState("");
-  const [showDemo,setShowDemo]=useState(false);
   const [authError,setAuthError]=useState(null);
 
   const socialProviders=[
@@ -1058,46 +1197,30 @@ function LoginScreen({onLogin}){
   ];
 
   const doSocial=async(id,provider)=>{
-    setAuthError(null);
-    setPending(id);
-    const {error}=await supabase.auth.signInWithOAuth({
-      provider,
-      options:{redirectTo:"https://www.sector317.com"},
-    });
+    setAuthError(null);setPending(id);
+    const {error}=await supabase.auth.signInWithOAuth({provider,options:{redirectTo:"https://www.sector317.com"}});
     if(error){setAuthError(error.message);setPending(null);}
-    // On success the browser redirects to the OAuth provider — no further code runs here
   };
 
-  const clean=cleanPh(demoPhone);
   return(
     <div className="login-wrap"><div className="login-grid"/>
       <div className="login-card">
         <img src={LOGO_URI} className="login-logo" alt="Sector 317"/>
         <div className="login-divider"/>
-        {!showDemo?(<>
-          <div className="step-label">Sign in to access your account</div>
-          {socialProviders.map(p=>(
-            <button key={p.id} className="btn btn-s btn-full" disabled={!!pending} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:".65rem",marginBottom:".65rem",padding:".75rem 1.1rem",fontSize:".85rem",letterSpacing:".03em",textTransform:"none"}} onClick={()=>doSocial(p.id,p.provider)}>
-              {pending===p.id
-                ?<span style={{fontSize:".8rem",color:"var(--muted)"}}>Redirecting to {p.id}…</span>
-                :<>{p.icon}<span>{p.label}</span></>}
-            </button>
-          ))}
-          {authError&&<div style={{background:"rgba(239,68,68,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginBottom:".5rem"}}>⚠ {authError}</div>}
-          <div style={{display:"flex",alignItems:"center",gap:".75rem",margin:".75rem 0"}}><div style={{flex:1,height:1,background:"var(--bdr)"}}/><span style={{fontSize:".72rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".08em"}}>or</span><div style={{flex:1,height:1,background:"var(--bdr)"}}/></div>
-          <button className="btn btn-s btn-full" style={{fontSize:".82rem",textTransform:"none",letterSpacing:".02em"}} onClick={()=>setShowDemo(true)}>🔑 Staff / Phone login</button>
-        </>):(<>
-          <div className="step-label">Enter your phone number</div>
-          <div className="f"><label>Mobile Number</label><div className="phone-wrap"><span className="phone-prefix">+1</span><input type="tel" placeholder="Enter phone number with area code" value={demoPhone} onChange={e=>setDemoPhone(cleanPh(e.target.value))} onKeyDown={e=>e.key==="Enter"&&clean.length>=10&&onLogin({phone:clean})} maxLength={10} autoFocus/></div></div>
-          <button className="btn btn-p btn-full" style={{marginBottom:".75rem"}} disabled={clean.length<10} onClick={()=>onLogin({phone:clean})}>Continue →</button>
-          <button className="btn btn-s btn-full" style={{fontSize:".8rem",textTransform:"none"}} onClick={()=>setShowDemo(false)}>← Back to Sign In</button>
-          <div style={{marginTop:".9rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .85rem",textAlign:"left"}}>
-            <div style={{fontSize:".66rem",color:"var(--muted)",textTransform:"uppercase",fontWeight:700,marginBottom:".35rem",letterSpacing:".08em"}}>Test Accounts</div>
-            {[["3175550101","Customer"],["3175550201","Staff"],["3175550204","Manager"],["3175550001","Admin"]].map(([ph,role])=>(
-              <div key={ph} style={{display:"flex",justifyContent:"space-between",fontSize:".78rem",padding:".1rem 0",cursor:"pointer",color:"var(--muted)"}} onClick={()=>onLogin({phone:ph})}><span style={{fontFamily:"monospace"}}>{ph}</span><span style={{color:"var(--accB)",fontWeight:600}}>{role}</span></div>
-            ))}
-          </div>
-        </>)}
+        <div className="step-label">Sign in to access your account</div>
+        {socialProviders.map(p=>(
+          <button key={p.id} className="btn btn-s btn-full" disabled={!!pending}
+            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:".65rem",marginBottom:".65rem",padding:".75rem 1.1rem",fontSize:".85rem",letterSpacing:".03em",textTransform:"none"}}
+            onClick={()=>doSocial(p.id,p.provider)}>
+            {pending===p.id
+              ?<span style={{fontSize:".8rem",color:"var(--muted)"}}>Redirecting to {p.id}…</span>
+              :<>{p.icon}<span>{p.label}</span></>}
+          </button>
+        ))}
+        {authError&&<div style={{background:"rgba(239,68,68,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginBottom:".5rem"}}>⚠ {authError}</div>}
+        <div style={{marginTop:"1rem",fontSize:".75rem",color:"var(--muted)",textAlign:"center",lineHeight:1.5}}>
+          New here? Sign in above to create your account. Staff access is managed by your administrator.
+        </div>
         <div className="sms-note" style={{marginTop:".85rem"}}>Your data is secured and never shared.</div>
       </div>
     </div>
@@ -1233,27 +1356,27 @@ export default function App(){
 
   const handleCompleteProfile=async({name,phone})=>{
     try{
-      // Check if someone with this phone already exists — merge accounts
       const existing=await fetchUserByPhone(phone);
       if(existing){
-        // Phone already in system — link this social auth to that account
+        // Phone already in system — link social auth to that account
         const merged=await updateUser(existing.id,{
           authProvider:pendingUser.authProvider,
           email:pendingUser.email||existing.email,
           authId:pendingUser.authId||existing.authId,
-          name:existing.name, // keep existing name
+          name:existing.name,
         });
         setUsers(prev=>prev.map(u=>u.id===merged.id?merged:u));
         setCurrentUser(merged);
       } else {
-        // Brand new customer — create full record with auth identifiers
+        // Brand new — create with auto-generated leaderboard name
+        const defaultLbName=genDefaultLeaderboardName(name,phone);
         const newUser=await createUser({
-          name,
-          phone,
+          name,phone,
           email:pendingUser.email||null,
           authId:pendingUser.authId||null,
           access:"customer",
           authProvider:pendingUser.authProvider,
+          leaderboardName:defaultLbName,
           waivers:[],
           needsRewaiverDocId:null,
         });
@@ -1261,9 +1384,7 @@ export default function App(){
         setCurrentUser(newUser);
       }
       setPendingUser(null);
-    }catch(err){
-      throw err; // Let CompleteProfile component show the error
-    }
+    }catch(err){throw err;}
   };
 
   const handleBook=async b=>{
@@ -1323,6 +1444,7 @@ export default function App(){
   const handleAlert=msg=>{setToastAlert(msg);setTimeout(()=>setToastAlert(null),5000);};
   const liveUser=users.find(u=>u.id===currentUser?.id)||currentUser;
   const portal=!liveUser?null:liveUser.access==="customer"?"customer":liveUser.access==="staff"?"staff":"admin";
+  const [showNavAccount,setShowNavAccount]=useState(false);
 
   if(loading)return(
     <><style>{CSS}</style>
@@ -1357,12 +1479,13 @@ export default function App(){
     <style>{CSS}</style>
     <div className="app">
       {toastAlert&&<Toast msg={toastAlert} variant="alert" onClose={()=>setToastAlert(null)}/>}
+      {showNavAccount&&liveUser&&<AccountPanel user={liveUser} users={users} setUsers={handleSetUsers} onClose={()=>setShowNavAccount(false)}/>}
       <nav className="nav">
         <div className="nav-brand" onClick={()=>setCurrentUser(null)}>
           <img src={LOGO_URI} className="nav-logo" alt="Sector 317"/>
         </div>
         <div className="nav-right">
-          <span className="nav-user">{liveUser.name}</span>
+          <span className="nav-user" onClick={()=>setShowNavAccount(true)} title="Edit account settings">{liveUser.name} ⚙</span>
           {liveUser.authProvider&&<AuthBadge provider={liveUser.authProvider}/>}
           <span className={`nbadge al-${liveUser.access}`}>{ACCESS_LEVELS[liveUser.access]?.label}</span>
           <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);}}>Sign Out</button>
