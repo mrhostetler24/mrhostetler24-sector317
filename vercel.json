@@ -8,12 +8,6 @@
       "has": [{ "type": "host", "value": "www.sector317.com" }],
       "destination": "https://sector317.com/$1",
       "permanent": true
-    },
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "mrhostetler24-sector317.vercel.app" }],
-      "destination": "https://sector317.com/$1",
-      "permanent": true
     }
   ],
   "headers": [
