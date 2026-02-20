@@ -1,5 +1,27 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.sector317.com" }],
+      "destination": "https://sector317.com/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "mrhostetler24-sector317.vercel.app" }],
+      "destination": "https://sector317.com/$1",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/leaderboard.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=300" }
+      ]
+    }
   ]
 }

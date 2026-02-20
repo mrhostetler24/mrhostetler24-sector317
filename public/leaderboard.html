@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sector 317 — Leaderboard</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:    #1a1b15;
+      --bg2:   #13140f;
+      --surf:  #25261f;
+      --surf2: #2e2f27;
+      --bdr:   #3a3b33;
+      --acc:   #c8e03a;
+      --acc2:  #9ab02e;
+      --accB:  #d4ec46;
+      --accD:  rgba(200,224,58,.10);
+      --txt:   #e2dfd8;
+      --muted: #7a7869;
+      --gold:  #f5c842;
+      --silver:#b8bfc7;
+      --bronze:#cd7f32;
+      --fd: 'Black Ops One', sans-serif;
+      --fc: 'Barlow Condensed', sans-serif;
+      --fb: 'Barlow', sans-serif;
+    }
+    body {
+      background: var(--bg2);
+      color: var(--txt);
+      font-family: var(--fb);
+      min-height: 100vh;
+    }
+
+    /* ── GRID BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: .03;
+      background-image:
+        repeating-linear-gradient(0deg, var(--acc) 0, var(--acc) 1px, transparent 1px, transparent 52px),
+        repeating-linear-gradient(90deg, var(--acc) 0, var(--acc) 1px, transparent 1px, transparent 52px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+
+    /* ── HEADER ── */
+    .header { text-align: center; margin-bottom: 2.5rem; }
+    .logo-wrap { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: .5rem; }
+    .logo { height: 72px; width: auto; }
+    .header-title {
+      font-family: var(--fd);
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      color: var(--accB);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(200,224,58,.25);
+    }
+    .header-sub {
+      font-family: var(--fc);
+      font-size: .9rem;
+      color: var(--muted);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-top: .4rem;
+    }
+
+    /* ── REFRESH INDICATOR ── */
+    .refresh-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: .5rem;
+      font-size: .72rem;
+      color: var(--muted);
+      font-family: var(--fc);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+    .refresh-dot {
+      width: 7px; height: 7px;
+      background: var(--acc2);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    .refresh-dot.loading { background: var(--muted); animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: .25rem;
+      border-bottom: 2px solid var(--bdr);
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .tab {
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      padding: .6rem 1.25rem;
+      cursor: pointer;
+      font-family: var(--fc);
+      font-size: .9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      transition: all .2s;
+      margin-bottom: -2px;
+    }
+    .tab:hover { color: var(--txt); }
+    .tab.active { color: var(--accB); border-bottom-color: var(--acc); }
+
+    /* ── TABLE ── */
+    .board-wrap {
+      background: var(--surf);
+      border: 1px solid var(--bdr);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .board-head {
+      background: var(--surf2);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--bdr);
+    }
+    .board-head-title {
+      font-family: var(--fd);
+      font-size: 1rem;
+      color: var(--accB);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .board-count {
+      font-size: .72rem;
+      color: var(--muted);
+      font-family: var(--fc);
+      letter-spacing: .08em;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--surf2); }
+    th {
+      text-align: left;
+      padding: .55rem 1rem;
+      font-size: .65rem;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted);
+      font-family: var(--fc);
+      font-weight: 700;
+      border-bottom: 1px solid var(--bdr);
+    }
+    th:last-child, td:last-child { text-align: right; }
+    td {
+      padding: .85rem 1rem;
+      border-bottom: 1px solid rgba(58,59,51,.6);
+      font-size: .88rem;
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(200,224,58,.03); }
+
+    /* ── RANK COLUMN ── */
+    .rank-cell {
+      font-family: var(--fd);
+      font-size: 1.1rem;
+      width: 52px;
+      text-align: center;
+    }
+    .rank-1 { color: var(--gold); }
+    .rank-2 { color: var(--silver); }
+    .rank-3 { color: var(--bronze); }
+    .rank-n { color: var(--muted); }
+
+    .medal { font-size: 1.2rem; }
+
+    /* ── PLAYER NAME ── */
+    .player-name {
+      font-family: var(--fc);
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: .03em;
+    }
+    .sessions-meta {
+      font-size: .7rem;
+      color: var(--muted);
+      margin-top: .1rem;
+    }
+
+    /* ── SCORE ── */
+    .score-main {
+      font-family: var(--fd);
+      font-size: 1.15rem;
+      color: var(--accB);
+      text-align: right;
+    }
+    .score-best {
+      font-size: .7rem;
+      color: var(--muted);
+      text-align: right;
+      margin-top: .1rem;
+    }
+
+    /* ── EMPTY / LOADING / ERROR ── */
+    .state-msg {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+      font-family: var(--fc);
+      font-size: 1rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .state-msg .icon { font-size: 2.5rem; margin-bottom: .75rem; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--bdr);
+      border-top-color: var(--acc);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── FOOTER ── */
+    .footer {
+      text-align: center;
+      margin-top: 3rem;
+      font-size: .72rem;
+      color: var(--muted);
+      font-family: var(--fc);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      line-height: 2;
+    }
+    .footer a { color: var(--acc2); text-decoration: none; }
+    .footer a:hover { color: var(--accB); }
+
+    /* ── ACCENT GLOW TOP BORDER ── */
+    .board-wrap::before {
+      content: '';
+      display: block;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--acc2), var(--accB), var(--acc2), transparent);
+    }
+
+    @media (max-width: 600px) {
+      .col-sessions { display: none; }
+      .col-best     { display: none; }
+      td.col-sessions, td.col-best { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    <div class="logo-wrap">
+      <img src="/logo.png" class="logo" alt="Sector 317" onerror="this.style.display='none'"/>
+    </div>
+    <div class="header-title">Leaderboard</div>
+    <div class="header-sub">Top Operatives — Ranked by Performance</div>
+  </header>
+
+  <div class="refresh-bar">
+    <div class="refresh-dot" id="refreshDot"></div>
+    <span id="refreshLabel">Updating every 5 min</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-period="alltime">All Time</button>
+    <button class="tab"        data-period="yearly">This Year</button>
+    <button class="tab"        data-period="monthly">This Month</button>
+    <button class="tab"        data-period="weekly">This Week</button>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board-head">
+      <span class="board-head-title" id="boardTitle">All-Time Rankings</span>
+      <span class="board-count" id="boardCount"></span>
+    </div>
+    <div id="boardBody">
+      <div class="state-msg"><div class="spinner"></div>Loading…</div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div>Scores update automatically · Rankings based on top 5 session averages</div>
+    <div><a href="/">Book your session at Sector317.com</a></div>
+  </footer>
+
+</div>
+
+<script>
+  // ── CONFIG ── Replace with your actual Supabase project URL and anon key
+  // These are the same values from your .env.local / Vercel environment variables.
+  // The anon key is safe to expose publicly — it only has the permissions you grant.
+  const SUPABASE_URL  = window.__SUPABASE_URL__  || 'PASTE_YOUR_SUPABASE_URL_HERE'
+  const SUPABASE_ANON = window.__SUPABASE_ANON__ || 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE'
+
+  // ── STATE ──
+  let currentPeriod = 'alltime'
+  let refreshTimer  = null
+  let countdown     = 300   // 5 minutes in seconds
+
+  const VIEW_MAP = {
+    alltime: { view: 'v_leaderboard',         rankCol: 'rank_all_time', title: 'All-Time Rankings'  },
+    yearly:  { view: 'v_leaderboard_yearly',  rankCol: 'rank_yearly',   title: 'This Year'          },
+    monthly: { view: 'v_leaderboard_monthly', rankCol: 'rank_monthly',  title: 'This Month'         },
+    weekly:  { view: 'v_leaderboard_weekly',  rankCol: 'rank_weekly',   title: 'This Week'          },
+  }
+
+  // ── FETCH ──
+  async function fetchBoard(period) {
+    const { view } = VIEW_MAP[period]
+    const url = `${SUPABASE_URL}/rest/v1/${view}?select=*&limit=50&order=leaderboard_score.desc`
+    const res = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': `Bearer ${SUPABASE_ANON}`,
+        'Accept': 'application/json',
+      }
+    })
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+    return res.json()
+  }
+
+  // ── RENDER ──
+  function fmtSeconds(s) {
+    if (!s && s !== 0) return '—'
+    const m = Math.floor(s / 60)
+    const sec = s % 60
+    return `${m}:${String(sec).padStart(2, '0')}`
+  }
+
+  function rankDisplay(rank) {
+    if (rank === 1) return '<span class="medal">🥇</span>'
+    if (rank === 2) return '<span class="medal">🥈</span>'
+    if (rank === 3) return '<span class="medal">🥉</span>'
+    return `<span class="rank-n">#${rank}</span>`
+  }
+
+  function renderBoard(rows, period) {
+    const { rankCol, title } = VIEW_MAP[period]
+    document.getElementById('boardTitle').textContent = title
+    document.getElementById('boardCount').textContent =
+      rows.length ? `${rows.length} operative${rows.length !== 1 ? 's' : ''}` : ''
+
+    if (!rows.length) {
+      document.getElementById('boardBody').innerHTML =
+        `<div class="state-msg"><div class="icon">🎯</div>No scores yet — be the first!</div>`
+      return
+    }
+
+    const rowsHtml = rows.map(r => {
+      const rank = r[rankCol] ?? r.rank_all_time ?? r.rank_weekly ?? r.rank_monthly ?? r.rank_yearly ?? '?'
+      const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n'
+      const sessions  = r.total_sessions_played ?? r.sessions_in_avg ?? '?'
+      const best      = r.best_session ?? '—'
+      return `
+        <tr>
+          <td class="rank-cell ${rankClass}">${rankDisplay(rank)}</td>
+          <td>
+            <div class="player-name">${escHtml(r.player_name ?? 'Unknown')}</div>
+            <div class="sessions-meta">${sessions} session${sessions !== 1 ? 's' : ''} played</div>
+          </td>
+          <td class="col-sessions" style="color:var(--muted);font-size:.8rem;font-family:var(--fc)">
+            ${r.sessions_in_avg ?? '—'}
+          </td>
+          <td class="col-best">
+            <div class="score-best" style="font-size:.85rem;color:var(--muted);font-family:var(--fc)">${best}</div>
+          </td>
+          <td>
+            <div class="score-main">${Number(r.leaderboard_score ?? 0).toFixed(1)}</div>
+            <div class="score-best">avg score</div>
+          </td>
+        </tr>`
+    }).join('')
+
+    document.getElementById('boardBody').innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:center">Rank</th>
+            <th>Operative</th>
+            <th class="col-sessions">Sessions (avg)</th>
+            <th class="col-best" style="text-align:right">Best Session</th>
+            <th style="text-align:right">Score</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;')
+  }
+
+  function showLoading() {
+    document.getElementById('boardBody').innerHTML =
+      `<div class="state-msg"><div class="spinner"></div>Loading…</div>`
+    document.getElementById('refreshDot').classList.add('loading')
+  }
+
+  function showError(msg) {
+    document.getElementById('boardBody').innerHTML =
+      `<div class="state-msg"><div class="icon">⚠</div>${escHtml(msg)}</div>`
+    document.getElementById('refreshDot').classList.remove('loading')
+  }
+
+  // ── LOAD PERIOD ──
+  async function loadPeriod(period, showSpinner = true) {
+    currentPeriod = period
+    if (showSpinner) showLoading()
+    try {
+      const rows = await fetchBoard(period)
+      renderBoard(rows, period)
+      document.getElementById('refreshDot').classList.remove('loading')
+    } catch (e) {
+      showError('Could not load leaderboard: ' + e.message)
+    }
+  }
+
+  // ── AUTO REFRESH (every 5 minutes) ──
+  function startRefreshCycle() {
+    countdown = 300
+    clearInterval(refreshTimer)
+    refreshTimer = setInterval(() => {
+      countdown--
+      const m = Math.floor(countdown / 60)
+      const s = countdown % 60
+      document.getElementById('refreshLabel').textContent =
+        countdown > 0
+          ? `Refreshes in ${m}:${String(s).padStart(2,'0')}`
+          : 'Refreshing…'
+      if (countdown <= 0) {
+        loadPeriod(currentPeriod, false)
+        countdown = 300
+      }
+    }, 1000)
+  }
+
+  // ── TABS ──
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+      btn.classList.add('active')
+      loadPeriod(btn.dataset.period)
+      startRefreshCycle()
+    })
+  })
+
+  // ── INIT ──
+  loadPeriod('alltime')
+  startRefreshCycle()
+</script>
+</body>
+</html>

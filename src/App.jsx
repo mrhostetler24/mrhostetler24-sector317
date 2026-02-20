@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import LandingPage from "./LandingPage.jsx";
 import {
   supabase,
   fetchAllUsers, fetchUserByPhone, createUser, updateUser, deleteUser, signWaiver,
@@ -144,12 +145,12 @@ function AuthBadge({provider}){
 }
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-:root{--bg:#25261f;--bg2:#1e1f18;--surf:#2e2f27;--surf2:#363730;--bdr:#46473e;--acc:#8a9a35;--acc2:#6b7c2e;--accB:#a8bc3e;--accD:rgba(138,154,53,.15);--danger:#c0392b;--dangerL:#e05c5c;--ok:#5a8a3a;--okB:#74a84a;--warn:#b8960c;--warnL:#e6b800;--txt:#e2dfd8;--muted:#8a8878;--fd:'Barlow Condensed',sans-serif;--fb:'Barlow',sans-serif;}
+:root{--bg:#25261f;--bg2:#1e1f18;--surf:#2e2f27;--surf2:#363730;--bdr:#46473e;--acc:#c8e03a;--acc2:#9ab02e;--accB:#d4ec46;--accD:rgba(200,224,58,.12);--accGlow:rgba(200,224,58,.3);--danger:#c0392b;--dangerL:#e05c5c;--ok:#5a8a3a;--okB:#74a84a;--warn:#b8960c;--warnL:#e6b800;--txt:#e2dfd8;--muted:#8a8878;--fd:'Black Ops One',sans-serif;--fc:'Barlow Condensed',sans-serif;--fb:'Barlow',sans-serif;}
 body{background:var(--bg2);color:var(--txt);font-family:var(--fb);min-height:100vh;}
 .app{display:flex;flex-direction:column;min-height:100vh;}
-.nav{background:var(--bg2);border-bottom:2px solid var(--acc2);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:62px;position:sticky;top:0;z-index:100;}
+.nav{background:rgba(17,18,9,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(200,224,58,.2);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:66px;position:sticky;top:0;z-index:100;}
 .nav-brand{display:flex;align-items:center;cursor:pointer;}
 .nav-logo{height:48px;width:auto;object-fit:contain;}
 .nav-right{display:flex;align-items:center;gap:.75rem;}
@@ -193,7 +194,7 @@ body{background:var(--bg2);color:var(--txt);font-family:var(--fb);min-height:100
 .main{flex:1;display:flex;}
 .content{flex:1;padding:1.75rem;overflow-y:auto;background:var(--bg);}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:.9rem;margin-bottom:1.75rem;}
-.stat-card{background:var(--surf);border:1px solid var(--bdr);border-top:3px solid var(--acc2);border-radius:5px;padding:1.1rem 1.3rem;}
+.stat-card{background:var(--surf);border:1px solid var(--bdr);border-top:3px solid var(--acc);border-radius:5px;padding:1.1rem 1.3rem;box-shadow:0 0 20px rgba(200,224,58,.05);}
 .stat-lbl{font-size:.67rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:.35rem;}
 .stat-val{font-family:var(--fd);font-size:2rem;font-weight:700;color:var(--accB);line-height:1;}
 .tw{background:var(--surf);border:1px solid var(--bdr);border-radius:6px;overflow:hidden;margin-bottom:1.5rem;}
@@ -629,10 +630,17 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     const ex=editRes.players.filter(p=>p.userId!==user.id);
     setPlayerInputs(Array.from({length:Math.max(0,(editRes.playerCount||1)-1)},(_,i)=>{const ep=ex[i];return ep?{phone:ep.phone,userId:ep.userId,name:ep.name,status:ep.userId?"found":"idle"}:{phone:"",userId:null,name:"",status:"idle"};}));
   },[editResId]);
-  const saveGroup=()=>{
+  const saveGroup=async()=>{
     const booker={userId:user.id,name:user.name,phone:user.phone};
     const extra=playerInputs.filter(p=>p.phone||p.name).map(p=>({userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||""),phone:p.phone}));
-    setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:[booker,...extra]}:r));
+    const newPlayers=[booker,...extra];
+    try{
+      const updated=await updateReservation(editResId,{players:newPlayers});
+      setReservations(prev=>prev.map(r=>r.id===editResId?updated:r));
+    }catch(err){
+      // fallback to local update if DB fails
+      setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:newPlayers}:r));
+    }
     setEditResId(null);
   };
   return(
@@ -645,7 +653,14 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <p style={{color:"var(--muted)",fontSize:".82rem",marginBottom:".5rem"}}>{editRes.customerName} · {fmt(editRes.date)} · {fmt12(editRes.startTime)} · {editRes.playerCount} players</p>
         <p style={{fontSize:".78rem",color:"var(--muted)",marginBottom:"1rem"}}>Add your group's phone numbers to speed up check-in and waiver signing at the venue:</p>
         <div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem 1rem",marginBottom:"1rem",fontSize:".85rem",display:"flex",alignItems:"center",gap:".75rem"}}><span>👤</span><div><strong>{user.name}</strong> — booking lead</div></div>
-        <div className="player-inputs">{playerInputs.map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={user.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}</div>
+        <div className="player-inputs">{playerInputs.map((pi,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
+            <div style={{flex:1}}><PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={user.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/></div>
+            <button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>
+          </div>
+        ))}</div>
+        {playerInputs.length<(editRes?.playerCount||1)-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+        {editRes?.typeId&&resTypes.find(x=>x.id===editRes.typeId)?.style==="open"&&<div style={{fontSize:".74rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".5rem .75rem"}}>⚠ Open play — removing players does not issue a refund. Contact staff for refund requests.</div>}
         <div className="ma"><button className="btn btn-s" onClick={()=>setEditResId(null)}>Cancel</button><button className="btn btn-p" onClick={saveGroup}>Save Group</button></div>
       </div></div>}
       <div className="hero"><h2>Welcome, Operative {user.name.split(" ")[0]}</h2><p>Manage your missions, group roster, and waiver status.</p></div>
@@ -655,8 +670,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           {user.authProvider?`✓ ${user.authProvider.charAt(0).toUpperCase()+user.authProvider.slice(1)} Connected`:"⚠ No Social Account Linked"}
         </div><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>{user.authProvider?"Identity verified — payments enabled":"Required to book · Link Google, Microsoft, or Apple"}</div></div>
         {!user.authProvider&&<div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
-          {[{id:"google",label:"Google"},{id:"microsoft",label:"Microsoft"},{id:"apple",label:"Apple"}].map(p=>(
-            <button key={p.id} className="btn btn-s btn-sm" onClick={()=>setUsers(prev=>prev.map(u=>u.id===user.id?{...u,authProvider:p.id}:u))}>Link {p.label}</button>
+          {[{id:"google",label:"Google"},{id:"microsoft",label:"Microsoft"}].map(p=>(
+            <button key={p.id} className="btn btn-s btn-sm" onClick={async()=>{const{error}=await supabase.auth.signInWithOAuth({provider:p.id==="microsoft"?"azure":p.id,options:{redirectTo:"https://sector317.com"}});if(error)showToast("Error linking: "+error.message);}}>Link {p.label}</button>
           ))}
         </div>}
       </div>
@@ -967,7 +982,7 @@ function LoginScreen({onLogin}){
     setPending(id);
     const {error}=await supabase.auth.signInWithOAuth({
       provider,
-      options:{redirectTo:"https://mrhostetler24-sector317.vercel.app"},
+      options:{redirectTo:"https://sector317.com"},
     });
     if(error){setAuthError(error.message);setPending(null);}
     // On success the browser redirects to the OAuth provider — no further code runs here
@@ -1010,6 +1025,7 @@ function LoginScreen({onLogin}){
 }
 
 export default function App(){
+  const [showLanding,setShowLanding]=useState(true);
   const [currentUser,setCurrentUser]=useState(null);
   const [pendingUser,setPendingUser]=useState(null); // user who logged in but needs phone
   const [resTypes,setResTypes]=useState([]);
@@ -1083,14 +1099,19 @@ export default function App(){
         }
       }
       if(found){
-        // Existing user — update provider if needed and log in
-        if(found.authProvider!==provider){
-          found=await updateUser(found.id,{authProvider:provider});
+        // Existing user — store auth_id and email for faster future lookups, then log in
+        const updates={};
+        if(!found.authId&&authUser.id)updates.authId=authUser.id;
+        if(!found.email&&email)updates.email=email;
+        if(found.authProvider!==provider)updates.authProvider=provider;
+        if(Object.keys(updates).length){
+          found=await updateUser(found.id,updates);
           setUsers(prev=>prev.map(u=>u.id===found.id?found:u));
         }
         setCurrentUser(found);
       } else {
-        // New OAuth user — send to CompleteProfile to collect phone
+        // New OAuth user — only show CompleteProfile if they don't have a phone yet
+        // Check if a record with this auth_id was just created (race condition guard)
         setPendingUser({name,email,authProvider:provider,authId:authUser.id});
       }
     }catch(err){
@@ -1138,15 +1159,19 @@ export default function App(){
         // Phone already in system — link this social auth to that account
         const merged=await updateUser(existing.id,{
           authProvider:pendingUser.authProvider,
+          email:pendingUser.email||existing.email,
+          authId:pendingUser.authId||existing.authId,
           name:existing.name, // keep existing name
         });
         setUsers(prev=>prev.map(u=>u.id===merged.id?merged:u));
         setCurrentUser(merged);
       } else {
-        // Brand new customer — create full record
+        // Brand new customer — create full record with auth identifiers
         const newUser=await createUser({
           name,
           phone,
+          email:pendingUser.email||null,
+          authId:pendingUser.authId||null,
           access:"customer",
           authProvider:pendingUser.authProvider,
           waivers:[],
@@ -1244,7 +1269,8 @@ export default function App(){
     </div></>
   );
 
-  if(pendingUser)return <><style>{CSS}</style><CompleteProfile user={pendingUser} onComplete={handleCompleteProfile} onSignOut={()=>setPendingUser(null)}/></>;
+  if(showLanding&&!currentUser&&!pendingUser)return <LandingPage onEnterApp={()=>setShowLanding(false)}/>;
+  if(pendingUser)return <><style>{CSS}</style><CompleteProfile user={pendingUser} onComplete={handleCompleteProfile} onSignOut={()=>{setPendingUser(null);setShowLanding(true);}}/></>;
   if(!liveUser)return <><style>{CSS}</style><LoginScreen onLogin={handleLogin}/></>;
 
   return(<>
@@ -1259,7 +1285,7 @@ export default function App(){
           <span className="nav-user">{liveUser.name}</span>
           {liveUser.authProvider&&<AuthBadge provider={liveUser.authProvider}/>}
           <span className={`nbadge al-${liveUser.access}`}>{ACCESS_LEVELS[liveUser.access]?.label}</span>
-          <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);}}>Sign Out</button>
+          <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);}}>Sign Out</button>
         </div>
       </nav>
       <div className="main">
