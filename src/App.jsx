@@ -473,7 +473,7 @@ function validateLbName(val,allUsers,currentUserId){
   if(taken)return"That leaderboard name is already taken";
   return null;
 }
-({index,value,onChange,users,bookerUserId,showFullName=false}){
+function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=false}){
   const {phone="",userId=null,name="",status="idle"}=value;
   const clean=cleanPh(phone);
   const lookup=useCallback(()=>{
