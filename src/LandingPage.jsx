@@ -242,6 +242,7 @@ export default function LandingPage({ onEnterApp }) {
           ))}
           <a className="lp-navlink" href="/leaderboard.html" target="_blank" rel="noreferrer" style={{textDecoration:"none"}}>Leaderboard</a>
         </div>
+        <div className="lp-nav-btns">
           <button className="lp-btn-login" onClick={onEnterApp}>Sign In</button>
           <button className="lp-btn-book" onClick={onEnterApp}>Book Now</button>
         </div>
