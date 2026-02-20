@@ -1,21 +1,13 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
   "redirects": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.sector317.com" }],
-      "destination": "https://sector317.com/$1",
+      "has": [{ "type": "host", "value": "sector317.com" }],
+      "destination": "https://www.sector317.com/$1",
       "permanent": true
     }
   ],
-  "headers": [
-    {
-      "source": "/leaderboard.html",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=300" }
-      ]
-    }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

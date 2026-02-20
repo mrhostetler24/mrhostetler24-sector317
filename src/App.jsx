@@ -671,7 +671,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         </div><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>{user.authProvider?"Identity verified — payments enabled":"Required to book · Link Google, Microsoft, or Apple"}</div></div>
         {!user.authProvider&&<div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
           {[{id:"google",label:"Google"},{id:"microsoft",label:"Microsoft"}].map(p=>(
-            <button key={p.id} className="btn btn-s btn-sm" onClick={async()=>{const{error}=await supabase.auth.signInWithOAuth({provider:p.id==="microsoft"?"azure":p.id,options:{redirectTo:"https://sector317.com"}});if(error)showToast("Error linking: "+error.message);}}>Link {p.label}</button>
+            <button key={p.id} className="btn btn-s btn-sm" onClick={async()=>{const{error}=await supabase.auth.signInWithOAuth({provider:p.id==="microsoft"?"azure":p.id,options:{redirectTo:"https://www.sector317.com"}});if(error)showToast("Error linking: "+error.message);}}>Link {p.label}</button>
           ))}
         </div>}
       </div>
@@ -982,7 +982,7 @@ function LoginScreen({onLogin}){
     setPending(id);
     const {error}=await supabase.auth.signInWithOAuth({
       provider,
-      options:{redirectTo:"https://sector317.com"},
+      options:{redirectTo:"https://www.sector317.com"},
     });
     if(error){setAuthError(error.message);setPending(null);}
     // On success the browser redirects to the OAuth provider — no further code runs here
