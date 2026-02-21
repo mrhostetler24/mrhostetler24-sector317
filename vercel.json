@@ -7,17 +7,14 @@
       "permanent": true
     }
   ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
-{
   "headers": [
     {
       "source": "/leaderboard.html",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
+  ],
+  "rewrites": [
+    { "source": "/leaderboard.html", "destination": "/leaderboard.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
