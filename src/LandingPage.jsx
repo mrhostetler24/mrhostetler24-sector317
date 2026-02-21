@@ -280,9 +280,9 @@ const FAQS = [
 
 const SOCIAL = [
   { label: "Instagram", url: "https://www.instagram.com/sector.317", path: "M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" },
-  { label: "Facebook", url: "https://www.facebook.com/sector.317", path: "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" },
-  { label: "TikTok", url: "https://www.tiktok.com/@sector.317", path: "M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.28 8.28 0 004.84 1.56V6.79a4.85 4.85 0 01-1.07-.1z" },
-  { label: "YouTube", url: "https://www.youtube.com/@sector.317", path: "M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" },
+  { label: "Facebook", url: "https://www.facebook.com/sector317", path: "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" },
+  { label: "Twitch", url: "https://www.twitch.tv/sector317cqb", path: "M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.28 8.28 0 004.84 1.56V6.79a4.85 4.85 0 01-1.07-.1z" },
+  { label: "YouTube", url: "https://www.youtube.com/@sector317", path: "M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" },
 ];
 
 const HOURS = [["Monday","5:30 PM – 9:00 PM"],["Tuesday","5:30 PM – 9:00 PM"],["Wednesday","5:30 PM – 9:00 PM"],["Thursday","5:30 PM – 9:00 PM"],["Friday","5:00 PM – 11:00 PM"],["Saturday","12:30 PM – 11:00 PM"],["Sunday","1:30 PM – 7:00 PM"]];
@@ -443,8 +443,8 @@ export default function LandingPage({ onEnterApp }) {
             ["gear","Loadout & Gear","We've got you covered"],
             ["bar","Bar & Lounge","Catch the game"],
             ["structures","2 Structures","9,500 sq ft of CQB"],
-            ["tv","Live Feed","Catch the action"],
-            ["id","Ages 18+","16+ with adult"],
+            ["tv","In-Structure Live Feed","See how it's done"],
+            ["id","18+ to play","16+ with adult"],
           ].map(([iconKey, strong, sub], i) => (
             <div key={i} className={`lp-inc lp-reveal lp-d${i+1}`}>
               <div className="lp-inc-icon"><StripIcon type={iconKey}/></div>
@@ -499,9 +499,9 @@ export default function LandingPage({ onEnterApp }) {
               </div>
               <div className="lp-dsub">For groups who want their own game</div>
               <div className="lp-name">Private Team</div>
-              <div className="lp-desc">Reserve your own private session for your group to run the mission your way. Built for birthdays, big groups, team nights, and revenge matches. Your scenario. Your rules. Nothing in your way.</div>
+              <div className="lp-desc">Reserve your own private session for your group to run the mission your way. Built for birthdays, big groups, team nights, and revenge matches. Your scenario. Your rules. With nothing in your way.</div>
               <div className="lp-meta">
-                <div className="lp-mi"><em>🏆</em> Your pick your team</div>
+                <div className="lp-mi"><em>🏆</em> You pick your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
               </div>
               <div className="lp-price">From $270 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
@@ -572,11 +572,11 @@ export default function LandingPage({ onEnterApp }) {
           </div>
           <div className="lp-steps">
             {[
-              ["01","Make Your Reservation","Book online in minutes. Pick your date, group size, and mode. Slots fill fast — lock yours in before it's gone."],
-              ["02","Arrive Early & Team Up","Show up 30 minutes early. Grab a drink, watch the live feeds from inside the structures, and get your squad locked in before staging begins."],
-              ["03","Brief, Kit Up & Zero In","Receive your mission briefing, draw your full kit and loadout, then hit the range to zero in before the real thing starts."],
-              ["04","Drop In & Dominate","Enter the shoot-house and execute your objectives across both structures. Timed scenarios, live role players, real consequences for every decision."],
-              ["05","Regroup in the Lounge","Grab a drink, kick back, and watch the next group drop in on the live feed. Compare scores, relive the highlights, plan your comeback."],
+              ["01","Make Your Reservation","Book online in minutes. Pick your group, play mode, date, and time. Use our secure payment system to finalize your reservation and you're all set. Slots fill fast — lock yours in before it's gone."],
+              ["02","Arrive Early & Team Up","Show up at least 30 minutes early. Grab a drink, watch the game, and peek in on the live feeds from cameras within the structures. Rally the troops and get your squad locked in before go time."],
+              ["03","Brief, Kit Up & Zero In","Receive your safety briefing, draw your full kit of protective gear and tactical equipment including your loadout, then hit the firing range to familiarize yourself with everything and zero in."],
+              ["04","Drop In & Dominate","Meet your CQB instructor for a mission briefing before you call for breach into the the shoot-house structure to execute your objectives. Timed scenarios, real opposition, and realer consequences for every decision."],
+              ["05","Regroup in the Lounge","Return your gear, fix your hair, and grab a drink so you and your crew can kick back and watch the next group drop in on the live feed. Compare scores, relive the highlights, and plan your comeback."],
             ].map(([n,t,d], i) => (
               <div key={i} className={`lp-step lp-reveal lp-d${i+1}`}>
                 <div className="lp-snum">{n}</div>
