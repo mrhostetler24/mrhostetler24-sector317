@@ -40,17 +40,29 @@ const CSS = `
 .lp-scanlines{position:fixed;inset:0;pointer-events:none;z-index:9998;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.018) 3px,rgba(0,0,0,.018) 6px);}
 
 /* NAV */
-.lp-nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:0 3rem;height:70px;transition:all .4s ease;}
-.lp-nav.scrolled{background:rgba(17,18,9,.95);backdrop-filter:blur(16px);border-bottom:1px solid rgba(200,224,58,.15);}
+.lp-nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:0 3rem;height:70px;transition:all .4s ease;background:rgba(17,18,9,.55);backdrop-filter:blur(8px);border-bottom:1px solid rgba(200,224,58,.08);}
+.lp-nav.scrolled{background:rgba(17,18,9,.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(200,224,58,.18);}
 .lp-logo{height:54px;width:auto;cursor:pointer;}
 .lp-nav-links{display:flex;align-items:center;gap:2rem;}
-.lp-navlink{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:rgba(232,228,220,.65);cursor:pointer;transition:color .2s;background:none;border:none;}
+.lp-navlink{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:rgba(232,228,220,.92);cursor:pointer;transition:color .2s;background:none;border:none;text-shadow:0 1px 6px rgba(0,0,0,.8);}
 .lp-navlink:hover{color:#d4ec46;}
-.lp-nav-btns{display:flex;gap:.75rem;}
-.lp-btn-login{font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:none;border:1px solid rgba(200,224,58,.35);color:#c8e03a;border-radius:3px;padding:.45rem 1.2rem;cursor:pointer;transition:all .2s;}
-.lp-btn-login:hover{border-color:#c8e03a;background:rgba(200,224,58,.12);}
+.lp-nav-btns{display:flex;gap:.75rem;align-items:center;}
+.lp-btn-login{font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:rgba(17,18,9,.4);border:1px solid rgba(200,224,58,.5);color:#c8e03a;border-radius:3px;padding:.45rem 1.2rem;cursor:pointer;transition:all .2s;}
+.lp-btn-login:hover{border-color:#c8e03a;background:rgba(200,224,58,.15);}
 .lp-btn-book{font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;background:#c8e03a;color:#111209;border:none;border-radius:3px;padding:.5rem 1.4rem;cursor:pointer;transition:all .25s;clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);}
 .lp-btn-book:hover{background:#d4ec46;box-shadow:0 0 28px rgba(200,224,58,.4);transform:translateY(-1px);}
+/* HAMBURGER */
+.lp-hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:.4rem;background:none;border:none;z-index:1001;}
+.lp-hamburger span{display:block;width:24px;height:2px;background:#c8e03a;border-radius:2px;transition:all .3s;}
+.lp-hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.lp-hamburger.open span:nth-child(2){opacity:0;}
+.lp-hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+.lp-mobile-menu{display:none;position:fixed;top:70px;left:0;right:0;background:rgba(17,18,9,.97);backdrop-filter:blur(20px);border-bottom:1px solid rgba(200,224,58,.2);flex-direction:column;padding:1.25rem 1.5rem 1.75rem;gap:.25rem;z-index:999;}
+.lp-mobile-menu.open{display:flex;}
+.lp-mobile-navlink{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:rgba(232,228,220,.85);cursor:pointer;background:none;border:none;text-align:left;padding:.75rem 0;border-bottom:1px solid rgba(200,224,58,.08);transition:color .2s;text-decoration:none;display:block;}
+.lp-mobile-navlink:hover{color:#d4ec46;}
+.lp-mobile-btns{display:flex;gap:.75rem;margin-top:1rem;flex-wrap:wrap;}
+.lp-mobile-btns .lp-btn-login,.lp-mobile-btns .lp-btn-book{flex:1;clip-path:none;border-radius:3px;text-align:center;}
 
 /* HERO */
 .lp-hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;overflow:hidden;padding-bottom:10vh;}
@@ -190,10 +202,10 @@ const CSS = `
 
 @media(max-width:960px){.lp-steps{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:768px){
-  .lp-nav{padding:0 1.25rem;}.lp-nav-links{display:none;}
-  .lp-nav-btns{gap:.4rem;}
-  .lp-btn-login{padding:.4rem .8rem;font-size:.78rem;}
-  .lp-btn-book{padding:.45rem .9rem;font-size:.78rem;}
+  .lp-nav{padding:0 1rem;}
+  .lp-nav-links{display:none;}
+  .lp-nav-btns{display:none;}
+  .lp-hamburger{display:flex;}
   .lp-con{padding:0 1.25rem;}
   .lp-section{padding:3rem 0;}
   .lp-grid{grid-template-columns:1fr;}
@@ -211,8 +223,7 @@ const CSS = `
   .lp-hero-content{padding:0 1.25rem;}
   .lp-hero-btns{flex-direction:column;align-items:stretch;gap:.75rem;margin-top:1.5rem;}
   .lp-cta-p,.lp-cta-s{width:100%;text-align:center;clip-path:none;border-radius:4px;}
-  .lp-strip-inner{padding:0 1rem;}
-  .lp-strip-inner{flex-direction:column;}
+  .lp-strip-inner{padding:0 1rem;flex-direction:column;}
   .lp-cta-btns{flex-direction:column;align-items:center;}
   .lp-cta-btns .lp-cta-p,.lp-cta-btns .lp-cta-s{max-width:320px;width:100%;clip-path:none;border-radius:4px;}
   .lp-htbl td{font-size:.82rem;}
@@ -221,14 +232,18 @@ const CSS = `
   .lp-faq-list{padding:0;}
   .lp-hours .lp-hgrid>div:first-child{order:2;}
   .lp-hours .lp-hgrid>div:last-child{order:1;}
+  .lp-line{font-size:clamp(1rem,5vw,1.3rem);}
+  .lp-line-2{font-size:clamp(1.05rem,5.5vw,1.4rem);}
 }
 @media(max-width:480px){
   .lp-steps{grid-template-columns:1fr;}
-  .lp-nav-btns .lp-btn-login{display:none;}
   .lp-hero{min-height:100svh;}
-  .lp-name{font-size:1.5rem;}
+  .lp-name{font-size:1.4rem;}
   .lp-soc-links{flex-direction:column;}
   .lp-soc-btn{width:100%;justify-content:center;}
+  .lp-card{padding:1.25rem;}
+  .lp-desc{font-size:.82rem;}
+  .lp-price{font-size:1rem;}
 }
 `;
 
@@ -256,7 +271,8 @@ export default function LandingPage({ onEnterApp }) {
   const scrolled = useScrolled();
   useReveal();
   const [openFaq, setOpenFaq] = useState(null);
-  const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const goTo = (id) => { document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); setMenuOpen(false); };
 
   return (
     <div className="lp">
@@ -276,7 +292,21 @@ export default function LandingPage({ onEnterApp }) {
           <button className="lp-btn-login" onClick={onEnterApp}>Sign In</button>
           <button className="lp-btn-book" onClick={onEnterApp}>Book Now</button>
         </div>
+        <button className={`lp-hamburger${menuOpen?" open":""}`} onClick={()=>setMenuOpen(o=>!o)} aria-label="Menu">
+          <span/><span/><span/>
+        </button>
       </nav>
+      {/* MOBILE MENU */}
+      <div className={`lp-mobile-menu${menuOpen?" open":""}`}>
+        {[["missions","Missions"],["how","How It Works"],["hours","Join Us"],["faq","FAQ"]].map(([id,label]) => (
+          <button key={id} className="lp-mobile-navlink" onClick={() => goTo(id)}>{label}</button>
+        ))}
+        <a className="lp-mobile-navlink" href="/leaderboard.html" target="_blank" rel="noreferrer">Leaderboard</a>
+        <div className="lp-mobile-btns">
+          <button className="lp-btn-login" onClick={()=>{setMenuOpen(false);onEnterApp();}}>Sign In</button>
+          <button className="lp-btn-book" onClick={()=>{setMenuOpen(false);onEnterApp();}}>Book Now</button>
+        </div>
+      </div>
 
       {/* HERO */}
       <section className="lp-hero">

@@ -335,7 +335,64 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .dup-alert{background:rgba(184,150,12,.08);border:1px solid var(--warn);border-left:4px solid var(--warnL);border-radius:6px;padding:.85rem 1.1rem;margin-bottom:.75rem;}
 .dup-alert-title{font-weight:700;color:var(--warnL);font-size:.85rem;margin-bottom:.3rem;}
 .dup-alert-sub{font-size:.78rem;color:var(--muted);margin-bottom:.65rem;}
-`;
+
+/* ── MOBILE RESPONSIVE ── */
+@media(max-width:768px){
+  .nav{padding:0 1rem;height:58px;}
+  .nav-logo{height:40px;}
+  .nav-user{font-size:.68rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .nbadge{display:none;}
+  .nav-right{gap:.4rem;}
+  .nbtn{padding:.28rem .6rem;font-size:.72rem;}
+  .content{padding:1rem .75rem;}
+  .hero{padding:1.1rem 1.25rem;margin-bottom:1.25rem;}
+  .hero h2{font-size:1.2rem;}
+  .hero p{font-size:.78rem;}
+  .tabs{gap:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{padding:.5rem .75rem;font-size:.72rem;white-space:nowrap;flex-shrink:0;}
+  .ph{flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem;}
+  .ph .pt{font-size:1rem;}
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tw table{min-width:500px;}
+  table th,table td{padding:.55rem .65rem;font-size:.78rem;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:1.25rem;}
+  .stat-card{padding:.7rem .8rem;}
+  .stat-val{font-size:1.35rem;}
+  .stat-lbl{font-size:.58rem;}
+  .g2{grid-template-columns:1fr;}
+  .mo .mc{width:calc(100vw - 2rem);max-width:100%;margin:1rem;max-height:calc(100svh - 2rem);overflow-y:auto;}
+  .rt-grid{grid-template-columns:1fr;}
+  .mode-grid{grid-template-columns:1fr;}
+  .slot-grid{grid-template-columns:repeat(2,1fr);}
+  .mc{padding:1.25rem;}
+  .login-card{width:calc(100vw - 2rem);padding:1.75rem 1.25rem;}
+  .player-row{padding:.5rem .75rem;gap:.5rem;}
+  .add-player-row{padding:.6rem .75rem;gap:.5rem;}
+  .shift-card{padding:.75rem 1rem;gap:.6rem;}
+  .slide-panel{width:100vw;}
+  .back-to-top{bottom:1rem;left:1rem;width:38px;height:38px;font-size:1rem;}
+  .waiver-doc-card{padding:1rem;}
+  .alert-banner{padding:.65rem .85rem;font-size:.78rem;}
+  .gd-badge{padding:.5rem .75rem;font-size:.74rem;}
+  .pay-sum{padding:.75rem;}
+}
+@media(max-width:480px){
+  .content{padding:.75rem .6rem;}
+  .stats-grid{grid-template-columns:1fr;}
+  .tab{padding:.45rem .6rem;font-size:.68rem;}
+  .nav-user{max-width:80px;}
+  .slot-grid{grid-template-columns:1fr;}
+  .date-grid{grid-template-columns:repeat(7,1fr);gap:.2rem;}
+  .date-cell{padding:.3rem .1rem;font-size:.65rem;}
+  .dc-num{font-size:.9rem;}
+}
+@media(orientation:landscape) and (max-height:500px){
+  .nav{height:50px;}
+  .nav-logo{height:34px;}
+  .content{padding:.6rem;}
+  .mo .mc{max-height:calc(100svh - 1rem);margin:.5rem auto;}
+}`;
 
 function Toast({msg,variant="",onClose}){
   useEffect(()=>{const t=setTimeout(onClose,4500);return()=>clearTimeout(t);},[]);
