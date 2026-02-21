@@ -42,8 +42,8 @@ const CSS = `
 /* NAV */
 .lp-nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:0 3rem;height:70px;transition:all .4s ease;background:rgba(17,18,9,.55);backdrop-filter:blur(8px);border-bottom:1px solid rgba(200,224,58,.08);}
 .lp-nav.scrolled{background:rgba(17,18,9,.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(200,224,58,.18);}
-.lp-logo{height:54px;width:auto;cursor:pointer;}
-.lp-nav-links{display:flex;align-items:center;gap:2rem;}
+.lp-logo{height:54px;width:auto;cursor:pointer;flex-shrink:0;}
+.lp-nav-links{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2rem;pointer-events:auto;}
 .lp-navlink{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:rgba(232,228,220,.92);cursor:pointer;transition:color .2s;background:none;border:none;text-shadow:0 1px 6px rgba(0,0,0,.8);}
 .lp-navlink:hover{color:#d4ec46;}
 .lp-nav-btns{display:flex;gap:.75rem;align-items:center;}
@@ -88,10 +88,10 @@ const CSS = `
 /* STRIP */
 .lp-strip{background:#111209;border-top:1px solid rgba(200,224,58,.15);border-bottom:1px solid rgba(200,224,58,.08);padding:1.3rem 0;}
 .lp-strip-inner{display:flex;justify-content:center;align-items:stretch;flex-wrap:wrap;max-width:1100px;margin:0 auto;padding:0 2rem;}
-.lp-inc{display:flex;align-items:center;gap:.55rem;padding:.5rem 1.75rem;border-right:1px solid rgba(200,224,58,.1);flex:1;min-width:150px;justify-content:center;}
+.lp-inc{display:flex;align-items:center;gap:.55rem;padding:.5rem 1.25rem;border-right:1px solid rgba(200,224,58,.1);flex:1;min-width:0;justify-content:flex-start;}
 .lp-inc:last-child{border-right:none;}
 .lp-inc-icon{font-size:1.2rem;flex-shrink:0;}
-.lp-inc-text{font-family:'Barlow Condensed',sans-serif;font-size:.8rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#7a7868;white-space:nowrap;}
+.lp-inc-text{font-family:'Barlow Condensed',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#7a7868;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .lp-inc-text strong{color:rgba(232,228,220,.85);display:block;font-size:.86rem;}
 
 /* SECTIONS */
@@ -201,7 +201,7 @@ const CSS = `
 .lp-d1{transition-delay:.07s;}.lp-d2{transition-delay:.16s;}.lp-d3{transition-delay:.25s;}.lp-d4{transition-delay:.34s;}.lp-d5{transition-delay:.43s;}
 
 @media(max-width:960px){.lp-steps{grid-template-columns:repeat(3,1fr);}}
-@media(max-width:768px){
+@media(max-width:1100px){
   .lp-nav{padding:0 1rem;}
   .lp-nav-links{display:none;}
   .lp-nav-btns{display:none;}
@@ -278,13 +278,101 @@ const FAQS = [
 ];
 
 const SOCIAL = [
-  { label: "Instagram", path: "M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" },
-  { label: "Facebook", path: "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" },
-  { label: "TikTok", path: "M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.28 8.28 0 004.84 1.56V6.79a4.85 4.85 0 01-1.07-.1z" },
-  { label: "YouTube", path: "M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" },
+  { label: "Instagram", url: "https://www.instagram.com/sector.317", path: "M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" },
+  { label: "Facebook", url: "https://www.facebook.com/sector.317", path: "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" },
+  { label: "TikTok", url: "https://www.tiktok.com/@sector.317", path: "M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.28 8.28 0 004.84 1.56V6.79a4.85 4.85 0 01-1.07-.1z" },
+  { label: "YouTube", url: "https://www.youtube.com/@sector.317", path: "M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" },
 ];
 
-const HOURS = [["Monday","6:00 PM – 8:00 PM"],["Tuesday","6:00 PM – 8:00 PM"],["Wednesday","6:00 PM – 8:00 PM"],["Thursday","6:00 PM – 8:00 PM"],["Friday","5:30 PM – 10:00 PM"],["Saturday","1:00 PM – 10:00 PM"],["Sunday","2:00 PM – 6:00 PM"]];
+const HOURS = [["Monday","5:30 PM – 9:00 PM"],["Tuesday","5:30 PM – 9:00 PM"],["Wednesday","5:30 PM – 9:00 PM"],["Thursday","5:30 PM – 9:00 PM"],["Friday","5:00 PM – 11:00 PM"],["Saturday","12:30 PM – 11:00 PM"],["Sunday","1:30 PM – 7:00 PM"]];
+
+function StripIcon({ type }) {
+  const c = "#c8e03a", c2 = "#9ab02e";
+  if (type === "gear") return (
+    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+      {/* helmet dome */}
+      <path d="M7 20c0-6.627 4.925-12 11-12s11 5.373 11 12" fill={c} fillOpacity=".1" stroke={c} strokeWidth="1.8"/>
+      {/* helmet sides / ear protection */}
+      <path d="M7 20v4c0 1 .5 1.5 1.5 1.5H10" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
+      <path d="M31 20v4c0 1-.5 1.5-1.5 1.5H28" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
+      {/* ear cups */}
+      <rect x="4" y="19" width="4" height="6" rx="1.5" fill={c} fillOpacity=".15" stroke={c} strokeWidth="1.4"/>
+      <rect x="30" y="19" width="4" height="6" rx="1.5" fill={c} fillOpacity=".15" stroke={c} strokeWidth="1.4"/>
+      {/* NVG mount on top */}
+      <rect x="16" y="8" width="6" height="4" rx="1" fill={c} fillOpacity=".2" stroke={c} strokeWidth="1.3"/>
+      <rect x="17.5" y="6" width="3" height="2.5" rx=".5" fill={c} fillOpacity=".3" stroke={c} strokeWidth="1"/>
+      {/* goggle strap line */}
+      <path d="M10 23.5h18" stroke={c} strokeWidth="1.2" strokeLinecap="round" opacity=".4"/>
+      {/* goggle lens - wide single visor */}
+      <path d="M9 21.5c0-2 1.5-3.5 3.5-3.5h13c2 0 3.5 1.5 3.5 3.5s-1.5 3.5-3.5 3.5h-13c-2 0-3.5-1.5-3.5-3.5z" fill={c} fillOpacity=".12" stroke={c} strokeWidth="1.6"/>
+      {/* goggle reflections */}
+      <path d="M12 20c1.5-1 3.5-1.2 5-.5" stroke={c2} strokeWidth="1.1" strokeLinecap="round" opacity=".65"/>
+      <path d="M20 20c1.5-1 3-1.2 4.5-.5" stroke={c2} strokeWidth="1.1" strokeLinecap="round" opacity=".65"/>
+      {/* mic boom */}
+      <path d="M8 24.5c-1.5 1-2 2.5-1.5 3.5" stroke={c} strokeWidth="1.3" strokeLinecap="round" opacity=".6"/>
+      <circle cx="6.5" cy="28.5" r="1.2" fill={c} fillOpacity=".5" stroke={c} strokeWidth="1"/>
+    </svg>
+  );
+  if (type === "bar") return (
+    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+      {/* mug body - straight sides, flat bottom */}
+      <rect x="7" y="12" width="18" height="18" rx="2" fill={c} fillOpacity=".1" stroke={c} strokeWidth="1.8"/>
+      {/* handle - D shape on right */}
+      <path d="M25 16h3a3 3 0 010 6h-3" stroke={c} strokeWidth="1.9" strokeLinecap="round" fill="none"/>
+      {/* foam line across top */}
+      <rect x="7" y="12" width="18" height="4" rx="1.5" fill={c} fillOpacity=".2"/>
+      {/* foam bumps */}
+      <path d="M9 12c.8-2 1.6-2.5 2.5-1.5s1.8 1.8 2.5.5 1.5-2.2 2.5-.8 1.8 1.8 2.5.3 1.5-2 2.5-1" stroke={c} strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".7"/>
+      {/* bubbles inside */}
+      <circle cx="13" cy="22" r="1.1" fill={c2} fillOpacity=".45"/>
+      <circle cx="18" cy="26" r=".9" fill={c2} fillOpacity=".35"/>
+      <circle cx="15" cy="19" r=".7" fill={c} fillOpacity=".4"/>
+    </svg>
+  );
+  if (type === "structures") return (
+    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+      <rect x="3" y="15" width="14" height="17" rx="1" fill={c} fillOpacity=".08" stroke={c} strokeWidth="1.5"/>
+      <path d="M6 15V11l7-4 7 4v4" stroke={c} strokeWidth="1.5" strokeLinejoin="round"/>
+      <rect x="5.5" y="21" width="4" height="4.5" rx=".5" fill={c} fillOpacity=".35"/>
+      <rect x="12" y="21" width="4" height="4.5" rx=".5" fill={c} fillOpacity=".35"/>
+      <rect x="21" y="9" width="14" height="23" rx="1" fill={c} fillOpacity=".12" stroke={c2} strokeWidth="1.5"/>
+      <rect x="23" y="14" width="4" height="3.5" rx=".5" fill={c2} fillOpacity=".5"/>
+      <rect x="29" y="14" width="4" height="3.5" rx=".5" fill={c2} fillOpacity=".5"/>
+      <rect x="23" y="20" width="4" height="3.5" rx=".5" fill={c2} fillOpacity=".4"/>
+      <rect x="29" y="20" width="4" height="3.5" rx=".5" fill={c2} fillOpacity=".4"/>
+      <path d="M1 32h36" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+  if (type === "tv") return (
+    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+      <rect x="3" y="10" width="28" height="19" rx="2.5" fill={c} fillOpacity=".08" stroke={c} strokeWidth="1.7"/>
+      <rect x="6" y="13" width="19" height="13" rx="1.5" fill={c} fillOpacity=".07" stroke={c} strokeWidth="1" strokeOpacity=".4"/>
+      <path d="M12.5 16.5l8 3-8 3v-6z" fill={c} fillOpacity=".75"/>
+      <circle cx="29" cy="16" r="1.5" stroke={c2} strokeWidth="1.2" fill="none" opacity=".7"/>
+      <rect x="26.5" y="20" width="5" height="1" rx=".5" fill={c2} fillOpacity=".5"/>
+      <rect x="26.5" y="22.5" width="5" height="1" rx=".5" fill={c2} fillOpacity=".4"/>
+      <path d="M10 29l-2 4M24 29l2 4" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M11 10L8 4M23 10l4-6" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="35" cy="8" r="2.5" fill={c} fillOpacity=".2" stroke={c} strokeWidth="1"/>
+      <circle cx="35" cy="8" r="1.1" fill={c}/>
+    </svg>
+  );
+  if (type === "id") return (
+    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+      <rect x="3" y="8" width="30" height="22" rx="2.5" fill={c} fillOpacity=".08" stroke={c} strokeWidth="1.7"/>
+      <rect x="3" y="11.5" width="30" height="4" fill={c} fillOpacity=".12"/>
+      <rect x="6" y="18" width="9" height="9" rx="1" fill={c} fillOpacity=".12" stroke={c2} strokeWidth="1.1"/>
+      <circle cx="10.5" cy="21" r="2" fill={c2} fillOpacity=".5"/>
+      <path d="M6.5 27c0-2.5 1.8-3.5 4-3.5s4 1 4 3.5" fill={c2} fillOpacity=".35"/>
+      <path d="M18 19.5h13" stroke={c} strokeWidth="1.4" strokeLinecap="round"/>
+      <path d="M18 23h9" stroke={c} strokeWidth="1.1" strokeLinecap="round" opacity=".5"/>
+      <path d="M18 26h11" stroke={c} strokeWidth="1.1" strokeLinecap="round" opacity=".4"/>
+      <rect x="24" y="2" width="13" height="11" rx="2" fill="#111209" stroke={c} strokeWidth="1.4"/>
+      <text x="30.5" y="10.5" fontFamily="Barlow Condensed, sans-serif" fontSize="7.5" fontWeight="900" fill={c} textAnchor="middle" letterSpacing="-.5">18+</text>
+    </svg>
+  );
+  return null;
+}
 
 export default function LandingPage({ onEnterApp }) {
   const parallax = useParallax();
@@ -351,14 +439,14 @@ export default function LandingPage({ onEnterApp }) {
       <div className="lp-strip" id="strip">
         <div className="lp-strip-inner">
           {[
-            ["🎽","Loadout & Gear","Included"],
-            ["🎯","Shooting Range","Zero in before the drop"],
-            ["🍺","Bar & Lounge","On-site · Catch the game"],
-            ["📺","Watch the Livestream","Active groups in mission"],
-            ["🔞","Ages 16+","With adult participation"],
-          ].map(([icon, strong, sub], i) => (
+            ["gear","Loadout & Gear","We've got you covered"],
+            ["bar","Bar & Lounge","Catch the game"],
+            ["structures","2 Structures","9,500 sq ft of CQB"],
+            ["tv","Live Feed","Catch the action"],
+            ["id","Ages 18+","16+ with adult"],
+          ].map(([iconKey, strong, sub], i) => (
             <div key={i} className={`lp-inc lp-reveal lp-d${i+1}`}>
-              <div className="lp-inc-icon">{icon}</div>
+              <div className="lp-inc-icon"><StripIcon type={iconKey}/></div>
               <div className="lp-inc-text"><strong>{strong}</strong>{sub}</div>
             </div>
           ))}
@@ -390,12 +478,12 @@ export default function LandingPage({ onEnterApp }) {
               </div>
               <div className="lp-dsub">For individuals &amp; small groups</div>
               <div className="lp-name">Open Play</div>
-              <div className="lp-desc">Roll in solo or with a few friends and get matched with other operatives to form a full team. Perfect for first-timers — we'll get you mission-ready.</div>
+              <div className="lp-desc">Roll in solo or bring a few friends and link up with other operatives to complete the mission. Built for those looking to connect, compete, and sharpen their skills.  Perfect for first-timers; we’ll have you mission-ready.</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>👥</em> Meet new people</div>
                 <div className="lp-mi"><em>🚶</em> Walk-ins welcome</div>
               </div>
-              <div className="lp-price">$55 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span></div>
+              <div className="lp-price">$55 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span><span className="lp-tag">Show up and show out</span></div>
             </div>
             {/* Private Team */}
             <div className="lp-card tacc lp-reveal lp-d2" onClick={onEnterApp}>
@@ -410,7 +498,7 @@ export default function LandingPage({ onEnterApp }) {
               </div>
               <div className="lp-dsub">For groups who want their own game</div>
               <div className="lp-name">Private Team</div>
-              <div className="lp-desc">Reserve your own session for your group. No strangers — this is your game, your rules, your crew. Birthdays, team nights, and revenge matches all welcome.</div>
+              <div className="lp-desc">Reserve your own private session for your group to run the mission your way. Built for birthdays, big groups, team nights, and revenge matches. Your scenario. Your rules. Nothing in your way.</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>🏆</em> Build your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
@@ -508,7 +596,7 @@ export default function LandingPage({ onEnterApp }) {
           </div>
           <div className="lp-soc-links">
             {SOCIAL.map((s) => (
-              <a key={s.label} className="lp-soc-btn" href="#" target="_blank" rel="noreferrer">
+              <a key={s.label} className="lp-soc-btn" href={s.url} target="_blank" rel="noreferrer">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d={s.path}/></svg>
                 {s.label}
               </a>
