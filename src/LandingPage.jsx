@@ -268,13 +268,14 @@ const CSS = `
 `;
 
 const FAQS = [
-  { q: "What exactly is a CQB shoot-house?", a: "A shoot-house is a full-scale indoor structure designed for close-quarters battle training — the same type used by military and law enforcement. Ours are two-story, 4,700 sq ft structures with configurable rooms, breachable doors, repositioning live role players, and full environmental controls. You're not in a game — you're in a scenario." },
-  { q: "Is this paintball or laser tag?", a: "Neither. We use magazine-fed markers built on an M4 platform firing paint ammunition — the same frame as training weapons used by real instructors. Think structured scenario training, not rec-room games." },
-  { q: "Do I need any prior experience?", a: "None. Every session begins with a safety briefing covering core CQB concepts — room clearing, communication, threat assessment — so even complete beginners feel prepared. Our instructors walk you through everything before you ever touch a marker." },
-  { q: "What do I need to bring?", a: "Just closed-toe shoes and your competitive spirit. Full loadout and protective gear are provided. Wear comfortable athletic clothing — and don't wear your favorite shirt. Your second favorite is totally fine." },
-  { q: "What's the age requirement?", a: "Participants must be 16 or older. Players aged 16–17 require a consenting adult present and a guardian-signed waiver on file." },
+  { q: "What does CQB stand for and what is a shoot-house?", a: "CQB stands for Close Quarters Battle. It refers to tactical combat conducted in confined spaces like buildings, hallways, and tight indoor environments.  A shoot house is a purpose-built structure designed for tactical training in close-quarters environments. It simulates real-world interior spaces like rooms and hallways so teams can practice movement, communication, and scenario-based missions. — the same structure type used by military and law enforcement for training. We feature two separate two-story, 4,700 sq ft structures with modular interior walls (new experience each time you return) to form rooms, breachable doors, and various environmental controls." },
+  { q: "What do you mean when you say environmental controls?", a: "Each of our structures are packed full of awesome technology. From target sensors to livestream cameras, we track and capture all of the action to form a completely unique experience. Included in this tech package are various visual and audio controls that allow each group to define and redefine the experience they wish to have. Some examples of these controls include our Standard mode (typical house lighting), Cosmic (house lights off, black lights on!), Strobe (not for the easily dizzied or epiliptic), Dark (all lights off, barrel flashlights lead the way), and Cranked (loud music - the way we listened to it in highschool).  If you're feeling extra frisky, ask for Rave mode (Cosmic + Strobe + Cranked - all at once)." },
+  { q: "Is this paintball or laser tag?", a: "Neither. We use 20-round, magazine-fed markers built on an M4-like platform (the same frame as military and LEO training weapons used by real operators) firing harmless paint ammunition. Think structured scenario training, notbackyard speedball." },
+  { q: "Do I need any prior experience?", a: "Zero. Every session begins with a safety briefing covering core CQB concepts — room clearing, communication, threat assessment — so even complete beginners feel prepared. Our instructors walk you through everything before you breach your first structure." },
+  { q: "What do I need to bring?", a: "Just closed-toe shoes and your competitive spirit. Full loadout and protective gear are provided at no additional cost. We do recommend you wear comfortable athletic clothing — and never wear your favorite shirt. Wear your second favorite shirt." },
+  { q: "What's the age requirement?", a: "Participants must be 16 or older. Players aged 16–17 require a consenting adult participating alongside them and a guardian-signed waiver on file." },
   { q: "Can I book the entire venue for a private event?", a: null, jsx: <span>For corporate events, large parties, or custom full-venue packages, reach out at <a href="mailto:events@sector317.com">events@sector317.com</a> and we'll make it happen.</span> },
-  { q: "What's at the bar?", a: "Beer, wine, sparkling, hard seltzers, mocktails, and sodas. Alcohol is not permitted during active play. Valid ID required. No food on site — bring your own or order delivery straight to your lounge table." },
+  { q: "What's at the bar?", a: "Beer, wine, champagne, hard seltzers, mocktails, and sodas. Alcohol is not permitted during active play. Valid ID required. We do not sell food on site but you are more than welcome to bring your own or order delivery straight to your table." },
 ];
 
 const SOCIAL = [
@@ -500,7 +501,7 @@ export default function LandingPage({ onEnterApp }) {
               <div className="lp-name">Private Team</div>
               <div className="lp-desc">Reserve your own private session for your group to run the mission your way. Built for birthdays, big groups, team nights, and revenge matches. Your scenario. Your rules. Nothing in your way.</div>
               <div className="lp-meta">
-                <div className="lp-mi"><em>🏆</em> Build your team</div>
+                <div className="lp-mi"><em>🏆</em> Your pick your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
               </div>
               <div className="lp-price">From $270 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
@@ -553,7 +554,7 @@ export default function LandingPage({ onEnterApp }) {
               <div className="lp-desc">An unstoppable force meets an immovable object. Something has to give. Two teams vie for one goal — control. One advances through resistance, the other holds the line. Then roles reverse. Structures flip. When the dust settles, only one raises the hardware.</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>👥</em> Up to 6 vs 6 (12 max)</div>
-                <div className="lp-mi"><em>⚔️</em> Beat the best to be the best</div>
+                <div className="lp-mi"><em>⚔️</em> You gotta beat the best to be the best</div>
               </div>
               <span className="lp-tag">Team vs Team</span>
             </div>
@@ -605,6 +606,32 @@ export default function LandingPage({ onEnterApp }) {
         </div>
       </div>
 
+{/* NEWSLETTER / STAY IN THE LOOP */}
+      <section style={{background:"linear-gradient(135deg,#1a1b13 0%,#111209 100%)",borderTop:"1px solid rgba(200,224,58,.15)",borderBottom:"1px solid rgba(200,224,58,.15)",padding:"5rem 2rem",textAlign:"center"}}>
+        <div style={{maxWidth:560,margin:"0 auto"}}>
+          <div style={{fontFamily:"'Black Ops One',sans-serif",fontSize:"clamp(1.6rem,4vw,2.4rem)",color:"#d4ec46",letterSpacing:".06em",textTransform:"uppercase",marginBottom:".6rem",lineHeight:1.1}}>
+            Stay In The Loop
+          </div>
+          <p style={{fontFamily:"'Barlow',sans-serif",fontSize:"1rem",color:"rgba(232,228,220,.65)",lineHeight:1.7,marginBottom:"2rem"}}>
+            New missions. Limited runs. Leaderboard resets. Exclusive events.<br/>
+            Be the first to know — create your account and we'll keep you in the fight.
+          </p>
+          <div style={{display:"flex",gap:"1rem",justifyContent:"center",flexWrap:"wrap"}}>
+            <button
+              onClick={onEnterApp}
+              style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:"1rem",fontWeight:800,letterSpacing:".15em",textTransform:"uppercase",background:"#c8e03a",color:"#111209",border:"none",borderRadius:3,padding:".75rem 2.2rem",cursor:"pointer",transition:"all .25s",clipPath:"polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)"}}
+              onMouseOver={e=>{e.currentTarget.style.background="#d4ec46";e.currentTarget.style.boxShadow="0 0 32px rgba(200,224,58,.45)";}}
+              onMouseOut={e=>{e.currentTarget.style.background="#c8e03a";e.currentTarget.style.boxShadow="none";}}
+            >
+              Count Me IN →
+            </button>
+          </div>
+          <p style={{fontFamily:"'Barlow',sans-serif",fontSize:".75rem",color:"rgba(232,228,220,.3)",marginTop:"1.25rem",letterSpacing:".04em"}}>
+            No spam. No noise. Just what matters for Sector 317 operatives.
+          </p>
+        </div>
+      </section>
+
       {/* HOURS & LOCATION */}
       <section className="lp-section lp-hours" id="hours">
         <div className="lp-con">
@@ -619,7 +646,7 @@ export default function LandingPage({ onEnterApp }) {
               </table>
               <div style={{marginTop:"1.1rem",display:"flex",flexDirection:"column",gap:".4rem"}}>
                 <div className="lp-badge">🔞 Ages 16+ with adult participation</div>
-                <div className="lp-badge dim">👟 Closed-toe shoes required · Don't wear your favorite shirt — your second favorite is totally fine</div>
+                <div className="lp-badge dim">👟 Closed-toe shoes required · Wear appropriate clothing</div>
                 <div className="lp-badge dim">📅 Reservations recommended but not required</div>
               </div>
             </div>
@@ -664,40 +691,6 @@ export default function LandingPage({ onEnterApp }) {
             <button className="lp-cta-p" style={{fontSize:"1.05rem",padding:"1rem 3.5rem"}} onClick={onEnterApp}>Book Now</button>
             <button className="lp-cta-s" style={{fontSize:".95rem",padding:".9rem 2.2rem"}} onClick={onEnterApp}>Sign In</button>
           </div>
-        </div>
-      </section>
-
-      {/* NEWSLETTER / STAY IN THE LOOP */}
-      <section style={{background:"linear-gradient(135deg,#1a1b13 0%,#111209 100%)",borderTop:"1px solid rgba(200,224,58,.15)",borderBottom:"1px solid rgba(200,224,58,.15)",padding:"5rem 2rem",textAlign:"center"}}>
-        <div style={{maxWidth:560,margin:"0 auto"}}>
-          <div style={{fontFamily:"'Black Ops One',sans-serif",fontSize:"clamp(1.6rem,4vw,2.4rem)",color:"#d4ec46",letterSpacing:".06em",textTransform:"uppercase",marginBottom:".6rem",lineHeight:1.1}}>
-            Stay In The Loop
-          </div>
-          <p style={{fontFamily:"'Barlow',sans-serif",fontSize:"1rem",color:"rgba(232,228,220,.65)",lineHeight:1.7,marginBottom:"2rem"}}>
-            New missions. Limited runs. Leaderboard resets. Exclusive events.<br/>
-            Be the first to know — create your account and we'll keep you in the fight.
-          </p>
-          <div style={{display:"flex",gap:"1rem",justifyContent:"center",flexWrap:"wrap"}}>
-            <button
-              onClick={onEnterApp}
-              style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:"1rem",fontWeight:800,letterSpacing:".15em",textTransform:"uppercase",background:"#c8e03a",color:"#111209",border:"none",borderRadius:3,padding:".75rem 2.2rem",cursor:"pointer",transition:"all .25s",clipPath:"polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)"}}
-              onMouseOver={e=>{e.currentTarget.style.background="#d4ec46";e.currentTarget.style.boxShadow="0 0 32px rgba(200,224,58,.45)";}}
-              onMouseOut={e=>{e.currentTarget.style.background="#c8e03a";e.currentTarget.style.boxShadow="none";}}
-            >
-              Create Account →
-            </button>
-            <button
-              onClick={onEnterApp}
-              style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:"1rem",fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",background:"none",border:"1px solid rgba(200,224,58,.35)",color:"#c8e03a",borderRadius:3,padding:".75rem 2rem",cursor:"pointer",transition:"all .2s"}}
-              onMouseOver={e=>{e.currentTarget.style.borderColor="#c8e03a";e.currentTarget.style.background="rgba(200,224,58,.08)";}}
-              onMouseOut={e=>{e.currentTarget.style.borderColor="rgba(200,224,58,.35)";e.currentTarget.style.background="none";}}
-            >
-              Sign In
-            </button>
-          </div>
-          <p style={{fontFamily:"'Barlow',sans-serif",fontSize:".75rem",color:"rgba(232,228,220,.3)",marginTop:"1.25rem",letterSpacing:".04em"}}>
-            No spam. No noise. Just what matters for Sector 317 operatives.
-          </p>
         </div>
       </section>
 
