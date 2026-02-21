@@ -66,8 +66,8 @@ const CSS = `
 
 /* HERO */
 .lp-hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;overflow:hidden;padding-bottom:10vh;}
-.lp-hero-bg{position:absolute;inset:0;background:url('/hero.png') center center / cover no-repeat;will-change:transform;}
-.lp-hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(17,18,9,.08) 0%,rgba(17,18,9,.03) 28%,rgba(17,18,9,.58) 65%,rgba(17,18,9,.99) 100%);}
+.lp-hero-bg{position:absolute;inset:0;background:url('/hero.png') center 18% / cover no-repeat;will-change:transform;}
+.lp-hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(17,18,9,.45) 0%,rgba(17,18,9,.0) 12%,rgba(17,18,9,.0) 30%,rgba(17,18,9,.55) 65%,rgba(17,18,9,.99) 100%);}
 .lp-hero-content{position:relative;z-index:2;text-align:center;padding:0 2rem;max-width:720px;animation:lpUp .9s ease both;}
 @keyframes lpUp{from{opacity:0;transform:translateY(36px);}to{opacity:1;transform:translateY(0);}}
 .lp-line{font-family:'Barlow Condensed',sans-serif;font-size:clamp(1.05rem,2.6vw,1.45rem);font-weight:600;letter-spacing:.06em;line-height:1;display:block;text-shadow:0 2px 20px rgba(0,0,0,.95);margin-bottom:.9rem;}
@@ -206,6 +206,8 @@ const CSS = `
   .lp-nav-links{display:none;}
   .lp-nav-btns{display:none;}
   .lp-hamburger{display:flex;}
+  /* On portrait mobile the image is wide, shift anchor so logo stays centered */
+  .lp-hero-bg{background-position:center 12% !important;}
   .lp-con{padding:0 1.25rem;}
   .lp-section{padding:3rem 0;}
   .lp-grid{grid-template-columns:1fr;}
@@ -232,18 +234,36 @@ const CSS = `
   .lp-faq-list{padding:0;}
   .lp-hours .lp-hgrid>div:first-child{order:2;}
   .lp-hours .lp-hgrid>div:last-child{order:1;}
-  .lp-line{font-size:clamp(1rem,5vw,1.3rem);}
-  .lp-line-2{font-size:clamp(1.05rem,5.5vw,1.4rem);}
+  .lp-line{font-size:clamp(1.1rem,5vw,1.4rem);}
+  .lp-line-2{font-size:clamp(1.2rem,5.5vw,1.5rem);}
+  /* Boost all body text on mobile */
+  .lp-desc{font-size:.95rem;line-height:1.6;}
+  .lp-dsub{font-size:.85rem;}
+  .lp-name{font-size:1.6rem;}
+  .lp-mi{font-size:.88rem;}
+  .lp-price{font-size:1.1rem;}
+  .lp-ey{font-size:.8rem;}
+  .lp-h{font-size:clamp(2rem,8vw,3.2rem);}
+  .lp-sdesc{font-size:.92rem;}
+  .lp-stitle{font-size:1.05rem;}
+  .lp-faq-q{font-size:1rem;}
+  .lp-faq-a{font-size:.9rem;}
+  .lp-inc-text strong{font-size:.92rem;}
+  .lp-inc-text{font-size:.82rem;}
 }
 @media(max-width:480px){
   .lp-steps{grid-template-columns:1fr;}
   .lp-hero{min-height:100svh;}
-  .lp-name{font-size:1.4rem;}
+  .lp-hero-bg{background-position:center 8% !important;}
+  .lp-name{font-size:1.5rem;}
   .lp-soc-links{flex-direction:column;}
   .lp-soc-btn{width:100%;justify-content:center;}
   .lp-card{padding:1.25rem;}
-  .lp-desc{font-size:.82rem;}
-  .lp-price{font-size:1rem;}
+  .lp-desc{font-size:.93rem;line-height:1.6;}
+  .lp-price{font-size:1.05rem;}
+  .lp-line{font-size:clamp(1.05rem,6vw,1.35rem);}
+  .lp-line-2{font-size:clamp(1.15rem,6.5vw,1.5rem);}
+  .lp-sdesc{font-size:.9rem;}
 }
 `;
 
