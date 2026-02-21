@@ -1508,6 +1508,17 @@ export default function App(){
   const liveUser=users.find(u=>u.id===currentUser?.id)||currentUser;
   const portal=!liveUser?null:liveUser.access==="customer"?"customer":liveUser.access==="staff"?"staff":"admin";
   const [showNavAccount,setShowNavAccount]=useState(false);
+  const [showBackTop,setShowBackTop]=useState(false);
+  const contentRef=useRef(null);
+  useEffect(()=>{
+    const handler=()=>{
+      const el=document.querySelector('.content');
+      if(el)setShowBackTop(el.scrollTop>300);
+    };
+    const el=document.querySelector('.content');
+    el?.addEventListener('scroll',handler,{passive:true});
+    return()=>el?.removeEventListener('scroll',handler);
+  },[liveUser]);
 
   if(loading)return(
     <><style>{CSS}</style>
@@ -1536,15 +1547,6 @@ export default function App(){
 
   if(showLanding&&!currentUser&&!pendingUser)return <LandingPage onEnterApp={()=>setShowLanding(false)}/>;
   if(pendingUser)return <><style>{CSS}</style><CompleteProfile user={pendingUser} onComplete={handleCompleteProfile} onSignOut={()=>{setPendingUser(null);setShowLanding(true);}}/></>;
-  const [showBackTop,setShowBackTop]=useState(false);
-  useEffect(()=>{
-    const el=document.querySelector('.content');
-    if(!el)return;
-    const fn=()=>setShowBackTop(el.scrollTop>300);
-    el.addEventListener('scroll',fn,{passive:true});
-    return()=>el.removeEventListener('scroll',fn);
-  });
-
   if(!liveUser)return <><style>{CSS}</style><LoginScreen onLogin={handleLogin}/></>;
 
   return(<>
