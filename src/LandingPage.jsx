@@ -191,14 +191,44 @@ const CSS = `
 @media(max-width:960px){.lp-steps{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:768px){
   .lp-nav{padding:0 1.25rem;}.lp-nav-links{display:none;}
-  .lp-con{padding:0 1.5rem;}
-  .lp-section{padding:3.5rem 0;}
+  .lp-nav-btns{gap:.4rem;}
+  .lp-btn-login{padding:.4rem .8rem;font-size:.78rem;}
+  .lp-btn-book{padding:.45rem .9rem;font-size:.78rem;}
+  .lp-con{padding:0 1.25rem;}
+  .lp-section{padding:3rem 0;}
   .lp-grid{grid-template-columns:1fr;}
   .lp-hgrid{grid-template-columns:1fr;}
   .lp-steps{grid-template-columns:repeat(2,1fr);}
-  .lp-footer{flex-direction:column;align-items:flex-start;}
-  .lp-soc-inner{flex-direction:column;}
+  .lp-footer{flex-direction:column;align-items:flex-start;padding:1.5rem 1.25rem;}
+  .lp-soc-inner{flex-direction:column;padding:0 1.25rem;}
   .lp-inc{border-right:none;border-bottom:1px solid rgba(200,224,58,.08);}
+  .lp-inc:last-child{border-bottom:none;}
+  .lp-h{font-size:clamp(1.75rem,7vw,3rem);}
+  .lp-cta{padding:4rem 1.5rem;}
+  .lp-cta-wm{font-size:40vw;}
+  .lp-cta-h{font-size:clamp(2rem,8vw,4rem);}
+  .lp-card{padding:1.5rem;}
+  .lp-hero-content{padding:0 1.25rem;}
+  .lp-hero-btns{flex-direction:column;align-items:stretch;gap:.75rem;margin-top:1.5rem;}
+  .lp-cta-p,.lp-cta-s{width:100%;text-align:center;clip-path:none;border-radius:4px;}
+  .lp-strip-inner{padding:0 1rem;}
+  .lp-strip-inner{flex-direction:column;}
+  .lp-cta-btns{flex-direction:column;align-items:center;}
+  .lp-cta-btns .lp-cta-p,.lp-cta-btns .lp-cta-s{max-width:320px;width:100%;clip-path:none;border-radius:4px;}
+  .lp-htbl td{font-size:.82rem;}
+  .lp-flinks{gap:1rem;}
+  .lp-loc{padding:1.25rem;}
+  .lp-faq-list{padding:0;}
+  .lp-hours .lp-hgrid>div:first-child{order:2;}
+  .lp-hours .lp-hgrid>div:last-child{order:1;}
+}
+@media(max-width:480px){
+  .lp-steps{grid-template-columns:1fr;}
+  .lp-nav-btns .lp-btn-login{display:none;}
+  .lp-hero{min-height:100svh;}
+  .lp-name{font-size:1.5rem;}
+  .lp-soc-links{flex-direction:column;}
+  .lp-soc-btn{width:100%;justify-content:center;}
 }
 `;
 
@@ -253,16 +283,16 @@ export default function LandingPage({ onEnterApp }) {
         <div className="lp-hero-bg" style={{ transform: `translateY(${parallax}px)` }} />
         <div className="lp-hero-overlay" />
         <div className="lp-hero-content">
-          <span className="lp-line lp-line-1">This is where friend groups become fire teams.</span>
-          <span className="lp-line lp-line-2">Indiana's only full-scale CQB shoot-house experience.</span>
-          <span className="lp-line lp-line-3">Real tactics. Live scenarios. Zero weather.</span>
+          <span className="lp-line lp-line-1">Where Friend Groups Become Fire Teams.</span>
+          <span className="lp-line lp-line-2">Breach in. Clear out. Kick back.</span>
+          <span className="lp-line lp-line-3">Is your team ready?</span>
           <div className="lp-hero-btns">
             <button className="lp-cta-p" onClick={onEnterApp}>Book Now</button>
             <button className="lp-cta-s" onClick={onEnterApp}>Sign In / My Account</button>
           </div>
         </div>
         <div className="lp-scroll" onClick={() => goTo("strip")}>
-          <span>Explore</span>
+          <span>Drop In</span>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c8e03a" strokeWidth="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
         </div>
       </section>
@@ -310,12 +340,12 @@ export default function LandingPage({ onEnterApp }) {
               </div>
               <div className="lp-dsub">For individuals &amp; small groups</div>
               <div className="lp-name">Open Play</div>
-              <div className="lp-desc">Roll in solo or with a few friends and get matched with other operatives to form a full team. Reservations recommended but not required. Perfect for first-timers — we'll get you mission-ready.</div>
+              <div className="lp-desc">Roll in solo or with a few friends and get matched with other operatives to form a full team. Perfect for first-timers — we'll get you mission-ready.</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>👥</em> Meet new people</div>
                 <div className="lp-mi"><em>🚶</em> Walk-ins welcome</div>
               </div>
-              <div className="lp-price">$55 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span><span className="lp-tag">Reservations Recommended</span></div>
+              <div className="lp-price">$55 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span></div>
             </div>
             {/* Private Team */}
             <div className="lp-card tacc lp-reveal lp-d2" onClick={onEnterApp}>
@@ -332,7 +362,7 @@ export default function LandingPage({ onEnterApp }) {
               <div className="lp-name">Private Team</div>
               <div className="lp-desc">Reserve your own session for your group. No strangers — this is your game, your rules, your crew. Birthdays, team nights, and revenge matches all welcome.</div>
               <div className="lp-meta">
-                <div className="lp-mi"><em>🏆</em> Improve your scores</div>
+                <div className="lp-mi"><em>🏆</em> Build your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
               </div>
               <div className="lp-price">From $270 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
@@ -359,7 +389,7 @@ export default function LandingPage({ onEnterApp }) {
               </div>
               <div className="lp-dsub">Beat the Clock</div>
               <div className="lp-name">Co-Op</div>
-              <div className="lp-desc">Your entire team works together against objectives inside the shoot-house. Live role players reposition through wall panels keeping every run dynamic. Communication and coordinated pushes are the difference between victory and defeat.</div>
+              <div className="lp-desc">Six operators vs one objective — but the clock is ticking. Navigate the structure, eliminate the threats, and complete the mission before time runs out. Static targets demand precision. Live opposition demands composure. Under pressure, communication and coordination separate the winners from the rest…</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>👥</em> Up to 6 players</div>
                 <div className="lp-mi"><em>🎯</em> Perfect your craft to climb the leaderboard</div>
@@ -382,7 +412,7 @@ export default function LandingPage({ onEnterApp }) {
               </div>
               <div className="lp-dsub">Beat Your Opponent</div>
               <div className="lp-name">Versus</div>
-              <div className="lp-desc">Two teams. One attacks, one defends — then swap. Compare times and outcomes to crown the winner. If both attacking teams complete objectives, fastest time wins. Who has the strategy and the nerve?</div>
+              <div className="lp-desc">An unstoppable force meets an immovable object. Something has to give. Two teams vie for one goal — control. One advances through resistance, the other holds the line. Then roles reverse. Structures flip. When the dust settles, only one raises the hardware.</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>👥</em> Up to 6 vs 6 (12 max)</div>
                 <div className="lp-mi"><em>⚔️</em> Beat the best to be the best</div>

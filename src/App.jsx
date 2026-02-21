@@ -195,10 +195,14 @@ body{background:var(--bg2);color:var(--txt);font-family:var(--fb);min-height:100
 .btn-full{width:100%;}
 .main{flex:1;display:flex;}
 .content{flex:1;padding:1.75rem;overflow-y:auto;background:var(--bg);}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:.9rem;margin-bottom:1.75rem;}
-.stat-card{background:var(--surf);border:1px solid var(--bdr);border-top:3px solid var(--acc);border-radius:5px;padding:1.1rem 1.3rem;box-shadow:0 0 20px rgba(200,224,58,.05);}
-.stat-lbl{font-size:.67rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:.35rem;}
-.stat-val{font-family:var(--fd);font-size:2rem;font-weight:700;color:var(--accB);line-height:1;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.9rem;margin-bottom:1.75rem;}
+.stat-card{background:var(--surf);border:1px solid var(--bdr);border-top:3px solid var(--acc);border-radius:5px;padding:.9rem 1rem;box-shadow:0 0 20px rgba(200,224,58,.05);min-width:0;overflow:hidden;}
+.stat-lbl{font-size:.63rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.stat-val{font-family:var(--fd);font-size:1.65rem;font-weight:700;color:var(--accB);line-height:1;word-break:break-all;}
+.stat-sub{font-size:.68rem;color:var(--muted);margin-top:.2rem;}
+.back-to-top{position:fixed;bottom:1.75rem;left:1.75rem;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--surf2);border:2px solid var(--acc2);color:var(--accB);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;box-shadow:0 4px 16px rgba(0,0,0,.4);animation:btBounce 2s ease infinite;transition:opacity .3s,transform .2s;}
+.back-to-top:hover{background:var(--accD);border-color:var(--accB);transform:translateY(-2px);}
+@keyframes btBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
 .tw{background:var(--surf);border:1px solid var(--bdr);border-radius:6px;overflow:hidden;margin-bottom:1.5rem;}
 .th{padding:.9rem 1.25rem;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:var(--surf2);}
 .ttl{font-family:var(--fd);font-size:1.05rem;font-weight:700;color:var(--accB);letter-spacing:.07em;text-transform:uppercase;}
@@ -386,7 +390,7 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
       <div className="f"><label>Full Legal Name (signature)</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Type your full legal name" disabled={!scrolled}/></div>
       <label style={{display:"flex",gap:".65rem",alignItems:"flex-start",fontSize:".82rem",color:scrolled?"var(--txt)":"var(--muted)",cursor:scrolled?"pointer":"not-allowed",opacity:scrolled?1:.6,marginBottom:".85rem"}}>
         <input type="checkbox" checked={agreed} onChange={e=>scrolled&&setAgreed(e.target.checked)} style={{width:"auto",marginTop:"3px",flexShrink:0}} disabled={!scrolled}/>
-        <span>☐ I HAVE READ AND AGREE TO THIS RELEASE AND WAIVER AND INTEND MY TYPED NAME TO SERVE AS MY LEGAL SIGNATURE.</span>
+        <span>I HAVE READ AND AGREE TO THIS RELEASE AND WAIVER AND INTEND MY TYPED NAME TO SERVE AS MY LEGAL SIGNATURE.</span>
       </label>
       {/* Minor participant — collapsed by default to prevent accidental click */}
       <div style={{border:"1px solid var(--bdr)",borderRadius:5,marginBottom:".85rem",overflow:"hidden"}}>
@@ -402,7 +406,7 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
             <div style={{fontSize:".74rem",color:"var(--warnL)",marginBottom:".65rem",fontWeight:700}}>PARENT/GUARDIAN CERTIFICATION REQUIRED</div>
             <label style={{display:"flex",gap:".65rem",alignItems:"flex-start",fontSize:".8rem",color:"var(--txt)",cursor:"pointer",lineHeight:1.5}}>
               <input type="checkbox" checked={guardianAgreed} onChange={e=>setGuardianAgreed(e.target.checked)} style={{width:"auto",marginTop:"3px",flexShrink:0}}/>
-              <span>☐ I certify that I am the legal parent or court-appointed guardian of the minor participant, that I have legal authority to sign this agreement on their behalf, and that I agree to all terms of this Release of Liability, including the waiver of claims and indemnification provisions, on behalf of the minor. I intend my typed name to serve as my legal electronic signature.</span>
+              <span>I certify that I am the legal parent or court-appointed guardian of the minor participant, that I have legal authority to sign this agreement on their behalf, and that I agree to all terms of this Release of Liability, including the waiver of claims and indemnification provisions, on behalf of the minor. I intend my typed name to serve as my legal electronic signature.</span>
             </label>
           </div>
         )}
@@ -470,7 +474,7 @@ function validateLbName(val,allUsers,currentUserId){
   if(!/^[a-zA-Z0-9 _\-\.]+$/.test(t))return"Letters, numbers, spaces, _ - . only";
   if(hasProfanity(t))return"That name isn't allowed — please choose another";
   const taken=allUsers.some(u=>u.id!==currentUserId&&u.leaderboardName?.toLowerCase()===t.toLowerCase());
-  if(taken)return"That leaderboard name is already taken";
+  if(taken)return"That leaderboard name is already taken — choose a different one and try again";
   return null;
 }
 function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=false}){
@@ -552,7 +556,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
     <div className="mo"><div className="mc" style={{maxWidth:660}}>
       <div style={{display:"flex",gap:".25rem",marginBottom:"1.1rem"}}>{steps.map((s,i)=><div key={s} style={{flex:1,height:3,borderRadius:2,background:i<step?"var(--acc)":"var(--bdr)",transition:"background .3s"}}/>)}</div>
       <div className="mt2">{steps[step-1]}</div>
-      {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>has&&setSelMode(m)}><div className="mode-icon">{m==="coop"?"🤝":"⚔️"}</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Work together to escape":"Compete — who escapes first?"}</div></div>;})} </div>}
+      {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>has&&setSelMode(m)}><div className="mode-icon">{m==="coop"?"🤝":"⚔️"}</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Team vs objective — beat the clock together":"Run 1: Team 1 attacks / Team 2 defends. Run 2: roles flip. Combined scores decide the winner. Tiebreaker on time."}</div></div>;})} </div>}
       {step===2&&<div className="mode-grid">{["open","private"].map(sty=>{const rt=bookable.find(x=>x.mode===selMode&&x.style===sty);if(!rt)return <div key={sty} className="mode-card disabled"><div className="mode-icon">{sty==="open"?"🔓":"🔒"}</div><div className="mode-name">{sty}</div><div style={{fontSize:".72rem",color:"var(--dangerL)",marginTop:".5rem"}}>Unavailable</div></div>;return <div key={sty} className={`mode-card${selStyle===sty?" sel":""}`} onClick={()=>setSelStyle(sty)}><div className="mode-icon">{sty==="open"?"🔓":"🔒"}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Rental"}</div><div className="mode-desc">{rt.description}</div><div className="mode-price">{rt.pricingMode==="flat"?`${fmtMoney(rt.price)} flat`:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
       {step===3&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Choose a date.</p>
@@ -562,7 +566,10 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       {step===4&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".65rem"}}>Pick time slots for <strong style={{color:"var(--txt)"}}>{selDate?fmt(selDate):"—"}</strong></p>
         {selSlots.length>0&&<>{selSlots.map(s=><div className="session-block" key={s.startTime}><div className="session-block-info"><strong>{fmt12(s.startTime)}</strong></div><button className="chip-remove" onClick={()=>setSelSlots(p=>p.filter(x=>x.startTime!==s.startTime))}>✕</button></div>)}<div style={{marginBottom:".75rem"}}/></>}
-        {(selSlots.length===0||addingMore)&&<div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=><div key={tmpl.id} className={`slot-card${added?" added":!status.available?" unavail":""}`} onClick={()=>!added&&status.available&&addSlot(tmpl.startTime)}><div className="slot-time">{fmt12(tmpl.startTime)}</div>{added?<div className="slot-info" style={{color:"var(--okB)"}}>✓</div>:status.available?<div className="slot-info" style={{color:"var(--okB)"}}>{selType?.style==="open"?`${status.slotsLeft} left`:"Available"}</div>:<div className="slot-reason">{status.reason}</div>}</div>)}</div>}
+        {(selSlots.length===0||addingMore)&&<>
+          <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=><div key={tmpl.id} className={`slot-card${added?" added":!status.available?" unavail":""}`} onClick={()=>!added&&status.available&&addSlot(tmpl.startTime)}><div className="slot-time">{fmt12(tmpl.startTime)}</div>{added?<div className="slot-info" style={{color:"var(--okB)"}}>✓</div>:status.available?<div className="slot-info" style={{color:"var(--okB)"}}>{selType?.style==="open"?`${status.slotsLeft} left`:"Available"}</div>:<div className="slot-reason">{status.reason}</div>}</div>)}</div>
+          {slotStatuses.filter(s=>s.status.available&&!s.added).length>1&&<button className="btn btn-ok btn-sm" style={{marginBottom:".75rem"}} onClick={()=>{slotStatuses.filter(s=>s.status.available&&!s.added).forEach(s=>addSlot(s.tmpl.startTime));}}>✓ Reserve All Available Slots</button>}
+        </>}
         {selSlots.length>0&&!addingMore&&<button className="btn btn-s btn-sm" onClick={()=>setAddingMore(true)}>+ Add Another Slot</button>}
       </>}
       {step===5&&!isPrivate&&<>
@@ -898,13 +905,44 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const canManageUser=u=>{if(isAdmin)return true;if(isManager)return u.access!=="admin";return false;};
   const saveRT=()=>{if(editRT)setResTypes(p=>p.map(rt=>rt.id===editRT.id?editRT:rt));else setResTypes(p=>[...p,{...newRT,id:`rt-${Date.now()}`,price:+newRT.price,maxPlayers:newRT.maxPlayers?+newRT.maxPlayers:null}]);showToast(editRT?"Updated":"Created");setModal(null);setEditRT(null);};
   const saveST=()=>{if(editST)sortTmpl(p=>p.map(st=>st.id===editST.id?editST:st));else sortTmpl(p=>[...p,{...newST,id:Date.now(),maxSessions:+newST.maxSessions}]);showToast(editST?"Updated":"Added");setModal(null);setEditST(null);};
-  const saveWaiver=()=>{
-    if(editWaiver){setWaiverDocs(p=>p.map(w=>w.id===editWaiver.id?editWaiver:w));showToast("Waiver updated");}
-    else{const nd={...newWaiver,id:`waiver-${Date.now()}`,createdAt:new Date().toISOString()};if(newWaiver.active){setWaiverDocs(p=>[...p.map(w=>({...w,active:false})),nd]);setUsers(p=>p.map(u=>({...u,needsRewaiverDocId:nd.id})));onAlert("New waiver published — all users must re-sign before next visit");}else setWaiverDocs(p=>[...p,nd]);showToast("Waiver created");}
+  const saveWaiver=async()=>{
+    try{
+      if(editWaiver){
+        const updated=await upsertWaiverDoc(editWaiver);
+        setWaiverDocs(p=>p.map(w=>w.id===updated.id?updated:w));
+        showToast("Waiver updated");
+      }else{
+        const nd=await upsertWaiverDoc(newWaiver);
+        if(newWaiver.active){
+          await setActiveWaiverDoc(nd.id);
+          setWaiverDocs(p=>[nd,...p.map(w=>({...w,active:false}))]);
+          setUsers(p=>p.map(u=>({...u,needsRewaiverDocId:nd.id})));
+          onAlert("New waiver published — all users must re-sign before their next visit");
+        }else{
+          setWaiverDocs(p=>[...p,nd]);
+        }
+        showToast("Waiver created");
+      }
+    }catch(e){showToast("Error saving waiver: "+e.message);}
     setModal(null);setEditWaiver(null);
   };
-  const setActiveWaiver=id=>{setWaiverDocs(p=>p.map(w=>({...w,active:w.id===id})));setUsers(p=>p.map(u=>({...u,needsRewaiverDocId:id})));onAlert("Active waiver changed — all users flagged for re-sign");showToast("Active waiver updated");};
-  const addPlayer=(resId,player)=>{setReservations(p=>p.map(r=>r.id===resId?{...r,players:[...r.players,player]}:r));showToast(`${player.name} added`);};
+  const setActiveWaiver=async id=>{
+    try{
+      await setActiveWaiverDoc(id);
+      setWaiverDocs(p=>p.map(w=>({...w,active:w.id===id})));
+      setUsers(p=>p.map(u=>({...u,needsRewaiverDocId:id})));
+      onAlert("Active waiver changed — all users flagged for re-sign");
+      showToast("Active waiver updated");
+    }catch(e){showToast("Error: "+e.message);}
+  };
+  const addPlayer=async(resId,player)=>{
+    try{
+      const res=reservations.find(r=>r.id===resId);
+      const updated=await addPlayerToReservation(resId,player,res?.players||[]);
+      setReservations(p=>p.map(r=>r.id===resId?updated:r));
+      showToast(`${player.name} added`);
+    }catch(e){showToast("Error adding player: "+e.message);}
+  };
   const signWaiver=(uid,name)=>{const ts=new Date().toISOString();if(uid)setUsers(p=>p.map(u=>u.id===uid?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:name,waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));showToast(`Waiver signed by ${name}`);};
   const cancelRes=id=>{setReservations(p=>p.map(r=>r.id===id?{...r,status:"cancelled"}:r));showToast("Cancelled");};
   const filtered=[...reservations].filter(r=>resHide?r.status!=="completed":true).sort((a,b)=>{const c=a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime);return resSort==="asc"?c:-c;});
@@ -1014,10 +1052,31 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           <span style={{marginLeft:"auto",fontSize:".75rem",color:"var(--muted)"}}>{dashRes.length} reservation{dashRes.length!==1?"s":""}</span>
         </div>
         <div className="stats-grid">
-          <div className="stat-card"><div className="stat-lbl">Revenue</div><div className="stat-val">{fmtMoney(dashRes.reduce((s,r)=>s+r.amount,0))}</div></div>
-          <div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{dashRes.length}</div></div>
-          <div className="stat-card"><div className="stat-lbl">Active Types</div><div className="stat-val">{resTypes.filter(rt=>rt.active).length}</div></div>
-          <div className="stat-card"><div className="stat-lbl">Session Slots</div><div className="stat-val">{sessionTemplates.filter(s=>s.active).length}</div></div>
+          {(()=>{
+            const active=dashRes.filter(r=>r.status!=="cancelled");
+            const revenue=active.reduce((s,r)=>s+r.amount,0);
+            const players=active.reduce((s,r)=>s+r.playerCount,0);
+            const coopRes=active.filter(r=>{const rt=getType(r.typeId);return rt?.mode==="coop";});
+            const vsRes=active.filter(r=>{const rt=getType(r.typeId);return rt?.mode==="versus";});
+            // Utilization: expected players = sessions * (coop avg 4.5 * 60% + versus avg 8.5 * 40%)
+            // Expected per session slot ≈ 4.5*0.6 + 8.5*0.4 = 2.7 + 3.4 = 6.1 avg players per booking
+            const coopPlayers=coopRes.reduce((s,r)=>s+r.playerCount,0);
+            const vsPlayers=vsRes.reduce((s,r)=>s+r.playerCount,0);
+            const coopCapacity=coopRes.length*4.5;
+            const vsCapacity=vsRes.length*8.5;
+            const totalCapacity=coopCapacity+vsCapacity;
+            const totalActual=coopPlayers+vsPlayers;
+            const utilPct=totalCapacity>0?Math.round((totalActual/totalCapacity)*100):null;
+            const activeSlots=sessionTemplates.filter(s=>s.active).length;
+            return <>
+              <div className="stat-card"><div className="stat-lbl">Revenue</div><div className="stat-val">{fmtMoney(revenue)}</div></div>
+              <div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} versus</div></div>
+              <div className="stat-card"><div className="stat-lbl">Total Players</div><div className="stat-val">{players}</div><div className="stat-sub">avg {active.length?Math.round(players/active.length):0}/session</div></div>
+              <div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val">{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">vs expected capacity</div></div>
+              <div className="stat-card"><div className="stat-lbl">Active Session Slots</div><div className="stat-val">{activeSlots}</div><div className="stat-sub">weekly recurring</div></div>
+              <div className="stat-card"><div className="stat-lbl">Active Types</div><div className="stat-val">{resTypes.filter(rt=>rt.active).length}</div></div>
+            </>;
+          })()}
         </div>
         {alertShifts.length>0&&<div className="alert-banner"><div className="alert-dot"/><strong style={{color:"var(--warnL)"}}>⚠ {alertShifts.length} shift conflict{alertShifts.length!==1?"s":""} need coverage</strong></div>}
         <div className="tw"><div className="th"><span className="ttl">Recent Bookings</span></div>
@@ -1060,8 +1119,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       </>}
 
       {tab==="waivers"&&<>
-        <div className="ph"><div className="ph-left"><div className="pt">Waivers</div><div className="ps">Only admins can edit. All roles can view waiver status.</div></div>{isAdmin&&<button className="btn btn-p" onClick={()=>{setEditWaiver(null);setNewWaiver({name:"",version:"1.0",body:"",active:false});setModal("waiver");}}>+ New</button>}</div>
-        {waiverDocs.map(w=><div key={w.id} className="waiver-doc-card" style={{borderLeftColor:w.active?"var(--acc)":"var(--bdr)"}}><div className="fb" style={{marginBottom:".6rem"}}><div><div style={{fontFamily:"var(--fd)",fontSize:"1.05rem",fontWeight:700,textTransform:"uppercase"}}>{w.name} <span style={{fontWeight:400,color:"var(--muted)"}}>v{w.version}</span></div><div style={{fontSize:".74rem",color:"var(--muted)",marginTop:".1rem"}}>Created {fmtTS(w.createdAt)}</div></div><div>{w.active?<span className="badge b-ok">● Active</span>:<span className="badge" style={{background:"var(--surf2)",color:"var(--muted)"}}>Inactive</span>}</div></div><div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".75rem",fontSize:".78rem",color:"var(--muted)",maxHeight:100,overflowY:"auto",whiteSpace:"pre-wrap",lineHeight:1.6,marginBottom:".75rem"}}>{w.body.slice(0,350)}{w.body.length>350?"…":""}</div><div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>{isAdmin&&<button className="btn btn-sm btn-s" onClick={()=>{setEditWaiver({...w});setModal("waiver");}}>Edit</button>}{!w.active&&isAdmin&&<button className="btn btn-sm btn-ok" onClick={()=>setActiveWaiver(w.id)}>Set Active</button>}{!w.active&&isAdmin&&<button className="btn btn-sm btn-d" onClick={()=>{setWaiverDocs(p=>p.filter(x=>x.id!==w.id));showToast("Removed");}}>Remove</button>}</div></div>)}
+        <div className="ph"><div className="ph-left"><div className="pt">Waivers</div><div className="ps">Waiver history is permanent. Only admins can add or edit.</div></div>{isAdmin&&<button className="btn btn-p" onClick={()=>{setEditWaiver(null);setNewWaiver({name:"",version:"1.0",body:"",active:false});setModal("waiver");}}>+ New</button>}</div>
+        {[...waiverDocs].sort((a,b)=>{if(a.active&&!b.active)return -1;if(!a.active&&b.active)return 1;return (b.createdAt||"").localeCompare(a.createdAt||"");}).map(w=><div key={w.id} className="waiver-doc-card" style={{borderLeftColor:w.active?"var(--acc)":"var(--bdr)"}}><div className="fb" style={{marginBottom:".6rem"}}><div><div style={{fontFamily:"var(--fd)",fontSize:"1.05rem",fontWeight:700,textTransform:"uppercase"}}>{w.name} <span style={{fontWeight:400,color:"var(--muted)"}}>v{w.version}</span></div><div style={{fontSize:".74rem",color:"var(--muted)",marginTop:".1rem"}}>Created {fmtTS(w.createdAt)}</div></div><div style={{display:"flex",gap:".5rem",alignItems:"center"}}>{w.active?<span className="badge b-ok">● Active</span>:<span className="badge" style={{background:"var(--surf2)",color:"var(--muted)"}}>Inactive</span>}</div></div><div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".75rem",fontSize:".78rem",color:"var(--muted)",maxHeight:100,overflowY:"auto",whiteSpace:"pre-wrap",lineHeight:1.6,marginBottom:".75rem"}}>{w.body.slice(0,350)}{w.body.length>350?"…":""}</div><div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>{isAdmin&&<button className="btn btn-sm btn-s" onClick={()=>{setEditWaiver({...w});setModal("waiver");}}>Edit</button>}{!w.active&&isAdmin&&<button className="btn btn-sm btn-ok" onClick={()=>setActiveWaiver(w.id)}>Set Active</button>}{w.active&&<span style={{fontSize:".74rem",color:"var(--muted)",fontStyle:"italic",padding:".3rem .5rem"}}>🔒 Cannot delete active version</span>}</div></div>)}
       </>}
 
       {tab==="staff"&&<>
@@ -1389,7 +1448,11 @@ export default function App(){
 
   const handleBook=async b=>{
     try{
-      const newRes=await createReservation({...b,status:"confirmed",players:[]});
+      // Auto-add the booker as first player
+      const bookerPlayer={userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
+      const extraPlayers=(b.players||[]).filter(p=>p.userId!==currentUser.id&&(p.name||p.phone));
+      const players=[bookerPlayer,...extraPlayers];
+      const newRes=await createReservation({...b,status:"confirmed",players});
       setReservations(p=>[newRes,...p]);
     }catch(err){showToast("Booking error: "+err.message);}
   };
@@ -1473,12 +1536,22 @@ export default function App(){
 
   if(showLanding&&!currentUser&&!pendingUser)return <LandingPage onEnterApp={()=>setShowLanding(false)}/>;
   if(pendingUser)return <><style>{CSS}</style><CompleteProfile user={pendingUser} onComplete={handleCompleteProfile} onSignOut={()=>{setPendingUser(null);setShowLanding(true);}}/></>;
+  const [showBackTop,setShowBackTop]=useState(false);
+  useEffect(()=>{
+    const el=document.querySelector('.content');
+    if(!el)return;
+    const fn=()=>setShowBackTop(el.scrollTop>300);
+    el.addEventListener('scroll',fn,{passive:true});
+    return()=>el.removeEventListener('scroll',fn);
+  });
+
   if(!liveUser)return <><style>{CSS}</style><LoginScreen onLogin={handleLogin}/></>;
 
   return(<>
     <style>{CSS}</style>
     <div className="app">
       {toastAlert&&<Toast msg={toastAlert} variant="alert" onClose={()=>setToastAlert(null)}/>}
+      {showBackTop&&<button className="back-to-top" title="Back to top" onClick={()=>{document.querySelector('.content')?.scrollTo({top:0,behavior:'smooth'});setShowBackTop(false);}}>↑</button>}
       {showNavAccount&&liveUser&&<AccountPanel user={liveUser} users={users} setUsers={handleSetUsers} onClose={()=>setShowNavAccount(false)}/>}
       <nav className="nav">
         <div className="nav-brand" onClick={()=>setCurrentUser(null)}>
