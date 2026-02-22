@@ -269,13 +269,13 @@ const CSS = `
 
 const FAQS = [
   { q: "What does CQB stand for and what is a shoot-house?", a: "CQB stands for Close Quarters Battle. It refers to tactical combat conducted in confined spaces like buildings, hallways, and tight indoor environments.  A shoot house is a purpose-built structure designed for tactical training in close-quarters environments. It simulates real-world interior spaces like rooms and hallways so teams can practice movement, communication, and scenario-based missions. There are the same structure types used by military and law enforcement for their tactical training. We feature two separate two-story, 4,700 sq ft structures with modular interior walls that we continually reconfigure to ensure a new experience each time you return. Structures include a variety of rooms, thresholds, blind spots, stairwells, and feature breachable doors as well as various environmental controls." },
-  { q: "What do you mean when you say environmental controls?", a: "Each of our structures are packed full of awesome technology. From target sensors to livestream cameras, we track and capture all of the action to form a completely unique experience. Included in this tech package are various visual and audio controls that allow each group to define and redefine the experience they wish to have. Some examples of these controls include our Standard mode (typical house lighting), Cosmic (house lights off, black lights on!), Strobe (not for the easily dizzied or epiliptic), Dark (all lights off, barrel flashlights lead the way), and Cranked (loud music - the way we listened to it in highschool).  If you're feeling extra frisky, ask for Rave mode (Cosmic + Strobe + Cranked - all at once)." },
-  { q: "Is this like paintball or laser tag?", a: "Neither. We use 20-round, magazine-fed markers built on an M4-like platform (a similar frame as military and law enforcement officer training weapons used by real operators) firing harmless, water-soluable paint ammunition. Think structured scenario training, not backyard speedball." },
+  { q: "What do you mean when you say environmental controls?", a: "Each of our structures are packed full of awesome technology. From target sensors to livestream cameras, we track and capture all of the action to form a completely unique experience. Included in this tech package are various visual and audio controls that allow each group to define and redefine the experience they wish to have. Some examples of these controls include our Standard mode (typical house lighting), Cosmic (house lights off, black lights on!), Strobe (not for the easily dizzied or epileptic), Dark (all lights off, barrel flashlights lead the way), and Cranked (loud music - the way we listened to it in high school).  If you're feeling extra frisky, ask for Rave mode (Cosmic + Strobe + Cranked - all at once)." },
+  { q: "Is this like paintball or laser tag?", a: "Neither. We use 20-round, magazine-fed markers built on an M4-like platform (a similar frame as military and law enforcement officer training weapons used by real operators) firing harmless, water-soluble paint ammunition. Think structured scenario training, not backyard speedball." },
   { q: "Do I need any prior experience to be successful?", a: "Zero. Every session begins with a safety briefing covering core CQB concepts — room clearing, terminology, communication, threat assessment — so even complete beginners feel prepared. Our instructors walk you through everything before you breach your first structure." },
   { q: "What do I need to bring?", a: "Just closed-toe shoes and your competitive spirit. Full loadout and protective gear are provided at no additional cost. We do recommend you wear comfortable athletic clothing — and never wear your favorite shirt. Wear your second favorite shirt." },
   { q: "What's the age requirement?", a: "Participants must be 16 or older. Players aged 16–17 require a consenting adult participating alongside them and a guardian-signed waiver on file." },
   { q: "Can I book the entire venue for a private event?", a: null, jsx: <span>For corporate events, large parties, or custom full-venue packages, reach out at <a href="mailto:events@sector317.com">events@sector317.com</a> and we'll make it happen.</span> },
-  { q: "What's at the bar?", a: "Beer, wine, champagne, hard seltzers, mocktails, and sodas. Alcohol is not permitted during active play. Valid ID required. Important to not that while we do not sell food on site, you are more than welcome to bring your own, cater for our crew, or order delivery straight to your table." },
+  { q: "What's at the bar?", a: "Beer, wine, champagne, hard seltzers, mocktails, and sodas. Alcohol is not permitted during active play. Valid ID required. It is important to note that while we do not sell food on site, you are more than welcome, better yet, encouraged to bring your own. You can cater for your crew or order delivery straight to your table. So long as no one is microwaving fish." },
 ];
 
 const SOCIAL = [
@@ -486,7 +486,7 @@ export default function LandingPage({ onEnterApp }) {
               </div>
               <div className="lp-price">$55 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span><span className="lp-tag">Show up and show out</span></div>
             </div>
-            {/* Private Team */}
+            {/* Private Group */}
             <div className="lp-card tacc lp-reveal lp-d2" onClick={onEnterApp}>
               <div className="lp-icon">
                 <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
@@ -497,8 +497,8 @@ export default function LandingPage({ onEnterApp }) {
                   <circle cx="21" cy="24" r="1.5" fill="#c8e03a"/>
                 </svg>
               </div>
-              <div className="lp-dsub">For groups who want their own game</div>
-              <div className="lp-name">Private Team</div>
+              <div className="lp-dsub">For squads who want their own game</div>
+              <div className="lp-name">Private Groups</div>
               <div className="lp-desc">Reserve your own private session for your group to run the mission your way. Built for birthdays, big groups, team nights, and revenge matches. Your scenario. Your rules. With nothing in your way.</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>🏆</em> You pick your team</div>
