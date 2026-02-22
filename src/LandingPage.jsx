@@ -443,7 +443,7 @@ export default function LandingPage({ onEnterApp }) {
             ["gear","Loadout & Gear","We've got you covered"],
             ["bar","Bar & Lounge","Catch the game"],
             ["structures","2 Structures","9,500 sq ft of CQB"],
-            ["tv","In-Structure Live Feed","See how it's done"],
+            ["tv","Livestreams","See how it's done"],
             ["id","18+ to play","16+ with adult"],
           ].map(([iconKey, strong, sub], i) => (
             <div key={i} className={`lp-inc lp-reveal lp-d${i+1}`}>
@@ -528,7 +528,7 @@ export default function LandingPage({ onEnterApp }) {
               </div>
               <div className="lp-dsub">Beat the Clock</div>
               <div className="lp-name">Co-Op</div>
-              <div className="lp-desc">Six operators — one objective — the clock is ticking. Navigate the structure, eliminate the threats, and complete the mission before time runs out. Static targets demand precision. Live opposition demands composure. Under pressure, communication and coordination separate the winners from the rest…</div>
+              <div className="lp-desc">Six operators — one objective — the clock is ticking. Navigate the structure, eliminate the threats, and complete the mission before time runs out. Static targets demand precision. Live opposition demands composure. Effective communication and coordination separate the winners from the rest…</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>👥</em> Up to 6 players</div>
                 <div className="lp-mi"><em>🎯</em> Perfect your craft to climb the leaderboard</div>
@@ -554,7 +554,7 @@ export default function LandingPage({ onEnterApp }) {
               <div className="lp-desc">An unstoppable force meets an immovable object. Something has to give. Two teams vie for one goal — control. One advances through resistance, the other holds the line. Then roles reverse. Structures flip. When the dust settles, only one raises the hardware.</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>👥</em> Up to 6 vs 6 (12 max)</div>
-                <div className="lp-mi"><em>⚔️</em> You gotta beat the best to be the best</div>
+                <div className="lp-mi"><em>⚔️</em> You've gotta beat the best to be the best</div>
               </div>
               <span className="lp-tag">Team vs Team</span>
             </div>
