@@ -81,14 +81,6 @@ const INITIAL_USERS = [
   { id:8, name:"Marcus Webb",   phone:"3175550302", access:"customer", role:null,          active:true, authProvider:null,        waivers:[], needsRewaiverDocId:null },
 ];
 
-const INITIAL_RESERVATIONS = [
-  { id:1, typeId:"coop-open", userId:1, customerName:"Alex Morgan", date:makeDate(1), startTime:"18:00", playerCount:2, amount:110, status:"confirmed", players:[] },
-  { id:2, typeId:"coop-open", userId:2, customerName:"Jamie Ortiz", date:makeDate(1), startTime:"18:00", playerCount:3, amount:165, status:"confirmed", players:[{userId:2,name:"Jamie Ortiz",phone:"3175550201"}] },
-  { id:3, typeId:"versus-open", userId:3, customerName:"Riley Stone", date:makeDate(3), startTime:"17:00", playerCount:4, amount:220, status:"confirmed", players:[] },
-  { id:4, typeId:"coop-private", userId:1, customerName:"Sam Davis", date:makeDate(5), startTime:"15:00", playerCount:5, amount:270, status:"confirmed", players:[{userId:null,name:"Sam Davis",phone:"3175550999"}] },
-  { id:5, typeId:"coop-open", userId:1, customerName:"Alex Morgan", date:makeDate(-10), startTime:"18:00", playerCount:2, amount:110, status:"completed", players:[{userId:1,name:"Alex Morgan",phone:"3175550101"}] },
-];
-
 // Helpers
 const fmt = d => new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
 const fmtMoney = n => `$${Number(n).toFixed(2)}`;
@@ -1359,29 +1351,49 @@ export default function App(){
   const activeWaiver=waiverDocs.find(d=>d.active);
   const showToast=msg=>{setToastAlert(msg);setTimeout(()=>setToastAlert(null),5000);};
 
-  // ── Load all reference data on mount
-  useEffect(()=>{
-    Promise.all([
-      fetchAllUsers(),
-      fetchWaiverDocs(),
-      fetchResTypes(),
-      fetchSessionTemplates(),
-      fetchReservations(),
-      fetchShifts(),
-    ]).then(([u,w,rt,st,res,sh])=>{
-      setUsers(u);
+ // ── Load PUBLIC reference data on mount (safe for anon)
+useEffect(() => {
+  (async () => {
+    try {
+      const [w, rt, st] = await Promise.all([
+        fetchWaiverDocs(),
+        fetchResTypes(),
+        fetchSessionTemplates(),
+      ]);
+
       setWaiverDocs(w);
       setResTypes(rt);
       setSessionTemplates(sortTemplates(st));
-      setReservations(res);
-      setShifts(sh);
       setLoading(false);
-    }).catch(err=>{
-      console.error("DB load error:",err);
+    } catch (err) {
+      console.error("DB load error:", err);
       setDbError(err.message);
       setLoading(false);
-    });
-  },[]);
+    }
+  })();
+}, []);
+
+// ── Load PRIVATE data only after auth/app user exists
+useEffect(() => {
+  if (!currentUser) return; // must be logged into the app first
+
+  (async () => {
+    try {
+      const [u, res, sh] = await Promise.all([
+        fetchAllUsers(),
+        fetchReservations(),
+        fetchShifts(),
+      ]);
+
+      setUsers(u);
+      setReservations(res);
+      setShifts(sh);
+    } catch (err) {
+      console.error("Private DB load error:", err);
+      showToast("Data load error: " + err.message);
+    }
+  })();
+}, [currentUser?.id]);
 
   // ── Listen for Supabase OAuth callback (runs after redirect back from Google/Microsoft)
   useEffect(()=>{
