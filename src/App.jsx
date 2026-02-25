@@ -444,7 +444,7 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
       <div className={`scroll-hint${scrolled?" done":""}`}>{scrolled?"✓ Read complete":"↓ Scroll entire waiver before signing"}</div>
       <div className="wvr-scroll" ref={ref} onScroll={onScroll}><span className="wvr-title">{doc.name}</span>{doc.body}</div>
       {!scrolled&&<div style={{fontSize:".73rem",color:"var(--dangerL)",textAlign:"center",marginBottom:".75rem"}}>Scroll to bottom to enable signing.</div>}
-      <div className="f"><label>Full Legal Name (signature)</label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Type your full legal name" disabled={!scrolled}/></div>
+      <div className="f"><label>Full Legal Name Of Participant/Guardion If Minor </label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Type your full legal name" disabled={!scrolled}/></div>
       <label style={{display:"flex",gap:".65rem",alignItems:"flex-start",fontSize:".82rem",color:scrolled?"var(--txt)":"var(--muted)",cursor:scrolled?"pointer":"not-allowed",opacity:scrolled?1:.6,marginBottom:".85rem"}}>
         <input type="checkbox" checked={agreed} onChange={e=>scrolled&&setAgreed(e.target.checked)} style={{width:"auto",marginTop:"3px",flexShrink:0}} disabled={!scrolled}/>
         <span>I HAVE READ AND AGREE TO THIS RELEASE AND WAIVER AND INTEND MY TYPED NAME TO SERVE AS MY LEGAL SIGNATURE.</span>
@@ -1397,47 +1397,93 @@ export default function App(){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
 
-  const handleOAuthSession=async(session)=>{
-    if(currentUser)return; // already logged in
-    const {user:authUser}=session;
-    const provider=authUser.app_metadata?.provider==="azure"?"microsoft":authUser.app_metadata?.provider||"google";
-    const name=authUser.user_metadata?.full_name||authUser.user_metadata?.name||authUser.email?.split("@")[0]||"Player";
-    const email=authUser.email||"";
-    try{
-      // Look for existing app user matched by email or supabase auth id
-      let found=users.find(u=>u.email===email||u.authId===authUser.id);
-      if(!found){
-        // Try by email first
-        const {data:byEmail}=await supabase.from("users").select("*").eq("email",email).maybeSingle();
-        if(byEmail){
-          found={...byEmail,authProvider:byEmail.auth_provider,needsRewaiverDocId:byEmail.needs_rewaiver_doc_id,waivers:byEmail.waivers??[]};
-        } else {
-          // Try by auth_id
-          const {data:byAuthId}=await supabase.from("users").select("*").eq("auth_id",authUser.id).maybeSingle();
-          if(byAuthId)found={...byAuthId,authProvider:byAuthId.auth_provider,needsRewaiverDocId:byAuthId.needs_rewaiver_doc_id,waivers:byAuthId.waivers??[]};
-        }
+  const handleOAuthSession = async (session) => {
+  if (currentUser) return; // already logged in
+  if (!session?.user) return; // no auth user (anon / landing page)
+
+  const { user: authUser } = session;
+
+  // Extra safety: if this ever fires on landing page without a real session, bail out.
+  const { data: { session: liveSession } } = await supabase.auth.getSession();
+  if (!liveSession?.user) return;
+
+  const provider =
+    authUser.app_metadata?.provider === "azure"
+      ? "microsoft"
+      : authUser.app_metadata?.provider || "google";
+
+  const name =
+    authUser.user_metadata?.full_name ||
+    authUser.user_metadata?.name ||
+    authUser.email?.split("@")[0] ||
+    "Player";
+
+  const email = authUser.email || "";
+
+  try {
+    // Look for existing app user matched by email or supabase auth id (local cache only)
+    let found = users.find((u) => u.email === email || u.authId === authUser.id);
+
+    // IMPORTANT: Do NOT query public.users unless authenticated (landing page is anon)
+    if (!found) {
+      // Prefer auth_id (authoritative). Email lookup is optional fallback.
+      let byAuthId = null;
+
+      const { data: authRow, error: authErr } = await supabase
+        .from("users")
+        .select("*")
+        .eq("auth_id", authUser.id)
+        .maybeSingle();
+
+      if (authErr) throw authErr;
+      if (authRow) {
+        byAuthId = authRow;
+      } else if (email) {
+        // Optional fallback: email match (only runs after authenticated guard above)
+        const { data: byEmail, error: emailErr } = await supabase
+          .from("users")
+          .select("*")
+          .eq("email", email)
+          .maybeSingle();
+
+        if (emailErr) throw emailErr;
+        if (byEmail) byAuthId = byEmail;
       }
-      if(found){
-        // Existing user — store auth_id and email for faster future lookups, then log in
-        const updates={};
-        if(!found.authId&&authUser.id)updates.authId=authUser.id;
-        if(!found.email&&email)updates.email=email;
-        if(found.authProvider!==provider)updates.authProvider=provider;
-        if(Object.keys(updates).length){
-          found=await updateUser(found.id,updates);
-          setUsers(prev=>prev.map(u=>u.id===found.id?found:u));
-        }
-        setCurrentUser(found);
-      } else {
-        // New OAuth user — only show CompleteProfile if they don't have a phone yet
-        // Check if a record with this auth_id was just created (race condition guard)
-        setPendingUser({name,email,authProvider:provider,authId:authUser.id});
+
+      if (byAuthId) {
+        found = {
+          ...byAuthId,
+          authProvider: byAuthId.auth_provider,
+          needsRewaiverDocId: byAuthId.needs_rewaiver_doc_id,
+          waivers: byAuthId.waivers ?? [],
+          authId: byAuthId.auth_id ?? byAuthId.authId, // normalize
+        };
       }
-    }catch(err){
-      console.error("OAuth session error:",err);
-      showToast("Sign-in error: "+err.message);
     }
-  };
+
+    if (found) {
+      // Existing user — store auth_id and email for faster future lookups, then log in
+      const updates = {};
+      if (!found.authId && authUser.id) updates.authId = authUser.id;
+      if (!found.email && email) updates.email = email;
+      if (found.authProvider !== provider) updates.authProvider = provider;
+
+      if (Object.keys(updates).length) {
+        found = await updateUser(found.id, updates);
+        setUsers((prev) => prev.map((u) => (u.id === found.id ? found : u)));
+      }
+
+      setCurrentUser(found);
+    } else {
+      // New OAuth user — only show CompleteProfile if they don't have a phone yet
+      // Let the profile completion flow create/link the public.users record.
+      setPendingUser({ name, email, authProvider: provider, authId: authUser.id });
+    }
+  } catch (err) {
+    console.error("OAuth session error:", err);
+    showToast("Sign-in error: " + (err?.message || String(err)));
+  }
+};
 
   const handleLogin=async user=>{
     try{
