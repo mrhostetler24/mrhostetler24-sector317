@@ -270,7 +270,7 @@ const CSS = `
 const FAQS = [
   { q: "What does CQB stand for and what is a shoot-house?", a: "CQB stands for Close Quarters Battle. It refers to tactical combat conducted in confined spaces like buildings, hallways, and tight indoor environments.  A shoot house is a purpose-built structure designed for tactical training in close-quarters environments. It simulates real-world interior spaces like rooms and hallways so teams can practice movement, communication, and scenario-based missions. There are the same structure types used by military and law enforcement for their tactical training. We feature two separate two-story, 4,700 sq ft structures with modular interior walls that we continually reconfigure to ensure a new experience each time you return. Structures include a variety of rooms, thresholds, blind spots, stairwells, and feature breachable doors as well as various environmental controls." },
   { q: "What do you mean when you say environmental controls?", a: "Each of our structures are packed full of awesome technology. From target sensors to livestream cameras, we track and capture all of the action to form a completely unique experience. Included in this tech package are various visual and audio controls that allow each group to define and redefine the experience they wish to have. Some examples of these controls include our Standard mode (typical house lighting), Cosmic (house lights off, black lights on!), Strobe (not for the easily dizzied or epileptic), Dark (all lights off, barrel flashlights lead the way), and Cranked (loud music - the way we listened to it in high school).  If you're feeling extra frisky, ask for Rave mode (Cosmic + Strobe + Cranked - all at once)." },
-  { q: "Is this like paintball or laser tag?", a: "Neither. We use 20-round, magazine-fed markers built on an M4-like platform (a similar frame as military and law enforcement officer training weapons used by real operators) firing non-lethal ammunition. Think structured scenario training, not backyard war games." },
+  { q: "Is this like paintball or laser tag?", a: "Neither. We use 20-round, magazine-fed markers built on an M4-like platform (a similar frame as military and law enforcement officer training weapons) firing non-lethal ammunition. Think structured scenario training, not backyard war games." },
   { q: "Do I need any prior experience to be successful?", a: "Zero. Every session begins with a safety briefing covering core CQB concepts — room clearing, terminology, communication, threat assessment — so even complete beginners feel prepared. Our instructors walk you through everything before you breach your first structure." },
   { q: "What do I need to bring?", a: "Just closed-toe shoes and your competitive spirit. Full loadout and protective gear are provided at no additional cost. We do recommend you wear comfortable athletic clothing — and never wear your favorite shirt. Wear your second favorite shirt." },
   { q: "What's the age requirement?", a: "Participants must be 16 or older. Players aged 16–17 require a consenting adult participating alongside them and a guardian-signed waiver on file." },
@@ -290,86 +290,94 @@ const HOURS = [["Monday","5:30 PM – 9:00 PM"],["Tuesday","5:30 PM – 9:00 PM"
 function StripIcon({ type }) {
   const c = "#c8e03a", c2 = "#9ab02e";
   if (type === "gear") return (
-    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-      {/* helmet dome */}
-      <path d="M7 20c0-6.627 4.925-12 11-12s11 5.373 11 12" fill={c} fillOpacity=".1" stroke={c} strokeWidth="1.8"/>
-      {/* helmet sides / ear protection */}
-      <path d="M7 20v4c0 1 .5 1.5 1.5 1.5H10" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
-      <path d="M31 20v4c0 1-.5 1.5-1.5 1.5H28" stroke={c} strokeWidth="1.6" strokeLinecap="round"/>
-      {/* ear cups */}
-      <rect x="4" y="19" width="4" height="6" rx="1.5" fill={c} fillOpacity=".15" stroke={c} strokeWidth="1.4"/>
-      <rect x="30" y="19" width="4" height="6" rx="1.5" fill={c} fillOpacity=".15" stroke={c} strokeWidth="1.4"/>
-      {/* NVG mount on top */}
-      <rect x="16" y="8" width="6" height="4" rx="1" fill={c} fillOpacity=".2" stroke={c} strokeWidth="1.3"/>
-      <rect x="17.5" y="6" width="3" height="2.5" rx=".5" fill={c} fillOpacity=".3" stroke={c} strokeWidth="1"/>
-      {/* goggle strap line */}
-      <path d="M10 23.5h18" stroke={c} strokeWidth="1.2" strokeLinecap="round" opacity=".4"/>
-      {/* goggle lens - wide single visor */}
-      <path d="M9 21.5c0-2 1.5-3.5 3.5-3.5h13c2 0 3.5 1.5 3.5 3.5s-1.5 3.5-3.5 3.5h-13c-2 0-3.5-1.5-3.5-3.5z" fill={c} fillOpacity=".12" stroke={c} strokeWidth="1.6"/>
-      {/* goggle reflections */}
-      <path d="M12 20c1.5-1 3.5-1.2 5-.5" stroke={c2} strokeWidth="1.1" strokeLinecap="round" opacity=".65"/>
-      <path d="M20 20c1.5-1 3-1.2 4.5-.5" stroke={c2} strokeWidth="1.1" strokeLinecap="round" opacity=".65"/>
-      {/* mic boom */}
-      <path d="M8 24.5c-1.5 1-2 2.5-1.5 3.5" stroke={c} strokeWidth="1.3" strokeLinecap="round" opacity=".6"/>
-      <circle cx="6.5" cy="28.5" r="1.2" fill={c} fillOpacity=".5" stroke={c} strokeWidth="1"/>
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+      {/* Solid tactical helmet silhouette */}
+      <path d="M21 5C12.716 5 6 11.716 6 20v6h2v-6c0-7.18 5.82-13 13-13s13 5.82 13 13v6h2v-6C36 11.716 29.284 5 21 5z" fill={c}/>
+      {/* Ear cups */}
+      <rect x="3" y="19" width="5" height="9" rx="2" fill={c}/>
+      <rect x="34" y="19" width="5" height="9" rx="2" fill={c}/>
+      {/* Visor band */}
+      <rect x="6" y="24" width="30" height="5" rx="2" fill={c} fillOpacity=".7"/>
+      {/* Visor dark lens */}
+      <rect x="9" y="25" width="24" height="3" rx="1.5" fill={c2} fillOpacity=".5"/>
+      {/* NVG mount nub */}
+      <rect x="18" y="4" width="6" height="4" rx="1" fill={c}/>
+      <rect x="19.5" y="2" width="3" height="3" rx=".8" fill={c}/>
     </svg>
   );
   if (type === "bar") return (
-    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-      {/* mug body - straight sides, flat bottom */}
-      <rect x="7" y="12" width="18" height="18" rx="2" fill={c} fillOpacity=".1" stroke={c} strokeWidth="1.8"/>
-      {/* handle - D shape on right */}
-      <path d="M25 16h3a3 3 0 010 6h-3" stroke={c} strokeWidth="1.9" strokeLinecap="round" fill="none"/>
-      {/* foam line across top */}
-      <rect x="7" y="12" width="18" height="4" rx="1.5" fill={c} fillOpacity=".2"/>
-      {/* foam bumps */}
-      <path d="M9 12c.8-2 1.6-2.5 2.5-1.5s1.8 1.8 2.5.5 1.5-2.2 2.5-.8 1.8 1.8 2.5.3 1.5-2 2.5-1" stroke={c} strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".7"/>
-      {/* bubbles inside */}
-      <circle cx="13" cy="22" r="1.1" fill={c2} fillOpacity=".45"/>
-      <circle cx="18" cy="26" r=".9" fill={c2} fillOpacity=".35"/>
-      <circle cx="15" cy="19" r=".7" fill={c} fillOpacity=".4"/>
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+      {/* Mug body solid */}
+      <rect x="7" y="14" width="22" height="22" rx="2.5" fill={c}/>
+      {/* Handle D-shape */}
+      <path d="M29 18h4a4 4 0 010 8h-4" stroke={c} strokeWidth="4" strokeLinecap="round" fill="none"/>
+      {/* Foam top - slightly lighter bumps */}
+      <ellipse cx="10" cy="14" rx="2.5" ry="3" fill={c}/>
+      <ellipse cx="15" cy="13" rx="2.5" ry="3.5" fill={c}/>
+      <ellipse cx="20" cy="14" rx="2.5" ry="3" fill={c}/>
+      <ellipse cx="25" cy="13.5" rx="2" ry="2.5" fill={c}/>
+      {/* Foam highlight line */}
+      <rect x="7" y="14" width="22" height="3" rx="0" fill={c2} fillOpacity=".4"/>
+      {/* Bubbles */}
+      <circle cx="14" cy="24" r="1.5" fill="#111209" fillOpacity=".25"/>
+      <circle cx="20" cy="29" r="1.2" fill="#111209" fillOpacity=".2"/>
+      <circle cx="17" cy="21" r="1" fill="#111209" fillOpacity=".18"/>
     </svg>
   );
   if (type === "structures") return (
-    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-      <rect x="3" y="15" width="14" height="17" rx="1" fill={c} fillOpacity=".08" stroke={c} strokeWidth="1.5"/>
-      <path d="M6 15V11l7-4 7 4v4" stroke={c} strokeWidth="1.5" strokeLinejoin="round"/>
-      <rect x="5.5" y="21" width="4" height="4.5" rx=".5" fill={c} fillOpacity=".35"/>
-      <rect x="12" y="21" width="4" height="4.5" rx=".5" fill={c} fillOpacity=".35"/>
-      <rect x="21" y="9" width="14" height="23" rx="1" fill={c} fillOpacity=".12" stroke={c2} strokeWidth="1.5"/>
-      <rect x="23" y="14" width="4" height="3.5" rx=".5" fill={c2} fillOpacity=".5"/>
-      <rect x="29" y="14" width="4" height="3.5" rx=".5" fill={c2} fillOpacity=".5"/>
-      <rect x="23" y="20" width="4" height="3.5" rx=".5" fill={c2} fillOpacity=".4"/>
-      <rect x="29" y="20" width="4" height="3.5" rx=".5" fill={c2} fillOpacity=".4"/>
-      <path d="M1 32h36" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+      {/* Left house */}
+      <polygon points="4,18 13,9 22,18" fill={c}/>
+      <rect x="5" y="18" width="16" height="16" rx="1" fill={c}/>
+      <rect x="10" y="24" width="4" height="10" rx=".5" fill="#111209" fillOpacity=".35"/>
+      <rect x="6" y="20" width="4" height="4" rx=".5" fill="#111209" fillOpacity=".25"/>
+      <rect x="15" y="20" width="4" height="4" rx=".5" fill="#111209" fillOpacity=".25"/>
+      {/* Right house - offset */}
+      <polygon points="20,20 29,11 38,20" fill={c2}/>
+      <rect x="21" y="20" width="16" height="14" rx="1" fill={c2}/>
+      <rect x="27" y="26" width="4" height="8" rx=".5" fill="#111209" fillOpacity=".35"/>
+      <rect x="22" y="22" width="4" height="4" rx=".5" fill="#111209" fillOpacity=".25"/>
+      <rect x="31" y="22" width="4" height="4" rx=".5" fill="#111209" fillOpacity=".25"/>
     </svg>
   );
   if (type === "tv") return (
-    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-      <rect x="3" y="10" width="28" height="19" rx="2.5" fill={c} fillOpacity=".08" stroke={c} strokeWidth="1.7"/>
-      <rect x="6" y="13" width="19" height="13" rx="1.5" fill={c} fillOpacity=".07" stroke={c} strokeWidth="1" strokeOpacity=".4"/>
-      <path d="M12.5 16.5l8 3-8 3v-6z" fill={c} fillOpacity=".75"/>
-      <circle cx="29" cy="16" r="1.5" stroke={c2} strokeWidth="1.2" fill="none" opacity=".7"/>
-      <rect x="26.5" y="20" width="5" height="1" rx=".5" fill={c2} fillOpacity=".5"/>
-      <rect x="26.5" y="22.5" width="5" height="1" rx=".5" fill={c2} fillOpacity=".4"/>
-      <path d="M10 29l-2 4M24 29l2 4" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M11 10L8 4M23 10l4-6" stroke={c} strokeWidth="1.5" strokeLinecap="round"/>
-      <circle cx="35" cy="8" r="2.5" fill={c} fillOpacity=".2" stroke={c} strokeWidth="1"/>
-      <circle cx="35" cy="8" r="1.1" fill={c}/>
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+      {/* TV body */}
+      <rect x="3" y="8" width="36" height="26" rx="3" fill={c}/>
+      {/* Screen bezel inner */}
+      <rect x="6" y="11" width="30" height="20" rx="1.5" fill="#111209" fillOpacity=".7"/>
+      {/* CCTV grid — 4 camera feeds (2x2) */}
+      <rect x="7" y="12" width="13" height="8" rx="1" fill={c} fillOpacity=".25"/>
+      <rect x="22" y="12" width="13" height="8" rx="1" fill={c} fillOpacity=".18"/>
+      <rect x="7" y="22" width="13" height="8" rx="1" fill={c} fillOpacity=".18"/>
+      <rect x="22" y="22" width="13" height="8" rx="1" fill={c} fillOpacity=".25"/>
+      {/* Grid dividers */}
+      <line x1="21" y1="11" x2="21" y2="31" stroke="#111209" strokeWidth="1.5"/>
+      <line x1="6" y1="21" x2="36" y2="21" stroke="#111209" strokeWidth="1.5"/>
+      {/* REC dot top-left feed */}
+      <circle cx="10" cy="15" r="1.5" fill="#e05c5c"/>
+      {/* Stand */}
+      <rect x="17" y="34" width="8" height="3" rx="1" fill={c}/>
+      <rect x="14" y="36" width="14" height="2.5" rx="1" fill={c}/>
     </svg>
   );
   if (type === "id") return (
-    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-      <rect x="3" y="8" width="30" height="22" rx="2.5" fill={c} fillOpacity=".08" stroke={c} strokeWidth="1.7"/>
-      <rect x="3" y="11.5" width="30" height="4" fill={c} fillOpacity=".12"/>
-      <rect x="6" y="18" width="9" height="9" rx="1" fill={c} fillOpacity=".12" stroke={c2} strokeWidth="1.1"/>
-      <circle cx="10.5" cy="21" r="2" fill={c2} fillOpacity=".5"/>
-      <path d="M6.5 27c0-2.5 1.8-3.5 4-3.5s4 1 4 3.5" fill={c2} fillOpacity=".35"/>
-      <path d="M18 19.5h13" stroke={c} strokeWidth="1.4" strokeLinecap="round"/>
-      <path d="M18 23h9" stroke={c} strokeWidth="1.1" strokeLinecap="round" opacity=".5"/>
-      <path d="M18 26h11" stroke={c} strokeWidth="1.1" strokeLinecap="round" opacity=".4"/>
-      <rect x="24" y="2" width="13" height="11" rx="2" fill="#111209" stroke={c} strokeWidth="1.4"/>
-      <text x="30.5" y="10.5" fontFamily="Barlow Condensed, sans-serif" fontSize="7.5" fontWeight="900" fill={c} textAnchor="middle" letterSpacing="-.5">18+</text>
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+      {/* Card body */}
+      <rect x="3" y="8" width="36" height="26" rx="3" fill={c} fillOpacity=".15" stroke={c} strokeWidth="2"/>
+      {/* Photo corner - top left */}
+      <rect x="7" y="12" width="13" height="14" rx="1.5" fill={c} fillOpacity=".2" stroke={c} strokeWidth="1.5"/>
+      {/* Photo person silhouette */}
+      <circle cx="13.5" cy="17" r="3.5" fill={c}/>
+      <path d="M7.5 26c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5" fill={c}/>
+      {/* Info lines right side */}
+      <rect x="24" y="14" width="13" height="2.5" rx="1" fill={c}/>
+      <rect x="24" y="19" width="10" height="2" rx="1" fill={c} fillOpacity=".6"/>
+      <rect x="24" y="23" width="12" height="2" rx="1" fill={c} fillOpacity=".5"/>
+      <rect x="24" y="27" width="8" height="2" rx="1" fill={c} fillOpacity=".4"/>
+      {/* 18+ badge corner */}
+      <rect x="28" y="4" width="13" height="10" rx="2" fill={c}/>
+      <text x="34.5" y="12" fontFamily="'Black Ops One',sans-serif" fontSize="7" fontWeight="900" fill="#111209" textAnchor="middle">18+</text>
     </svg>
   );
   return null;
@@ -440,7 +448,7 @@ export default function LandingPage({ onEnterApp }) {
       <div className="lp-strip" id="strip">
         <div className="lp-strip-inner">
           {[
-            ["gear","Loadout & Gear","We've got you covered"],
+            ["gear","Loadout & Gear","We got you covered"],
             ["bar","Bar & Lounge","Catch the game"],
             ["structures","2 Structures","9,500 sq ft of CQB"],
             ["tv","Livestreams","See how it's done"],
@@ -501,7 +509,7 @@ export default function LandingPage({ onEnterApp }) {
               <div className="lp-name">Private Groups</div>
               <div className="lp-desc">Reserve your own private session for your group to run the mission your way. Built for birthdays, big groups, team nights, and revenge matches. Your scenario. Your rules. With nothing in your way.</div>
               <div className="lp-meta">
-                <div className="lp-mi"><em>🏆</em> You pick your team</div>
+                <div className="lp-mi"><em>💪</em> You pick your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
               </div>
               <div className="lp-price">From $270 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
@@ -517,28 +525,19 @@ export default function LandingPage({ onEnterApp }) {
             {/* Co-Op */}
             <div className="lp-card bacc lp-reveal lp-d1" onClick={onEnterApp}>
               <div className="lp-icon">
-                <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
-                  {/* Left hand fingers */}
-                  <path d="M4 22c0 0 2-4 5-4l6 2" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  <path d="M6 26c-1-1-2-3-2-4" stroke="#c8e03a" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6"/>
-                  <path d="M4 28c-1-2-1-4 0-5" stroke="#c8e03a" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".45"/>
-                  <path d="M5 31c-2-2-2-5-1-7" stroke="#c8e03a" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35"/>
-                  {/* Left arm / wrist */}
-                  <path d="M9 18L13 16L19 17L25 21" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  {/* Right hand fingers */}
-                  <path d="M42 22c0 0-2-4-5-4l-6 2" stroke="#9ab02e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  <path d="M40 26c1-1 2-3 2-4" stroke="#9ab02e" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6"/>
-                  <path d="M42 28c1-2 1-4 0-5" stroke="#9ab02e" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".45"/>
-                  <path d="M41 31c2-2 2-5 1-7" stroke="#9ab02e" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35"/>
-                  {/* Right arm / wrist */}
-                  <path d="M37 18L33 16L27 17L21 21" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  {/* Clasped hands center */}
-                  <path d="M19 17L22 20L24 20L27 17" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="#c8e03a" fillOpacity=".12"/>
-                  <path d="M15 22L23 26L31 22L23 18Z" fill="#c8e03a" fillOpacity=".18" stroke="#c8e03a" strokeWidth="1.6" strokeLinejoin="round"/>
-                  <path d="M15 22L23 30L31 22" stroke="#9ab02e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity=".55"/>
-                  {/* Grip lines */}
-                  <path d="M19 23.5L23 25.5L27 23.5" stroke="#c8e03a" strokeWidth="1.1" strokeLinecap="round" opacity=".5"/>
-                  <path d="M19 26L23 28L27 26" stroke="#c8e03a" strokeWidth="1" strokeLinecap="round" opacity=".3"/>
+                <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                  {/* Right hand — solid filled mass coming from right */}
+                  <path d="M48 22c0 0-3-5-7-5l-5 1-3 2-4-1-3 1 2 3 2 1-1 1-3-1-2 1 2 3 1 1-1 1-2-1-1 1 2 3c1 2 3 3 5 3l6-1 4-3 4-5 2-4z" fill="#9ab02e"/>
+                  {/* Left hand — solid filled mass coming from left */}
+                  <path d="M4 22c0 0 3-5 7-5l5 1 3 2 4-1 3 1-2 3-2 1 1 1 3-1 2 1-2 3-1 1 1 1 2-1 1 1-2 3c-1 2-3 3-5 3l-6-1-4-3-4-5-2-4z" fill="#c8e03a"/>
+                  {/* Clasped center knuckle mass */}
+                  <path d="M22 19l4 2 4-2 2 2-6 4-6-4 2-2z" fill="#c8e03a"/>
+                  {/* Overlap shading */}
+                  <path d="M26 21l6 3-6 5-6-5 6-3z" fill="#c8e03a" fillOpacity=".6"/>
+                  {/* Finger curl lines on left hand */}
+                  <path d="M8 27c0 0 2 1 3 0" stroke="#111209" strokeWidth="1.2" strokeLinecap="round" opacity=".3"/>
+                  <path d="M7 30c0 0 2 1 3 0" stroke="#111209" strokeWidth="1.1" strokeLinecap="round" opacity=".25"/>
+                  <path d="M8 33c0 0 2 1 3 0" stroke="#111209" strokeWidth="1" strokeLinecap="round" opacity=".2"/>
                 </svg>
               </div>
               <div className="lp-dsub">Beat the Clock</div>
@@ -553,34 +552,27 @@ export default function LandingPage({ onEnterApp }) {
             {/* Versus */}
             <div className="lp-card bacc lp-reveal lp-d2" onClick={onEnterApp}>
               <div className="lp-icon">
-                <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
-                  {/* Left sword - blade top-left to center */}
-                  <path d="M7 6L24 23" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round"/>
-                  {/* Left sword tip detail */}
-                  <path d="M7 6L9 12L13 9Z" fill="#c8e03a" fillOpacity=".8" stroke="#c8e03a" strokeWidth="1" strokeLinejoin="round"/>
-                  {/* Left sword guard */}
-                  <rect x="17" y="19" width="8" height="3.5" rx="1" transform="rotate(45 17 19)" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/>
-                  {/* Left sword handle */}
-                  <path d="M26 25L31 30" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round"/>
-                  <rect x="29" y="28" width="7" height="2.5" rx="1.2" transform="rotate(45 29 28)" fill="#c8e03a" fillOpacity=".35" stroke="#c8e03a" strokeWidth="1"/>
-                  {/* Left pommel */}
-                  <circle cx="33.5" cy="33.5" r="2.2" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/>
+                <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                  {/* Left sword — blade (top-left to bottom-right) */}
+                  <path d="M8 6L14 8L44 38L42 44L36 42L6 12Z" fill="#c8e03a"/>
+                  {/* Left sword tip sharp point */}
+                  <path d="M8 6L6 12L12 10Z" fill="#c8e03a"/>
+                  {/* Left guard crosspiece */}
+                  <path d="M30 22L34 18L38 22L34 26Z" fill="#9ab02e"/>
+                  {/* Left pommel knob */}
+                  <circle cx="39.5" cy="41.5" r="3.5" fill="#9ab02e"/>
 
-                  {/* Right sword - blade top-right to center */}
-                  <path d="M39 6L22 23" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round"/>
-                  {/* Right sword tip detail */}
-                  <path d="M39 6L37 12L33 9Z" fill="#c8e03a" fillOpacity=".8" stroke="#c8e03a" strokeWidth="1" strokeLinejoin="round"/>
-                  {/* Right sword guard */}
-                  <rect x="21" y="19" width="8" height="3.5" rx="1" transform="rotate(-45 21 19)" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/>
-                  {/* Right sword handle */}
-                  <path d="M20 25L15 30" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round"/>
-                  <rect x="10" y="28" width="7" height="2.5" rx="1.2" transform="rotate(-45 10 28)" fill="#c8e03a" fillOpacity=".35" stroke="#c8e03a" strokeWidth="1"/>
-                  {/* Right pommel */}
-                  <circle cx="12.5" cy="33.5" r="2.2" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/>
+                  {/* Right sword — blade (top-right to bottom-left) */}
+                  <path d="M44 6L38 8L8 38L10 44L16 42L46 12Z" fill="#c8e03a"/>
+                  {/* Right sword tip sharp point */}
+                  <path d="M44 6L46 12L40 10Z" fill="#c8e03a"/>
+                  {/* Right guard crosspiece */}
+                  <path d="M22 22L18 18L14 22L18 26Z" fill="#9ab02e"/>
+                  {/* Right pommel knob */}
+                  <circle cx="12.5" cy="41.5" r="3.5" fill="#9ab02e"/>
 
-                  {/* Clash spark at center */}
-                  <circle cx="23" cy="23" r="2.5" fill="#c8e03a" fillOpacity=".25" stroke="#c8e03a" strokeWidth="1.2"/>
-                  <path d="M23 19v-2M23 27v2M19 23h-2M27 23h2" stroke="#c8e03a" strokeWidth="1.2" strokeLinecap="round" opacity=".5"/>
+                  {/* Center clash highlight */}
+                  <circle cx="26" cy="26" r="4" fill="#c8e03a" fillOpacity=".35"/>
                 </svg>
               </div>
               <div className="lp-dsub">Beat Your Opponent</div>
@@ -588,7 +580,7 @@ export default function LandingPage({ onEnterApp }) {
               <div className="lp-desc">An unstoppable force meets an immovable object. Something has to give. Two teams vie for one goal — control. One advances through resistance, the other holds the line. Then roles reverse. Structures flip. When the dust settles, only one raises the hardware.</div>
               <div className="lp-meta">
                 <div className="lp-mi"><em>👥</em> Up to 6 vs 6 (12 max)</div>
-                <div className="lp-mi"><em>⚔️</em> You've gotta beat the best to be the best</div>
+                <div className="lp-mi"><em>🏆</em> You've gotta beat the best to be the best</div>
               </div>
               <span className="lp-tag">Team vs Team</span>
             </div>
@@ -609,7 +601,7 @@ export default function LandingPage({ onEnterApp }) {
               ["01","Make Your Reservation","Book online in minutes. Pick your group, play mode, date, and time. Use our secure payment system to finalize your reservation and you're all set. Slots fill fast — lock yours in before it's gone."],
               ["02","Arrive Early & Team Up","Show up at least 30 minutes early. Grab a drink, watch the game, and peek in on the live feeds from cameras within the structures. Rally the troops and get your squad locked in before go time."],
               ["03","Brief, Kit Up & Zero In","Receive your safety briefing, draw your full kit of protective gear and tactical equipment including your loadout, then hit the firing range to familiarize yourself with everything and zero in."],
-              ["04","Drop In & Dominate","Meet your instructor for mission briefing before you breach into the structure to execute your objectives. Timed scenarios, real opposition, and realer consequences for every decision."],
+              ["04","Drop In & Dominate","Meet your instructor for mission briefing before you breach the structure to execute your objectives. Timed scenarios with real opposition to challenge your abilities."],
               ["05","Regroup in the Lounge","Return your gear, fix your hair, and grab a drink so you and your crew can kick back and watch the next group drop in on the live feed. Compare scores, relive the highlights, and plan your comeback."],
             ].map(([n,t,d], i) => (
               <div key={i} className={`lp-step lp-reveal lp-d${i+1}`}>
@@ -627,7 +619,7 @@ export default function LandingPage({ onEnterApp }) {
         <div className="lp-soc-inner">
           <div>
             <div className="lp-soc-title">Follow <span>The Fight</span></div>
-            <div className="lp-soc-sub">Tag us in your best shots. We're watching.</div>
+            <div className="lp-soc-sub">Tag us in your best shots!</div>
           </div>
           <div className="lp-soc-links">
             {SOCIAL.map((s) => (

@@ -622,8 +622,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       <div style={{display:"flex",gap:".25rem",marginBottom:"1.1rem"}}>{steps.map((s,i)=><div key={s} style={{flex:1,height:3,borderRadius:2,background:i<step?"var(--acc)":"var(--bdr)",transition:"background .3s"}}/>)}</div>
       <div className="mt2">{steps[step-1]}</div>
       {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>has&&setSelMode(m)}><div className="mode-icon">{m==="coop"
-  ?<svg width="46" height="46" viewBox="0 0 46 46" fill="none"><path d="M4 22c0 0 2-4 5-4l6 2" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M6 26c-1-1-2-3-2-4" stroke="#c8e03a" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6"/><path d="M4 28c-1-2-1-4 0-5" stroke="#c8e03a" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".45"/><path d="M5 31c-2-2-2-5-1-7" stroke="#c8e03a" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35"/><path d="M9 18L13 16L19 17L25 21" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M42 22c0 0-2-4-5-4l-6 2" stroke="#9ab02e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M40 26c1-1 2-3 2-4" stroke="#9ab02e" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6"/><path d="M42 28c1-2 1-4 0-5" stroke="#9ab02e" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".45"/><path d="M41 31c2-2 2-5 1-7" stroke="#9ab02e" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35"/><path d="M37 18L33 16L27 17L21 21" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M19 17L22 20L24 20L27 17" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="#c8e03a" fillOpacity=".12"/><path d="M15 22L23 26L31 22L23 18Z" fill="#c8e03a" fillOpacity=".18" stroke="#c8e03a" strokeWidth="1.6" strokeLinejoin="round"/><path d="M15 22L23 30L31 22" stroke="#9ab02e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity=".55"/><path d="M19 23.5L23 25.5L27 23.5" stroke="#c8e03a" strokeWidth="1.1" strokeLinecap="round" opacity=".5"/><path d="M19 26L23 28L27 26" stroke="#c8e03a" strokeWidth="1" strokeLinecap="round" opacity=".3"/></svg>
-  :<svg width="46" height="46" viewBox="0 0 46 46" fill="none"><path d="M7 6L24 23" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round"/><path d="M7 6L9 12L13 9Z" fill="#c8e03a" fillOpacity=".8" stroke="#c8e03a" strokeWidth="1" strokeLinejoin="round"/><rect x="17" y="19" width="8" height="3.5" rx="1" transform="rotate(45 17 19)" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/><path d="M26 25L31 30" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round"/><rect x="29" y="28" width="7" height="2.5" rx="1.2" transform="rotate(45 29 28)" fill="#c8e03a" fillOpacity=".35" stroke="#c8e03a" strokeWidth="1"/><circle cx="33.5" cy="33.5" r="2.2" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/><path d="M39 6L22 23" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round"/><path d="M39 6L37 12L33 9Z" fill="#c8e03a" fillOpacity=".8" stroke="#c8e03a" strokeWidth="1" strokeLinejoin="round"/><rect x="21" y="19" width="8" height="3.5" rx="1" transform="rotate(-45 21 19)" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/><path d="M20 25L15 30" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round"/><rect x="10" y="28" width="7" height="2.5" rx="1.2" transform="rotate(-45 10 28)" fill="#c8e03a" fillOpacity=".35" stroke="#c8e03a" strokeWidth="1"/><circle cx="12.5" cy="33.5" r="2.2" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/><circle cx="23" cy="23" r="2.5" fill="#c8e03a" fillOpacity=".25" stroke="#c8e03a" strokeWidth="1.2"/><path d="M23 19v-2M23 27v2M19 23h-2M27 23h2" stroke="#c8e03a" strokeWidth="1.2" strokeLinecap="round" opacity=".5"/></svg>
+  ?<svg width="48" height="48" viewBox="0 0 52 52" fill="none"><path d="M48 22c0 0-3-5-7-5l-5 1-3 2-4-1-3 1 2 3 2 1-1 1-3-1-2 1 2 3 1 1-1 1-2-1-1 1 2 3c1 2 3 3 5 3l6-1 4-3 4-5 2-4z" fill="#9ab02e"/><path d="M4 22c0 0 3-5 7-5l5 1 3 2 4-1 3 1-2 3-2 1 1 1 3-1 2 1-2 3-1 1 1 1 2-1 1 1-2 3c-1 2-3 3-5 3l-6-1-4-3-4-5-2-4z" fill="#c8e03a"/><path d="M22 19l4 2 4-2 2 2-6 4-6-4 2-2z" fill="#c8e03a"/><path d="M26 21l6 3-6 5-6-5 6-3z" fill="#c8e03a" fillOpacity=".6"/></svg>
+  :<svg width="48" height="48" viewBox="0 0 52 52" fill="none"><path d="M8 6L14 8L44 38L42 44L36 42L6 12Z" fill="#c8e03a"/><path d="M8 6L6 12L12 10Z" fill="#c8e03a"/><path d="M30 22L34 18L38 22L34 26Z" fill="#9ab02e"/><circle cx="39.5" cy="41.5" r="3.5" fill="#9ab02e"/><path d="M44 6L38 8L8 38L10 44L16 42L46 12Z" fill="#c8e03a"/><path d="M44 6L46 12L40 10Z" fill="#c8e03a"/><path d="M22 22L18 18L14 22L18 26Z" fill="#9ab02e"/><circle cx="12.5" cy="41.5" r="3.5" fill="#9ab02e"/><circle cx="26" cy="26" r="4" fill="#c8e03a" fillOpacity=".35"/></svg>
 }</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Team vs objective — beat the clock together":"Run 1: Team 1 attacks / Team 2 defends. Run 2: roles flip. Combined scores decide the winner. Tiebreaker on time."}</div></div>;})} </div>}
       {step===2&&<div className="mode-grid">{["open","private"].map(sty=>{const rt=bookable.find(x=>x.mode===selMode&&x.style===sty);if(!rt)return <div key={sty} className="mode-card disabled"><div className="mode-icon">{sty==="open"?"🔓":"🔒"}</div><div className="mode-name">{sty}</div><div style={{fontSize:".72rem",color:"var(--dangerL)",marginTop:".5rem"}}>Unavailable</div></div>;return <div key={sty} className={`mode-card${selStyle===sty?" sel":""}`} onClick={()=>setSelStyle(sty)}><div className="mode-icon">{sty==="open"?"🔓":"🔒"}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Rental"}</div><div className="mode-desc">{rt.description}</div><div className="mode-price">{rt.pricingMode==="flat"?`${fmtMoney(rt.price)} flat`:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
       {step===3&&<>
@@ -698,31 +698,177 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
 
 function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,isAdmin=false,onAddPlayer,onSignWaiver,onCancel}){
   const [open,setOpen]=useState(false);
-  const [addPhone,setAddPhone]=useState("");const [addName,setAddName]=useState("");const [addStatus,setAddStatus]=useState("idle");const [addUserId,setAddUserId]=useState(null);
+  const [addPhone,setAddPhone]=useState("");
+  const [addName,setAddName]=useState("");
+  const [addStatus,setAddStatus]=useState("idle"); // idle | searching | found | notfound | named
+  const [addUserId,setAddUserId]=useState(null);
+  const [addHasAccount,setAddHasAccount]=useState(true);
   const [wTarget,setWTarget]=useState(null);
+  const nameRef=useRef(null);
   const rt=resTypes.find(x=>x.id===res.typeId);
   const isUp=res.date>=todayStr();
-  const lookup=v=>{const c=cleanPh(v);if(c.length<10){setAddStatus("idle");setAddUserId(null);setAddName("");return;}const u=users.find(x=>x.phone===c);if(u){setAddStatus("found");setAddUserId(u.id);setAddName(u.name);}else{setAddStatus("notfound");setAddUserId(null);setAddName("");}};
-  const doAdd=()=>{if(!addName.trim()&&addStatus!=="found")return;const nm=addStatus==="found"?(users.find(u=>u.id===addUserId)?.name||addName):addName.trim();onAddPlayer(res.id,{userId:addUserId,name:nm,phone:cleanPh(addPhone)});setAddPhone("");setAddName("");setAddStatus("idle");setAddUserId(null);};
+
+  // Async DB lookup — same pattern as PlayerPhoneInput so saved players re-resolve correctly
+  const lookup=useCallback(async(val)=>{
+    const c=cleanPh(val);
+    if(c.length<10){setAddStatus("idle");setAddUserId(null);setAddName("");setAddHasAccount(true);return;}
+    setAddStatus("searching");
+    const dbUser=await fetchUserByPhone(c);
+    if(dbUser){
+      setAddStatus("found");
+      setAddUserId(dbUser.id);
+      setAddName(dbUser.name);
+      setAddHasAccount(!!dbUser.authProvider); // has social auth = has real account
+    } else {
+      setAddStatus("notfound");
+      setAddUserId(null);
+      setAddName("");
+      setAddHasAccount(false);
+      // Focus name field after render
+      setTimeout(()=>nameRef.current?.focus(),80);
+    }
+  },[]);
+
+  // Commit the add
+  const doAdd=()=>{
+    if(addStatus==="found"){
+      const fu=users.find(u=>u.id===addUserId);
+      onAddPlayer(res.id,{userId:addUserId,name:fu?.name||addName,phone:cleanPh(addPhone)});
+      setAddPhone("");setAddName("");setAddStatus("idle");setAddUserId(null);setAddHasAccount(true);
+    } else if((addStatus==="notfound"||addStatus==="named")&&addName.trim()){
+      onAddPlayer(res.id,{userId:null,name:addName.trim(),phone:cleanPh(addPhone)});
+      setAddPhone("");setAddName("");setAddStatus("idle");setAddUserId(null);setAddHasAccount(true);
+    }
+  };
+
+  // Build mailto invite link
+  const buildInvite=(phone)=>{
+    const subject=encodeURIComponent("You've been added to a Sector 317 reservation!");
+    const body=encodeURIComponent(
+`Hey — you've been added to a Sector 317 reservation by ${res.customerName}!
+
+SECTOR 317 — CQB Tactical Experience
+${res.date ? `📅 Date: ${fmt(res.date)}` : ""}${res.startTime ? `\n⏰ Time: ${fmt12(res.startTime)}` : ""}
+
+To speed up check-in, please do the following BEFORE you arrive:
+
+1. CREATE YOUR ACCOUNT
+   Visit sector317.com and sign in with Google, Microsoft, or Apple to create your free account.
+
+2. SIGN YOUR WAIVER
+   Once logged in, sign your digital liability waiver. This is required before you can play.
+
+3. ARRIVE EARLY
+   Plan to arrive at least 30 minutes before your session time for briefing and gear up.
+
+Questions? Visit sector317.com or reply to this email.
+
+See you on the field — SECTOR 317`
+    );
+    return `mailto:?subject=${subject}&body=${body}`;
+  };
+
   const wOk=res.players.filter(p=>hasValidWaiver(users.find(x=>x.id===p.userId),activeWaiverDoc)).length;
+
   return(
     <>
       {wTarget&&<WaiverModal playerName={wTarget.name} waiverDoc={activeWaiverDoc} onClose={()=>setWTarget(null)} onSign={name=>{onSignWaiver(wTarget.userId,name);setWTarget(null);}}/>}
       <tr onClick={()=>setOpen(o=>!o)} style={{cursor:"pointer"}}>
         <td><div style={{display:"flex",alignItems:"center",gap:".5rem"}}><button className={`expand-toggle${open?" open":""}`} onClick={e=>{e.stopPropagation();setOpen(o=>!o)}}>{open?"▾":"▸"}</button><div><div style={{fontWeight:600}}>{res.customerName}</div><div style={{fontSize:".74rem",color:"var(--muted)"}}>{fmt(res.date)} · {fmt12(res.startTime)}</div></div></div></td>
         <td><div style={{fontSize:".82rem"}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td>
-        <td><div>{res.players.length}/{res.playerCount}</div><div style={{fontSize:".72rem",color:wOk>0&&wOk>=res.players.length?"var(--okB)":"var(--dangerL)"}}>{wOk}/{res.players.length} waivers</div></td>
+        <td><div>{res.players.length}/{res.playerCount}</div><div style={{fontSize:".72rem",color:wOk>0&&wOk>=res.players.length?"var(--okB)":"var(--warnL)"}}>{wOk}/{res.players.length} waivers ✓</div></td>
         <td><span className={`badge ${res.status==="confirmed"?"b-ok":res.status==="completed"?"b-done":"b-cancel"}`}>{res.status}</span></td>
         {isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(res.amount)}</td>}
       </tr>
-      {open&&<tr><td colSpan={5} style={{padding:0}}><div className="res-expand">
-        {!res.players.length&&<div style={{padding:".75rem 1.25rem",fontSize:".82rem",color:"var(--muted)"}}>No players checked in yet.</div>}
-        {res.players.map((p,i)=>{const u=users.find(x=>x.id===p.userId);return(<div className="player-row" key={i}><span className="player-name">{p.name}</span><span className="player-phone">{fmtPhone(p.phone)||"—"}</span><div style={{flex:2}}><WaiverTooltip user={u} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} readOnly={false} onResign={()=>setWTarget({...p})}/></div>{!hasValidWaiver(u,activeWaiverDoc)&&isUp&&<button className="btn btn-warn btn-sm" onClick={()=>setWTarget({...p})}>Sign</button>}</div>);})}
+      {open&&<tr><td colSpan={isAdmin?5:4} style={{padding:0}}><div className="res-expand">
+        {!res.players.length&&<div style={{padding:".75rem 1.25rem",fontSize:".82rem",color:"var(--muted)"}}>No players added yet.</div>}
+        {res.players.map((p,i)=>{
+          const u=users.find(x=>x.id===p.userId);
+          const wSigned=hasValidWaiver(u,activeWaiverDoc);
+          return(
+            <div className="player-row" key={i}>
+              <span className="player-name">{p.name}</span>
+              <span className="player-phone">{fmtPhone(p.phone)||"—"}</span>
+              {/* Waiver status badge */}
+              <span style={{
+                fontSize:".68rem",fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
+                padding:".15rem .55rem",borderRadius:3,flexShrink:0,
+                background:wSigned?"rgba(90,138,58,.18)":"rgba(192,57,43,.14)",
+                color:wSigned?"var(--okB)":"var(--dangerL)",
+                border:`1px solid ${wSigned?"var(--ok)":"var(--danger)"}`,
+              }}>{wSigned?"✓ Waiver":"⚠ No Waiver"}</span>
+              <div style={{flex:2}}><WaiverTooltip user={u} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} readOnly={false} onResign={()=>setWTarget({...p})}/></div>
+              {!wSigned&&isUp&&<button className="btn btn-warn btn-sm" onClick={()=>setWTarget({...p})}>Sign</button>}
+            </div>
+          );
+        })}
         {canManage&&isUp&&<div className="add-player-row">
-          <div className="f"><label>Phone</label><div className="phone-wrap" style={{background:"var(--bg2)"}}><span className="phone-prefix">+1</span><input type="tel" placeholder="Enter phone number with area code" value={addPhone} onChange={e=>{setAddPhone(e.target.value);lookup(e.target.value);}} maxLength={10}/></div>{addStatus==="found"&&(()=>{const fu=users.find(u=>u.id===addUserId);return <div style={{fontSize:".74rem",color:"var(--okB)",marginTop:".2rem",display:"flex",alignItems:"center",gap:".35rem"}}><span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:20,height:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".63rem",flexShrink:0}}>{getInitials(fu?.name||"")}</span>✓ <strong style={{color:"var(--txt)"}}>{fu?.name}</strong>{fu?.authProvider&&<span style={{color:"var(--muted)",fontSize:".68rem"}}>({fu.authProvider})</span>}</div>;})()}{addStatus==="notfound"&&<div style={{fontSize:".74rem",color:"var(--warnL)",marginTop:".2rem"}}>⚠ Not in system — enter name below</div>}</div>
-          {addStatus==="notfound"&&<div className="f"><label>Name</label><input value={addName} onChange={e=>setAddName(e.target.value)} placeholder="First Last"/></div>}
-          <div style={{paddingBottom:".9rem",display:"flex",gap:".5rem"}}>
-            <button className="btn btn-p btn-sm" disabled={addStatus==="idle"||(addStatus==="notfound"&&!addName.trim())} onClick={doAdd}>+ Add</button>
+          {/* Phone input */}
+          <div className="f">
+            <label>Add Player — Cell Number</label>
+            <div className="phone-wrap" style={{background:"var(--bg2)"}}>
+              <span className="phone-prefix">+1</span>
+              <input
+                type="tel" placeholder="Enter phone number with area code"
+                value={addPhone} maxLength={10}
+                onChange={e=>{setAddPhone(e.target.value);if(cleanPh(e.target.value).length===10)lookup(e.target.value);else{setAddStatus("idle");setAddUserId(null);setAddName("");}}}
+                onKeyDown={e=>{if(e.key==="Enter"){if(addStatus==="found")doAdd();else if(cleanPh(addPhone).length===10)lookup(addPhone);}}}
+              />
+            </div>
+            {/* Status feedback */}
+            {addStatus==="searching"&&<div style={{fontSize:".74rem",color:"var(--muted)",marginTop:".2rem"}}>🔍 Looking up...</div>}
+            {addStatus==="found"&&(()=>{
+              const fu=users.find(u=>u.id===addUserId);
+              const wSigned=hasValidWaiver(fu,activeWaiverDoc);
+              return(
+                <div style={{marginTop:".35rem"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem"}}>
+                    <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:22,height:22,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".65rem",flexShrink:0}}>{getInitials(fu?.name||addName)}</span>
+                    <strong style={{color:"var(--txt)"}}>{fu?.name||addName}</strong>
+                    {fu?.authProvider&&<span style={{fontSize:".68rem",color:"var(--muted)"}}>({fu.authProvider})</span>}
+                    <span style={{
+                      fontSize:".65rem",fontWeight:700,padding:".1rem .45rem",borderRadius:3,
+                      background:wSigned?"rgba(90,138,58,.18)":"rgba(192,57,43,.14)",
+                      color:wSigned?"var(--okB)":"var(--dangerL)",
+                      border:`1px solid ${wSigned?"var(--ok)":"var(--danger)"}`,
+                    }}>{wSigned?"✓ Waiver signed":"⚠ Waiver needed"}</span>
+                  </div>
+                  {!addHasAccount&&<div style={{fontSize:".73rem",color:"var(--warnL)",marginTop:".3rem"}}>⚠ This number has no account — <a href={buildInvite(addPhone)} style={{color:"var(--accB)",textDecoration:"underline"}}>Send invite email</a></div>}
+                </div>
+              );
+            })()}
+            {addStatus==="notfound"&&<div style={{fontSize:".74rem",color:"var(--warnL)",marginTop:".2rem"}}>⚠ No account found — enter their name to add them</div>}
+          </div>
+          {/* Name field — only shown when not found in DB */}
+          {(addStatus==="notfound"||addStatus==="named")&&(
+            <div className="f">
+              <label>Full Name <span style={{color:"var(--danger)"}}>*</span></label>
+              <div style={{display:"flex",gap:".5rem",alignItems:"center"}}>
+                <input
+                  ref={nameRef}
+                  value={addName}
+                  onChange={e=>{setAddName(e.target.value);if(e.target.value.trim())setAddStatus("named");else setAddStatus("notfound");}}
+                  onKeyDown={e=>{if(e.key==="Enter"&&addName.trim())doAdd();}}
+                  placeholder="First Last (required)"
+                  style={{flex:1}}
+                />
+              </div>
+              {/* No-account invite prompt */}
+              <div style={{fontSize:".73rem",color:"var(--muted)",marginTop:".3rem",display:"flex",alignItems:"center",gap:".4rem",flexWrap:"wrap"}}>
+                <span>⚠ No Sector 317 account found.</span>
+                <a href={buildInvite(addPhone)} style={{color:"var(--accB)",textDecoration:"underline",fontWeight:600}}>📧 Send invite email</a>
+                <span style={{color:"var(--muted)"}}>— they'll need to create an account &amp; sign waiver before arrival.</span>
+              </div>
+            </div>
+          )}
+          {/* Action buttons */}
+          <div style={{paddingBottom:".9rem",display:"flex",gap:".5rem",alignItems:"center",flexWrap:"wrap"}}>
+            {(addStatus==="found"||(( addStatus==="notfound"||addStatus==="named")&&addName.trim()))&&(
+              <button
+                className="btn btn-p btn-sm"
+                onClick={doAdd}
+              >+ Add Player</button>
+            )}
             {onCancel&&res.status==="confirmed"&&<button className="btn btn-d btn-sm" onClick={()=>onCancel(res.id)}>Cancel Res.</button>}
           </div>
         </div>}
