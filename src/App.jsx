@@ -754,7 +754,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   return <div key={tmpl.id} className={`slot-card${added?" added":!status.available?" unavail":""}`} onClick={()=>!added&&status.available&&addSlot(tmpl.startTime)}>
     <div className="slot-time">{fmt12(tmpl.startTime)}</div>
     {added?<div className="slot-info" style={{color:"var(--okB)"}}>✓ Added</div>:status.available?<>
-      <div className="slot-info" style={{color:"var(--okB)",fontSize:".72rem"}}>{selType?.style==="private"?`${status.slotsLeft} lane${status.slotsLeft!==1?"s":""} free`:`${status.spotsLeft??status.slotsLeft} spot${(status.spotsLeft??status.slotsLeft)!==1?"s":""} avail`}</div>
+      <div className="slot-info" style={{color:"var(--okB)",fontSize:".72rem"}}>{(()=>{if(selType?.style==="private"){const total=(status.lanes||[]).length;const free=status.slotsLeft??total;return free<total?`${free} lane${free!==1?"s":""} free`:"Available";}else{const cap=laneCapacity(selMode||"coop");const spots=status.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";}})()} </div>
       {laneInfo.length>0&&<div style={{marginTop:".35rem",display:"flex",flexDirection:"column",gap:"2px"}}>
         {laneInfo.map(l=><div key={l.laneNum} style={{fontSize:".6rem",fontFamily:"var(--fd)",letterSpacing:".04em",display:"flex",justifyContent:"space-between",color:l.type===null?"rgba(200,224,58,.4)":l.type==="private"?"var(--dangerL)":l.mode===selType?.mode?"var(--okB)":"var(--warn)"}}>
           <span>Lane {l.laneNum}</span>
@@ -764,7 +764,6 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
     </>:<div className="slot-reason">{status.reason}</div>}
   </div>;})}
 </div>
-          {slotStatuses.filter(s=>s.status.available&&!s.added).length>1&&<button className="btn btn-ok btn-sm" style={{marginBottom:".75rem"}} onClick={()=>{slotStatuses.filter(s=>s.status.available&&!s.added).forEach(s=>addSlot(s.tmpl.startTime));}}>✓ Reserve All Available Slots</button>}
         </>}
         {selSlots.length>0&&!addingMore&&<button className="btn btn-s btn-sm" onClick={()=>setAddingMore(true)}>+ Add Another Slot</button>}
       </>}
@@ -812,7 +811,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
       </>}
       <div className="ma">
-        <button className="btn btn-s" onClick={()=>step===1?onClose():setStep(s=>s-1)}>{step===1?"Cancel":"← Back"}</button>
+        <button className="btn btn-s" onClick={()=>step===1?onClose():(step===4&&setSelSlots([]),setStep(s=>s-1))}>{step===1?"Cancel":"← Back"}</button>
         {step<steps.length?<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>:<button className="btn btn-p" onClick={()=>{
   const p1=bookingForOther
     ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:""),phone:player1Input.phone}
