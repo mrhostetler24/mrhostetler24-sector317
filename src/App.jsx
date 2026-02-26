@@ -667,7 +667,12 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
   const firstSlotStatus=selSlots.length>0&&selType?getSlotStatus(selDate,selSlots[0].startTime,selType.id,reservations,resTypes,sessionTemplates):null;
   const openMaxFromLane=firstSlotStatus?.spotsLeft??laneCapacity(selMode||"coop");
-  const maxP=isPrivate?(selType?.maxPlayers||12):isVersusOpen?Math.min(12,openMaxFromLane):6;
+  // For private: capacity scales with lanes booked at the same startTime
+  const lanesBooked=isPrivate&&selSlots.length>0
+    ? Math.max(1, selSlots.filter(s=>s.startTime===selSlots[0]?.startTime).length)
+    : 1;
+  const perLaneCap=selMode==="versus"?12:6;
+  const maxP=isPrivate?perLaneCap*lanesBooked:isVersusOpen?Math.min(12,openMaxFromLane):6;
   const effPlayerCount=isPrivate?maxP:playerCount;
   const pricePerSlot=selType?selType.pricingMode==="flat"?selType.price:selType.price*effPlayerCount:0;
   const total=pricePerSlot*selSlots.length;
@@ -799,17 +804,35 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   </div>;})}
 </div>
         </>}
-        {secondLanePrompt&&isPrivate&&selSlots.filter(s=>s.startTime===secondLanePrompt).length<2&&<div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.25)",borderRadius:6,padding:".85rem 1rem",marginBottom:".75rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem",flexWrap:"wrap"}}>
-          <div>
-            <div style={{fontFamily:"var(--fd)",fontSize:".78rem",letterSpacing:".08em",color:"var(--acc)",marginBottom:".2rem"}}>SECOND LANE AVAILABLE</div>
-            <div style={{fontSize:".84rem",color:"var(--txt)"}}>Both lanes are open at <strong>{fmt12(secondLanePrompt)}</strong> — add the second lane to your reservation?</div>
-            <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".2rem"}}>+{fmtMoney(pricePerSlot)} · Great for larger groups or back-to-back runs</div>
-          </div>
-          <div style={{display:"flex",gap:".5rem",flexShrink:0}}>
-            <button className="btn btn-s btn-sm" onClick={()=>setSecondLanePrompt(null)}>No thanks</button>
-            <button className="btn btn-p btn-sm" onClick={()=>{setSelSlots(p=>[...p,{startTime:secondLanePrompt}]);setSecondLanePrompt(null);}}>+ Add Lane</button>
-          </div>
-        </div>}
+        {secondLanePrompt&&isPrivate&&selSlots.filter(s=>s.startTime===secondLanePrompt).length<2&&(()=>{
+          const maxCombined=selMode==="coop"?12:24;
+          const adjSlots=slotsForDate.filter(t=>{
+            if(t.startTime<=secondLanePrompt) return false; // only future slots
+            if(selSlots.some(s=>s.startTime===t.startTime)) return false; // already added
+            const st=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
+            return st.available;
+          });
+          return <div style={{display:"flex",flexDirection:"column",gap:".6rem",marginBottom:".75rem"}}>
+            <div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.25)",borderRadius:6,padding:".85rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem",flexWrap:"wrap"}}>
+              <div>
+                <div style={{fontFamily:"var(--fd)",fontSize:".78rem",letterSpacing:".08em",color:"var(--acc)",marginBottom:".2rem"}}>SECOND LANE AVAILABLE</div>
+                <div style={{fontSize:".84rem",color:"var(--txt)"}}>Both lanes are open at <strong>{fmt12(secondLanePrompt)}</strong> — add the second for your full group?</div>
+                <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".2rem"}}>+{fmtMoney(pricePerSlot)} · Accommodates up to {maxCombined} players across both lanes</div>
+              </div>
+              <div style={{display:"flex",gap:".5rem",flexShrink:0}}>
+                <button className="btn btn-s btn-sm" onClick={()=>setSecondLanePrompt(null)}>No thanks</button>
+                <button className="btn btn-p btn-sm" onClick={()=>{setSelSlots(p=>[...p,{startTime:secondLanePrompt}]);setSecondLanePrompt(null);}}>+ Add Lane</button>
+              </div>
+            </div>
+            {adjSlots.length>0&&<div style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:6,padding:".75rem 1rem"}}>
+              <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--muted)",marginBottom:".55rem"}}>OTHER AVAILABLE SLOTS TODAY</div>
+              <div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
+                {adjSlots.map(t=><button key={t.startTime} className="btn btn-s btn-sm" onClick={()=>{setSelSlots(p=>[...p,{startTime:t.startTime}]);setSecondLanePrompt(null);}}>{fmt12(t.startTime)}</button>)}
+              </div>
+              <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".45rem"}}>Add a second timeslot to run your group through in shifts</div>
+            </div>}
+          </div>;
+        })()}
         {selSlots.length>0&&!addingMore&&!secondLanePrompt&&<button className="btn btn-s btn-sm" onClick={()=>setAddingMore(true)}>+ Add Another Slot</button>}
       </>}
       {step===5&&!isPrivate&&<>
@@ -842,9 +865,31 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
       </>}
       {step===5&&isPrivate&&<>
-        <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>Private (max {maxP} players) — Flat</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span></div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
+        <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>Private ({lanesBooked>1?`${lanesBooked} lanes · `:""}max {maxP} players) — Flat</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span></div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
+        <div className="player-inputs" style={{marginBottom:".75rem"}}>
+          {!bookingForOther
+            ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
+                <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".4rem"}}>PLAYER 1</div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
+                    <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
+                    <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
+                    <span style={{fontSize:".75rem",color:"var(--okB)"}}>— you</span>
+                  </div>
+                  <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",whiteSpace:"nowrap"}}>
+                    <input type="checkbox" checked={bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                    I'm not playing — booking for my group
+                  </label>
+                </div>
+              </div>
+            : <div>
+                <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} onChange={setPlayer1Input} showFullName={true}/>
+                <div style={{marginTop:".4rem"}}><label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}><input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>I'm not playing — booking for my group</label></div>
+              </div>
+          }
+        </div>
         <p style={{fontSize:".78rem",color:"var(--muted)",marginBottom:".75rem"}}>Optionally add group member phone numbers to speed up check-in:</p>
-        <div className="player-inputs">{playerInputs.slice(0,3).map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={currentUser.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}</div>
+        <div className="player-inputs">{playerInputs.map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={currentUser.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}</div>
         <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
         <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
         <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
