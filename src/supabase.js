@@ -99,6 +99,14 @@ const toShift = r => r ? ({
   conflictNote: r.conflict_note,
 }) : null
 
+const toReservationPlayer = r => r ? ({
+  id:            r.id,
+  reservationId: r.reservation_id,
+  userId:        r.user_id ?? null,
+  name:          r.name,
+  phone:         r.phone ?? null,
+}) : null
+
 const toRun = r => r ? ({
   id:                 r.id,
   reservationId:      r.reservation_id,
@@ -330,22 +338,40 @@ export async function deleteSessionTemplate(id) {
 
 export async function fetchReservations() {
   const { data, error } = await supabase
-    .from('reservations').select('*')
+    .from('reservations')
+    .select('*, players:reservation_players(*)')
     .order('date', { ascending: false })
     .order('start_time')
   if (error) throw error
-  return data.map(toReservation)
+  return data.map(r => ({
+    ...toReservation(r),
+    players: (r.players ?? []).map(p => ({
+      id:     p.id,
+      userId: p.user_id ?? null,
+      name:   p.name,
+      phone:  p.phone ?? null,
+    })),
+  }))
 }
 
 export async function fetchTodaysReservations() {
   const today = new Date().toISOString().split('T')[0]
   const { data, error } = await supabase
-    .from('reservations').select('*')
+    .from('reservations')
+    .select('*, players:reservation_players(*)')
     .eq('date', today)
     .neq('status', 'cancelled')
     .order('start_time')
   if (error) throw error
-  return data.map(toReservation)
+  return data.map(r => ({
+    ...toReservation(r),
+    players: (r.players ?? []).map(p => ({
+      id:     p.id,
+      userId: p.user_id ?? null,
+      name:   p.name,
+      phone:  p.phone ?? null,
+    })),
+  }))
 }
 
 export async function createReservation(res) {
@@ -370,7 +396,7 @@ export async function updateReservation(id, changes) {
   const row = {}
   if (changes.status      !== undefined) row.status       = changes.status
   if (changes.playerCount !== undefined) row.player_count = changes.playerCount
-  if (changes.players     !== undefined) row.players      = changes.players
+  // players are managed via syncReservationPlayers — not the JSONB column
   if (changes.amount      !== undefined) row.amount       = changes.amount
   if (changes.paid        !== undefined) row.paid         = changes.paid
   const { data, error } = await supabase
@@ -380,7 +406,70 @@ export async function updateReservation(id, changes) {
 }
 
 export async function addPlayerToReservation(resId, player, currentPlayers) {
-  return updateReservation(resId, { players: [...currentPlayers, player] })
+  // Write to normalized reservation_players table (source of truth)
+  const { data, error } = await supabase.from('reservation_players').insert({
+    reservation_id: resId,
+    user_id:        player.userId ?? null,
+    name:           player.name,
+    phone:          player.phone ?? null,
+  }).select().single()
+  if (error) throw error
+  // Return in the shape App.jsx expects (same as players array items)
+  return { id: data.id, userId: data.user_id ?? null, name: data.name, phone: data.phone ?? null }
+}
+
+/** Fetch all players for a reservation from the normalized table */
+export async function fetchPlayersForReservation(resId) {
+  const { data, error } = await supabase
+    .from('reservation_players')
+    .select('*')
+    .eq('reservation_id', resId)
+    .order('id')
+  if (error) throw error
+  return data.map(toReservationPlayer)
+}
+
+/** Remove a player from a reservation */
+export async function removePlayerFromReservation(playerId) {
+  const { error } = await supabase
+    .from('reservation_players').delete().eq('id', playerId)
+  if (error) throw error
+}
+
+/** Replace ALL players on a reservation — delete existing, insert new list.
+ *  Used by saveGroup in CustomerPortal. App.jsx should call this instead of
+ *  updateReservation(id, { players }) which writes to the stale JSONB column. */
+export async function syncReservationPlayers(resId, players) {
+  // Delete all existing players for this reservation
+  const { error: delErr } = await supabase
+    .from('reservation_players').delete().eq('reservation_id', resId)
+  if (delErr) throw delErr
+
+  if (!players.length) return []
+
+  // Insert new player list
+  const rows = players.map(p => ({
+    reservation_id: resId,
+    user_id:        p.userId ?? null,
+    name:           p.name,
+    phone:          p.phone ?? null,
+  }))
+  const { data, error } = await supabase
+    .from('reservation_players').insert(rows).select()
+  if (error) throw error
+  return data.map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null }))
+}
+
+/** Update a player record (e.g. link a userId after they sign in) */
+export async function updateReservationPlayer(id, changes) {
+  const row = {}
+  if (changes.userId !== undefined) row.user_id = changes.userId
+  if (changes.name   !== undefined) row.name    = changes.name
+  if (changes.phone  !== undefined) row.phone   = changes.phone
+  const { data, error } = await supabase
+    .from('reservation_players').update(row).eq('id', id).select().single()
+  if (error) throw error
+  return toReservationPlayer(data)
 }
 
 export async function markReservationPaid(id, paid = true) {
@@ -550,23 +639,24 @@ export async function fetchPlayerStats(playerId) {
 
 /** Fetch all session scores for a player (for their history view) */
 export async function fetchPlayerSessionHistory(playerId) {
-  // Sessions where they were the booker
+  // Sessions where they were the booker (uses v_session_scores view)
   const { data: asBooker, error: e1 } = await supabase
     .from('v_session_scores')
     .select('*')
     .eq('booker_id', playerId)
   if (e1) throw e1
 
-  // Sessions where they appear in the players_json array
-  // Note: Supabase doesn't support JSON array contains on views directly,
-  // so we fetch from session_runs joined via reservations where they appear in players
+  // Sessions where they appear as a participant in reservation_players
   const { data: asPlayer, error: e2 } = await supabase
-    .from('reservations')
-    .select('id, date, type_id, players, user_id')
-    .contains('players', JSON.stringify([{ id: playerId }]))  // partial match not supported in all versions
-  if (e2) console.warn('Player session fetch (as participant) may need RPC:', e2.message)
+    .from('reservation_players')
+    .select('reservation_id, reservations(id, date, type_id, customer_name, status)')
+    .eq('user_id', playerId)
+  if (e2) throw e2
 
-  return { asBooker: asBooker ?? [], asPlayer: asPlayer ?? [] }
+  return {
+    asBooker:  asBooker ?? [],
+    asPlayer:  (asPlayer ?? []).map(p => p.reservations).filter(Boolean),
+  }
 }
 
 

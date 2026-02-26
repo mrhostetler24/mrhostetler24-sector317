@@ -838,8 +838,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     const extra=playerInputs.filter(p=>p.phone||p.name).map(p=>({userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||""),phone:p.phone}));
     const newPlayers=[booker,...extra];
     try{
-      const updated=await updateReservation(editResId,{players:newPlayers});
-      setReservations(prev=>prev.map(r=>r.id===editResId?updated:r));
+      const updatedPlayers=await syncReservationPlayers(editResId,newPlayers);
+      setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:updatedPlayers}:r));
     }catch(err){
       // fallback to local update if DB fails
       setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:newPlayers}:r));
