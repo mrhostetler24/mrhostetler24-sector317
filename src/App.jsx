@@ -534,15 +534,13 @@ function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=
     if(clean.length<10)return;
     setSearching(true);
     try{
-      // 1. Check in-memory list first (catches all loaded users including booker)
-      const found=users.find(u=>cleanPh(u.phone||"")===clean);
-      if(found){onChange({phone:clean,userId:found.id,name:found.name,status:"found"});return;}
-      // 2. Fallback: live DB lookup in case user wasn't in initial load
+      // Always hit DB via SECURITY DEFINER RPC — reliable for all user types
+      // In-memory users array is incomplete for customer-level accounts due to RLS
       const dbUser=await fetchUserByPhone(clean);
       if(dbUser){onChange({phone:clean,userId:dbUser.id,name:dbUser.name,status:"found"});}
       else{onChange({phone:clean,userId:null,name:"",status:"notfound"});}
     }finally{setSearching(false);}
-  },[clean,users]);
+  },[clean]);
   const foundUser=status==="found"?users.find(u=>u.id===userId):null;
   const displayLabel=label||(index!=null?`Player ${index+2}`:"Player");
   return(
@@ -860,6 +858,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [showAccount,setShowAccount]=useState(false);
   const [editResId,setEditResId]=useState(null);
   const [playerInputs,setPlayerInputs]=useState([]);
+  const [bookerIsPlayer,setBookerIsPlayer]=useState(true);
+  const [player1Input,setPlayer1Input]=useState({phone:"",userId:null,name:"",status:"idle"});
   const today=todayStr();
   const myRes=reservations.filter(r=>r.userId===user.id);
   const upcoming=myRes.filter(r=>r.date>=today&&r.status!=="cancelled");
@@ -869,18 +869,34 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const editRes=reservations.find(r=>r.id===editResId);
   useEffect(()=>{
     if(!editRes)return;
-    const ex=editRes.players.filter(p=>p.userId!==user.id);
-    setPlayerInputs(Array.from({length:Math.max(0,(editRes.playerCount||1)-1)},(_,i)=>{const ep=ex[i];return ep?{phone:ep.phone,userId:ep.userId,name:ep.name,status:ep.userId?"found":"idle"}:{phone:"",userId:null,name:"",status:"idle"};}));
+    const allP=editRes.players||[];
+    const bookerInList=allP.some(p=>p.userId===user.id);
+    setBookerIsPlayer(bookerInList||allP.length===0);
+    const nonBooker=allP.filter(p=>p.userId!==user.id);
+    // If booker not in list, first non-booker slot is player 1
+    if(!bookerInList&&nonBooker.length>0){
+      const p1=nonBooker[0];
+      setPlayer1Input({phone:p1.phone||"",userId:p1.userId||null,name:p1.name||"",status:p1.userId?"found":"idle"});
+      const rest=nonBooker.slice(1);
+      setPlayerInputs(Array.from({length:Math.max(0,(editRes.playerCount||1)-1)},(_,i)=>{const ep=rest[i];return ep?{phone:ep.phone||"",userId:ep.userId||null,name:ep.name||"",status:ep.userId?"found":"idle"}:{phone:"",userId:null,name:"",status:"idle"};}));
+    } else {
+      setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});
+      setPlayerInputs(Array.from({length:Math.max(0,(editRes.playerCount||1)-1)},(_,i)=>{const ep=nonBooker[i];return ep?{phone:ep.phone||"",userId:ep.userId||null,name:ep.name||"",status:ep.userId?"found":"idle"}:{phone:"",userId:null,name:"",status:"idle"};}));
+    }
   },[editResId]);
   const saveGroup=async()=>{
-    const booker={userId:user.id,name:user.name,phone:user.phone};
-    const extra=playerInputs.filter(p=>p.phone||p.name).map(p=>({userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||""),phone:p.phone}));
-    const newPlayers=[booker,...extra];
+    let p1;
+    if(bookerIsPlayer){
+      p1={userId:user.id,name:user.name,phone:user.phone||""};
+    } else {
+      p1={userId:player1Input.userId??null,name:player1Input.name||(player1Input.userId?users.find(u=>u.id===player1Input.userId)?.name||"":""),phone:player1Input.phone||""};
+    }
+    const extra=playerInputs.filter(p=>p.phone||p.name).map(p=>({userId:p.userId??null,name:p.name||(p.userId?users.find(u=>u.id===p.userId)?.name||"":""),phone:p.phone||""}));
+    const newPlayers=[p1,...extra];
     try{
       const updatedPlayers=await syncReservationPlayers(editResId,newPlayers);
       setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:updatedPlayers}:r));
     }catch(err){
-      // fallback to local update if DB fails
       setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:newPlayers}:r));
     }
     setEditResId(null);
@@ -895,13 +911,32 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <div className="mt2">Manage Group</div>
         <p style={{color:"var(--muted)",fontSize:".82rem",marginBottom:".5rem"}}>{editRes.customerName} · {fmt(editRes.date)} · {fmt12(editRes.startTime)} · {editRes.playerCount} players</p>
         <p style={{fontSize:".78rem",color:"var(--muted)",marginBottom:"1rem"}}>Add your group's phone numbers to speed up check-in and waiver signing at the venue:</p>
-        <div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem 1rem",marginBottom:"1rem",fontSize:".85rem",display:"flex",alignItems:"center",gap:".75rem"}}><span>👤</span><div><strong>{user.name}</strong> — booking lead</div></div>
-        <div className="player-inputs">{playerInputs.map((pi,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
-            <div style={{flex:1}}><PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={user.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/></div>
-            <button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>
-          </div>
-        ))}</div>
+        <div className="player-inputs">
+          {/* Player 1 — booker or someone else */}
+          {bookerIsPlayer
+            ?<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem 1rem",marginBottom:".5rem",fontSize:".85rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
+              <div style={{display:"flex",alignItems:"center",gap:".6rem"}}><span>👤</span><strong>{user.name}</strong><span style={{fontSize:".75rem",color:"var(--okB)"}}>— you</span></div>
+              <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
+                <input type="checkbox" checked={!bookerIsPlayer} onChange={e=>{setBookerIsPlayer(!e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                Booking for someone else
+              </label>
+            </div>
+            :<div style={{marginBottom:".5rem"}}>
+              <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} onChange={setPlayer1Input} showFullName={true}/>
+              <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",marginTop:".35rem"}}>
+                <input type="checkbox" checked={!bookerIsPlayer} onChange={e=>{setBookerIsPlayer(!e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                Booking for someone else
+              </label>
+            </div>
+          }
+          {/* Remaining players */}
+          {playerInputs.map((pi,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
+              <div style={{flex:1}}><PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={user.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/></div>
+              <button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>
+            </div>
+          ))}
+        </div>
         {playerInputs.length<(editRes?.playerCount||1)-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
         {editRes?.typeId&&resTypes.find(x=>x.id===editRes.typeId)?.style==="open"&&<div style={{fontSize:".74rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".5rem .75rem"}}>⚠ Open play — removing players does not issue a refund. Contact staff for refund requests.</div>}
         <div className="ma"><button className="btn btn-s" onClick={()=>setEditResId(null)}>Cancel</button><button className="btn btn-p" onClick={saveGroup}>Save Group</button></div>
