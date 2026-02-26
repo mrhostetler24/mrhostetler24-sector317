@@ -1009,22 +1009,18 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [toastMsg,setToastMsg]=useState(null);
   const [modal,setModal]=useState(null);
   const [showAccountFor,setShowAccountFor]=useState(null);
+  const isAdmin=user.access==="admin";
+  const isManager=user.access==="manager"||isAdmin;
   const [dashPeriod,setDashPeriod]=useState("all");
   const [dashFrom,setDashFrom]=useState("");
   const [dashTo,setDashTo]=useState("");
   const [dismissedDups,setDismissedDups]=useState([]);
   const [showWidgetMenu,setShowWidgetMenu]=useState(false);
-  // Widget visibility: keys are widget ids, value true=visible. Defaults differ by role.
-  const defaultWidgets=isAdmin
+  const [dashWidgets,setDashWidgets]=useState(()=>isAdmin
     ?{revenue:true,bookings:true,players:true,utilization:true,slots:true,types:true}
-    :isManager
-      ?{bookings:true,players:true,slots:true,types:true}
-      :{bookings:true,players:true,slots:true,types:true};
-  const [dashWidgets,setDashWidgets]=useState(defaultWidgets);
+    :{bookings:true,players:true,slots:true,types:true});
   const toggleWidget=id=>setDashWidgets(p=>({...p,[id]:!p[id]}));
   const showToast=msg=>{setToastMsg(msg);setTimeout(()=>setToastMsg(null),3200);};
-  const isAdmin=user.access==="admin";
-  const isManager=user.access==="manager"||isAdmin;
   const getType=id=>resTypes.find(rt=>rt.id===id);
   const getUser=id=>users.find(u=>u.id===id);
   const alertShifts=shifts.filter(s=>s.conflicted);
