@@ -41,6 +41,7 @@ const toUser = r => r ? ({
   waivers:            r.waivers ?? [],
   leaderboardName:    r.leaderboard_name ?? null,
   isReal:             r.is_real ?? true,
+  createdByUserId:    r.created_by_user_id ?? null,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -196,7 +197,30 @@ export async function createUser(user) {
     needs_rewaiver_doc_id: user.needsRewaiverDocId ?? null,
     waivers:               user.waivers ?? [],
     leaderboard_name:      user.leaderboardName ?? null,
-    is_real:               true, // always true — test accounts set via DB directly
+    is_real:               true,
+    created_by_user_id:    user.createdByUserId ?? null,
+  }).select().single()
+  if (error) throw error
+  return toUser(data)
+}
+
+/**
+ * Create a minimal guest/placeholder user record when someone is added to a
+ * reservation by phone number but has no existing account.
+ * - access: 'customer', no authProvider (they haven't signed in yet)
+ * - createdByUserId: the staff/customer who added them via the reservation screen
+ * - is_real: true — this is a real person who needs to complete signup on arrival
+ */
+export async function createGuestUser({ name, phone, createdByUserId }) {
+  const { data, error } = await supabase.from('users').insert({
+    name,
+    phone:                 phone ?? null,
+    access:                'customer',
+    active:                true,
+    waivers:               [],
+    is_real:               true,
+    auth_provider:         null,   // no social login yet
+    created_by_user_id:    createdByUserId ?? null,
   }).select().single()
   if (error) throw error
   return toUser(data)

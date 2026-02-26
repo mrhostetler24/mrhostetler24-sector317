@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import LandingPage from "./LandingPage.jsx";
 import {
   supabase,
-  fetchAllUsers, fetchUserByPhone, createUser, updateUser, deleteUser, signWaiver,
+  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, deleteUser, signWaiver,
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   fetchResTypes, upsertResType, deleteResType,
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
@@ -566,7 +566,7 @@ function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=
             : <span style={{color:"var(--okB)"}}>✓ Player found{foundUser?.authProvider&&<span style={{marginLeft:".35rem",fontSize:".68rem",color:"var(--muted)"}}>({foundUser.authProvider})</span>}</span>}
         </div>
       )}
-      {status==="notfound"&&clean.length===10&&<div className="pi-notfound">⚠ No account found — a staff member can add them at check-in</div>}
+      {status==="notfound"&&clean.length===10&&<div className="pi-notfound">⚠ Nothing found — add their name and we'll prep their account</div>}
     </div>
   );
 }
@@ -625,7 +625,13 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   ?<svg width="48" height="48" viewBox="0 0 52 52" fill="none"><path d="M48 22c0 0-3-5-7-5l-5 1-3 2-4-1-3 1 2 3 2 1-1 1-3-1-2 1 2 3 1 1-1 1-2-1-1 1 2 3c1 2 3 3 5 3l6-1 4-3 4-5 2-4z" fill="#9ab02e"/><path d="M4 22c0 0 3-5 7-5l5 1 3 2 4-1 3 1-2 3-2 1 1 1 3-1 2 1-2 3-1 1 1 1 2-1 1 1-2 3c-1 2-3 3-5 3l-6-1-4-3-4-5-2-4z" fill="#c8e03a"/><path d="M22 19l4 2 4-2 2 2-6 4-6-4 2-2z" fill="#c8e03a"/><path d="M26 21l6 3-6 5-6-5 6-3z" fill="#c8e03a" fillOpacity=".6"/></svg>
   :<svg width="48" height="48" viewBox="0 0 52 52" fill="none"><path d="M8 6L14 8L44 38L42 44L36 42L6 12Z" fill="#c8e03a"/><path d="M8 6L6 12L12 10Z" fill="#c8e03a"/><path d="M30 22L34 18L38 22L34 26Z" fill="#9ab02e"/><circle cx="39.5" cy="41.5" r="3.5" fill="#9ab02e"/><path d="M44 6L38 8L8 38L10 44L16 42L46 12Z" fill="#c8e03a"/><path d="M44 6L46 12L40 10Z" fill="#c8e03a"/><path d="M22 22L18 18L14 22L18 26Z" fill="#9ab02e"/><circle cx="12.5" cy="41.5" r="3.5" fill="#9ab02e"/><circle cx="26" cy="26" r="4" fill="#c8e03a" fillOpacity=".35"/></svg>
 }</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Team vs objective — beat the clock together":"Run 1: Team 1 attacks / Team 2 defends. Run 2: roles flip. Combined scores decide the winner. Tiebreaker on time."}</div></div>;})} </div>}
-      {step===2&&<div className="mode-grid">{["open","private"].map(sty=>{const rt=bookable.find(x=>x.mode===selMode&&x.style===sty);if(!rt)return <div key={sty} className="mode-card disabled"><div className="mode-icon">{sty==="open"?"🔓":"🔒"}</div><div className="mode-name">{sty}</div><div style={{fontSize:".72rem",color:"var(--dangerL)",marginTop:".5rem"}}>Unavailable</div></div>;return <div key={sty} className={`mode-card${selStyle===sty?" sel":""}`} onClick={()=>setSelStyle(sty)}><div className="mode-icon">{sty==="open"?"🔓":"🔒"}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Rental"}</div><div className="mode-desc">{rt.description}</div><div className="mode-price">{rt.pricingMode==="flat"?`${fmtMoney(rt.price)} flat`:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
+      {step===2&&<div className="mode-grid">{["open","private"].map(sty=>{const rt=bookable.find(x=>x.mode===selMode&&x.style===sty);if(!rt)return <div key={sty} className="mode-card disabled"><div className="mode-icon">{sty==="open"
+  ?<svg width="42" height="42" viewBox="0 0 42 42" fill="none"><circle cx="13" cy="10" r="4.5" fill="#c8e03a" opacity=".9"/><circle cx="29" cy="10" r="4.5" fill="#9ab02e" opacity=".9"/><path d="M5 32c0-5 3.5-8 8-8h1" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round"/><rect x="8" y="22" width="10" height="9" rx="2" fill="#c8e03a" opacity=".2" stroke="#c8e03a" strokeWidth="1.5"/><path d="M37 32c0-5-3.5-8-8-8h-1" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round"/><rect x="24" y="22" width="10" height="9" rx="2" fill="#9ab02e" opacity=".15" stroke="#9ab02e" strokeWidth="1.5"/><circle cx="21" cy="21" r="5" fill="#c8e03a" opacity=".1"/><path d="M21 18v6M18 21h6" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round"/></svg>
+  :<svg width="42" height="42" viewBox="0 0 42 42" fill="none"><path d="M21 4L36 10V22C36 30 21 38 21 38C21 38 6 30 6 22V10L21 4Z" fill="#c8e03a" opacity=".12" stroke="#c8e03a" strokeWidth="2.2" strokeLinejoin="round"/><path d="M21 9L31 14V22C31 27 21 33 21 33C21 33 11 27 11 22V14L21 9Z" stroke="#9ab02e" strokeWidth="1.5" strokeLinejoin="round" opacity=".5"/><rect x="16" y="20" width="10" height="8" rx="1.5" fill="#c8e03a" opacity=".3" stroke="#c8e03a" strokeWidth="1.5"/><path d="M17.5 20v-2.5a3.5 3.5 0 017 0V20" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round"/><circle cx="21" cy="24" r="1.5" fill="#c8e03a"/></svg>
+}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div style={{fontSize:".72rem",color:"var(--dangerL)",marginTop:".5rem"}}>Unavailable</div></div>;return <div key={sty} className={`mode-card${selStyle===sty?" sel":""}`} onClick={()=>setSelStyle(sty)}><div className="mode-icon">{sty==="open"
+  ?<svg width="42" height="42" viewBox="0 0 42 42" fill="none"><circle cx="13" cy="10" r="4.5" fill="#c8e03a" opacity=".9"/><circle cx="29" cy="10" r="4.5" fill="#9ab02e" opacity=".9"/><path d="M5 32c0-5 3.5-8 8-8h1" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round"/><rect x="8" y="22" width="10" height="9" rx="2" fill="#c8e03a" opacity=".2" stroke="#c8e03a" strokeWidth="1.5"/><path d="M37 32c0-5-3.5-8-8-8h-1" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round"/><rect x="24" y="22" width="10" height="9" rx="2" fill="#9ab02e" opacity=".15" stroke="#9ab02e" strokeWidth="1.5"/><circle cx="21" cy="21" r="5" fill="#c8e03a" opacity=".1"/><path d="M21 18v6M18 21h6" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round"/></svg>
+  :<svg width="42" height="42" viewBox="0 0 42 42" fill="none"><path d="M21 4L36 10V22C36 30 21 38 21 38C21 38 6 30 6 22V10L21 4Z" fill="#c8e03a" opacity=".12" stroke="#c8e03a" strokeWidth="2.2" strokeLinejoin="round"/><path d="M21 9L31 14V22C31 27 21 33 21 33C21 33 11 27 11 22V14L21 9Z" stroke="#9ab02e" strokeWidth="1.5" strokeLinejoin="round" opacity=".5"/><rect x="16" y="20" width="10" height="8" rx="1.5" fill="#c8e03a" opacity=".3" stroke="#c8e03a" strokeWidth="1.5"/><path d="M17.5 20v-2.5a3.5 3.5 0 017 0V20" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round"/><circle cx="21" cy="24" r="1.5" fill="#c8e03a"/></svg>
+}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div className="mode-desc">{rt.description}</div><div className="mode-price">{rt.pricingMode==="flat"?`${fmtMoney(rt.price)} flat`:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
       {step===3&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Choose a date.</p>
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
@@ -696,7 +702,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   );
 }
 
-function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,isAdmin=false,onAddPlayer,onSignWaiver,onCancel}){
+function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,isAdmin=false,currentUser=null,onAddPlayer,onSignWaiver,onCancel}){
   const [open,setOpen]=useState(false);
   const [addPhone,setAddPhone]=useState("");
   const [addName,setAddName]=useState("");
@@ -729,14 +735,27 @@ function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage
     }
   },[]);
 
-  // Commit the add
-  const doAdd=()=>{
+  // Commit the add — creates a guest user row in DB if player has no account
+  const doAdd=async()=>{
     if(addStatus==="found"){
       const fu=users.find(u=>u.id===addUserId);
       onAddPlayer(res.id,{userId:addUserId,name:fu?.name||addName,phone:cleanPh(addPhone)});
       setAddPhone("");setAddName("");setAddStatus("idle");setAddUserId(null);setAddHasAccount(true);
     } else if((addStatus==="notfound"||addStatus==="named")&&addName.trim()){
-      onAddPlayer(res.id,{userId:null,name:addName.trim(),phone:cleanPh(addPhone)});
+      // Create a guest user row so this player persists across sessions
+      let guestId=null;
+      try{
+        const guest=await createGuestUser({
+          name:addName.trim(),
+          phone:cleanPh(addPhone)||null,
+          createdByUserId:currentUser?.id??null,
+        });
+        guestId=guest.id;
+      }catch(e){
+        // If creation fails (e.g. RLS), still add to reservation without userId
+        console.warn("Guest user creation failed:",e.message);
+      }
+      onAddPlayer(res.id,{userId:guestId,name:addName.trim(),phone:cleanPh(addPhone)});
       setAddPhone("");setAddName("");setAddStatus("idle");setAddUserId(null);setAddHasAccount(true);
     }
   };
@@ -837,7 +856,7 @@ See you on the field — SECTOR 317`
                 </div>
               );
             })()}
-            {addStatus==="notfound"&&<div style={{fontSize:".74rem",color:"var(--warnL)",marginTop:".2rem"}}>⚠ No account found — enter their name to add them</div>}
+            {addStatus==="notfound"&&<div style={{fontSize:".74rem",color:"var(--warnL)",marginTop:".2rem"}}>⚠ Nothing found — add their name and we'll prep their account</div>}
           </div>
           {/* Name field — only shown when not found in DB */}
           {(addStatus==="notfound"||addStatus==="named")&&(
@@ -1147,7 +1166,7 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,waiverDoc
         {!(tab==="today"?todayRes:upcoming).length&&<div className="empty"><div className="ei">{tab==="today"?"🎯":"📅"}</div><p>No {tab==="today"?"sessions today":"upcoming sessions"}.</p></div>}
         {!!(tab==="today"?todayRes:upcoming).length&&<div className="tw"><div className="th"><span className="ttl">{tab==="today"?"Today's Sessions":"Upcoming"}</span><span style={{fontSize:".74rem",color:"var(--muted)"}}>Click row to expand</span></div>
           <table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th><th>Amount</th></tr></thead>
-            <tbody>{(tab==="today"?todayRes:upcoming).map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} onAddPlayer={onAddPlayer} onSignWaiver={(uid,name)=>onSignWaiver(uid,name)} onCancel={id=>setReservations(p=>p.map(r=>r.id===id?{...r,status:"cancelled"}:r))}/>)}</tbody>
+            <tbody>{(tab==="today"?todayRes:upcoming).map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} currentUser={user} onAddPlayer={onAddPlayer} onSignWaiver={(uid,name)=>onSignWaiver(uid,name)} onCancel={id=>setReservations(p=>p.map(r=>r.id===id?{...r,status:"cancelled"}:r))}/>)}</tbody>
           </table></div>}
       </>}
       {tab==="schedule"&&<SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={false} onAlert={onAlert}/>}
@@ -1431,7 +1450,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           <span style={{marginLeft:"auto",fontSize:".75rem",color:"var(--muted)"}}>{filtered.length}/{reservations.length}</span>
         </div>
         <div className="tw"><table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th>{isAdmin&&<th>Amount</th>}</tr></thead>
-          <tbody>{!filtered.length&&<tr><td colSpan={isAdmin?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No reservations.</td></tr>}{filtered.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes}/>)}</tbody>
+          <tbody>{!filtered.length&&<tr><td colSpan={isAdmin?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No reservations.</td></tr>}{filtered.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} currentUser={user} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes}/>)}</tbody>
         </table></div>
       </>}
 
