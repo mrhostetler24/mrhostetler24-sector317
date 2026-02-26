@@ -437,9 +437,11 @@ export async function updateReservation(id, changes) {
   const row = {}
   if (changes.status      !== undefined) row.status       = changes.status
   if (changes.playerCount !== undefined) row.player_count = changes.playerCount
-  // players are managed via syncReservationPlayers — not the JSONB column
   if (changes.amount      !== undefined) row.amount       = changes.amount
   if (changes.paid        !== undefined) row.paid         = changes.paid
+  if (changes.date        !== undefined) row.date         = changes.date
+  if (changes.startTime   !== undefined) row.start_time   = changes.startTime
+  if (changes.typeId      !== undefined) row.type_id      = changes.typeId
   const { data, error } = await supabase
     .from('reservations').update(row).eq('id', id).select().single()
   if (error) throw error

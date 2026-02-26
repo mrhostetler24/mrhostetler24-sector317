@@ -643,6 +643,203 @@ function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=
   );
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ReservationModifyWizard
+// Handles: reschedule (any type) and upgrade open→private (only when sole booker)
+// ─────────────────────────────────────────────────────────────────────────────
+function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservations,currentUser,onClose,onReschedule,onUpgrade,onMoveAndUpgrade}){
+  const rt=resTypes.find(x=>x.id===res.typeId);
+  const privateType=resTypes.find(x=>x.mode===rt?.mode&&x.style==="private"&&x.active&&x.availableForBooking);
+  const allDates=get60Dates(sessionTemplates);
+
+  // ── Reschedule state ──
+  const [selDate,setSelDate]=useState(null);
+  const [selTime,setSelTime]=useState(null);
+
+  // ── Upgrade state ──
+  // Check if this customer is the ONLY booker on this slot/type
+  const slotMates=reservations.filter(r=>
+    r.id!==res.id &&
+    r.date===res.date &&
+    r.startTime===res.startTime &&
+    r.status!=="cancelled" &&
+    resTypes.find(x=>x.id===r.typeId)?.mode===rt?.mode
+  );
+  const isSoleBooker=slotMates.length===0;
+  const alreadyPaid=res.amount||0;
+  const privatePrice=privateType?.price||270;
+  const perPersonPaid=rt?.pricingMode==="per_person"?(alreadyPaid/Math.max(1,res.playerCount)):0;
+  const upgradeBalance=Math.max(0, privatePrice - alreadyPaid);
+
+  // For "move and upgrade": find slots where they'd be sole private booker
+  const availMap=useMemo(()=>{
+    if(!privateType) return {};
+    const m={};
+    allDates.forEach(d=>{m[d]=dateHasAvailability(d,privateType.id,reservations,resTypes,sessionTemplates);});
+    return m;
+  },[privateType,reservations,resTypes,sessionTemplates]);
+
+  // ── Reschedule availability ──
+  const reschedAvailMap=useMemo(()=>{
+    if(!rt) return {};
+    const m={};
+    allDates.forEach(d=>{m[d]=dateHasAvailability(d,rt.id,reservations,resTypes,sessionTemplates);});
+    return m;
+  },[rt,reservations,resTypes,sessionTemplates]);
+
+  const slotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
+
+  const isReschedule=mode==="reschedule";
+  const isUpgrade=mode==="upgrade";
+
+  // Upgrade: show conflict notice if not sole booker, offer move options
+  const [upgradeChoice,setUpgradeChoice]=useState(null); // null | 'here' | 'move'
+
+  if(isUpgrade&&!privateType){
+    return <div className="mo"><div className="mc" style={{maxWidth:460}}>
+      <div className="mt2">Upgrade Unavailable</div>
+      <p style={{color:"var(--muted)",fontSize:".88rem",marginBottom:"1.25rem"}}>No private booking type is configured for {rt?.mode} mode. Contact staff to upgrade.</p>
+      <div className="ma"><button className="btn btn-s" onClick={onClose}>Close</button></div>
+    </div></div>;
+  }
+
+  // ── UPGRADE: sole booker → instant upgrade ──────────────────────────────
+  if(isUpgrade&&isSoleBooker&&upgradeChoice===null){
+    return <div className="mo"><div className="mc" style={{maxWidth:500}}>
+      <div className="mt2">⬆ Upgrade to Private</div>
+      <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>
+        You're the only one booked in this slot — you can upgrade your <strong style={{color:"var(--txt)"}}>{rt?.mode==="coop"?"Co-Op":"Versus"} Open Play</strong> reservation to a <strong style={{color:"var(--txt)"}}>Private</strong> session right now.
+      </p>
+      <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".85rem 1rem",marginBottom:"1.25rem"}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:".85rem",marginBottom:".4rem"}}>
+          <span style={{color:"var(--muted)"}}>Already paid</span><span style={{color:"var(--accB)"}}>−{fmtMoney(alreadyPaid)}</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:".85rem",marginBottom:".4rem"}}>
+          <span style={{color:"var(--muted)"}}>Private rate</span><span>{fmtMoney(privatePrice)}</span>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:"1rem",fontWeight:700,borderTop:"1px solid var(--bdr)",paddingTop:".5rem",marginTop:".3rem"}}>
+          <span>Balance due</span><span style={{color:upgradeBalance>0?"var(--warn)":"var(--okB)"}}>{upgradeBalance>0?fmtMoney(upgradeBalance):"No additional charge 🎉"}</span>
+        </div>
+      </div>
+      {upgradeBalance>0&&<>
+        <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
+        <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
+        <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+      </>}
+      <div className="ma">
+        <button className="btn btn-s" onClick={onClose}>Cancel</button>
+        <button className="btn btn-p" onClick={()=>onUpgrade(res.id,privateType.id,upgradeBalance)}>
+          {upgradeBalance>0?`Pay ${fmtMoney(upgradeBalance)} & Upgrade`:"Confirm Upgrade →"}
+        </button>
+      </div>
+    </div></div>;
+  }
+
+  // ── UPGRADE: not sole booker → offer choice ─────────────────────────────
+  if(isUpgrade&&!isSoleBooker&&upgradeChoice===null){
+    return <div className="mo"><div className="mc" style={{maxWidth:500}}>
+      <div className="mt2">⬆ Upgrade to Private</div>
+      <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>
+        There {slotMates.length===1?"is":"are"} <strong style={{color:"var(--warn)"}}>{slotMates.length} other {slotMates.length===1?"booking":"bookings"}</strong> in your current timeslot, so this slot can't be converted to private. To upgrade, you'll need to move to an open private slot.
+      </p>
+      <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".75rem 1rem",marginBottom:"1.25rem",fontSize:".85rem"}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:".3rem"}}><span style={{color:"var(--muted)"}}>Already paid</span><span style={{color:"var(--accB)"}}>−{fmtMoney(alreadyPaid)}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:".3rem"}}><span style={{color:"var(--muted)"}}>Private rate</span><span>{fmtMoney(privatePrice)}</span></div>
+        <div style={{display:"flex",justifyContent:"space-between",fontWeight:700,borderTop:"1px solid var(--bdr)",paddingTop:".4rem",marginTop:".3rem"}}><span>Balance due if moved</span><span style={{color:upgradeBalance>0?"var(--warn)":"var(--okB)"}}>{upgradeBalance>0?fmtMoney(upgradeBalance):"No additional charge 🎉"}</span></div>
+      </div>
+      <div className="ma" style={{flexDirection:"column",gap:".6rem",alignItems:"stretch"}}>
+        <button className="btn btn-p" style={{width:"100%"}} onClick={()=>setUpgradeChoice("move")}>Pick a New Slot & Upgrade →</button>
+        <button className="btn btn-s" style={{width:"100%"}} onClick={onClose}>Keep Current Booking</button>
+      </div>
+    </div></div>;
+  }
+
+  // ── UPGRADE move: pick a new private slot ──────────────────────────────
+  if(isUpgrade&&upgradeChoice==="move"){
+    const moveSlotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
+    return <div className="mo"><div className="mc" style={{maxWidth:560}}>
+      <div className="mt2">Pick a New Slot — Private {rt?.mode==="coop"?"Co-Op":"Versus"}</div>
+      <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>Select a date and time where your group will have the lane to yourselves.</p>
+      {!selDate&&<>
+        <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
+        {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=(new Date(dates[0]+"T12:00:00").getDay()+6)%7;return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");const avail=availMap[d];return <div key={d} className={`date-cell${!avail?" na":""}`} onClick={()=>avail&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
+      </>}
+      {selDate&&!selTime&&<>
+        <p style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".6rem"}}>Available times on <strong>{fmt(selDate)}</strong></p>
+        <div className="slot-grid">{moveSlotsForDate.map(t=>{const st=getSlotStatus(selDate,t.startTime,privateType.id,reservations,resTypes,sessionTemplates);return <div key={t.id} className={`slot-card${!st.available?" unavail":""}`} onClick={()=>st.available&&setSelTime(t.startTime)}><div className="slot-time">{fmt12(t.startTime)}</div>{st.available?<div className="slot-info" style={{color:"var(--okB)"}}>Available</div>:<div className="slot-reason">{st.reason}</div>}</div>;})}</div>
+        <button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setSelDate(null)}>← Change Date</button>
+      </>}
+      {selDate&&selTime&&<>
+        <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".85rem 1rem",marginBottom:"1rem"}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--muted)",letterSpacing:".08em",marginBottom:".3rem"}}>NEW SLOT</div>
+          <div style={{fontSize:".95rem",fontWeight:700,color:"var(--txt)"}}>{fmt(selDate)} · {fmt12(selTime)}</div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:".84rem",marginTop:".6rem",borderTop:"1px solid var(--bdr)",paddingTop:".5rem"}}>
+            <span style={{color:"var(--muted)"}}>Balance due</span>
+            <span style={{color:upgradeBalance>0?"var(--warn)":"var(--okB)",fontWeight:700}}>{upgradeBalance>0?fmtMoney(upgradeBalance):"No additional charge 🎉"}</span>
+          </div>
+        </div>
+        {upgradeBalance>0&&<>
+          <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
+          <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
+          <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+        </>}
+        <div className="ma">
+          <button className="btn btn-s" onClick={()=>setSelTime(null)}>← Back</button>
+          <button className="btn btn-p" onClick={()=>onMoveAndUpgrade(res.id,selDate,selTime,privateType.id,upgradeBalance)}>
+            {upgradeBalance>0?`Pay ${fmtMoney(upgradeBalance)} & Upgrade`:"Move & Upgrade →"}
+          </button>
+        </div>
+      </>}
+      {!(selDate&&selTime)&&<div className="ma"><button className="btn btn-s" onClick={()=>setUpgradeChoice(null)}>← Back</button></div>}
+    </div></div>;
+  }
+
+  // ── RESCHEDULE ─────────────────────────────────────────────────────────
+  if(isReschedule){
+    const reschedSlots=selDate?getSessionsForDate(selDate,sessionTemplates):[];
+    return <div className="mo"><div className="mc" style={{maxWidth:560}}>
+      <div className="mt2">Reschedule Reservation</div>
+      <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>
+        Current: <strong style={{color:"var(--txt)"}}>{fmt(res.date)} · {fmt12(res.startTime)}</strong>
+      </p>
+      {!selDate&&<>
+        <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".6rem"}}>Pick a new date:</p>
+        <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
+        {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=(new Date(dates[0]+"T12:00:00").getDay()+6)%7;return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");const avail=reschedAvailMap[d];const isCurrent=d===res.date;return <div key={d} className={`date-cell${isCurrent?" sel":""}${!avail?" na":""}`} onClick={()=>avail&&!isCurrent&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
+      </>}
+      {selDate&&!selTime&&<>
+        <p style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".6rem"}}>Available times on <strong>{fmt(selDate)}</strong>:</p>
+        <div className="slot-grid">{reschedSlots.map(t=>{
+          const st=getSlotStatus(selDate,t.startTime,rt.id,reservations,resTypes,sessionTemplates);
+          const isCurrent=selDate===res.date&&t.startTime===res.startTime;
+          return <div key={t.id} className={`slot-card${isCurrent?" added":!st.available?" unavail":""}`} onClick={()=>!isCurrent&&st.available&&setSelTime(t.startTime)}>
+            <div className="slot-time">{fmt12(t.startTime)}</div>
+            {isCurrent?<div className="slot-info" style={{color:"var(--muted)"}}>Current</div>
+             :st.available?<div className="slot-info" style={{color:"var(--okB)"}}>{(()=>{const cap=rt?.mode==="versus"?12:6;const spots=st.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";})()}</div>
+             :<div className="slot-reason">{st.reason}</div>}
+          </div>;
+        })}</div>
+        <button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setSelDate(null)}>← Change Date</button>
+      </>}
+      {selDate&&selTime&&<>
+        <div style={{background:"var(--surf2)",border:"1px solid var(--acc2)",borderRadius:5,padding:".85rem 1rem",marginBottom:"1.25rem"}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--muted)",letterSpacing:".08em",marginBottom:".3rem"}}>NEW TIME</div>
+          <div style={{fontSize:".95rem",fontWeight:700,color:"var(--txt)"}}>{fmt(selDate)} · {fmt12(selTime)}</div>
+          <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".3rem"}}>No additional charge — same reservation type</div>
+        </div>
+        <div className="ma">
+          <button className="btn btn-s" onClick={()=>setSelTime(null)}>← Back</button>
+          <button className="btn btn-p" onClick={()=>onReschedule(res.id,selDate,selTime)}>Confirm Reschedule →</button>
+        </div>
+      </>}
+      {!selDate&&<div className="ma"><button className="btn btn-s" onClick={onClose}>Cancel</button></div>}
+    </div></div>;
+  }
+
+  return null;
+}
+
 function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users,activeWaiverDoc,onBook,onClose}){
   const [step,setStep]=useState(1);
   const [selMode,setSelMode]=useState(null);
@@ -1245,6 +1442,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [showAccount,setShowAccount]=useState(false);
   const [waiverAlert,setWaiverAlert]=useState(()=>!hasValidWaiver(user,activeWaiverDoc));
   const [editResId,setEditResId]=useState(null);
+  const [modifyRes,setModifyRes]=useState(null); // {res, mode:'reschedule'|'upgrade'}
   const [playerInputs,setPlayerInputs]=useState([]);
   const [bookerIsPlayer,setBookerIsPlayer]=useState(true);
   const [player1Input,setPlayer1Input]=useState({phone:"",userId:null,name:"",status:"idle"});
@@ -1320,6 +1518,41 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   return(
     <div className="content">
       {showAccount&&<AccountPanel user={user} users={users} setUsers={setUsers} onClose={()=>setShowAccount(false)}/>}
+      {modifyRes&&<ReservationModifyWizard
+        res={modifyRes.res}
+        mode={modifyRes.mode}
+        resTypes={resTypes}
+        sessionTemplates={sessionTemplates}
+        reservations={reservations}
+        currentUser={user}
+        onClose={()=>setModifyRes(null)}
+        onReschedule={(id,date,startTime)=>{
+          updateReservation(id,{date,startTime}).then(updated=>{
+            setReservations(p=>p.map(r=>r.id===id?{...r,date:updated.date,startTime:updated.startTime}:r));
+          }).catch(()=>{
+            // optimistic fallback
+            setReservations(p=>p.map(r=>r.id===id?{...r,date,startTime}:r));
+          });
+          setModifyRes(null);
+        }}
+        onUpgrade={(id,newTypeId,amountDue)=>{
+          updateReservation(id,{typeId:newTypeId,amount:(reservations.find(r=>r.id===id)?.amount||0)+amountDue}).then(updated=>{
+            setReservations(p=>p.map(r=>r.id===id?{...r,typeId:newTypeId,amount:updated.amount}:r));
+          }).catch(()=>{
+            setReservations(p=>p.map(r=>r.id===id?{...r,typeId:newTypeId}:r));
+          });
+          setModifyRes(null);
+        }}
+        onMoveAndUpgrade={(id,newDate,newStartTime,newTypeId,amountDue)=>{
+          const res=reservations.find(r=>r.id===id);
+          updateReservation(id,{date:newDate,startTime:newStartTime,typeId:newTypeId,amount:(res?.amount||0)+amountDue}).then(updated=>{
+            setReservations(p=>p.map(r=>r.id===id?{...r,date:newDate,startTime:newStartTime,typeId:newTypeId,amount:updated.amount}:r));
+          }).catch(()=>{
+            setReservations(p=>p.map(r=>r.id===id?{...r,date:newDate,startTime:newStartTime,typeId:newTypeId}:r));
+          });
+          setModifyRes(null);
+        }}
+      />}
       {showBook&&<BookingWizard resTypes={resTypes} sessionTemplates={sessionTemplates} reservations={reservations} currentUser={user} users={users} activeWaiverDoc={activeWaiverDoc} onBook={b=>{onBook(b);setShowBook(false);}} onClose={()=>setShowBook(false)}/>}
       {waiverAlert&&<div className="mo"><div className="mc" style={{maxWidth:480}}>
         <div className="mt2" style={{color:"var(--warn)"}}>⚠ Waiver Required</div>
@@ -1390,7 +1623,11 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <button className="btn btn-p" onClick={()=>setShowBook(true)}>+ Book Mission</button>
       </div>
       <div className="tw"><table><thead><tr><th>Type</th><th>Date & Time</th><th>Players</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-        <tbody>{(tab==="upcoming"?upcoming:past).map(r=>{const rt=resTypes.find(x=>x.id===r.typeId);const isUp=r.date>=today&&r.status!=="cancelled";return <tr key={r.id}><td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td style={{color:"var(--accB)"}}>{r.players.length}/{r.playerCount}</td><td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td><td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td><td>{isUp&&<button className="btn btn-s btn-sm" onClick={()=>setEditResId(r.id)}>Manage Group</button>}</td></tr>;})}
+        <tbody>{(tab==="upcoming"?upcoming:past).map(r=>{const rt=resTypes.find(x=>x.id===r.typeId);const isUp=r.date>=today&&r.status!=="cancelled";return <tr key={r.id}><td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td style={{color:"var(--accB)"}}>{r.players.length}/{r.playerCount}</td><td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td><td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td><td>{isUp&&<div style={{display:"flex",gap:".35rem",flexWrap:"wrap"}}>
+              <button className="btn btn-s btn-sm" onClick={()=>setEditResId(r.id)}>Manage Group</button>
+              <button className="btn btn-s btn-sm" onClick={()=>setModifyRes({res:r,mode:"reschedule"})}>Reschedule</button>
+              {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={()=>setModifyRes({res:r,mode:"upgrade"})}>⬆ Upgrade</button>}
+            </div>}</td></tr>;})}
         </tbody></table>
         {!(tab==="upcoming"?upcoming:past).length&&<div className="empty"><div className="ei">🎯</div><p>No {tab} missions.</p></div>}
       </div>
