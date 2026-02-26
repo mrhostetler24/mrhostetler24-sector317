@@ -187,11 +187,16 @@ body{background:var(--bg2);color:var(--txt);font-family:var(--fb);min-height:100
 .btn-full{width:100%;}
 .main{flex:1;display:flex;}
 .content{flex:1;padding:1.75rem;overflow-y:auto;background:var(--bg);}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.9rem;margin-bottom:1.75rem;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:.9rem;margin-bottom:1.75rem;}
 .stat-card{background:var(--surf);border:1px solid var(--bdr);border-top:3px solid var(--acc);border-radius:5px;padding:.9rem 1rem;box-shadow:0 0 20px rgba(200,224,58,.05);min-width:0;overflow:hidden;}
 .stat-lbl{font-size:.63rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.stat-val{font-family:var(--fd);font-size:1.65rem;font-weight:700;color:var(--accB);line-height:1;word-break:break-all;}
+.stat-val{font-family:var(--fd);font-size:1.65rem;font-weight:700;color:var(--accB);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .stat-sub{font-size:.68rem;color:var(--muted);margin-top:.2rem;}
+.widget-menu{position:relative;display:inline-block;}
+.widget-panel{position:absolute;top:calc(100% + 6px);right:0;background:var(--surf);border:1px solid var(--bdr);border-radius:6px;padding:.65rem .75rem;z-index:50;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.widget-panel-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:.55rem;padding-bottom:.4rem;border-bottom:1px solid var(--bdr);}
+.widget-row{display:flex;align-items:center;justify-content:space-between;padding:.28rem 0;font-size:.8rem;color:var(--txt);}
+.widget-locked{opacity:.4;cursor:not-allowed;}
 .back-to-top{position:fixed;bottom:1.75rem;left:1.75rem;z-index:500;width:44px;height:44px;border-radius:50%;background:var(--surf2);border:2px solid var(--acc2);color:var(--accB);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;box-shadow:0 4px 16px rgba(0,0,0,.4);animation:btBounce 2s ease infinite;transition:opacity .3s,transform .2s;}
 .back-to-top:hover{background:var(--accD);border-color:var(--accB);transform:translateY(-2px);}
 @keyframes btBounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
@@ -1008,6 +1013,15 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dashFrom,setDashFrom]=useState("");
   const [dashTo,setDashTo]=useState("");
   const [dismissedDups,setDismissedDups]=useState([]);
+  const [showWidgetMenu,setShowWidgetMenu]=useState(false);
+  // Widget visibility: keys are widget ids, value true=visible. Defaults differ by role.
+  const defaultWidgets=isAdmin
+    ?{revenue:true,bookings:true,players:true,utilization:true,slots:true,types:true}
+    :isManager
+      ?{bookings:true,players:true,slots:true,types:true}
+      :{bookings:true,players:true,slots:true,types:true};
+  const [dashWidgets,setDashWidgets]=useState(defaultWidgets);
+  const toggleWidget=id=>setDashWidgets(p=>({...p,[id]:!p[id]}));
   const showToast=msg=>{setToastMsg(msg);setTimeout(()=>setToastMsg(null),3200);};
   const isAdmin=user.access==="admin";
   const isManager=user.access==="manager"||isAdmin;
@@ -1168,7 +1182,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       </div>
 
       {tab==="dashboard"&&<>
-        {/* Date filter bar */}
+        {/* Date filter bar + widget toggle */}
         <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",alignItems:"center",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".65rem 1rem",marginBottom:"1.1rem"}}>
           {[["all","All Time"],["day","Today"],["week","This Week"],["month","This Month"],["year","This Year"],["custom","Custom"]].map(([v,l])=>(
             <button key={v} className={`btn btn-sm ${dashPeriod===v?"btn-p":"btn-s"}`} onClick={()=>setDashPeriod(v)}>{l}</button>
@@ -1179,6 +1193,31 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             <input type="date" value={dashTo} onChange={e=>setDashTo(e.target.value)} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,color:"var(--txt)",padding:".28rem .6rem",fontSize:".8rem"}}/>
           </>}
           <span style={{marginLeft:"auto",fontSize:".75rem",color:"var(--muted)"}}>{dashRes.length} reservation{dashRes.length!==1?"s":""}</span>
+          <div className="widget-menu">
+            <button className={`btn btn-sm btn-s`} style={{display:"flex",alignItems:"center",gap:".35rem",borderColor:showWidgetMenu?"var(--acc)":"var(--bdr)"}} onClick={()=>setShowWidgetMenu(o=>!o)}>
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+              Widgets
+            </button>
+            {showWidgetMenu&&<div className="widget-panel">
+              <div className="widget-panel-title">Show / Hide Widgets</div>
+              {[
+                {id:"revenue",    label:"Revenue",              adminOnly:true},
+                {id:"utilization",label:"Utilization",          adminOnly:true},
+                {id:"bookings",   label:"Bookings",             adminOnly:false},
+                {id:"players",    label:"Total Players",        adminOnly:false},
+                {id:"slots",      label:"Active Session Slots", adminOnly:false},
+                {id:"types",      label:"Active Types",         adminOnly:false},
+              ].map(w=>{
+                const locked=w.adminOnly&&!isAdmin;
+                return <div key={w.id} className={`widget-row${locked?" widget-locked":""}`}>
+                  <span style={{color:locked?"var(--muted)":"var(--txt)"}}>{w.label}{locked&&<span style={{fontSize:".62rem",color:"var(--muted)",marginLeft:".3rem"}}>🔒 admin</span>}</span>
+                  <label className="toggle-switch" onClick={()=>!locked&&toggleWidget(w.id)} style={{cursor:locked?"not-allowed":"pointer"}}>
+                    <div className={`toggle-track${dashWidgets[w.id]?" on":""}`}><div className="toggle-knob"/></div>
+                  </label>
+                </div>;
+              })}
+            </div>}
+          </div>
         </div>
         <div className="stats-grid">
           {(()=>{
@@ -1187,22 +1226,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const players=active.reduce((s,r)=>s+r.playerCount,0);
             const coopRes=active.filter(r=>{const rt=getType(r.typeId);return rt?.mode==="coop";});
             const vsRes=active.filter(r=>{const rt=getType(r.typeId);return rt?.mode==="versus";});
-            // Utilization: capacity = total offered sessions in period × 6.22 players/session
-            // "Offered sessions" = unique (date × startTime) slots that fall within the dash period
-            // derived from reservations that were not cancelled — actual player headcount counts per slot booked
-            // For each active reservation, playerCount × number of slots it occupies (1 per reservation row)
-            // So actualPlayers = sum of r.playerCount across all active reservations in period
-            // offeredSessions = count of distinct (date,startTime) slots covered by active session templates
-            // within the dash period dates. We approximate by counting unique slot occurrences in dashRes
-            // plus any offered slots with no bookings (hard to know without full calendar scan).
-            // Best approach: count unique (date,startTime) slots seen in all non-cancelled reservations
-            // as a proxy for sessions that actually ran, then full capacity = those slots × 6.22
-            // More accurate: enumerate template slots across the dash period date range
             const getOfferedSessions=()=>{
-              // Enumerate all (date,startTime) template slots in the dash period
               const activeTmpls=sessionTemplates.filter(t=>t.active);
               if(!activeTmpls.length) return 0;
-              // Determine date range for denominator
               const now=new Date();
               let from="",to=todayStr();
               if(dashPeriod==="day"){from=to=todayStr();}
@@ -1210,36 +1236,29 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               else if(dashPeriod==="month"){from=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;}
               else if(dashPeriod==="year"){from=`${now.getFullYear()}-01-01`;}
               else if(dashPeriod==="custom"){from=dashFrom;to=dashTo;}
-              else {
-                // "all time" — use earliest reservation date as from
-                const dates=reservations.map(r=>r.date).sort();
-                from=dates[0]||todayStr();
-              }
+              else{const dates=reservations.map(r=>r.date).sort();from=dates[0]||todayStr();}
               if(!from) return 0;
               let count=0;
               const start=new Date(from+"T12:00:00");
               const end=new Date(to+"T12:00:00");
               for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
                 const dayName=d.toLocaleDateString("en-US",{weekday:"long"});
-                // Each active template slot on this day = one offered session
                 count+=activeTmpls.filter(t=>t.dayOfWeek===dayName).length;
               }
               return count;
             };
             const offeredSessions=getOfferedSessions();
             const totalCapacity=offeredSessions*6.22;
-            const totalActual=players; // sum of playerCount × slots (each reservation row = 1 slot)
-            const utilPct=totalCapacity>0?Math.round((totalActual/totalCapacity)*100):null;
+            const utilPct=totalCapacity>0?Math.round((players/totalCapacity)*100):null;
             const activeSlots=sessionTemplates.filter(s=>s.active).length;
-            const canSeeFinancials=isAdmin; // admin-only: revenue & utilization
-            const canSeeDash=user.access!=="customer"; // staff/manager/admin see everything else
+            const w=dashWidgets;
             return <>
-              {canSeeFinancials&&<div className="stat-card"><div className="stat-lbl">Revenue</div><div className="stat-val">{fmtMoney(revenue)}</div></div>}
-              {canSeeDash&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} versus</div></div>}
-              {canSeeDash&&<div className="stat-card"><div className="stat-lbl">Total Players</div><div className="stat-val">{players}</div><div className="stat-sub">avg {active.length?Math.round(players/active.length):0}/session</div></div>}
-              {canSeeFinancials&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions offered · 6.22 avg capacity</div></div>}
-              {canSeeDash&&<div className="stat-card"><div className="stat-lbl">Active Session Slots</div><div className="stat-val">{activeSlots}</div><div className="stat-sub">weekly recurring</div></div>}
-              {canSeeDash&&<div className="stat-card"><div className="stat-lbl">Active Types</div><div className="stat-val">{resTypes.filter(rt=>rt.active).length}</div></div>}
+              {isAdmin&&w.revenue&&<div className="stat-card"><div className="stat-lbl">Revenue</div><div className="stat-val">{fmtMoney(revenue)}</div></div>}
+              {w.bookings&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} versus</div></div>}
+              {w.players&&<div className="stat-card"><div className="stat-lbl">Total Players</div><div className="stat-val">{players}</div><div className="stat-sub">avg {active.length?Math.round(players/active.length):0}/session</div></div>}
+              {isAdmin&&w.utilization&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions · 6.22 avg cap</div></div>}
+              {w.slots&&<div className="stat-card"><div className="stat-lbl">Active Session Slots</div><div className="stat-val">{activeSlots}</div><div className="stat-sub">weekly recurring</div></div>}
+              {w.types&&<div className="stat-card"><div className="stat-lbl">Active Types</div><div className="stat-val">{resTypes.filter(rt=>rt.active).length}</div></div>}
             </>;
           })()}
         </div>
