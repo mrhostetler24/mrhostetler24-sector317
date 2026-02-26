@@ -212,6 +212,16 @@ export async function createUser(user) {
  * - is_real: true — this is a real person who needs to complete signup on arrival
  */
 export async function createGuestUser({ name, phone, createdByUserId }) {
+  // Try SECURITY DEFINER RPC first — bypasses RLS so customers can create guest rows
+  const { data: rpcData, error: rpcErr } = await supabase
+    .rpc('create_guest_user', {
+      p_name:               name,
+      p_phone:              phone ?? null,
+      p_created_by_user_id: createdByUserId ?? null,
+    })
+  if (!rpcErr && rpcData) return toUser(rpcData)
+
+  // Fallback: direct insert (works for staff/admin whose RLS allows it)
   const { data, error } = await supabase.from('users').insert({
     name,
     phone:                 phone ?? null,
@@ -219,10 +229,12 @@ export async function createGuestUser({ name, phone, createdByUserId }) {
     active:                true,
     waivers:               [],
     is_real:               true,
-    auth_provider:         null,   // no social login yet
+    auth_provider:         null,
     created_by_user_id:    createdByUserId ?? null,
   }).select().single()
-  if (error) throw error
+  if (error) throw new Error(
+    `Could not create guest user — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${error.message}`
+  )
   return toUser(data)
 }
 

@@ -1143,28 +1143,30 @@ function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage
     }
   },[]);
 
+  const [doAddErr,setDoAddErr]=useState(null);
+  const [doAddBusy,setDoAddBusy]=useState(false);
   // Commit the add — creates a guest user row in DB if player has no account
   const doAdd=async()=>{
+    setDoAddErr(null);
     if(addStatus==="found"){
       const fu=users.find(u=>u.id===addUserId);
       onAddPlayer(res.id,{userId:addUserId,name:fu?.name||addName,phone:cleanPh(addPhone)});
       setAddPhone("");setAddName("");setAddStatus("idle");setAddUserId(null);setAddHasAccount(true);
     } else if((addStatus==="notfound"||addStatus==="named")&&addName.trim()){
-      // Create a guest user row so this player persists across sessions
-      let guestId=null;
+      setDoAddBusy(true);
       try{
         const guest=await createGuestUser({
           name:addName.trim(),
           phone:cleanPh(addPhone)||null,
           createdByUserId:currentUser?.id??null,
         });
-        guestId=guest.id;
+        onAddPlayer(res.id,{userId:guest.id,name:addName.trim(),phone:cleanPh(addPhone)});
+        setAddPhone("");setAddName("");setAddStatus("idle");setAddUserId(null);setAddHasAccount(true);
       }catch(e){
-        // If creation fails (e.g. RLS), still add to reservation without userId
-        console.warn("Guest user creation failed:",e.message);
+        setDoAddErr("Could not create guest account: "+e.message);
+      }finally{
+        setDoAddBusy(false);
       }
-      onAddPlayer(res.id,{userId:guestId,name:addName.trim(),phone:cleanPh(addPhone)});
-      setAddPhone("");setAddName("");setAddStatus("idle");setAddUserId(null);setAddHasAccount(true);
     }
   };
 
@@ -1289,12 +1291,14 @@ See you on the field — SECTOR 317`
             </div>
           )}
           {/* Action buttons */}
+          {doAddErr&&<div style={{fontSize:".76rem",color:"var(--dangerL)",background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:4,padding:".4rem .7rem",marginBottom:".4rem"}}>⚠ {doAddErr}</div>}
           <div style={{paddingBottom:".9rem",display:"flex",gap:".5rem",alignItems:"center",flexWrap:"wrap"}}>
             {(addStatus==="found"||(( addStatus==="notfound"||addStatus==="named")&&addName.trim()))&&(
               <button
                 className="btn btn-p btn-sm"
+                disabled={doAddBusy}
                 onClick={doAdd}
-              >+ Add Player</button>
+              >{doAddBusy?"Adding…":"+ Add Player"}</button>
             )}
             {onCancel&&res.status==="confirmed"&&<button className="btn btn-d btn-sm" onClick={()=>onCancel(res.id)}>Cancel Res.</button>}
           </div>
@@ -1442,6 +1446,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [showAccount,setShowAccount]=useState(false);
   const [waiverAlert,setWaiverAlert]=useState(()=>!hasValidWaiver(user,activeWaiverDoc));
   const [editResId,setEditResId]=useState(null);
+  const [saveGroupError,setSaveGroupError]=useState(null);
+  const [saveGroupBusy,setSaveGroupBusy]=useState(false);
   const [modifyRes,setModifyRes]=useState(null); // {res, mode:'reschedule'|'upgrade'}
   const [playerInputs,setPlayerInputs]=useState([]);
   const [bookerIsPlayer,setBookerIsPlayer]=useState(true);
@@ -1474,21 +1480,19 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   },[editResId]);
 
   const saveGroup=async()=>{
+    setSaveGroupError(null);
+    setSaveGroupBusy(true);
     // Helper: ensure guest players have a DB user row
     const resolvePlayer=async(p)=>{
-      if(p.userId) return p; // already linked
+      if(p.userId) return p; // already linked to an existing user
       if(!p.name?.trim()) return p; // empty slot, skip
-      try{
-        const guest=await createGuestUser({
-          name:p.name.trim(),
-          phone:p.phone||null,
-          createdByUserId:user.id,
-        });
-        return {...p,userId:guest.id};
-      }catch(e){
-        console.warn("createGuestUser failed:",e.message);
-        return p; // fall back to no userId rather than crashing
-      }
+      // Create a guest user row in the DB — throws if it fails (RPC must be deployed)
+      const guest=await createGuestUser({
+        name:p.name.trim(),
+        phone:p.phone||null,
+        createdByUserId:user.id,
+      });
+      return {...p,userId:guest.id};
     };
     let p1;
     if(bookerIsPlayer){
@@ -1510,10 +1514,12 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     try{
       const updatedPlayers=await syncReservationPlayers(editResId,newPlayers);
       setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:updatedPlayers}:r));
+      setEditResId(null);
     }catch(err){
-      setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:newPlayers}:r));
+      setSaveGroupError(err.message||"Failed to save group. Please try again.");
+    }finally{
+      setSaveGroupBusy(false);
     }
-    setEditResId(null);
   };
   return(
     <div className="content">
@@ -1602,7 +1608,11 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         </div>
         {playerInputs.length<(editRes?.playerCount||1)-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
         {editRes?.typeId&&resTypes.find(x=>x.id===editRes.typeId)?.style==="open"&&<div style={{fontSize:".74rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".5rem .75rem"}}>⚠ Open play — removing players does not issue a refund. Contact staff for refund requests.</div>}
-        <div className="ma"><button className="btn btn-s" onClick={()=>setEditResId(null)}>Cancel</button><button className="btn btn-p" onClick={saveGroup}>Save Group</button></div>
+        {saveGroupError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginBottom:".75rem"}}>⚠ {saveGroupError}</div>}
+        <div className="ma">
+          <button className="btn btn-s" onClick={()=>{setEditResId(null);setSaveGroupError(null);}}>Cancel</button>
+          <button className="btn btn-p" disabled={saveGroupBusy} onClick={saveGroup}>{saveGroupBusy?"Saving…":"Save Group"}</button>
+        </div>
       </div></div>}
       <div className="hero"><h2>Welcome, Operative {user.name.split(" ")[0]}</h2><p>Manage your missions, group roster, and waiver status.</p></div>
       {/* Leaderboard Name Card */}
