@@ -153,22 +153,27 @@ export async function fetchAllUsers() {
 }
 
 export async function fetchUserByPhone(phone) {
-  // Uses SECURITY DEFINER RPC to bypass RLS — safe, returns limited fields only
+  // Try SECURITY DEFINER RPC first (bypasses RLS, works for all user types)
   const { data, error } = await supabase
     .rpc('lookup_user_by_phone', { p_phone: phone })
-  if (error) throw error
-  const row = data?.[0] ?? null
-  return row ? {
-    id:              row.id,
-    name:            row.name,
-    phone:           row.phone,
-    access:          row.access,
-    leaderboardName: row.leaderboard_name,
-    // fields not returned by RPC — safe defaults
-    email: null, authId: null, authProvider: null,
-    waivers: [], needsRewaiverDocId: null,
-    active: true, role: null, isReal: true,
-  } : null
+  if (!error && data) {
+    const row = data?.[0] ?? null
+    return row ? {
+      id:              row.id,
+      name:            row.name,
+      phone:           row.phone,
+      access:          row.access,
+      leaderboardName: row.leaderboard_name,
+      email: null, authId: null, authProvider: null,
+      waivers: [], needsRewaiverDocId: null,
+      active: true, role: null, isReal: true,
+    } : null
+  }
+  // RPC not deployed yet — fall back to direct query (works for staff/admin only)
+  const { data: d2, error: e2 } = await supabase
+    .from('users').select('*').eq('phone', phone).maybeSingle()
+  if (e2) return null  // RLS blocked it — return null rather than crash
+  return toUser(d2)
 }
 
 export async function fetchUserByEmail(email) {

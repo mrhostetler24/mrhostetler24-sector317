@@ -637,7 +637,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         <div className="player-inputs">
           {!bookingForOther
             ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
-                <div className="pi-label">Player 1</div>
+                <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".4rem"}}>PLAYER 1</div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
                   <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
                     <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
@@ -914,12 +914,18 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <div className="player-inputs">
           {/* Player 1 — booker or someone else */}
           {bookerIsPlayer
-            ?<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem 1rem",marginBottom:".5rem",fontSize:".85rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
-              <div style={{display:"flex",alignItems:"center",gap:".6rem"}}><span>👤</span><strong>{user.name}</strong><span style={{fontSize:".75rem",color:"var(--okB)"}}>— you</span></div>
-              <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
-                <input type="checkbox" checked={!bookerIsPlayer} onChange={e=>{setBookerIsPlayer(!e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
-                Booking for someone else
-              </label>
+            ?<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem 1rem",marginBottom:".5rem",fontSize:".85rem"}}>
+              <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".4rem"}}>PLAYER 1</div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
+                <div style={{display:"flex",alignItems:"center",gap:".6rem"}}>
+                  <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(user.name)}</span>
+                  <strong>{user.name}</strong><span style={{fontSize:".75rem",color:"var(--okB)"}}>— you</span>
+                </div>
+                <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
+                  <input type="checkbox" checked={!bookerIsPlayer} onChange={e=>{setBookerIsPlayer(!e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                  Booking for someone else
+                </label>
+              </div>
             </div>
             :<div style={{marginBottom:".5rem"}}>
               <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} onChange={setPlayer1Input} showFullName={true}/>
