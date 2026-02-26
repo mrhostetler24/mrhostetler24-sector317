@@ -647,16 +647,46 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       <div style={{display:"flex",gap:".25rem",marginBottom:"1.1rem"}}>{steps.map((s,i)=><div key={s} style={{flex:1,height:3,borderRadius:2,background:i<step?"var(--acc)":"var(--bdr)",transition:"background .3s"}}/>)}</div>
       <div className="mt2">{steps[step-1]}</div>
       {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>has&&setSelMode(m)}><div className="mode-icon">{m==="coop"
-  ?<svg width="48" height="48" viewBox="0 0 52 52" fill="none"><path d="M48 22c0 0-3-5-7-5l-5 1-3 2-4-1-3 1 2 3 2 1-1 1-3-1-2 1 2 3 1 1-1 1-2-1-1 1 2 3c1 2 3 3 5 3l6-1 4-3 4-5 2-4z" fill="#9ab02e"/><path d="M4 22c0 0 3-5 7-5l5 1 3 2 4-1 3 1-2 3-2 1 1 1 3-1 2 1-2 3-1 1 1 1 2-1 1 1-2 3c-1 2-3 3-5 3l-6-1-4-3-4-5-2-4z" fill="#c8e03a"/><path d="M22 19l4 2 4-2 2 2-6 4-6-4 2-2z" fill="#c8e03a"/><path d="M26 21l6 3-6 5-6-5 6-3z" fill="#c8e03a" fillOpacity=".6"/></svg>
-  :<svg width="48" height="48" viewBox="0 0 52 52" fill="none"><path d="M8 6L14 8L44 38L42 44L36 42L6 12Z" fill="#c8e03a"/><path d="M8 6L6 12L12 10Z" fill="#c8e03a"/><path d="M30 22L34 18L38 22L34 26Z" fill="#9ab02e"/><circle cx="39.5" cy="41.5" r="3.5" fill="#9ab02e"/><path d="M44 6L38 8L8 38L10 44L16 42L46 12Z" fill="#c8e03a"/><path d="M44 6L46 12L40 10Z" fill="#c8e03a"/><path d="M22 22L18 18L14 22L18 26Z" fill="#9ab02e"/><circle cx="12.5" cy="41.5" r="3.5" fill="#9ab02e"/><circle cx="26" cy="26" r="4" fill="#c8e03a" fillOpacity=".35"/></svg>
-}</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Team vs objective — beat the clock together":"Run 1: Team 1 attacks / Team 2 defends. Run 2: roles flip. Combined scores decide the winner. Tiebreaker on time."}</div></div>;})} </div>}
+  ?<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHsAAACACAYAAAArkhalAAADM0lEQVR4nO3cW47jIBBAUTKahWQZUfavKMvITjJfSMhjOzzqBb7ns9sd4yoKA447JQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJnTzboCG9+f5Hf2Mx/21XGyWuiCJJG+tlPRlLkQj0aUVkj79BaSkn+hSb9K3bfToPH+tT1jKAei58Pfn+fUIWEubLTthDdfKPgrGXiD3jn3cXzfvgNa2tfZvNblV9llAvBPYYqa2/vFuQK8IVT3Kuv0uyZ49SbOasrJ7qvpxf90iLp8sO775Pdu6qnOC8+y9TPjVRhi3pUuvlqouE332e8n29bIYdUwr2yOQLbP+svJXrHrXTZVWLb2/575eHr9i0s0maFJBq/kciWXZyO7eyPk0TVXZNSTX39uEz17lJpVtFSStjZb35/ndm81rnEfrs1NaqLItdtRmr3T1ypYOyF5lWW+WaN7PNTuQepAskq1xnloaVa7VeadLdlTSSddIuOowfpVEp2S/VOsx5YOQqMpZu8RnSbSppJbsK1X1ltdXpn6hshVFS7hKsq9c1ZnE0z2ptmQqyY7Wo730Duda8VMbxldPuNb1acZtmSc6Hmq3aFuOk2nZPpMJWtTvf0mova6z46ziYzobXy3htSPW2XGWMTFfeq1W5S2TsO1x1nFwW2fvJT3/LEpnkGxLhBf7QgQ1i/i8eLZJ2JkwO2hloCT3mCVEaceoEMk+qohtwj2G+ZZJWPRO4Z7s2qGvHNotvg9WGpmEReKe7F9yZ8hJLn8uUU2ak7BoXJMtNaEZSZb0MB15OA9f2Sn1v8LTQjpBR8tKyXO0CvlvNrKe5UxZWS3D6kpLrCNhK7s1WOU9ved+vsok7Ixrsn8FbbTSNO6f0SdhZ9wr+2jbtPZvR89VkpqERa38MK//9AZI454+8ipR1ESnFGxvfOvXo8GRYf4s4TWfHTmpR9yH8TOeb0zOmMxfQic7pf/vsy3r1d7heNWOED7ZWeumhERCIrwxKinMBE2DxCRr5uRuTVPZe46qvWU/3furQpaWvbCU2v7/2RVMXdm/XDWpl7Z9Fg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACbyD58mQREvKhY+AAAAAElFTkSuQmCC" alt="co-op" style={{width:48,height:48,objectFit:"contain",display:"block",filter:"drop-shadow(0 0 8px rgba(200,224,58,.3))"}} />
+  :<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH8AAAB8CAYAAABAKW+9AAADDElEQVR4nO3cYU6EMBCG4W89icfYeP8Yj+FN9BcJixSmFdqZ6fv8MkaE7Tdd2llUAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZx6jL8Di6/vjp+W45/tn0+vrfb5R3kZfAMZJHX7LDG6d9RGlDl+qC3Om4KUJwpdsoc4WvDRJ+NJxuDMGL00UvrQf8qzBS5OFj1cpwq/ZX69nes2sj7aHt0gRvlQfzuzBS0nCX4K0hPR8/3y0BJ9xbZAifMlWAAT/Kk340nEBEPxfqcKX9gug9p49Q/BSwvCl1wKoDXKW4KUgH+kuagPpFXzU3UComd8yyARfFip8yT7YNQu8GYOXAoYvnQ86wduEDF8qD35NKDMHLwVb8JVst3eWMFuCzxL6IuzMX1uHQvB2qV4QwddJMfMlgm+RJvwzrcF/fX/8ZO32pajqs3Cu6vRlexcIP/N7BV/zO6IIHX7P4K3njCRs+HcFv/265dxRhLyH3RH8+metx0dfA4Sd+SW1Xb69zwFqngmMLFz4R6Fe2d61FED0t/9Q4fcKfnu+rAUQJvyrg99+fXbejAUQIvw7gj/6Xun82QrA/YLmiuCtC7crdhGRFokuLvSojVoa6Lu2Y/8tgKNr91YYLt/2r9rHtwy2tcGToRHkMnypPMg9GjCtBWDdPnoxPHxLH30Z1J6dt9oCiPjHHi7uQTVhjlhsWc8ZrR08fOZbtG7jrlKzHYzERfj/3Wv3mFFH5x1dnK1chC+1F0DPQd07b9TgJSf3/LVIgxnpWve4mfnLg5JR7q/W4D0/AOoi/O1/yPJeADXB1xzT2/DwSw9Kei2AluBrju1paPhnDR7P98uSs78Q9lQAw2d+ybZzFoH1mr0UwJCBbemE7R0zqjCs1+K94+dm8BajB+Rqnl+rq7f90YNxB8+vqVv46/3uqBbtKGet4VFrgO4zf6+Zkzn4xVlreEQBdBl0yyNPs/GwgL195nvZ1nji5Umf28O/4r9mZeNlTLrc80vPus2MMQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHDuFxBRn2mAtQ4hAAAAAElFTkSuQmCC" alt="versus" style={{width:48,height:48,objectFit:"contain",display:"block",filter:"drop-shadow(0 0 8px rgba(200,224,58,.3))"}} />
+}</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Team vs objective — lead a 6 person team against static and live targets as you navigate each structure with one shared goal — completing the mission. But hurry, the clock is ticking!":"Team vs Team — One team stages inside, the other attempts to breach and clear. After round one, teams flip. Whoever can clear the structure the fastest is crowned the victor. Minimum of 4 players per reservation."}</div></div>;})} </div>}
       {step===2&&<div className="mode-grid">{["open","private"].map(sty=>{const rt=bookable.find(x=>x.mode===selMode&&x.style===sty);if(!rt)return <div key={sty} className="mode-card disabled"><div className="mode-icon">{sty==="open"
-  ?<svg width="42" height="42" viewBox="0 0 42 42" fill="none"><circle cx="13" cy="10" r="4.5" fill="#c8e03a" opacity=".9"/><circle cx="29" cy="10" r="4.5" fill="#9ab02e" opacity=".9"/><path d="M5 32c0-5 3.5-8 8-8h1" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round"/><rect x="8" y="22" width="10" height="9" rx="2" fill="#c8e03a" opacity=".2" stroke="#c8e03a" strokeWidth="1.5"/><path d="M37 32c0-5-3.5-8-8-8h-1" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round"/><rect x="24" y="22" width="10" height="9" rx="2" fill="#9ab02e" opacity=".15" stroke="#9ab02e" strokeWidth="1.5"/><circle cx="21" cy="21" r="5" fill="#c8e03a" opacity=".1"/><path d="M21 18v6M18 21h6" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round"/></svg>
-  :<svg width="42" height="42" viewBox="0 0 42 42" fill="none"><path d="M21 4L36 10V22C36 30 21 38 21 38C21 38 6 30 6 22V10L21 4Z" fill="#c8e03a" opacity=".12" stroke="#c8e03a" strokeWidth="2.2" strokeLinejoin="round"/><path d="M21 9L31 14V22C31 27 21 33 21 33C21 33 11 27 11 22V14L21 9Z" stroke="#9ab02e" strokeWidth="1.5" strokeLinejoin="round" opacity=".5"/><rect x="16" y="20" width="10" height="8" rx="1.5" fill="#c8e03a" opacity=".3" stroke="#c8e03a" strokeWidth="1.5"/><path d="M17.5 20v-2.5a3.5 3.5 0 017 0V20" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round"/><circle cx="21" cy="24" r="1.5" fill="#c8e03a"/></svg>
+  ?<svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+                  <circle cx="13" cy="10" r="4.5" fill="#c8e03a" opacity=".9"/>
+                  <circle cx="29" cy="10" r="4.5" fill="#9ab02e" opacity=".9"/>
+                  <path d="M5 32c0-5 3.5-8 8-8h1" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round"/>
+                  <rect x="8" y="22" width="10" height="9" rx="2" fill="#c8e03a" opacity=".2" stroke="#c8e03a" strokeWidth="1.5"/>
+                  <path d="M37 32c0-5-3.5-8-8-8h-1" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round"/>
+                  <rect x="24" y="22" width="10" height="9" rx="2" fill="#9ab02e" opacity=".15" stroke="#9ab02e" strokeWidth="1.5"/>
+                  <circle cx="21" cy="21" r="5" fill="#c8e03a" opacity=".1"/>
+                  <path d="M21 18v6M18 21h6" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+  :<svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+                  <path d="M21 4L36 10V22C36 30 21 38 21 38C21 38 6 30 6 22V10L21 4Z" fill="#c8e03a" opacity=".12" stroke="#c8e03a" strokeWidth="2.2" strokeLinejoin="round"/>
+                  <path d="M21 9L31 14V22C31 27 21 33 21 33C21 33 11 27 11 22V14L21 9Z" stroke="#9ab02e" strokeWidth="1.5" strokeLinejoin="round" opacity=".5"/>
+                  <rect x="16" y="20" width="10" height="8" rx="1.5" fill="#c8e03a" opacity=".3" stroke="#c8e03a" strokeWidth="1.5"/>
+                  <path d="M17.5 20v-2.5a3.5 3.5 0 017 0V20" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round"/>
+                  <circle cx="21" cy="24" r="1.5" fill="#c8e03a"/>
+                </svg>
 }</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div style={{fontSize:".72rem",color:"var(--dangerL)",marginTop:".5rem"}}>Unavailable</div></div>;return <div key={sty} className={`mode-card${selStyle===sty?" sel":""}`} onClick={()=>setSelStyle(sty)}><div className="mode-icon">{sty==="open"
-  ?<svg width="42" height="42" viewBox="0 0 42 42" fill="none"><circle cx="13" cy="10" r="4.5" fill="#c8e03a" opacity=".9"/><circle cx="29" cy="10" r="4.5" fill="#9ab02e" opacity=".9"/><path d="M5 32c0-5 3.5-8 8-8h1" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round"/><rect x="8" y="22" width="10" height="9" rx="2" fill="#c8e03a" opacity=".2" stroke="#c8e03a" strokeWidth="1.5"/><path d="M37 32c0-5-3.5-8-8-8h-1" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round"/><rect x="24" y="22" width="10" height="9" rx="2" fill="#9ab02e" opacity=".15" stroke="#9ab02e" strokeWidth="1.5"/><circle cx="21" cy="21" r="5" fill="#c8e03a" opacity=".1"/><path d="M21 18v6M18 21h6" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round"/></svg>
-  :<svg width="42" height="42" viewBox="0 0 42 42" fill="none"><path d="M21 4L36 10V22C36 30 21 38 21 38C21 38 6 30 6 22V10L21 4Z" fill="#c8e03a" opacity=".12" stroke="#c8e03a" strokeWidth="2.2" strokeLinejoin="round"/><path d="M21 9L31 14V22C31 27 21 33 21 33C21 33 11 27 11 22V14L21 9Z" stroke="#9ab02e" strokeWidth="1.5" strokeLinejoin="round" opacity=".5"/><rect x="16" y="20" width="10" height="8" rx="1.5" fill="#c8e03a" opacity=".3" stroke="#c8e03a" strokeWidth="1.5"/><path d="M17.5 20v-2.5a3.5 3.5 0 017 0V20" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round"/><circle cx="21" cy="24" r="1.5" fill="#c8e03a"/></svg>
-}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div className="mode-desc">{rt.description}</div><div className="mode-price">{rt.pricingMode==="flat"?`${fmtMoney(rt.price)} flat`:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
+  ?<svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+                  <circle cx="13" cy="10" r="4.5" fill="#c8e03a" opacity=".9"/>
+                  <circle cx="29" cy="10" r="4.5" fill="#9ab02e" opacity=".9"/>
+                  <path d="M5 32c0-5 3.5-8 8-8h1" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round"/>
+                  <rect x="8" y="22" width="10" height="9" rx="2" fill="#c8e03a" opacity=".2" stroke="#c8e03a" strokeWidth="1.5"/>
+                  <path d="M37 32c0-5-3.5-8-8-8h-1" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round"/>
+                  <rect x="24" y="22" width="10" height="9" rx="2" fill="#9ab02e" opacity=".15" stroke="#9ab02e" strokeWidth="1.5"/>
+                  <circle cx="21" cy="21" r="5" fill="#c8e03a" opacity=".1"/>
+                  <path d="M21 18v6M18 21h6" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+  :<svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+                  <path d="M21 4L36 10V22C36 30 21 38 21 38C21 38 6 30 6 22V10L21 4Z" fill="#c8e03a" opacity=".12" stroke="#c8e03a" strokeWidth="2.2" strokeLinejoin="round"/>
+                  <path d="M21 9L31 14V22C31 27 21 33 21 33C21 33 11 27 11 22V14L21 9Z" stroke="#9ab02e" strokeWidth="1.5" strokeLinejoin="round" opacity=".5"/>
+                  <rect x="16" y="20" width="10" height="8" rx="1.5" fill="#c8e03a" opacity=".3" stroke="#c8e03a" strokeWidth="1.5"/>
+                  <path d="M17.5 20v-2.5a3.5 3.5 0 017 0V20" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round"/>
+                  <circle cx="21" cy="24" r="1.5" fill="#c8e03a"/>
+                </svg>
+}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div className="mode-desc">{rt.description}{selMode==="versus"&&sty==="open"&&<div style={{marginTop:".5rem",fontSize:".74rem",color:"var(--warn)",fontWeight:600}}>⚠ Minimum 4 players per reservation for Versus open play.</div>}</div><div className="mode-price">{rt.pricingMode==="flat"?`${fmtMoney(rt.price)} flat`:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
       {step===3&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Choose a date.</p>
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
@@ -1050,9 +1080,10 @@ function AccountPanel({user,users,setUsers,onClose}){
   </>);
 }
 
-function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onSignWaiver}){
+function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onSignWaiver,autoBook=false,onAutoBookDone}){
   const [tab,setTab]=useState("upcoming");
   const [showBook,setShowBook]=useState(false);
+  useEffect(()=>{if(autoBook){setShowBook(true);onAutoBookDone?.();}},[]);// eslint-disable-line react-hooks/exhaustive-deps
   const [wOpen,setWOpen]=useState(false);
   const [wViewOpen,setWViewOpen]=useState(false);
   const [showAccount,setShowAccount]=useState(false);
@@ -1693,6 +1724,7 @@ function LoginScreen({onLogin}){
 
 export default function App(){
   const [showLanding,setShowLanding]=useState(true);
+  const [bookOnLogin,setBookOnLogin]=useState(false);
   const [currentUser,setCurrentUser]=useState(null);
   const [pendingUser,setPendingUser]=useState(null); // user who logged in but needs phone
   const [resTypes,setResTypes]=useState([]);
@@ -2027,7 +2059,7 @@ useEffect(() => {
     </div></>
   );
 
-  if(showLanding&&!currentUser&&!pendingUser)return <LandingPage onEnterApp={()=>setShowLanding(false)}/>;
+  if(showLanding&&!currentUser&&!pendingUser)return <LandingPage onEnterApp={()=>setShowLanding(false)} onBookNow={()=>{setBookOnLogin(true);setShowLanding(false);}}/>;
   if(pendingUser)return <><style>{CSS}</style><CompleteProfile user={pendingUser} onComplete={handleCompleteProfile} onSignOut={()=>{setPendingUser(null);setShowLanding(true);}}/></>;
   if(!liveUser)return <><style>{CSS}</style><LoginScreen onLogin={handleLogin}/></>;
 
@@ -2049,7 +2081,7 @@ useEffect(() => {
         </div>
       </nav>
       <div className="main">
-        {portal==="customer"&&<CustomerPortal user={liveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onSignWaiver={handleSignWaiver}/>}
+        {portal==="customer"&&<CustomerPortal user={liveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)}/>}
         {portal==="staff"&&<StaffPortal user={liveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert}/>}
         {portal==="admin"&&<AdminPortal user={liveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} onAlert={handleAlert}/>}
       </div>

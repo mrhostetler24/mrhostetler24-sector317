@@ -288,102 +288,21 @@ const SOCIAL = [
 const HOURS = [["Monday","5:30 PM – 9:00 PM"],["Tuesday","5:30 PM – 9:00 PM"],["Wednesday","5:30 PM – 9:00 PM"],["Thursday","5:30 PM – 9:00 PM"],["Friday","5:00 PM – 11:00 PM"],["Saturday","12:30 PM – 11:00 PM"],["Sunday","1:30 PM – 7:00 PM"]];
 
 function StripIcon({ type }) {
-  const c = "#c8e03a", c2 = "#9ab02e";
-  if (type === "gear") return (
-    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      {/* Solid tactical helmet silhouette */}
-      <path d="M21 5C12.716 5 6 11.716 6 20v6h2v-6c0-7.18 5.82-13 13-13s13 5.82 13 13v6h2v-6C36 11.716 29.284 5 21 5z" fill={c}/>
-      {/* Ear cups */}
-      <rect x="3" y="19" width="5" height="9" rx="2" fill={c}/>
-      <rect x="34" y="19" width="5" height="9" rx="2" fill={c}/>
-      {/* Visor band */}
-      <rect x="6" y="24" width="30" height="5" rx="2" fill={c} fillOpacity=".7"/>
-      {/* Visor dark lens */}
-      <rect x="9" y="25" width="24" height="3" rx="1.5" fill={c2} fillOpacity=".5"/>
-      {/* NVG mount nub */}
-      <rect x="18" y="4" width="6" height="4" rx="1" fill={c}/>
-      <rect x="19.5" y="2" width="3" height="3" rx=".8" fill={c}/>
-    </svg>
-  );
-  if (type === "bar") return (
-    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      {/* Mug body solid */}
-      <rect x="7" y="14" width="22" height="22" rx="2.5" fill={c}/>
-      {/* Handle D-shape */}
-      <path d="M29 18h4a4 4 0 010 8h-4" stroke={c} strokeWidth="4" strokeLinecap="round" fill="none"/>
-      {/* Foam top - slightly lighter bumps */}
-      <ellipse cx="10" cy="14" rx="2.5" ry="3" fill={c}/>
-      <ellipse cx="15" cy="13" rx="2.5" ry="3.5" fill={c}/>
-      <ellipse cx="20" cy="14" rx="2.5" ry="3" fill={c}/>
-      <ellipse cx="25" cy="13.5" rx="2" ry="2.5" fill={c}/>
-      {/* Foam highlight line */}
-      <rect x="7" y="14" width="22" height="3" rx="0" fill={c2} fillOpacity=".4"/>
-      {/* Bubbles */}
-      <circle cx="14" cy="24" r="1.5" fill="#111209" fillOpacity=".25"/>
-      <circle cx="20" cy="29" r="1.2" fill="#111209" fillOpacity=".2"/>
-      <circle cx="17" cy="21" r="1" fill="#111209" fillOpacity=".18"/>
-    </svg>
-  );
-  if (type === "structures") return (
-    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      {/* Left house */}
-      <polygon points="4,18 13,9 22,18" fill={c}/>
-      <rect x="5" y="18" width="16" height="16" rx="1" fill={c}/>
-      <rect x="10" y="24" width="4" height="10" rx=".5" fill="#111209" fillOpacity=".35"/>
-      <rect x="6" y="20" width="4" height="4" rx=".5" fill="#111209" fillOpacity=".25"/>
-      <rect x="15" y="20" width="4" height="4" rx=".5" fill="#111209" fillOpacity=".25"/>
-      {/* Right house - offset */}
-      <polygon points="20,20 29,11 38,20" fill={c2}/>
-      <rect x="21" y="20" width="16" height="14" rx="1" fill={c2}/>
-      <rect x="27" y="26" width="4" height="8" rx=".5" fill="#111209" fillOpacity=".35"/>
-      <rect x="22" y="22" width="4" height="4" rx=".5" fill="#111209" fillOpacity=".25"/>
-      <rect x="31" y="22" width="4" height="4" rx=".5" fill="#111209" fillOpacity=".25"/>
-    </svg>
-  );
-  if (type === "tv") return (
-    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      {/* TV body */}
-      <rect x="3" y="8" width="36" height="26" rx="3" fill={c}/>
-      {/* Screen bezel inner */}
-      <rect x="6" y="11" width="30" height="20" rx="1.5" fill="#111209" fillOpacity=".7"/>
-      {/* CCTV grid — 4 camera feeds (2x2) */}
-      <rect x="7" y="12" width="13" height="8" rx="1" fill={c} fillOpacity=".25"/>
-      <rect x="22" y="12" width="13" height="8" rx="1" fill={c} fillOpacity=".18"/>
-      <rect x="7" y="22" width="13" height="8" rx="1" fill={c} fillOpacity=".18"/>
-      <rect x="22" y="22" width="13" height="8" rx="1" fill={c} fillOpacity=".25"/>
-      {/* Grid dividers */}
-      <line x1="21" y1="11" x2="21" y2="31" stroke="#111209" strokeWidth="1.5"/>
-      <line x1="6" y1="21" x2="36" y2="21" stroke="#111209" strokeWidth="1.5"/>
-      {/* REC dot top-left feed */}
-      <circle cx="10" cy="15" r="1.5" fill="#e05c5c"/>
-      {/* Stand */}
-      <rect x="17" y="34" width="8" height="3" rx="1" fill={c}/>
-      <rect x="14" y="36" width="14" height="2.5" rx="1" fill={c}/>
-    </svg>
-  );
-  if (type === "id") return (
-    <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-      {/* Card body */}
-      <rect x="3" y="8" width="36" height="26" rx="3" fill={c} fillOpacity=".15" stroke={c} strokeWidth="2"/>
-      {/* Photo corner - top left */}
-      <rect x="7" y="12" width="13" height="14" rx="1.5" fill={c} fillOpacity=".2" stroke={c} strokeWidth="1.5"/>
-      {/* Photo person silhouette */}
-      <circle cx="13.5" cy="17" r="3.5" fill={c}/>
-      <path d="M7.5 26c0-3.5 2.7-5.5 6-5.5s6 2 6 5.5" fill={c}/>
-      {/* Info lines right side */}
-      <rect x="24" y="14" width="13" height="2.5" rx="1" fill={c}/>
-      <rect x="24" y="19" width="10" height="2" rx="1" fill={c} fillOpacity=".6"/>
-      <rect x="24" y="23" width="12" height="2" rx="1" fill={c} fillOpacity=".5"/>
-      <rect x="24" y="27" width="8" height="2" rx="1" fill={c} fillOpacity=".4"/>
-      {/* 18+ badge corner */}
-      <rect x="28" y="4" width="13" height="10" rx="2" fill={c}/>
-      <text x="34.5" y="12" fontFamily="'Black Ops One',sans-serif" fontSize="7" fontWeight="900" fill="#111209" textAnchor="middle">18+</text>
-    </svg>
-  );
-  return null;
+  const uris = {
+    gear:       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHkAAACACAYAAAAvZ8aYAAADq0lEQVR4nO2dS47jMAxEqwdzkD5GI/dHI8fITTIrYwLDH8kmxSJVb9WLhkPyiZZsKw4ghBBCCCGEEEIIIYQQQgghhBDdfEUHYM3z9XhbHevn+7dEfdInYSm1hYzi0wUMjBe7RxbhKYIEeMRuwS6bOjiAW+4aVtmUQQG55K5hk00VzEJmwZ+wyP4THcCaKoIBnlwoRhrAUxAPojuaopMrCwbi8wuXHF2AUUTmGSp5FsELUfmGd/JsRIgOkzxbF38yOve/Iz9swTNJ65VshcE4fGl/t2jRlyNr7uQzKhd6yWxSj7gifER+QwvYU4RMcrdozXVEnnSr65/v36/sgoF2eSPm/GHFbEnmjlzWxZx33i3QSGYa+T20xG2V+1VSSGYTu8edHDxFD5mTryb4fD3eWQQDvIORbuG1wFqwM/bijlxM0krOzJUB6jmowyVvjfCsXcyKu2QJiye8k6uyNbjP5mWvhnCTnG1lzIJHzdTJhFiLdnmezNrBsy7ypunkvfmwygORI6aQ3CKxsujykrPKs5xGSkvuFZx1QJxRWvIeR5d3nqK179qYoydbW3+P+vwIzCUzX5Iw7bsaCWUn3yly7yWRx2mbbZCYS+5N8KjIPcc6+/+r22UrLN4oFhkjChO9zypyvznF6dp7Hm85vmcM0V8ooJAM+BS590mYVwzWx+yF4nS95u5ItiisRTddjcO6kyklf8KwH9tite75mWfQS54V+oWXBHNBs/ASfkgyKXrUKLqY6gHFrKiTibFqGEmeAFPJOlVzQtXJ1bbHsuQS8rK2M1iKw8Dz9XjfrQdVJ8/EyIE8XLK69D+jNv2bSj4KqNp8a8WIuoQV/cr3dzPC8A4RzckTQCVZ19k+UEkWPkjyBEiyIwyLLkCSpyBMcsu3DoUN6mQnmAarJA8m4oZPqGSdssegTnaAbZDSSmYrlAVR9+bDJVd7KME4OMMlH8FYsKtM/+b6Cj8yAvDGSiG5AkeCo6ckGsmZu5lZMEAkGcgpmjWuT6gkn5GhoJ8wdDEQuMfriOjXMbWQIcYFyk6O+kGOVqI/vxea0bYFwy+WrmGM6QyqYLa4WtS73bY+ZuaXr9IFtEVPgS1PpYuwzIKBJJIB/nmQVTCQSDLAKZpZ7gJ9gFuwyM4gGEgqGYgVnUXuQqpgtxgtO5tgoIDkBW/ZGeUuUN7xYiOzYKCQ5OwiPCkj2YsKg6eUZGshFQQDhRZea6zvXQshhBBCCCGEEEIIIYQQQgghhBBCCMHHPxLW+p8YnOYkAAAAAElFTkSuQmCC",
+    bar:        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAACrklEQVR4nO3d7W0CMRAGYRNRSMqI6F+IMuiE/IqEDvIlYHfsd54G4Hxza7gE2I0ip/PhUvVYK/h4P+4qHuet4kE8+f9XtWYlAYjLAMLtux64ao+bRdc2WTIBPNlcbgFQS70LEJcBhDOAcAYQzgDCtQXg7WEGJwBA58VgAOHKAvBuIJMTIJwBAFVOSwMIZwDhDCCcAYRr+4+ge1LuDpLeEjsBgCovhLIAUq7uvyCtBWYCkBalWueW0BYAaR9MhpkA6mEAUEt9NOy3g0nc/ynH3DIB3P9vda2JW0A4AwhnAOEMIJwBhDOAcAYQzgDCtQRAuQsmyATwzqDfERSHsiaICaBby39HkK8DGDATgDISK2yPNeLj4Ukn+FExnw3clp8YSfdWWBpA4gneoq1B+2uA7iuApjqQ9gC2aFfIM5Fe/H0pD2DlE/yojrXBTQDVQgRAGIXVKMeM/LfwFbcJ6jEhJoD8XICaGEA4AwhnAOEMIBwmAMr74jSYAJKQYscGQL1xshq/JCocdgKshBy7AQBEfk+gGAwgnAGEM4BwBhAOFQDpDlkKVACqhw6AfANlFegAVkTb5loDSLjC6cfoBAhnAM26J4QBhDOAcAYQzgDCGUA4AwiHC4B2p2x1uAC2ut8nrw4fwEqI0609gJWv8BmOrT0A9TKARoQJYQDhDCCcAYQzgHAGEM4AwiED8JdE6iADUB0DeBHij0PcYwDhEAG4x/dBBJCIEr0BhDOAcAYQzgDCGUA4AwiHDcC/B9TABqAaBvACs/wdYAxQAI74HpgA1MMAGpCmnQGEM4BwBhDOAMIZQLipAiC9ev7ODM/x2r77CfzkdD5ctgs62wLTTTUBZkS+DTyGAcRDBeB4r4dbcPrIfBQtctQEUD1cALQr5JmIx4Z7QtdW2g6IJ3+MMT4BEbK0j6SmmJgAAAAASUVORK5CYII=",
+    structures: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAABWCAYAAAAHWZ75AAACbklEQVR4nO3cbW6DMAyAYTrtID1G1fur6jF6k+4XGoqAOMGJ7eR9fk2bCo4xTsrHlgUAAAAAAAAAAAAAMKCb5c7fn+d3/flxf5nGMiuzpG8P/ipXBHufkXyutffn+bWOodaPxU6PDuTR73N/s7TG9f48v15jPNO9AHJJipLIozgjxL7VtW2VJidtqy2mgLOYjrYrGUeUKaFLB6g9qz0mWjqOKJ2geQFcTYSnRJbG4in2I00LQCsBLRN51EGk00+O9yJoVgDaA7dM5EhdLNWkADwPuFSELnaFagFE+QonNVIXO6JWAB4Hd0Wr8Xg7SVQKIPL8bMVL3JcLwMNAPMRQw0PclwrAwwBWnmIpYR13dQFYB77HY0wSlnEXX0aNkOSSy8OexmNx/6Boh56SlSNJZum9hu19f+lNJOlnSuLWJJ4CIh38Zcl/3fI6nt5xiarNa7KktK7r99SrE2Q7QIRk5WzHEGU8veL87bGTyHqvAXqbrgDSg2MZyx53i8BtQI/76xbhUac0Ro2YWz3RZK0qMd4HJj3gnsfR60RTmwL2WqvG3Le3Dc9zqpZ0bK0KotkTQenUobUNje1GtF7X0C766RaBI9DsDioFMNOZ6NGVdyxNFoFnQWq0uBEWgVdJc2DybiD8aDIF7L0tW3O2tdruyEqngPDPBOJfzVqMbwGVav+XQe0+0u6nddKxBpicWgdIK1KjQkd4/947OsDkKIDJUQCTowAmRwFMjgKYHAUwOa4EOtbi2kqKDjA5CmByKi9Qetbq4ZMeN4NqqD8RNGIBRB+TBE8EQaTozSDEwDEDAAAAAAAAAAAAAAAAAACYzB+N/aUR2a+/tAAAAABJRU5ErkJggg==",
+    tv:         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAABtCAYAAABp5GmXAAACm0lEQVR4nO3dUW6DMBBFUVJ1IVlGlP0ryjKyk/SjtUKJHYw9Y4PfPVKlfhRwPQ9jQ1qmCQAAAAAAAAAAAAAAAAAwiFPLg90f12f4/nK+NT024lyKMC/0FoSiPdMOLy18DGFow6STLQu/RBB8VXWuZ+GXCIKP4k5tWfwgFYIebenN6oQo2snWDv/U2Np9KRZ/rjYImzbO7ezSRpXsXz0A01QXAtMArDUk9z5ATlHD9gTgV2kIsjcqKf6W4mzdnlHgXUkIvjwOfH9cn1uLEtsm9xdihVCu6hLgOSFbO8OVi547MuYonqy1mI3HjqFc+LlUfzcJQG5jLFDwNIsQfHs1Yql2kggf1QH4ZC2JLOX6qw7A5Xw7rU3S1oYqgtCPyzIwd42+XPp92g98uHWw5fMCxFlMAk1GAAsM/33sJgDow3UV0FvprWUlbiNAbEI3/1r7+VqxSwqXmXfDnhG1j66PYKhJYGslTyxH5DYHOMr1N7Rzr+3z5jICHPH6u/f2eZG9BMQoXhYIQIRSEKQCkFqCpigEQSoAAUF4kQxAUBIEz/b0IB2AYEsQRhsNCMCM4mWBACyozQ8IQILK/IAArNg6P/BujzUCkGnUZwUEINMRz+4cQ38iyELtXzjvHQFIUPlUMwFYUCl8QABmRh/uYwjApFn4QDoAasN9jGQAKPyLVAAo/DupAORSKHxAAGaUCh9wK/iPYvGniRFAtvCBbADUCx/IBYDC/zfsHKDFn6CPYOgRgIKvG3YEQB4CII4AiCMA4giAOAIgjgCIaxqAUT9b34PVG0NcAmD5oki8s+zDLncCCcF+NPtXsfDX7b2BKYSgndK+dp8EEgJ/NX3cZBVACPw0fXu4BSaANjipAAAAAAAAAAAAAAAAAADA3A8FEXkJ4Ot7kwAAAABJRU5ErkJggg==",
+    id:         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAAB1CAYAAACGYelhAAAEcklEQVR4nO2dW27jMAxF1aIL6TKK7h9Fl9GdZH7GRSaTOBR5+ZB4D9CfwpFl8YqiqYfHIIQQQgghhPTiRXLR98/nxbsiZI6P9y+R7Z5xWggNvwYWMdz9IQ2/HloRvN7+g8ZfE63d/hEAjb82Gvv9CoDG34NZO/43BJD1mRHB6+wPyF7QA2yKtFO/zfR+VPKB2EB6bLEHoPHrgLSFSAA0/r4wBlgUSaeUDBUUQHMogOZQAM2hAJrzll2BA0nAwrcRPKkCmE1oXF9PMWBIEQAik3WUQSHYCI8B0BNPnMiyEeoBvIz1/fN5QXmCKoKK8mxhHsC7YasYDkXU84QIIOphdhNBBO4CiDYKRTAHE0HNcQ0CZ3vjWeAzUxYyKNydEplAibGOa+jisbgNAVJDzfZU6fUUiozUGIBu+jFRbVNiCJjl4/3rxauHdxOliweo4n6r1KMyaUOAtad166leMA/QHAqgORRAc9IEYA3QGOBhcBFAlQCtSj0qk74mUGMkz95fybNECJgxQHPcBOCVs/eaY+hKiVSwZIVvJde8E64CmM3Zo4zM3i+HMUBz3AUQ3Rt36v3fP5+X48/rHiEeIMooOxn/Fi8xlAgCyRxIEYQIIHJfgPc0825vI9wXMFHubsYfw1kAWQ3GDahy0lcFV79/9nN44xIDaBsNnQm0xgRI41eNLUSZuplG1DxIpfK197De06MOknqkvgZqGqnyDiFkHuK6rGUSQZEHT3t5Da2H8UxCeZafMheAehh0o0QMLxY8Fs/ABJA1T49ad6DZyZyRetbc9+zZQj1A1Vw9cht7FCgRbDEdXN0Ne4GoC0QAFSPye9yr5+pfTLEGw2EewLvxVi/fgqVuWwwBWlbxXEhun7m1AKRU7v0HsG8Hd2HH5eWaV2JIKrhKI1Wpx0q09AAr9n7pgpRZL9BSAKtxbXh04EoBPKBK79fkLmbqTgEU5szQKE/QTgCrLBqVlIU4ZKOdACRYJlqQn8OxXCt9BgrAiHV+wfpba6xCARhAj9EZ09IUgBL0GJ21JkEkgI6TJmegDZu5IEXsASgCPcihAp2fKLvEOhNJIyMWkHobX1I+YwAl1hW62T3/4NWz8N3RiqCK8cegBzCz+lK0XwHQC+jxarvwk0IpAj1ZG16s8GDGB2gNUGFn8Uw9HsYA9AY6VvsUzmkQeOxDoxjm0LZXxpmKLQ0btSYwa9fRzPPxNdARqVEzPWxLAVTaTJpl/OO+LQUgxfucHg/jz9a5rQCiP0J9e78Kxh+jsQAyOIye/VZ1fX8KQEDkeYFatHVsLQDv8wmjsLxuthbAGOuLwJpraC+AWSqJAFEXCmDkHCVrBbWohAL4y0oiQK4o4idjDEi+d+hxPyQtJ4POsDRytVe8MZ7XiQK4g7WnoYQQUQ8K4AFZXzGNvi8FcEKFaF/D1Akhqz5kBNk5ew2zdeZbwBMqf6HkGh4U6Uxlb2CpGz3ABNW8AUKUZVW9AllCQHojCgBAlBA8hiEKAIiXEDzjDwrAEY8vqBIC5Q89INRBFaaU0QAAAABJRU5ErkJggg==",
+  };
+  const uri = uris[type];
+  if (!uri) return null;
+  return <img src={uri} alt={type} style={{width:42,height:42,objectFit:"contain",display:"block",filter:"drop-shadow(0 0 6px rgba(200,224,58,.25))"}} />;
 }
 
-export default function LandingPage({ onEnterApp }) {
+
+export default function LandingPage({ onEnterApp, onBookNow }) {
+  const handleBook = onBookNow || onEnterApp;
   const parallax = useParallax();
   const scrolled = useScrolled();
   useReveal();
@@ -407,7 +326,7 @@ export default function LandingPage({ onEnterApp }) {
         </div>
         <div className="lp-nav-btns">
           <button className="lp-btn-login" onClick={onEnterApp}>Sign In</button>
-          <button className="lp-btn-book" onClick={onEnterApp}>Book Now</button>
+          <button className="lp-btn-book" onClick={handleBook}>Book Now</button>
         </div>
         <button className={`lp-hamburger${menuOpen?" open":""}`} onClick={()=>setMenuOpen(o=>!o)} aria-label="Menu">
           <span/><span/><span/>
@@ -421,7 +340,7 @@ export default function LandingPage({ onEnterApp }) {
         <a className="lp-mobile-navlink" href="/leaderboard.html" target="_blank" rel="noreferrer">Leaderboard</a>
         <div className="lp-mobile-btns">
           <button className="lp-btn-login" onClick={()=>{setMenuOpen(false);onEnterApp();}}>Sign In</button>
-          <button className="lp-btn-book" onClick={()=>{setMenuOpen(false);onEnterApp();}}>Book Now</button>
+          <button className="lp-btn-book" onClick={()=>{setMenuOpen(false);handleBook();}}>Book Now</button>
         </div>
       </div>
 
@@ -434,7 +353,7 @@ export default function LandingPage({ onEnterApp }) {
           <span className="lp-line lp-line-2">Breach in. Clear out. Kick back.</span>
           <span className="lp-line lp-line-3">Is your team ready?</span>
           <div className="lp-hero-btns">
-            <button className="lp-cta-p" onClick={onEnterApp}>Book Now</button>
+            <button className="lp-cta-p" onClick={handleBook}>Book Now</button>
             <button className="lp-cta-s" onClick={onEnterApp}>Sign In / My Account</button>
           </div>
         </div>
@@ -468,11 +387,46 @@ export default function LandingPage({ onEnterApp }) {
 
           <div className="lp-reveal">
             <div className="lp-ey left">Step One</div>
-            <div className="lp-h">Pick Your <span>Group</span></div>
+            <div className="lp-h">Select Your <span>Mode</span></div>
+          </div>
+          <div className="lp-grid">
+            {/* Co-Op */}
+            <div className="lp-card bacc lp-reveal lp-d1" onClick={handleBook}>
+              <div className="lp-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHsAAACACAYAAAArkhalAAADM0lEQVR4nO3cW47jIBBAUTKahWQZUfavKMvITjJfSMhjOzzqBb7ns9sd4yoKA447JQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJnTzboCG9+f5Hf2Mx/21XGyWuiCJJG+tlPRlLkQj0aUVkj79BaSkn+hSb9K3bfToPH+tT1jKAei58Pfn+fUIWEubLTthDdfKPgrGXiD3jn3cXzfvgNa2tfZvNblV9llAvBPYYqa2/vFuQK8IVT3Kuv0uyZ49SbOasrJ7qvpxf90iLp8sO775Pdu6qnOC8+y9TPjVRhi3pUuvlqouE332e8n29bIYdUwr2yOQLbP+svJXrHrXTZVWLb2/575eHr9i0s0maFJBq/kciWXZyO7eyPk0TVXZNSTX39uEz17lJpVtFSStjZb35/ndm81rnEfrs1NaqLItdtRmr3T1ypYOyF5lWW+WaN7PNTuQepAskq1xnloaVa7VeadLdlTSSddIuOowfpVEp2S/VOsx5YOQqMpZu8RnSbSppJbsK1X1ltdXpn6hshVFS7hKsq9c1ZnE0z2ptmQqyY7Wo730Duda8VMbxldPuNb1acZtmSc6Hmq3aFuOk2nZPpMJWtTvf0mova6z46ziYzobXy3htSPW2XGWMTFfeq1W5S2TsO1x1nFwW2fvJT3/LEpnkGxLhBf7QgQ1i/i8eLZJ2JkwO2hloCT3mCVEaceoEMk+qohtwj2G+ZZJWPRO4Z7s2qGvHNotvg9WGpmEReKe7F9yZ8hJLn8uUU2ak7BoXJMtNaEZSZb0MB15OA9f2Sn1v8LTQjpBR8tKyXO0CvlvNrKe5UxZWS3D6kpLrCNhK7s1WOU9ved+vsok7Ixrsn8FbbTSNO6f0SdhZ9wr+2jbtPZvR89VkpqERa38MK//9AZI454+8ipR1ESnFGxvfOvXo8GRYf4s4TWfHTmpR9yH8TOeb0zOmMxfQic7pf/vsy3r1d7heNWOED7ZWeumhERCIrwxKinMBE2DxCRr5uRuTVPZe46qvWU/3furQpaWvbCU2v7/2RVMXdm/XDWpl7Z9Fg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACbyD58mQREvKhY+AAAAAElFTkSuQmCC" alt="co-op" style={{width:52,height:52,objectFit:"contain",display:"block",filter:"drop-shadow(0 0 8px rgba(200,224,58,.3))"}} />
+              </div>
+              <div className="lp-dsub">Beat the Clock</div>
+              <div className="lp-name">Co-Op</div>
+              <div className="lp-desc">Six operators — one objective — the clock is ticking. Navigate the structure, eliminate the threats, and complete the mission before time runs out. Static targets demand precision. Live opposition demands composure. Effective communication and coordination separate the winners from the rest…</div>
+              <div className="lp-meta">
+                <div className="lp-mi"><em>👥</em> Up to 6 players</div>
+                <div className="lp-mi"><em>🎯</em> Perfect your craft to climb the leaderboard</div>
+              </div>
+              <span className="lp-tag">Team vs Objective</span>
+            </div>
+            {/* Versus */}
+            <div className="lp-card bacc lp-reveal lp-d2" onClick={handleBook}>
+              <div className="lp-icon">
+                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH8AAAB8CAYAAABAKW+9AAADDElEQVR4nO3cYU6EMBCG4W89icfYeP8Yj+FN9BcJixSmFdqZ6fv8MkaE7Tdd2llUAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZx6jL8Di6/vjp+W45/tn0+vrfb5R3kZfAMZJHX7LDG6d9RGlDl+qC3Om4KUJwpdsoc4WvDRJ+NJxuDMGL00UvrQf8qzBS5OFj1cpwq/ZX69nes2sj7aHt0gRvlQfzuzBS0nCX4K0hPR8/3y0BJ9xbZAifMlWAAT/Kk340nEBEPxfqcKX9gug9p49Q/BSwvCl1wKoDXKW4KUgH+kuagPpFXzU3UComd8yyARfFip8yT7YNQu8GYOXAoYvnQ86wduEDF8qD35NKDMHLwVb8JVst3eWMFuCzxL6IuzMX1uHQvB2qV4QwddJMfMlgm+RJvwzrcF/fX/8ZO32pajqs3Cu6vRlexcIP/N7BV/zO6IIHX7P4K3njCRs+HcFv/265dxRhLyH3RH8+metx0dfA4Sd+SW1Xb69zwFqngmMLFz4R6Fe2d61FED0t/9Q4fcKfnu+rAUQJvyrg99+fXbejAUQIvw7gj/6Xun82QrA/YLmiuCtC7crdhGRFokuLvSojVoa6Lu2Y/8tgKNr91YYLt/2r9rHtwy2tcGToRHkMnypPMg9GjCtBWDdPnoxPHxLH30Z1J6dt9oCiPjHHi7uQTVhjlhsWc8ZrR08fOZbtG7jrlKzHYzERfj/3Wv3mFFH5x1dnK1chC+1F0DPQd07b9TgJSf3/LVIgxnpWve4mfnLg5JR7q/W4D0/AOoi/O1/yPJeADXB1xzT2/DwSw9Kei2AluBrju1paPhnDR7P98uSs78Q9lQAw2d+ybZzFoH1mr0UwJCBbemE7R0zqjCs1+K94+dm8BajB+Rqnl+rq7f90YNxB8+vqVv46/3uqBbtKGet4VFrgO4zf6+Zkzn4xVlreEQBdBl0yyNPs/GwgL195nvZ1nji5Umf28O/4r9mZeNlTLrc80vPus2MMQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHDuFxBRn2mAtQ4hAAAAAElFTkSuQmCC" alt="versus" style={{width:52,height:52,objectFit:"contain",display:"block",filter:"drop-shadow(0 0 8px rgba(200,224,58,.3))"}} />
+              </div>
+              <div className="lp-dsub">Beat Your Opponent</div>
+              <div className="lp-name">Versus</div>
+              <div className="lp-desc">An unstoppable force meets an immovable object. Something has to give. Two teams vie for one goal — control. One advances through resistance, the other holds the line. Then roles reverse. Structures flip. When the dust settles, only one raises the hardware.</div>
+              <div className="lp-meta">
+                <div className="lp-mi"><em>👥</em> Up to 6 vs 6 (12 max)</div>
+                <div className="lp-mi"><em>🏆</em> You've gotta beat the best to be the best</div>
+              </div>
+              <span className="lp-tag">Team vs Team</span>
+            </div>
+          </div>          {/* STEP TWO */
+}
+          <div className="lp-s2hdr lp-reveal">
+            <div className="lp-ey right">Step Two</div>
+            <div className="lp-h right">Pick Your <span>Group</span></div>
           </div>
           <div className="lp-grid">
             {/* Open Play */}
-            <div className="lp-card tacc lp-reveal lp-d1" onClick={onEnterApp}>
+            <div className="lp-card tacc lp-reveal lp-d1" onClick={handleBook}>
               <div className="lp-icon">
                 <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
                   <circle cx="13" cy="10" r="4.5" fill="#c8e03a" opacity=".9"/>
@@ -495,7 +449,7 @@ export default function LandingPage({ onEnterApp }) {
               <div className="lp-price">$55 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span><span className="lp-tag">Show up and show out</span></div>
             </div>
             {/* Private Group */}
-            <div className="lp-card tacc lp-reveal lp-d2" onClick={onEnterApp}>
+            <div className="lp-card tacc lp-reveal lp-d2" onClick={handleBook}>
               <div className="lp-icon">
                 <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
                   <path d="M21 4L36 10V22C36 30 21 38 21 38C21 38 6 30 6 22V10L21 4Z" fill="#c8e03a" opacity=".12" stroke="#c8e03a" strokeWidth="2.2" strokeLinejoin="round"/>
@@ -516,75 +470,7 @@ export default function LandingPage({ onEnterApp }) {
             </div>
           </div>
 
-          {/* STEP TWO */}
-          <div className="lp-s2hdr lp-reveal">
-            <div className="lp-ey right">Step Two</div>
-            <div className="lp-h right">Select Your <span>Mode</span></div>
-          </div>
-          <div className="lp-grid">
-            {/* Co-Op */}
-            <div className="lp-card bacc lp-reveal lp-d1" onClick={onEnterApp}>
-              <div className="lp-icon">
-                <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-                  {/* Right hand — solid filled mass coming from right */}
-                  <path d="M48 22c0 0-3-5-7-5l-5 1-3 2-4-1-3 1 2 3 2 1-1 1-3-1-2 1 2 3 1 1-1 1-2-1-1 1 2 3c1 2 3 3 5 3l6-1 4-3 4-5 2-4z" fill="#9ab02e"/>
-                  {/* Left hand — solid filled mass coming from left */}
-                  <path d="M4 22c0 0 3-5 7-5l5 1 3 2 4-1 3 1-2 3-2 1 1 1 3-1 2 1-2 3-1 1 1 1 2-1 1 1-2 3c-1 2-3 3-5 3l-6-1-4-3-4-5-2-4z" fill="#c8e03a"/>
-                  {/* Clasped center knuckle mass */}
-                  <path d="M22 19l4 2 4-2 2 2-6 4-6-4 2-2z" fill="#c8e03a"/>
-                  {/* Overlap shading */}
-                  <path d="M26 21l6 3-6 5-6-5 6-3z" fill="#c8e03a" fillOpacity=".6"/>
-                  {/* Finger curl lines on left hand */}
-                  <path d="M8 27c0 0 2 1 3 0" stroke="#111209" strokeWidth="1.2" strokeLinecap="round" opacity=".3"/>
-                  <path d="M7 30c0 0 2 1 3 0" stroke="#111209" strokeWidth="1.1" strokeLinecap="round" opacity=".25"/>
-                  <path d="M8 33c0 0 2 1 3 0" stroke="#111209" strokeWidth="1" strokeLinecap="round" opacity=".2"/>
-                </svg>
-              </div>
-              <div className="lp-dsub">Beat the Clock</div>
-              <div className="lp-name">Co-Op</div>
-              <div className="lp-desc">Six operators — one objective — the clock is ticking. Navigate the structure, eliminate the threats, and complete the mission before time runs out. Static targets demand precision. Live opposition demands composure. Effective communication and coordination separate the winners from the rest…</div>
-              <div className="lp-meta">
-                <div className="lp-mi"><em>👥</em> Up to 6 players</div>
-                <div className="lp-mi"><em>🎯</em> Perfect your craft to climb the leaderboard</div>
-              </div>
-              <span className="lp-tag">Team vs Objective</span>
-            </div>
-            {/* Versus */}
-            <div className="lp-card bacc lp-reveal lp-d2" onClick={onEnterApp}>
-              <div className="lp-icon">
-                <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-                  {/* Left sword — blade (top-left to bottom-right) */}
-                  <path d="M8 6L14 8L44 38L42 44L36 42L6 12Z" fill="#c8e03a"/>
-                  {/* Left sword tip sharp point */}
-                  <path d="M8 6L6 12L12 10Z" fill="#c8e03a"/>
-                  {/* Left guard crosspiece */}
-                  <path d="M30 22L34 18L38 22L34 26Z" fill="#9ab02e"/>
-                  {/* Left pommel knob */}
-                  <circle cx="39.5" cy="41.5" r="3.5" fill="#9ab02e"/>
 
-                  {/* Right sword — blade (top-right to bottom-left) */}
-                  <path d="M44 6L38 8L8 38L10 44L16 42L46 12Z" fill="#c8e03a"/>
-                  {/* Right sword tip sharp point */}
-                  <path d="M44 6L46 12L40 10Z" fill="#c8e03a"/>
-                  {/* Right guard crosspiece */}
-                  <path d="M22 22L18 18L14 22L18 26Z" fill="#9ab02e"/>
-                  {/* Right pommel knob */}
-                  <circle cx="12.5" cy="41.5" r="3.5" fill="#9ab02e"/>
-
-                  {/* Center clash highlight */}
-                  <circle cx="26" cy="26" r="4" fill="#c8e03a" fillOpacity=".35"/>
-                </svg>
-              </div>
-              <div className="lp-dsub">Beat Your Opponent</div>
-              <div className="lp-name">Versus</div>
-              <div className="lp-desc">An unstoppable force meets an immovable object. Something has to give. Two teams vie for one goal — control. One advances through resistance, the other holds the line. Then roles reverse. Structures flip. When the dust settles, only one raises the hardware.</div>
-              <div className="lp-meta">
-                <div className="lp-mi"><em>👥</em> Up to 6 vs 6 (12 max)</div>
-                <div className="lp-mi"><em>🏆</em> You've gotta beat the best to be the best</div>
-              </div>
-              <span className="lp-tag">Team vs Team</span>
-            </div>
-          </div>
 
         </div>
       </section>
@@ -598,7 +484,7 @@ export default function LandingPage({ onEnterApp }) {
           </div>
           <div className="lp-steps">
             {[
-              ["01","Make Your Reservation","Book online in minutes. Pick your group, play mode, date, and time. Use our secure payment system to finalize your reservation and you're all set. Slots fill fast — lock yours in before it's gone."],
+              ["01","Make Your Reservation","Book online in minutes. Pick your play mode, group, date, and time. Use our secure payment system to finalize your reservation and you're all set. Slots fill fast — lock yours in before it's gone."],
               ["02","Arrive Early & Team Up","Show up at least 30 minutes early. Grab a drink, watch the game, and peek in on the live feeds from cameras within the structures. Rally the troops and get your squad locked in before go time."],
               ["03","Brief, Kit Up & Zero In","Receive your safety briefing, draw your full kit of protective gear and tactical equipment including your loadout, then hit the firing range to familiarize yourself with everything and zero in."],
               ["04","Drop In & Dominate","Meet your instructor for mission briefing before you breach the structure to execute your objectives. Timed scenarios with real opposition to challenge your abilities."],
@@ -714,7 +600,7 @@ export default function LandingPage({ onEnterApp }) {
           <div className="lp-cta-h">Ready to <span>Deploy?</span></div>
           <div className="lp-cta-sub">Sessions fill fast. Lock in your group now.</div>
           <div className="lp-cta-btns">
-            <button className="lp-cta-p" style={{fontSize:"1.05rem",padding:"1rem 3.5rem"}} onClick={onEnterApp}>Book Now</button>
+            <button className="lp-cta-p" style={{fontSize:"1.05rem",padding:"1rem 3.5rem"}} onClick={handleBook}>Book Now</button>
             <button className="lp-cta-s" style={{fontSize:".95rem",padding:".9rem 2.2rem"}} onClick={onEnterApp}>Sign In</button>
           </div>
         </div>
@@ -727,7 +613,7 @@ export default function LandingPage({ onEnterApp }) {
           {[["missions","Missions"],["how","How It Works"],["hours","Join Us"],["faq","FAQ"]].map(([id,label]) => (
             <button key={id} className="lp-flink" onClick={() => goTo(id)}>{label}</button>
           ))}
-          <button className="lp-flink" onClick={onEnterApp}>Book Now</button>
+          <button className="lp-flink" onClick={handleBook}>Book Now</button>
           <a className="lp-flink" href="/leaderboard.html" target="_blank" rel="noreferrer" style={{textDecoration:"none"}}>Leaderboard</a>
         </div>
         <div className="lp-fcopy">© 2026 Sector 317. All rights reserved.</div>
