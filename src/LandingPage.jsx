@@ -270,7 +270,7 @@ const CSS = `
 const FAQS = [
   { q: "What does CQB stand for and what is a shoot-house?", a: "CQB stands for Close Quarters Battle. It refers to tactical combat conducted in confined spaces like buildings, hallways, and tight indoor environments.  A shoot house is a purpose-built structure designed for tactical training in close-quarters environments. It simulates real-world interior spaces like rooms and hallways so teams can practice movement, communication, and scenario-based missions. There are the same structure types used by military and law enforcement for their tactical training. We feature two separate two-story, 4,700 sq ft structures with modular interior walls that we continually reconfigure to ensure a new experience each time you return. Structures include a variety of rooms, thresholds, blind spots, stairwells, and feature breachable doors as well as various environmental controls." },
   { q: "What do you mean when you say environmental controls?", a: "Each of our structures are packed full of awesome technology. From target sensors to livestream cameras, we track and capture all of the action to form a completely unique experience. Included in this tech package are various visual and audio controls that allow each group to define and redefine the experience they wish to have. Some examples of these controls include our Standard mode (typical house lighting), Cosmic (house lights off, black lights on!), Strobe (not for the easily dizzied or epileptic), Dark (all lights off, barrel flashlights lead the way), and Cranked (loud music - the way we listened to it in high school).  If you're feeling extra frisky, ask for Rave mode (Cosmic + Strobe + Cranked - all at once)." },
-  { q: "Is this like paintball or laser tag?", a: "Neither. We use 20-round, magazine-fed markers built on an M4-like platform (a similar frame as military and law enforcement officer training weapons used by real operators) firing harmless, water-soluble paint ammunition. Think structured scenario training, not backyard speedball." },
+  { q: "Is this like paintball or laser tag?", a: "Neither. We use 20-round, magazine-fed markers built on an M4-like platform (a similar frame as military and law enforcement officer training weapons used by real operators) firing non-lethal ammunition. Think structured scenario training, not backyard war games." },
   { q: "Do I need any prior experience to be successful?", a: "Zero. Every session begins with a safety briefing covering core CQB concepts — room clearing, terminology, communication, threat assessment — so even complete beginners feel prepared. Our instructors walk you through everything before you breach your first structure." },
   { q: "What do I need to bring?", a: "Just closed-toe shoes and your competitive spirit. Full loadout and protective gear are provided at no additional cost. We do recommend you wear comfortable athletic clothing — and never wear your favorite shirt. Wear your second favorite shirt." },
   { q: "What's the age requirement?", a: "Participants must be 16 or older. Players aged 16–17 require a consenting adult participating alongside them and a guardian-signed waiver on file." },
@@ -517,13 +517,28 @@ export default function LandingPage({ onEnterApp }) {
             {/* Co-Op */}
             <div className="lp-card bacc lp-reveal lp-d1" onClick={onEnterApp}>
               <div className="lp-icon">
-                <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-                  <circle cx="21" cy="21" r="15" fill="#c8e03a" opacity=".08" stroke="#c8e03a" strokeWidth="2.2"/>
-                  <circle cx="21" cy="21" r="10" stroke="#9ab02e" strokeWidth="1.5" opacity=".45"/>
-                  <path d="M21 21V11" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M21 21L28 26" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round"/>
-                  <circle cx="21" cy="21" r="2.5" fill="#c8e03a"/>
-                  <path d="M21 6v2M21 34v2M6 21H8M34 21h2" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round" opacity=".45"/>
+                <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
+                  {/* Left hand fingers */}
+                  <path d="M4 22c0 0 2-4 5-4l6 2" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  <path d="M6 26c-1-1-2-3-2-4" stroke="#c8e03a" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6"/>
+                  <path d="M4 28c-1-2-1-4 0-5" stroke="#c8e03a" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".45"/>
+                  <path d="M5 31c-2-2-2-5-1-7" stroke="#c8e03a" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35"/>
+                  {/* Left arm / wrist */}
+                  <path d="M9 18L13 16L19 17L25 21" stroke="#c8e03a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  {/* Right hand fingers */}
+                  <path d="M42 22c0 0-2-4-5-4l-6 2" stroke="#9ab02e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  <path d="M40 26c1-1 2-3 2-4" stroke="#9ab02e" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity=".6"/>
+                  <path d="M42 28c1-2 1-4 0-5" stroke="#9ab02e" strokeWidth="1.4" strokeLinecap="round" fill="none" opacity=".45"/>
+                  <path d="M41 31c2-2 2-5 1-7" stroke="#9ab02e" strokeWidth="1.3" strokeLinecap="round" fill="none" opacity=".35"/>
+                  {/* Right arm / wrist */}
+                  <path d="M37 18L33 16L27 17L21 21" stroke="#9ab02e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  {/* Clasped hands center */}
+                  <path d="M19 17L22 20L24 20L27 17" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="#c8e03a" fillOpacity=".12"/>
+                  <path d="M15 22L23 26L31 22L23 18Z" fill="#c8e03a" fillOpacity=".18" stroke="#c8e03a" strokeWidth="1.6" strokeLinejoin="round"/>
+                  <path d="M15 22L23 30L31 22" stroke="#9ab02e" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity=".55"/>
+                  {/* Grip lines */}
+                  <path d="M19 23.5L23 25.5L27 23.5" stroke="#c8e03a" strokeWidth="1.1" strokeLinecap="round" opacity=".5"/>
+                  <path d="M19 26L23 28L27 26" stroke="#c8e03a" strokeWidth="1" strokeLinecap="round" opacity=".3"/>
                 </svg>
               </div>
               <div className="lp-dsub">Beat the Clock</div>
@@ -538,15 +553,34 @@ export default function LandingPage({ onEnterApp }) {
             {/* Versus */}
             <div className="lp-card bacc lp-reveal lp-d2" onClick={onEnterApp}>
               <div className="lp-icon">
-                <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-                  <path d="M8 8L30 30" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round"/>
-                  <path d="M8 8L14 6L16 12" stroke="#c8e03a" strokeWidth="2" strokeLinejoin="round" fill="#c8e03a" opacity=".35"/>
-                  <rect x="26" y="26" width="8" height="4" rx="1" transform="rotate(45 26 26)" fill="#c8e03a" opacity=".25" stroke="#c8e03a" strokeWidth="1"/>
-                  <path d="M34 8L12 30" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round"/>
-                  <path d="M34 8L28 6L26 12" stroke="#c8e03a" strokeWidth="2" strokeLinejoin="round" fill="#c8e03a" opacity=".35"/>
-                  <rect x="8" y="26" width="8" height="4" rx="1" transform="rotate(-45 8 26)" fill="#c8e03a" opacity=".25" stroke="#c8e03a" strokeWidth="1"/>
-                  <circle cx="21" cy="21" r="4" fill="#c8e03a" opacity=".15" stroke="#c8e03a" strokeWidth="1.5"/>
-                  <path d="M21 15v-3M21 27v3M15 21h-3M27 21h3" stroke="#c8e03a" strokeWidth="1.5" strokeLinecap="round" opacity=".35"/>
+                <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
+                  {/* Left sword - blade top-left to center */}
+                  <path d="M7 6L24 23" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round"/>
+                  {/* Left sword tip detail */}
+                  <path d="M7 6L9 12L13 9Z" fill="#c8e03a" fillOpacity=".8" stroke="#c8e03a" strokeWidth="1" strokeLinejoin="round"/>
+                  {/* Left sword guard */}
+                  <rect x="17" y="19" width="8" height="3.5" rx="1" transform="rotate(45 17 19)" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/>
+                  {/* Left sword handle */}
+                  <path d="M26 25L31 30" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round"/>
+                  <rect x="29" y="28" width="7" height="2.5" rx="1.2" transform="rotate(45 29 28)" fill="#c8e03a" fillOpacity=".35" stroke="#c8e03a" strokeWidth="1"/>
+                  {/* Left pommel */}
+                  <circle cx="33.5" cy="33.5" r="2.2" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/>
+
+                  {/* Right sword - blade top-right to center */}
+                  <path d="M39 6L22 23" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round"/>
+                  {/* Right sword tip detail */}
+                  <path d="M39 6L37 12L33 9Z" fill="#c8e03a" fillOpacity=".8" stroke="#c8e03a" strokeWidth="1" strokeLinejoin="round"/>
+                  {/* Right sword guard */}
+                  <rect x="21" y="19" width="8" height="3.5" rx="1" transform="rotate(-45 21 19)" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/>
+                  {/* Right sword handle */}
+                  <path d="M20 25L15 30" stroke="#c8e03a" strokeWidth="2.2" strokeLinecap="round"/>
+                  <rect x="10" y="28" width="7" height="2.5" rx="1.2" transform="rotate(-45 10 28)" fill="#c8e03a" fillOpacity=".35" stroke="#c8e03a" strokeWidth="1"/>
+                  {/* Right pommel */}
+                  <circle cx="12.5" cy="33.5" r="2.2" fill="#9ab02e" stroke="#c8e03a" strokeWidth="1.2"/>
+
+                  {/* Clash spark at center */}
+                  <circle cx="23" cy="23" r="2.5" fill="#c8e03a" fillOpacity=".25" stroke="#c8e03a" strokeWidth="1.2"/>
+                  <path d="M23 19v-2M23 27v2M19 23h-2M27 23h2" stroke="#c8e03a" strokeWidth="1.2" strokeLinecap="round" opacity=".5"/>
                 </svg>
               </div>
               <div className="lp-dsub">Beat Your Opponent</div>
