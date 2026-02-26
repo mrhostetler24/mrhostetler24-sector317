@@ -650,6 +650,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   const [selDate,setSelDate]=useState(null);
   const [selSlots,setSelSlots]=useState([]);
   const [addingMore,setAddingMore]=useState(false);
+  const [secondLanePrompt,setSecondLanePrompt]=useState(null); // {startTime} when offer is pending
   const [playerCount,setPlayerCount]=useState(1);
   const [playerInputs,setPlayerInputs]=useState([]);
   const [bookingForOther,setBookingForOther]=useState(false);
@@ -671,7 +672,25 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   const pricePerSlot=selType?selType.pricingMode==="flat"?selType.price:selType.price*effPlayerCount:0;
   const total=pricePerSlot*selSlots.length;
   useEffect(()=>{ setPlayerInputs(Array.from({length:Math.max(0,effPlayerCount-1)},(_,i)=>playerInputs[i]||{phone:"",userId:null,name:"",status:"idle"})); },[effPlayerCount]);
-  const addSlot=st=>{if(!selSlots.find(s=>s.startTime===st))setSelSlots(p=>[...p,{startTime:st}]);setAddingMore(false);};
+  const addSlot=st=>{
+    setSelSlots(p=>{
+      // Private: allow up to 2 entries per startTime (one per lane); open: deduplicate
+      const existing=p.filter(s=>s.startTime===st).length;
+      if(isPrivate&&existing>=2) return p;
+      if(!isPrivate&&existing>=1) return p;
+      return [...p,{startTime:st}];
+    });
+    setAddingMore(false);
+    // For private, check if a second lane is available and we haven't already added two
+    if(isPrivate){
+      const alreadyTwo=selSlots.filter(s=>s.startTime===st).length>=1;
+      if(!alreadyTwo){
+        const status=getSlotStatus(selDate,st,selType?.id,reservations,resTypes,sessionTemplates);
+        const freeLanesAfter=(status.lanes||[]).filter(l=>l.type===null).length;
+        if(freeLanesAfter>1) setSecondLanePrompt(st);
+      }
+    }
+  };
   // private skips step 5 (player count)
   const steps=isPrivate?["Mode","Type","Date","Time","Group & Pay"]:["Mode","Type","Date","Time","Players","Payment"];
   const canNext=isPrivate?[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true]:[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,playerCount>=minP,true];
@@ -746,7 +765,22 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       </>}
       {step===4&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".65rem"}}>Pick time slots for <strong style={{color:"var(--txt)"}}>{selDate?fmt(selDate):"—"}</strong></p>
-        {selSlots.length>0&&<>{selSlots.map(s=><div className="session-block" key={s.startTime}><div className="session-block-info"><strong>{fmt12(s.startTime)}</strong></div><button className="chip-remove" onClick={()=>setSelSlots(p=>p.filter(x=>x.startTime!==s.startTime))}>✕</button></div>)}<div style={{marginBottom:".75rem"}}/></>}
+        {selSlots.length>0&&<>{
+  // Group by startTime so dual-lane shows as one chip with "×2"
+  Object.entries(selSlots.reduce((acc,s)=>{acc[s.startTime]=(acc[s.startTime]||0)+1;return acc;},{})).map(([st,count])=>(
+    <div className="session-block" key={st}>
+      <div className="session-block-info">
+        <strong>{fmt12(st)}</strong>
+        {count>1&&<span style={{marginLeft:".4rem",fontSize:".72rem",color:"var(--acc)",fontFamily:"var(--fd)",letterSpacing:".06em"}}>×{count} LANES</span>}
+      </div>
+      <button className="chip-remove" onClick={()=>{
+        if(count>1){setSelSlots(p=>{const idx=p.findLastIndex?.(s=>s.startTime===st)??p.map(s=>s.startTime).lastIndexOf(st);return p.filter((_,i)=>i!==idx);});}
+        else{setSelSlots(p=>p.filter(x=>x.startTime!==st));}
+        setSecondLanePrompt(null);
+      }}>✕</button>
+    </div>
+  ))
+}<div style={{marginBottom:".75rem"}}/></>}}
         {(selSlots.length===0||addingMore)&&<>
           {/* Slot cards with per-lane info */}
         <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=>{
@@ -765,7 +799,18 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   </div>;})}
 </div>
         </>}
-        {selSlots.length>0&&!addingMore&&<button className="btn btn-s btn-sm" onClick={()=>setAddingMore(true)}>+ Add Another Slot</button>}
+        {secondLanePrompt&&isPrivate&&selSlots.filter(s=>s.startTime===secondLanePrompt).length<2&&<div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.25)",borderRadius:6,padding:".85rem 1rem",marginBottom:".75rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem",flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontFamily:"var(--fd)",fontSize:".78rem",letterSpacing:".08em",color:"var(--acc)",marginBottom:".2rem"}}>SECOND LANE AVAILABLE</div>
+            <div style={{fontSize:".84rem",color:"var(--txt)"}}>Both lanes are open at <strong>{fmt12(secondLanePrompt)}</strong> — add the second lane to your reservation?</div>
+            <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".2rem"}}>+{fmtMoney(pricePerSlot)} · Great for larger groups or back-to-back runs</div>
+          </div>
+          <div style={{display:"flex",gap:".5rem",flexShrink:0}}>
+            <button className="btn btn-s btn-sm" onClick={()=>setSecondLanePrompt(null)}>No thanks</button>
+            <button className="btn btn-p btn-sm" onClick={()=>{setSelSlots(p=>[...p,{startTime:secondLanePrompt}]);setSecondLanePrompt(null);}}>+ Add Lane</button>
+          </div>
+        </div>}
+        {selSlots.length>0&&!addingMore&&!secondLanePrompt&&<button className="btn btn-s btn-sm" onClick={()=>setAddingMore(true)}>+ Add Another Slot</button>}
       </>}
       {step===5&&!isPrivate&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Players{selType?.pricingMode==="per_person"&&<span style={{color:"var(--accB)",marginLeft:".5rem"}}>{fmtMoney(selType.price)}/player</span>}</p>
@@ -811,7 +856,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
       </>}
       <div className="ma">
-        <button className="btn btn-s" onClick={()=>step===1?onClose():(step===4&&setSelSlots([]),setStep(s=>s-1))}>{step===1?"Cancel":"← Back"}</button>
+        <button className="btn btn-s" onClick={()=>step===1?onClose():(step===4&&(setSelSlots([]),setSecondLanePrompt(null)),setStep(s=>s-1))}>{step===1?"Cancel":"← Back"}</button>
         {step<steps.length?<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>:<button className="btn btn-p" onClick={()=>{
   const p1=bookingForOther
     ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:""),phone:player1Input.phone}
