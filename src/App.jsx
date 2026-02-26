@@ -526,31 +526,39 @@ function validateLbName(val,allUsers,currentUserId){
   if(taken)return"That leaderboard name is already taken — choose a different one and try again";
   return null;
 }
-function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=false}){
+function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=false,label=null}){
   const {phone="",userId=null,name="",status="idle"}=value;
   const clean=cleanPh(phone);
-  const lookup=useCallback(()=>{
+  const [searching,setSearching]=useState(false);
+  const lookup=useCallback(async()=>{
     if(clean.length<10)return;
-    // Search ALL users by phone — social-auth and phone-only alike
-    const found=users.find(u=>u.phone===clean&&u.id!==bookerUserId);
-    if(found)onChange({phone:clean,userId:found.id,name:found.name,status:"found"});
-    else onChange({phone:clean,userId:null,name:"",status:"notfound"});
-  },[clean,users,bookerUserId]);
+    setSearching(true);
+    try{
+      // 1. Check in-memory list first (catches all loaded users including booker)
+      const found=users.find(u=>cleanPh(u.phone||"")===clean);
+      if(found){onChange({phone:clean,userId:found.id,name:found.name,status:"found"});return;}
+      // 2. Fallback: live DB lookup in case user wasn't in initial load
+      const dbUser=await fetchUserByPhone(clean);
+      if(dbUser){onChange({phone:clean,userId:dbUser.id,name:dbUser.name,status:"found"});}
+      else{onChange({phone:clean,userId:null,name:"",status:"notfound"});}
+    }finally{setSearching(false);}
+  },[clean,users]);
   const foundUser=status==="found"?users.find(u=>u.id===userId):null;
+  const displayLabel=label||(index!=null?`Player ${index+2}`:"Player");
   return(
     <div className="pi-row">
-      <div className="pi-label">Player {index+2}</div>
+      <div className="pi-label">{displayLabel}</div>
       <div style={{display:"flex",gap:".5rem",alignItems:"flex-end",flexWrap:"wrap"}}>
         <div className="f" style={{marginBottom:0,flex:1,minWidth:200}}><label>Cell Number</label><div className="phone-wrap"><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={phone} onChange={e=>{onChange({phone:cleanPh(e.target.value),userId:null,name:"",status:"idle"});}} onKeyDown={e=>e.key==="Enter"&&lookup()} placeholder="Enter phone number with area code"/></div></div>
         {status==="notfound"&&<div className="f" style={{marginBottom:0,flex:1,minWidth:150}}><label>Full Name</label><input value={name} onChange={e=>onChange({...value,name:e.target.value})} placeholder="First Last"/></div>}
-        {status==="idle"&&<button className="btn btn-s btn-sm" style={{marginBottom:2}} disabled={clean.length<10} onClick={lookup}>Search →</button>}
+        {status==="idle"&&<button className="btn btn-s btn-sm" style={{marginBottom:2}} disabled={clean.length<10||searching} onClick={lookup}>{searching?"…":"Search →"}</button>}
       </div>
-      {status==="found"&&foundUser&&(
+      {status==="found"&&(foundUser||userId)&&(
         <div className="pi-found" style={{display:"flex",alignItems:"center",gap:".4rem"}}>
-          <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(foundUser.name)}</span>
+          <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(foundUser?.name||name)}</span>
           {showFullName
-            ? <span>✓ <strong style={{color:"var(--txt)"}}>{foundUser.name}</strong></span>
-            : <span style={{color:"var(--okB)"}}>✓ Player found{foundUser.authProvider&&<span style={{marginLeft:".35rem",fontSize:".68rem",color:"var(--muted)"}}>({foundUser.authProvider})</span>}</span>}
+            ? <span>✓ <strong style={{color:"var(--txt)"}}>{foundUser?.name||name}</strong></span>
+            : <span style={{color:"var(--okB)"}}>✓ Player found{foundUser?.authProvider&&<span style={{marginLeft:".35rem",fontSize:".68rem",color:"var(--muted)"}}>({foundUser.authProvider})</span>}</span>}
         </div>
       )}
       {status==="notfound"&&clean.length===10&&<div className="pi-notfound">⚠ No account found — a staff member can add them at check-in</div>}
@@ -567,6 +575,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   const [addingMore,setAddingMore]=useState(false);
   const [playerCount,setPlayerCount]=useState(1);
   const [playerInputs,setPlayerInputs]=useState([]);
+  const [bookingForOther,setBookingForOther]=useState(false);
+  const [player1Input,setPlayer1Input]=useState({phone:"",userId:null,name:"",status:"idle"});
   const bookable=resTypes.filter(rt=>rt.active&&rt.availableForBooking);
   const selType=bookable.find(rt=>rt.mode===selMode&&rt.style===selStyle);
   const allDates=get60Dates(sessionTemplates);
@@ -583,6 +593,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   // private skips step 5 (player count)
   const steps=isPrivate?["Mode","Type","Date","Time","Group & Pay"]:["Mode","Type","Date","Time","Players","Payment"];
   const canNext=isPrivate?[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true]:[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true,true];
+  const isStaffBooker=['staff','manager','admin'].includes(currentUser.access);
   if(!currentUser.authProvider)return(
     <div className="mo"><div className="mc"><div className="mt2">Social Sign-In Required</div>
       <p style={{color:"var(--muted)",marginBottom:"1rem",fontSize:".88rem"}}>To complete a reservation and process payment, you must sign in with a verified social account (Google, Microsoft, or Apple).</p>
@@ -624,7 +635,30 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       {step===5&&!isPrivate&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Players{selType?.pricingMode==="per_person"&&<span style={{color:"var(--accB)",marginLeft:".5rem"}}>{fmtMoney(selType.price)}/player</span>}</p>
         <div className="f"><label>Number of Players (max {maxP})</label><input type="number" min={1} max={maxP} value={playerCount} onChange={e=>setPlayerCount(Math.min(maxP,Math.max(1,+e.target.value)))}/></div>
-        {playerCount>1&&<><p style={{fontSize:".78rem",color:"var(--muted)",marginBottom:".65rem"}}>Add group phone numbers to speed up check-in and waiver signing:</p><div className="player-inputs">{playerInputs.map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={currentUser.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}</div></>}
+        {/* Player 1 — booker by default, or replacement input if booking for someone else */}
+        <div className="player-inputs">
+          {!bookingForOther
+            ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
+                <div className="pi-label">Player 1</div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
+                    <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
+                    <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
+                    <span style={{fontSize:".75rem",color:"var(--okB)"}}>— you</span>
+                  </div>
+                  <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",whiteSpace:"nowrap"}}>
+                    <input type="checkbox" checked={bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                    Booking for someone else
+                  </label>
+                </div>
+              </div>
+            : <div>
+                <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} onChange={setPlayer1Input} showFullName={true}/>
+                <div style={{marginTop:".4rem"}}><label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}><input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>Booking for someone else</label></div>
+              </div>
+          }
+          {playerCount>1&&playerInputs.map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={currentUser.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}
+        </div>
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
       </>}
       {step===5&&isPrivate&&<>
@@ -643,7 +677,12 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       </>}
       <div className="ma">
         <button className="btn btn-s" onClick={()=>step===1?onClose():setStep(s=>s-1)}>{step===1?"Cancel":"← Back"}</button>
-        {step<steps.length?<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>:<button className="btn btn-p" onClick={()=>{selSlots.forEach(s=>{onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,extraPlayers:playerInputs});});}}>{isPrivate?`Pay ${fmtMoney(total)} & Confirm`:`Pay ${fmtMoney(total)} & Confirm`}</button>}
+        {step<steps.length?<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>:<button className="btn btn-p" onClick={()=>{
+  const p1=bookingForOther
+    ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:""),phone:player1Input.phone}
+    :{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
+  selSlots.forEach(s=>{onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:p1,bookingForOther,extraPlayers:playerInputs});});
+}}>{isPrivate?`Pay ${fmtMoney(total)} & Confirm`:`Pay ${fmtMoney(total)} & Confirm`}</button>}
       </div>
     </div></div>
   );
@@ -1563,12 +1602,20 @@ useEffect(() => {
 
   const handleBook=async b=>{
     try{
-      // Auto-add the booker as first player
-      const bookerPlayer={userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
-      const extraPlayers=(b.players||[]).filter(p=>p.userId!==currentUser.id&&(p.name||p.phone));
-      const players=[bookerPlayer,...extraPlayers];
-      const newRes=await createReservation({...b,status:"confirmed",players});
-      setReservations(p=>[newRes,...p]);
+      // Player 1: booker unless "booking for someone else" was checked
+      const p1=b.player1||{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
+      const extra=(b.extraPlayers||[]).filter(p=>p.phone||p.name).map(p=>({
+        userId:p.userId??null,
+        name:p.name||(p.userId?users.find(u=>u.id===p.userId)?.name||"":""),
+        phone:p.phone||"",
+      }));
+      const players=[p1,...extra];
+      const newRes=await createReservation({...b,status:"confirmed",players:[]});
+      // Write players to reservation_players table
+      await Promise.all(players.map(p=>addPlayerToReservation(newRes.id,p,[])));
+      // Reload to get proper players array from DB
+      const fresh={...newRes,players};
+      setReservations(p=>[fresh,...p]);
     }catch(err){showToast("Booking error: "+err.message);}
   };
 
@@ -1582,9 +1629,8 @@ useEffect(() => {
 
   const handleAddPlayer=async(resId,player)=>{
     try{
-      const res=reservations.find(r=>r.id===resId);
-      const updated=await addPlayerToReservation(resId,player,res?.players||[]);
-      setReservations(p=>p.map(r=>r.id===resId?updated:r));
+      const newPlayer=await addPlayerToReservation(resId,player,[]);
+      setReservations(p=>p.map(r=>r.id===resId?{...r,players:[...(r.players||[]),newPlayer]}:r));
     }catch(err){showToast("Error adding player: "+err.message);}
   };
 
