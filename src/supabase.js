@@ -153,10 +153,22 @@ export async function fetchAllUsers() {
 }
 
 export async function fetchUserByPhone(phone) {
+  // Uses SECURITY DEFINER RPC to bypass RLS — safe, returns limited fields only
   const { data, error } = await supabase
-    .from('users').select('*').eq('phone', phone).maybeSingle()
+    .rpc('lookup_user_by_phone', { p_phone: phone })
   if (error) throw error
-  return toUser(data)
+  const row = data?.[0] ?? null
+  return row ? {
+    id:              row.id,
+    name:            row.name,
+    phone:           row.phone,
+    access:          row.access,
+    leaderboardName: row.leaderboard_name,
+    // fields not returned by RPC — safe defaults
+    email: null, authId: null, authProvider: null,
+    waivers: [], needsRewaiverDocId: null,
+    active: true, role: null, isReal: true,
+  } : null
 }
 
 export async function fetchUserByEmail(email) {
