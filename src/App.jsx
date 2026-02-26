@@ -614,7 +614,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
     <div className="mo"><div className="mc" style={{maxWidth:660}}>
       <div style={{display:"flex",gap:".25rem",marginBottom:"1.1rem"}}>{steps.map((s,i)=><div key={s} style={{flex:1,height:3,borderRadius:2,background:i<step?"var(--acc)":"var(--bdr)",transition:"background .3s"}}/>)}</div>
       <div className="mt2">{steps[step-1]}</div>
-      {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>has&&setSelMode(m)}><div className="mode-icon">{m==="coop"?"🤝":"⚔️"}</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Team vs objective — beat the clock together":"Run 1: Team 1 attacks / Team 2 defends. Run 2: roles flip. Combined scores decide the winner. Tiebreaker on time."}</div></div>;})} </div>}
+      {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>has&&setSelMode(m)}><div className="mode-icon">{m==="coop"?"🤝":<svg viewBox="0 0 64 40" width="52" height="32" style={{display:"block",margin:"0 auto"}}><text x="2" y="34" fontFamily="'Black Ops One',sans-serif" fontSize="36" fontWeight="900" fill="currentColor" style={{fill:"var(--accB)",letterSpacing:"-2px"}}>VS</text><line x1="44" y1="2" x2="62" y2="38" stroke="var(--accB)" strokeWidth="3.5" strokeLinecap="round"/><line x1="40" y1="2" x2="58" y2="38" stroke="var(--acc2)" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/></svg>}</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Team vs objective — beat the clock together":"Run 1: Team 1 attacks / Team 2 defends. Run 2: roles flip. Combined scores decide the winner. Tiebreaker on time."}</div></div>;})} </div>}
       {step===2&&<div className="mode-grid">{["open","private"].map(sty=>{const rt=bookable.find(x=>x.mode===selMode&&x.style===sty);if(!rt)return <div key={sty} className="mode-card disabled"><div className="mode-icon">{sty==="open"?"🔓":"🔒"}</div><div className="mode-name">{sty}</div><div style={{fontSize:".72rem",color:"var(--dangerL)",marginTop:".5rem"}}>Unavailable</div></div>;return <div key={sty} className={`mode-card${selStyle===sty?" sel":""}`} onClick={()=>setSelStyle(sty)}><div className="mode-icon">{sty==="open"?"🔓":"🔒"}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Rental"}</div><div className="mode-desc">{rt.description}</div><div className="mode-price">{rt.pricingMode==="flat"?`${fmtMoney(rt.price)} flat`:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
       {step===3&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Choose a date.</p>
@@ -686,7 +686,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   );
 }
 
-function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,onAddPlayer,onSignWaiver,onCancel}){
+function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,isAdmin=false,onAddPlayer,onSignWaiver,onCancel}){
   const [open,setOpen]=useState(false);
   const [addPhone,setAddPhone]=useState("");const [addName,setAddName]=useState("");const [addStatus,setAddStatus]=useState("idle");const [addUserId,setAddUserId]=useState(null);
   const [wTarget,setWTarget]=useState(null);
@@ -703,7 +703,7 @@ function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage
         <td><div style={{fontSize:".82rem"}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td>
         <td><div>{res.players.length}/{res.playerCount}</div><div style={{fontSize:".72rem",color:wOk>0&&wOk>=res.players.length?"var(--okB)":"var(--dangerL)"}}>{wOk}/{res.players.length} waivers</div></td>
         <td><span className={`badge ${res.status==="confirmed"?"b-ok":res.status==="completed"?"b-done":"b-cancel"}`}>{res.status}</span></td>
-        <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(res.amount)}</td>
+        {isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(res.amount)}</td>}
       </tr>
       {open&&<tr><td colSpan={5} style={{padding:0}}><div className="res-expand">
         {!res.players.length&&<div style={{padding:".75rem 1.25rem",fontSize:".82rem",color:"var(--muted)"}}>No players checked in yet.</div>}
@@ -1187,30 +1187,66 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const players=active.reduce((s,r)=>s+r.playerCount,0);
             const coopRes=active.filter(r=>{const rt=getType(r.typeId);return rt?.mode==="coop";});
             const vsRes=active.filter(r=>{const rt=getType(r.typeId);return rt?.mode==="versus";});
-            // Utilization: expected players = sessions * (coop avg 4.5 * 60% + versus avg 8.5 * 40%)
-            // Expected per session slot ≈ 4.5*0.6 + 8.5*0.4 = 2.7 + 3.4 = 6.1 avg players per booking
-            const coopPlayers=coopRes.reduce((s,r)=>s+r.playerCount,0);
-            const vsPlayers=vsRes.reduce((s,r)=>s+r.playerCount,0);
-            const coopCapacity=coopRes.length*4.5;
-            const vsCapacity=vsRes.length*8.5;
-            const totalCapacity=coopCapacity+vsCapacity;
-            const totalActual=coopPlayers+vsPlayers;
+            // Utilization: capacity = total offered sessions in period × 6.22 players/session
+            // "Offered sessions" = unique (date × startTime) slots that fall within the dash period
+            // derived from reservations that were not cancelled — actual player headcount counts per slot booked
+            // For each active reservation, playerCount × number of slots it occupies (1 per reservation row)
+            // So actualPlayers = sum of r.playerCount across all active reservations in period
+            // offeredSessions = count of distinct (date,startTime) slots covered by active session templates
+            // within the dash period dates. We approximate by counting unique slot occurrences in dashRes
+            // plus any offered slots with no bookings (hard to know without full calendar scan).
+            // Best approach: count unique (date,startTime) slots seen in all non-cancelled reservations
+            // as a proxy for sessions that actually ran, then full capacity = those slots × 6.22
+            // More accurate: enumerate template slots across the dash period date range
+            const getOfferedSessions=()=>{
+              // Enumerate all (date,startTime) template slots in the dash period
+              const activeTmpls=sessionTemplates.filter(t=>t.active);
+              if(!activeTmpls.length) return 0;
+              // Determine date range for denominator
+              const now=new Date();
+              let from="",to=todayStr();
+              if(dashPeriod==="day"){from=to=todayStr();}
+              else if(dashPeriod==="week"){const d=new Date(now);d.setDate(d.getDate()-d.getDay());from=d.toISOString().slice(0,10);}
+              else if(dashPeriod==="month"){from=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-01`;}
+              else if(dashPeriod==="year"){from=`${now.getFullYear()}-01-01`;}
+              else if(dashPeriod==="custom"){from=dashFrom;to=dashTo;}
+              else {
+                // "all time" — use earliest reservation date as from
+                const dates=reservations.map(r=>r.date).sort();
+                from=dates[0]||todayStr();
+              }
+              if(!from) return 0;
+              let count=0;
+              const start=new Date(from+"T12:00:00");
+              const end=new Date(to+"T12:00:00");
+              for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+                const dayName=d.toLocaleDateString("en-US",{weekday:"long"});
+                // Each active template slot on this day = one offered session
+                count+=activeTmpls.filter(t=>t.dayOfWeek===dayName).length;
+              }
+              return count;
+            };
+            const offeredSessions=getOfferedSessions();
+            const totalCapacity=offeredSessions*6.22;
+            const totalActual=players; // sum of playerCount × slots (each reservation row = 1 slot)
             const utilPct=totalCapacity>0?Math.round((totalActual/totalCapacity)*100):null;
             const activeSlots=sessionTemplates.filter(s=>s.active).length;
+            const canSeeFinancials=isAdmin; // admin-only: revenue & utilization
+            const canSeeDash=user.access!=="customer"; // staff/manager/admin see everything else
             return <>
-              <div className="stat-card"><div className="stat-lbl">Revenue</div><div className="stat-val">{fmtMoney(revenue)}</div></div>
-              <div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} versus</div></div>
-              <div className="stat-card"><div className="stat-lbl">Total Players</div><div className="stat-val">{players}</div><div className="stat-sub">avg {active.length?Math.round(players/active.length):0}/session</div></div>
-              <div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val">{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">vs expected capacity</div></div>
-              <div className="stat-card"><div className="stat-lbl">Active Session Slots</div><div className="stat-val">{activeSlots}</div><div className="stat-sub">weekly recurring</div></div>
-              <div className="stat-card"><div className="stat-lbl">Active Types</div><div className="stat-val">{resTypes.filter(rt=>rt.active).length}</div></div>
+              {canSeeFinancials&&<div className="stat-card"><div className="stat-lbl">Revenue</div><div className="stat-val">{fmtMoney(revenue)}</div></div>}
+              {canSeeDash&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} versus</div></div>}
+              {canSeeDash&&<div className="stat-card"><div className="stat-lbl">Total Players</div><div className="stat-val">{players}</div><div className="stat-sub">avg {active.length?Math.round(players/active.length):0}/session</div></div>}
+              {canSeeFinancials&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions offered · 6.22 avg capacity</div></div>}
+              {canSeeDash&&<div className="stat-card"><div className="stat-lbl">Active Session Slots</div><div className="stat-val">{activeSlots}</div><div className="stat-sub">weekly recurring</div></div>}
+              {canSeeDash&&<div className="stat-card"><div className="stat-lbl">Active Types</div><div className="stat-val">{resTypes.filter(rt=>rt.active).length}</div></div>}
             </>;
           })()}
         </div>
         {alertShifts.length>0&&<div className="alert-banner"><div className="alert-dot"/><strong style={{color:"var(--warnL)"}}>⚠ {alertShifts.length} shift conflict{alertShifts.length!==1?"s":""} need coverage</strong></div>}
         <div className="tw"><div className="th"><span className="ttl">Recent Bookings</span></div>
-          <table><thead><tr><th>Customer</th><th>Type</th><th>Date</th><th>Players</th><th>Amount</th><th>Status</th></tr></thead>
-            <tbody>{[...dashRes].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10).map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td><td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td><td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td></tr>;})}
+          <table><thead><tr><th>Customer</th><th>Type</th><th>Date</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Status</th></tr></thead>
+            <tbody>{[...dashRes].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10).map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td>{isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}<td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td></tr>;})}
             </tbody>
           </table>
         </div>
@@ -1226,8 +1262,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           <button className={`btn btn-sm ${resSort==="desc"?"btn-p":"btn-s"}`} onClick={()=>setResSort("desc")}>↓ Latest</button>
           <span style={{marginLeft:"auto",fontSize:".75rem",color:"var(--muted)"}}>{filtered.length}/{reservations.length}</span>
         </div>
-        <div className="tw"><table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th><th>Amount</th></tr></thead>
-          <tbody>{!filtered.length&&<tr><td colSpan={5} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No reservations.</td></tr>}{filtered.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes}/>)}</tbody>
+        <div className="tw"><table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th>{isAdmin&&<th>Amount</th>}</tr></thead>
+          <tbody>{!filtered.length&&<tr><td colSpan={isAdmin?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No reservations.</td></tr>}{filtered.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes}/>)}</tbody>
         </table></div>
       </>}
 
