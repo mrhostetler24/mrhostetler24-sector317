@@ -105,19 +105,66 @@ function hasValidWaiver(user, activeWaiverDoc) {
 const latestWaiverDate = user => user?.waivers?.length ? user.waivers.reduce((a,b)=>a.signedAt>b.signedAt?a:b).signedAt : null;
 const latestWaiverEntry = user => user?.waivers?.length ? user.waivers.reduce((a,b)=>a.signedAt>b.signedAt?a:b) : null;
 function getSessionsForDate(date,templates) { return templates.filter(t=>t.active&&t.dayOfWeek===getDayName(date)); }
-function getSlotStatus(date,startTime,typeId,reservations,resTypes,templates) {
+// Build lane state for a given date+time slot.
+// Each lane (1..maxSessions) can hold: one private reservation OR open-play
+// reservations that share the same mode. Returns array of lane objects.
+function buildLanes(date,startTime,reservations,resTypes,templates) {
   const tmpl = getSessionsForDate(date,templates).find(t=>t.startTime===startTime);
-  if(!tmpl) return {available:false,reason:"No session"};
+  if(!tmpl) return {tmpl:null,lanes:[]};
+  const numLanes = tmpl.maxSessions;
   const slotRes = reservations.filter(r=>r.date===date&&r.startTime===startTime&&r.status!=="cancelled");
+  // Assign each reservation to a lane index (0-based)
+  const lanes = Array.from({length:numLanes},(_,i)=>({laneNum:i+1,type:null,mode:null,reservations:[],playerCount:0}));
+  // First pass: assign private reservations (one per lane, first available)
+  const privRes = slotRes.filter(r=>resTypes.find(x=>x.id===r.typeId)?.style==="private");
+  const openRes = slotRes.filter(r=>resTypes.find(x=>x.id===r.typeId)?.style==="open");
+  let laneIdx=0;
+  for(const r of privRes){
+    if(laneIdx<numLanes){lanes[laneIdx].type="private";lanes[laneIdx].mode=resTypes.find(x=>x.id===r.typeId)?.mode;lanes[laneIdx].reservations.push(r);lanes[laneIdx].playerCount+=(r.playerCount||1);laneIdx++;}
+  }
+  // Second pass: group open-play by mode, pack into lanes
+  const openByMode={};
+  for(const r of openRes){
+    const mode=resTypes.find(x=>x.id===r.typeId)?.mode||"unknown";
+    (openByMode[mode]=openByMode[mode]||[]).push(r);
+  }
+  for(const [mode,rList] of Object.entries(openByMode)){
+    // Find an existing open lane for this mode, or take a free lane
+    let targetLane = lanes.find(l=>l.type==="open"&&l.mode===mode);
+    if(!targetLane) targetLane = lanes.find(l=>l.type===null);
+    if(!targetLane) continue; // no room (shouldn't happen with valid data)
+    targetLane.type="open";targetLane.mode=mode;
+    for(const r of rList){targetLane.reservations.push(r);targetLane.playerCount+=(r.playerCount||1);}
+  }
+  return {tmpl,lanes};
+}
+
+// Max players per open-play lane based on mode
+function laneCapacity(mode){return mode==="versus"?12:6;}
+
+function getSlotStatus(date,startTime,typeId,reservations,resTypes,templates) {
+  const {tmpl,lanes} = buildLanes(date,startTime,reservations,resTypes,templates);
+  if(!tmpl) return {available:false,reason:"No session",lanes:[]};
   const desired = resTypes.find(rt=>rt.id===typeId);
-  if(!desired) return {available:false,reason:"Unknown type"};
-  if(desired.style==="private") return slotRes.length===0?{available:true}:{available:false,reason:"Slot occupied"};
-  if(slotRes.some(r=>resTypes.find(x=>x.id===r.typeId)?.style==="private")) return {available:false,reason:"Reserved private"};
-  const modes = slotRes.map(r=>resTypes.find(x=>x.id===r.typeId)?.mode).filter(Boolean);
-  if(modes[0]&&modes[0]!==desired.mode) return {available:false,reason:`${modes[0]} only`};
-  const openCount = slotRes.filter(r=>resTypes.find(x=>x.id===r.typeId)?.style==="open").length;
-  if(openCount>=tmpl.maxSessions) return {available:false,reason:"Full"};
-  return {available:true,slotsLeft:tmpl.maxSessions-openCount};
+  if(!desired) return {available:false,reason:"Unknown type",lanes};
+
+  if(desired.style==="private"){
+    const freeLane = lanes.find(l=>l.type===null);
+    return freeLane
+      ? {available:true,laneNum:freeLane.laneNum,slotsLeft:lanes.filter(l=>l.type===null).length,lanes}
+      : {available:false,reason:"All lanes occupied",lanes};
+  }
+
+  // Open play: need a lane that is free OR already open with same mode and has player capacity
+  const cap = laneCapacity(desired.mode);
+  let bestLane = lanes.find(l=>l.type==="open"&&l.mode===desired.mode&&l.playerCount<cap);
+  if(!bestLane) bestLane = lanes.find(l=>l.type===null); // fresh lane
+  if(!bestLane) return {available:false,reason:"All lanes occupied",lanes};
+
+  const spotsInLane = bestLane.type===null ? cap : cap - bestLane.playerCount;
+  const freeLanes = lanes.filter(l=>l.type===null).length;
+  const compatLanes = lanes.filter(l=>l.type==="open"&&l.mode===desired.mode&&l.playerCount<cap).length;
+  return {available:true,laneNum:bestLane.laneNum,spotsLeft:spotsInLane,slotsLeft:freeLanes+compatLanes,lanes};
 }
 function dateHasAvailability(date,typeId,reservations,resTypes,templates) {
   return getSessionsForDate(date,templates).some(t=>getSlotStatus(date,t.startTime,typeId,reservations,resTypes,templates).available);
@@ -251,7 +298,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .mode-card:hover{border-color:var(--acc);}
 .mode-card.sel{border-color:var(--accB);background:var(--accD);}
 .mode-card.disabled{opacity:.35;cursor:not-allowed;pointer-events:none;}
-.mode-icon{font-size:2rem;margin-bottom:.5rem;}
+.mode-icon{font-size:2rem;margin-bottom:.5rem;display:flex;align-items:center;justify-content:center;}
 .mode-name{font-family:var(--fd);font-size:1.1rem;font-weight:700;color:var(--txt);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.25rem;}
 .mode-desc{font-size:.78rem;color:var(--muted);line-height:1.4;}
 .mode-price{font-family:var(--fd);font-size:1.2rem;font-weight:700;color:var(--accB);margin-top:.5rem;}
@@ -614,7 +661,12 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   const slotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
   const slotStatuses=slotsForDate.map(t=>({tmpl:t,status:selType?getSlotStatus(selDate,t.startTime,selType.id,reservations,resTypes,sessionTemplates):{available:false},added:selSlots.some(s=>s.startTime===t.startTime)}));
   const isPrivate=selStyle==="private";
-  const maxP=isPrivate?(selType?.maxPlayers||12):20;
+  const isVersusOpen=selMode==="versus"&&selStyle==="open";
+  const minP=isVersusOpen?4:1;
+  // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
+  const firstSlotStatus=selSlots.length>0&&selType?getSlotStatus(selDate,selSlots[0].startTime,selType.id,reservations,resTypes,sessionTemplates):null;
+  const openMaxFromLane=firstSlotStatus?.spotsLeft??laneCapacity(selMode||"coop");
+  const maxP=isPrivate?(selType?.maxPlayers||12):isVersusOpen?Math.min(12,openMaxFromLane):6;
   const effPlayerCount=isPrivate?maxP:playerCount;
   const pricePerSlot=selType?selType.pricingMode==="flat"?selType.price:selType.price*effPlayerCount:0;
   const total=pricePerSlot*selSlots.length;
@@ -622,7 +674,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   const addSlot=st=>{if(!selSlots.find(s=>s.startTime===st))setSelSlots(p=>[...p,{startTime:st}]);setAddingMore(false);};
   // private skips step 5 (player count)
   const steps=isPrivate?["Mode","Type","Date","Time","Group & Pay"]:["Mode","Type","Date","Time","Players","Payment"];
-  const canNext=isPrivate?[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true]:[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true,true];
+  const canNext=isPrivate?[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true]:[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,playerCount>=minP,true];
   const isStaffBooker=['staff','manager','admin'].includes(currentUser.access);
   if(!currentUser.authProvider)return(
     <div className="mo"><div className="mc"><div className="mt2">Social Sign-In Required</div>
@@ -646,7 +698,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
     <div className="mo"><div className="mc" style={{maxWidth:660}}>
       <div style={{display:"flex",gap:".25rem",marginBottom:"1.1rem"}}>{steps.map((s,i)=><div key={s} style={{flex:1,height:3,borderRadius:2,background:i<step?"var(--acc)":"var(--bdr)",transition:"background .3s"}}/>)}</div>
       <div className="mt2">{steps[step-1]}</div>
-      {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>has&&setSelMode(m)}><div className="mode-icon">{m==="coop"
+      {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>{if(has){setSelMode(m);if(m==="versus")setPlayerCount(p=>Math.max(4,p));}}}><div className="mode-icon">{m==="coop"
   ?<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHsAAACACAYAAAArkhalAAADM0lEQVR4nO3cW47jIBBAUTKahWQZUfavKMvITjJfSMhjOzzqBb7ns9sd4yoKA447JQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJnTzboCG9+f5Hf2Mx/21XGyWuiCJJG+tlPRlLkQj0aUVkj79BaSkn+hSb9K3bfToPH+tT1jKAei58Pfn+fUIWEubLTthDdfKPgrGXiD3jn3cXzfvgNa2tfZvNblV9llAvBPYYqa2/vFuQK8IVT3Kuv0uyZ49SbOasrJ7qvpxf90iLp8sO775Pdu6qnOC8+y9TPjVRhi3pUuvlqouE332e8n29bIYdUwr2yOQLbP+svJXrHrXTZVWLb2/575eHr9i0s0maFJBq/kciWXZyO7eyPk0TVXZNSTX39uEz17lJpVtFSStjZb35/ndm81rnEfrs1NaqLItdtRmr3T1ypYOyF5lWW+WaN7PNTuQepAskq1xnloaVa7VeadLdlTSSddIuOowfpVEp2S/VOsx5YOQqMpZu8RnSbSppJbsK1X1ltdXpn6hshVFS7hKsq9c1ZnE0z2ptmQqyY7Wo730Duda8VMbxldPuNb1acZtmSc6Hmq3aFuOk2nZPpMJWtTvf0mova6z46ziYzobXy3htSPW2XGWMTFfeq1W5S2TsO1x1nFwW2fvJT3/LEpnkGxLhBf7QgQ1i/i8eLZJ2JkwO2hloCT3mCVEaceoEMk+qohtwj2G+ZZJWPRO4Z7s2qGvHNotvg9WGpmEReKe7F9yZ8hJLn8uUU2ak7BoXJMtNaEZSZb0MB15OA9f2Sn1v8LTQjpBR8tKyXO0CvlvNrKe5UxZWS3D6kpLrCNhK7s1WOU9ved+vsok7Ixrsn8FbbTSNO6f0SdhZ9wr+2jbtPZvR89VkpqERa38MK//9AZI454+8ipR1ESnFGxvfOvXo8GRYf4s4TWfHTmpR9yH8TOeb0zOmMxfQic7pf/vsy3r1d7heNWOED7ZWeumhERCIrwxKinMBE2DxCRr5uRuTVPZe46qvWU/3furQpaWvbCU2v7/2RVMXdm/XDWpl7Z9Fg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACbyD58mQREvKhY+AAAAAElFTkSuQmCC" alt="co-op" style={{width:48,height:48,objectFit:"contain",display:"block",filter:"drop-shadow(0 0 8px rgba(200,224,58,.3))"}} />
   :<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH8AAAB8CAYAAABAKW+9AAADDElEQVR4nO3cYU6EMBCG4W89icfYeP8Yj+FN9BcJixSmFdqZ6fv8MkaE7Tdd2llUAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZx6jL8Di6/vjp+W45/tn0+vrfb5R3kZfAMZJHX7LDG6d9RGlDl+qC3Om4KUJwpdsoc4WvDRJ+NJxuDMGL00UvrQf8qzBS5OFj1cpwq/ZX69nes2sj7aHt0gRvlQfzuzBS0nCX4K0hPR8/3y0BJ9xbZAifMlWAAT/Kk340nEBEPxfqcKX9gug9p49Q/BSwvCl1wKoDXKW4KUgH+kuagPpFXzU3UComd8yyARfFip8yT7YNQu8GYOXAoYvnQ86wduEDF8qD35NKDMHLwVb8JVst3eWMFuCzxL6IuzMX1uHQvB2qV4QwddJMfMlgm+RJvwzrcF/fX/8ZO32pajqs3Cu6vRlexcIP/N7BV/zO6IIHX7P4K3njCRs+HcFv/265dxRhLyH3RH8+metx0dfA4Sd+SW1Xb69zwFqngmMLFz4R6Fe2d61FED0t/9Q4fcKfnu+rAUQJvyrg99+fXbejAUQIvw7gj/6Xun82QrA/YLmiuCtC7crdhGRFokuLvSojVoa6Lu2Y/8tgKNr91YYLt/2r9rHtwy2tcGToRHkMnypPMg9GjCtBWDdPnoxPHxLH30Z1J6dt9oCiPjHHi7uQTVhjlhsWc8ZrR08fOZbtG7jrlKzHYzERfj/3Wv3mFFH5x1dnK1chC+1F0DPQd07b9TgJSf3/LVIgxnpWve4mfnLg5JR7q/W4D0/AOoi/O1/yPJeADXB1xzT2/DwSw9Kei2AluBrju1paPhnDR7P98uSs78Q9lQAw2d+ybZzFoH1mr0UwJCBbemE7R0zqjCs1+K94+dm8BajB+Rqnl+rq7f90YNxB8+vqVv46/3uqBbtKGet4VFrgO4zf6+Zkzn4xVlreEQBdBl0yyNPs/GwgL195nvZ1nji5Umf28O/4r9mZeNlTLrc80vPus2MMQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHDuFxBRn2mAtQ4hAAAAAElFTkSuQmCC" alt="versus" style={{width:48,height:48,objectFit:"contain",display:"block",filter:"drop-shadow(0 0 8px rgba(200,224,58,.3))"}} />
 }</div><div className="mode-name">{m==="coop"?"Co-Op":"Versus"}</div><div className="mode-desc">{m==="coop"?"Team vs objective — lead a 6 person team against static and live targets as you navigate each structure with one shared goal — completing the mission. But hurry, the clock is ticking!":"Team vs Team — One team stages inside, the other attempts to breach and clear. After round one, teams flip. Whoever can clear the structure the fastest is crowned the victor. Minimum of 4 players per reservation."}</div></div>;})} </div>}
@@ -696,14 +748,29 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".65rem"}}>Pick time slots for <strong style={{color:"var(--txt)"}}>{selDate?fmt(selDate):"—"}</strong></p>
         {selSlots.length>0&&<>{selSlots.map(s=><div className="session-block" key={s.startTime}><div className="session-block-info"><strong>{fmt12(s.startTime)}</strong></div><button className="chip-remove" onClick={()=>setSelSlots(p=>p.filter(x=>x.startTime!==s.startTime))}>✕</button></div>)}<div style={{marginBottom:".75rem"}}/></>}
         {(selSlots.length===0||addingMore)&&<>
-          <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=><div key={tmpl.id} className={`slot-card${added?" added":!status.available?" unavail":""}`} onClick={()=>!added&&status.available&&addSlot(tmpl.startTime)}><div className="slot-time">{fmt12(tmpl.startTime)}</div>{added?<div className="slot-info" style={{color:"var(--okB)"}}>✓</div>:status.available?<div className="slot-info" style={{color:"var(--okB)"}}>{selType?.style==="open"?`${status.slotsLeft} left`:"Available"}</div>:<div className="slot-reason">{status.reason}</div>}</div>)}</div>
+          {/* Slot cards with per-lane info */}
+        <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=>{
+  const laneInfo=status.lanes||[];
+  return <div key={tmpl.id} className={`slot-card${added?" added":!status.available?" unavail":""}`} onClick={()=>!added&&status.available&&addSlot(tmpl.startTime)}>
+    <div className="slot-time">{fmt12(tmpl.startTime)}</div>
+    {added?<div className="slot-info" style={{color:"var(--okB)"}}>✓ Added</div>:status.available?<>
+      <div className="slot-info" style={{color:"var(--okB)",fontSize:".72rem"}}>{selType?.style==="private"?`${status.slotsLeft} lane${status.slotsLeft!==1?"s":""} free`:`${status.spotsLeft??status.slotsLeft} spot${(status.spotsLeft??status.slotsLeft)!==1?"s":""} avail`}</div>
+      {laneInfo.length>0&&<div style={{marginTop:".35rem",display:"flex",flexDirection:"column",gap:"2px"}}>
+        {laneInfo.map(l=><div key={l.laneNum} style={{fontSize:".6rem",fontFamily:"var(--fd)",letterSpacing:".04em",display:"flex",justifyContent:"space-between",color:l.type===null?"rgba(200,224,58,.4)":l.type==="private"?"var(--dangerL)":l.mode===selType?.mode?"var(--okB)":"var(--warn)"}}>
+          <span>Lane {l.laneNum}</span>
+          <span>{l.type===null?"Free":l.type==="private"?"Private":l.mode==="coop"?`Co-Op ${l.playerCount}/6`:`Versus ${l.playerCount}/12`}</span>
+        </div>)}
+      </div>}
+    </>:<div className="slot-reason">{status.reason}</div>}
+  </div>;})}
+</div>
           {slotStatuses.filter(s=>s.status.available&&!s.added).length>1&&<button className="btn btn-ok btn-sm" style={{marginBottom:".75rem"}} onClick={()=>{slotStatuses.filter(s=>s.status.available&&!s.added).forEach(s=>addSlot(s.tmpl.startTime));}}>✓ Reserve All Available Slots</button>}
         </>}
         {selSlots.length>0&&!addingMore&&<button className="btn btn-s btn-sm" onClick={()=>setAddingMore(true)}>+ Add Another Slot</button>}
       </>}
       {step===5&&!isPrivate&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Players{selType?.pricingMode==="per_person"&&<span style={{color:"var(--accB)",marginLeft:".5rem"}}>{fmtMoney(selType.price)}/player</span>}</p>
-        <div className="f"><label>Number of Players (max {maxP})</label><input type="number" min={1} max={maxP} value={playerCount} onChange={e=>setPlayerCount(Math.min(maxP,Math.max(1,+e.target.value)))}/></div>
+        <div className="f"><label>Number of Players {isVersusOpen&&<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>(min 4, max {maxP})</span>}{!isVersusOpen&&<span style={{fontSize:".78rem",color:"var(--muted)"}}>max {maxP}</span>}</label><input type="number" min={minP} max={maxP} value={playerCount} onChange={e=>setPlayerCount(Math.min(maxP,Math.max(minP,+e.target.value)))}/>{isVersusOpen&&playerCount<4&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ Versus open play requires a minimum of 4 players.</div>}</div>
         {/* Player 1 — booker by default, or replacement input if booking for someone else */}
         <div className="player-inputs">
           {!bookingForOther
@@ -1087,6 +1154,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [wOpen,setWOpen]=useState(false);
   const [wViewOpen,setWViewOpen]=useState(false);
   const [showAccount,setShowAccount]=useState(false);
+  const [waiverAlert,setWaiverAlert]=useState(()=>!hasValidWaiver(user,activeWaiverDoc));
   const [editResId,setEditResId]=useState(null);
   const [playerInputs,setPlayerInputs]=useState([]);
   const [bookerIsPlayer,setBookerIsPlayer]=useState(true);
@@ -1164,6 +1232,14 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     <div className="content">
       {showAccount&&<AccountPanel user={user} users={users} setUsers={setUsers} onClose={()=>setShowAccount(false)}/>}
       {showBook&&<BookingWizard resTypes={resTypes} sessionTemplates={sessionTemplates} reservations={reservations} currentUser={user} users={users} activeWaiverDoc={activeWaiverDoc} onBook={b=>{onBook(b);setShowBook(false);}} onClose={()=>setShowBook(false)}/>}
+      {waiverAlert&&<div className="mo"><div className="mc" style={{maxWidth:480}}>
+        <div className="mt2" style={{color:"var(--warn)"}}>⚠ Waiver Required</div>
+        <p style={{color:"var(--muted)",marginBottom:"1rem",fontSize:".88rem"}}>You don't have a current signed waiver on file. A valid waiver is required before you can play. Sign now to get cleared for your next mission.</p>
+        <div className="ma" style={{gap:".75rem"}}>
+          <button className="btn btn-s" onClick={()=>setWaiverAlert(false)}>Remind Me Later</button>
+          <button className="btn btn-p" onClick={()=>{setWaiverAlert(false);setWOpen(true);}}>Sign My Waiver Now →</button>
+        </div>
+      </div></div>}
       {wOpen&&<WaiverModal playerName={user.name} waiverDoc={activeWaiverDoc} onClose={()=>setWOpen(false)} onSign={(name,isMinor)=>{onSignWaiver(user.id,name,isMinor);setWOpen(false);}}/>}
       {wViewOpen&&<WaiverViewModal user={user} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} onClose={()=>setWViewOpen(false)}/>}
       {editResId&&editRes&&<div className="mo"><div className="mc" style={{maxWidth:540}}>
