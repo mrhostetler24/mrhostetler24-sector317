@@ -541,11 +541,9 @@ function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=
     if(clean.length<10)return;
     setSearching(true);
     try{
-      // Always hit DB via SECURITY DEFINER RPC — reliable for all user types
-      // In-memory users array is incomplete for customer-level accounts due to RLS
       const dbUser=await fetchUserByPhone(clean);
       if(dbUser){onChange({phone:clean,userId:dbUser.id,name:dbUser.name,status:"found"});}
-      else{onChange({phone:clean,userId:null,name:"",status:"notfound"});}
+      else{onChange({phone:clean,userId:null,name:name||"",status:"notfound"});}
     }finally{setSearching(false);}
   },[clean]);
   const foundUser=status==="found"?users.find(u=>u.id===userId):null;
@@ -554,9 +552,29 @@ function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=
     <div className="pi-row">
       <div className="pi-label">{displayLabel}</div>
       <div style={{display:"flex",gap:".5rem",alignItems:"flex-end",flexWrap:"wrap"}}>
-        <div className="f" style={{marginBottom:0,flex:1,minWidth:200}}><label>Cell Number</label><div className="phone-wrap"><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={phone} onChange={e=>{onChange({phone:cleanPh(e.target.value),userId:null,name:"",status:"idle"});}} onKeyDown={e=>e.key==="Enter"&&lookup()} placeholder="Enter phone number with area code"/></div></div>
-        {status==="notfound"&&<div className="f" style={{marginBottom:0,flex:1,minWidth:150}}><label>Full Name</label><input value={name} onChange={e=>onChange({...value,name:e.target.value})} placeholder="First Last"/></div>}
+        <div className="f" style={{marginBottom:0,flex:1,minWidth:200}}>
+          <label>Cell Number</label>
+          <div className="phone-wrap">
+            <span className="phone-prefix">+1</span>
+            <input type="tel" maxLength={10} value={phone}
+              onChange={e=>{onChange({phone:cleanPh(e.target.value),userId:null,name:"",status:"idle"});}}
+              onKeyDown={e=>e.key==="Enter"&&lookup()}
+              placeholder="Enter phone number with area code"/>
+          </div>
+        </div>
+        {(status==="notfound"||status==="named")&&(
+          <div className="f" style={{marginBottom:0,flex:1,minWidth:150}}>
+            <label>Full Name <span style={{color:"var(--danger)"}}>*</span></label>
+            <input value={name}
+              onChange={e=>onChange({...value,name:e.target.value,status:e.target.value.trim()?"named":"notfound"})}
+              onKeyDown={e=>e.key==="Enter"&&name.trim()&&onChange({...value,name:name.trim(),status:"named"})}
+              placeholder="First Last"/>
+          </div>
+        )}
         {status==="idle"&&<button className="btn btn-s btn-sm" style={{marginBottom:2}} disabled={clean.length<10||searching} onClick={lookup}>{searching?"…":"Search →"}</button>}
+        {status==="notfound"&&name.trim()&&(
+          <button className="btn btn-ok btn-sm" style={{marginBottom:2}} onClick={()=>onChange({...value,name:name.trim(),status:"named"})}>✓ Confirm</button>
+        )}
       </div>
       {status==="found"&&(foundUser||userId)&&(
         <div className="pi-found" style={{display:"flex",alignItems:"center",gap:".4rem"}}>
@@ -566,7 +584,14 @@ function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=
             : <span style={{color:"var(--okB)"}}>✓ Player found{foundUser?.authProvider&&<span style={{marginLeft:".35rem",fontSize:".68rem",color:"var(--muted)"}}>({foundUser.authProvider})</span>}</span>}
         </div>
       )}
-      {status==="notfound"&&clean.length===10&&<div className="pi-notfound">⚠ Nothing found — add their name and we'll prep their account</div>}
+      {status==="named"&&(
+        <div className="pi-found" style={{display:"flex",alignItems:"center",gap:".4rem"}}>
+          <span style={{background:"var(--surf2)",color:"var(--acc)",border:"1px solid var(--acc2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(name)}</span>
+          <span style={{color:"var(--accB)"}}>✓ <strong>{name}</strong></span>
+          <span style={{fontSize:".68rem",color:"var(--muted)"}}>— new guest, account will be prepped</span>
+        </div>
+      )}
+      {status==="notfound"&&clean.length===10&&!name.trim()&&<div className="pi-notfound">⚠ Nothing found — add their name and we'll prep their account</div>}
     </div>
   );
 }
@@ -1048,26 +1073,54 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     const bookerInList=allP.some(p=>p.userId===user.id);
     setBookerIsPlayer(bookerInList||allP.length===0);
     const nonBooker=allP.filter(p=>p.userId!==user.id);
-    // If booker not in list, first non-booker slot is player 1
+    // Restore status: found if userId known, named if name+phone but no userId, idle if empty
+    const toInput=ep=>ep
+      ? {phone:ep.phone||"",userId:ep.userId||null,name:ep.name||"",
+         status:ep.userId?"found":(ep.name?"named":"idle")}
+      : {phone:"",userId:null,name:"",status:"idle"};
     if(!bookerInList&&nonBooker.length>0){
-      const p1=nonBooker[0];
-      setPlayer1Input({phone:p1.phone||"",userId:p1.userId||null,name:p1.name||"",status:p1.userId?"found":"idle"});
-      const rest=nonBooker.slice(1);
-      setPlayerInputs(Array.from({length:Math.max(0,(editRes.playerCount||1)-1)},(_,i)=>{const ep=rest[i];return ep?{phone:ep.phone||"",userId:ep.userId||null,name:ep.name||"",status:ep.userId?"found":"idle"}:{phone:"",userId:null,name:"",status:"idle"};}));
+      setPlayer1Input(toInput(nonBooker[0]));
+      setPlayerInputs(Array.from({length:Math.max(0,(editRes.playerCount||1)-1)},(_,i)=>toInput(nonBooker[i+1])));
     } else {
       setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});
-      setPlayerInputs(Array.from({length:Math.max(0,(editRes.playerCount||1)-1)},(_,i)=>{const ep=nonBooker[i];return ep?{phone:ep.phone||"",userId:ep.userId||null,name:ep.name||"",status:ep.userId?"found":"idle"}:{phone:"",userId:null,name:"",status:"idle"};}));
+      setPlayerInputs(Array.from({length:Math.max(0,(editRes.playerCount||1)-1)},(_,i)=>toInput(nonBooker[i])));
     }
   },[editResId]);
+
   const saveGroup=async()=>{
+    // Helper: ensure guest players have a DB user row
+    const resolvePlayer=async(p)=>{
+      if(p.userId) return p; // already linked
+      if(!p.name?.trim()) return p; // empty slot, skip
+      try{
+        const guest=await createGuestUser({
+          name:p.name.trim(),
+          phone:p.phone||null,
+          createdByUserId:user.id,
+        });
+        return {...p,userId:guest.id};
+      }catch(e){
+        console.warn("createGuestUser failed:",e.message);
+        return p; // fall back to no userId rather than crashing
+      }
+    };
     let p1;
     if(bookerIsPlayer){
       p1={userId:user.id,name:user.name,phone:user.phone||""};
     } else {
-      p1={userId:player1Input.userId??null,name:player1Input.name||(player1Input.userId?users.find(u=>u.id===player1Input.userId)?.name||"":""),phone:player1Input.phone||""};
+      p1=await resolvePlayer({
+        userId:player1Input.userId??null,
+        name:player1Input.name||(player1Input.userId?users.find(u=>u.id===player1Input.userId)?.name||"":""),
+        phone:player1Input.phone||"",
+      });
     }
-    const extra=playerInputs.filter(p=>p.phone||p.name).map(p=>({userId:p.userId??null,name:p.name||(p.userId?users.find(u=>u.id===p.userId)?.name||"":""),phone:p.phone||""}));
-    const newPlayers=[p1,...extra];
+    const extraRaw=playerInputs.filter(p=>p.phone||p.name).map(p=>({
+      userId:p.userId??null,
+      name:p.name||(p.userId?users.find(u=>u.id===p.userId)?.name||"":""),
+      phone:p.phone||"",
+    }));
+    const extra=await Promise.all(extraRaw.map(resolvePlayer));
+    const newPlayers=[p1,...extra].filter(p=>p.name?.trim());
     try{
       const updatedPlayers=await syncReservationPlayers(editResId,newPlayers);
       setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:updatedPlayers}:r));
@@ -1866,18 +1919,22 @@ useEffect(() => {
 
   const handleBook=async b=>{
     try{
-      // Player 1: booker unless "booking for someone else" was checked
       const p1=b.player1||{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
-      const extra=(b.extraPlayers||[]).filter(p=>p.phone||p.name).map(p=>({
-        userId:p.userId??null,
-        name:p.name||(p.userId?users.find(u=>u.id===p.userId)?.name||"":""),
-        phone:p.phone||"",
-      }));
-      const players=[p1,...extra];
+      // Resolve guest users for extra players who have no userId
+      const resolveExtra=async(p)=>{
+        if(p.userId) return {userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||""),phone:p.phone||""};
+        if(!p.name?.trim()) return null;
+        try{
+          const guest=await createGuestUser({name:p.name.trim(),phone:p.phone||null,createdByUserId:currentUser.id});
+          return {userId:guest.id,name:guest.name,phone:p.phone||""};
+        }catch(e){
+          return {userId:null,name:p.name.trim(),phone:p.phone||""};
+        }
+      };
+      const extraResolved=(await Promise.all((b.extraPlayers||[]).filter(p=>p.phone||p.name).map(resolveExtra))).filter(Boolean);
+      const players=[p1,...extraResolved];
       const newRes=await createReservation({...b,status:"confirmed",players:[]});
-      // Write players to reservation_players table
       await Promise.all(players.map(p=>addPlayerToReservation(newRes.id,p,[])));
-      // Reload to get proper players array from DB
       const fresh={...newRes,players};
       setReservations(p=>[fresh,...p]);
     }catch(err){showToast("Booking error: "+err.message);}
