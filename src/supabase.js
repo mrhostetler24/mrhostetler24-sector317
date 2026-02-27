@@ -402,8 +402,8 @@ export async function fetchReservations() {
   const { data: resData, error: resErr } = await supabase
     .from('reservations')
     .select('*')
-    .order('date', { ascending: false })
-    .order('start_time')
+    .order('date', { ascending: true })
+    .order('start_time', { ascending: true })
   if (resErr) throw resErr
 
   const ids = (resData ?? []).map(r => r.id)
