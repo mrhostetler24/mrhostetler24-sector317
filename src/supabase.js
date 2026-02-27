@@ -522,23 +522,17 @@ export async function syncReservationPlayers(resId, players) {
     return rpcData.map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null }))
   }
 
-  // Fallback: direct delete + insert (works for staff/admin)
+  // Fallback: direct delete + insert via proven add_reservation_player RPC per player.
+  // Direct bulk INSERT is blocked by RLS for customers, so we route each insert
+  // through addPlayerToReservation which uses the SECURITY DEFINER add_reservation_player RPC.
   const { error: delErr } = await supabase
     .from('reservation_players').delete().eq('reservation_id', resId)
   if (delErr) throw new Error(`sync delete failed — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${delErr.message}`)
 
   if (!players.length) return []
 
-  const rows = players.map(p => ({
-    reservation_id: resId,
-    user_id:        p.userId ?? null,
-    name:           p.name,
-    phone:          p.phone ?? null,
-  }))
-  const { data, error } = await supabase
-    .from('reservation_players').insert(rows).select()
-  if (error) throw new Error(`sync insert failed: ${error.message}`)
-  return data.map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null }))
+  const saved = await Promise.all(players.map(p => addPlayerToReservation(resId, p, [])))
+  return saved
 }
 
 /** Update a player record (e.g. link a userId after they sign in) */
