@@ -806,15 +806,19 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   // ── RESCHEDULE ─────────────────────────────────────────────────────────
   if(isReschedule){
     const reschedSlots=selDate?getSessionsForDate(selDate,sessionTemplates):[];
+    const resDateTime=new Date(`${res.date}T${res.startTime}`);
+    const hoursUntil=(resDateTime-Date.now())/(1000*60*60);
+    const isWithin24h=hoursUntil>0&&hoursUntil<24;
     return <div className="mo"><div className="mc" style={{maxWidth:560}}>
       <div className="mt2">Reschedule Reservation</div>
       <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>
         Current: <strong style={{color:"var(--txt)"}}>{fmt(res.date)} · {fmt12(res.startTime)}</strong>
       </p>
+      {isWithin24h&&<p style={{fontSize:".82rem",color:"var(--warn)",marginBottom:".75rem",padding:".5rem .75rem",background:"var(--surf2)",border:"1px solid var(--warn)",borderRadius:4}}>This reservation is within 24 hours — rescheduling is limited to the same day only.</p>}
       {!selDate&&<>
         <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".6rem"}}>Pick a new date:</p>
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
-        {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=(new Date(dates[0]+"T12:00:00").getDay()+6)%7;return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");const avail=reschedAvailMap[d];const isCurrent=d===res.date;return <div key={d} className={`date-cell${isCurrent?" sel":""}${!avail?" na":""}`} onClick={()=>avail&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
+        {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=(new Date(dates[0]+"T12:00:00").getDay()+6)%7;return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");const avail=reschedAvailMap[d];const isCurrent=d===res.date;const dayLocked=isWithin24h&&d!==res.date;return <div key={d} className={`date-cell${isCurrent?" sel":""}${(!avail||dayLocked)?" na":""}`} onClick={()=>avail&&!dayLocked&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
       </>}
       {selDate&&!selTime&&<>
         <p style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".6rem"}}>Available times on <strong>{fmt(selDate)}</strong>:</p>
