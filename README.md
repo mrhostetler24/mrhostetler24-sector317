@@ -1,6 +1,6 @@
 # Sector 317
 
-Escape room booking and management system — React + Vite + Supabase.
+Indoor tactical simulation experience — React + Vite + Supabase.
 **Live at: https://sector317.com**
 
 ## Project Structure
