@@ -385,6 +385,42 @@ export async function deleteSessionTemplate(id) {
 
 
 // ============================================================
+// PAYMENTS
+// ============================================================
+
+const toPayment = p => p ? ({
+  id:            p.id,
+  userId:        p.user_id,
+  reservationId: p.reservation_id,
+  customerName:  p.customer_name,
+  amount:        Number(p.amount),
+  status:        p.status,
+  snapshot:      p.snapshot ?? {},
+  createdAt:     p.created_at,
+}) : null
+
+export async function createPayment(payment) {
+  const { data, error } = await supabase.from('payments').insert({
+    user_id:        payment.userId,
+    reservation_id: payment.reservationId,
+    customer_name:  payment.customerName,
+    amount:         payment.amount,
+    status:         payment.status ?? 'paid',
+    snapshot:       payment.snapshot ?? {},
+  }).select().single()
+  if (error) throw error
+  return toPayment(data)
+}
+
+export async function fetchPayments() {
+  const { data, error } = await supabase
+    .from('payments').select('*').order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(toPayment)
+}
+
+
+// ============================================================
 // RESERVATIONS
 // ============================================================
 
