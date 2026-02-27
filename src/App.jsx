@@ -982,7 +982,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       }}>✕</button>
     </div>
   ))
-}<div style={{marginBottom:".75rem"}}/></>
+}<div style={{marginBottom:".75rem"}}/></> }
         {(selSlots.length===0||addingMore)&&<>
           {/* Slot cards with per-lane info */}
         <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=>{
