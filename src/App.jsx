@@ -1125,7 +1125,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
                   <div style={{flex:1}}>
                     <PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={currentUser.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>
                   </div>
-                  <button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>
+                  {(pi.name||pi.phone)&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>{const n=[...p];n[i]={phone:"",userId:null,name:"",status:"idle"};return n;})} title="Clear player">✕</button>}
                 </div>;
               })}
             </div>
@@ -1203,7 +1203,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
               <div style={{flex:1}}>
                 <PlayerPhoneInput index={idx} value={input} users={users} bookerUserId={currentUser.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[idx]=v;return n;})}/>
               </div>
-              {showRemove&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==idx))} title="Remove player">✕</button>}
+              {showRemove&&(input.name||input.phone)&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>{const n=[...p];n[idx]={phone:"",userId:null,name:"",status:"idle"};return n;})} title="Clear player">✕</button>}
             </div>;
           };
 
@@ -1880,7 +1880,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             ].filter(Boolean);
             return <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
               <div style={{flex:1}}><PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={user.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/></div>
-              <button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>
+              {(pi.name||pi.phone)&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>{const n=[...p];n[i]={phone:"",userId:null,name:"",status:"idle"};return n;})} title="Clear player">✕</button>}
             </div>;
           })}
         </div>
@@ -1981,7 +1981,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [newWaiver,setNewWaiver]=useState({name:"",version:"1.0",body:"",active:false});
   const [resHide,setResHide]=useState(true);const [resSort,setResSort]=useState("asc");
   const [showWI,setShowWI]=useState(false);
-  const [wi,setWi]=useState({customerName:"",phone:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});
+  const [wi,setWi]=useState({customerName:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});
   const sortTmpl=fn=>setSessionTemplates(p=>sortTemplates(typeof fn==="function"?fn(p):fn));
   const rtF=editRT||newRT;const setRTF=fn=>editRT?setEditRT(p=>({...(typeof fn==="function"?fn(p):fn)})):setNewRT(p=>({...(typeof fn==="function"?fn(p):fn)}));
   const stF=editST||newST;const setSTF=fn=>editST?setEditST(p=>({...(typeof fn==="function"?fn(p):fn)})):setNewST(p=>({...(typeof fn==="function"?fn(p):fn)}));
@@ -2103,13 +2103,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditWaiver(null);}}>Cancel</button><button className="btn btn-p" disabled={!wF.name||!wF.body} onClick={saveWaiver}>Save</button></div>
       </div></div>}
       {showWI&&<div className="mo"><div className="mc"><div className="mt2">Walk-In Reservation</div>
-        <div className="g2"><div className="f"><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value}))}/></div><div className="f"><label>Phone</label><div className="phone-wrap"><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={wi.phone||""} onChange={e=>setWi(p=>({...p,phone:cleanPh(e.target.value)}))}/></div></div></div>
+        <div className="f"><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value}))}/></div>
         <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value,startTime:""}))}>{resTypes.filter(rt=>rt.active).map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select></div>
         <div className="g2"><div className="f"><label>Date</label><input type="date" value={wi.date} onChange={e=>setWi(p=>({...p,date:e.target.value,startTime:""}))}/></div><div className="f"><label>Time</label><select value={wi.startTime} onChange={e=>setWi(p=>({...p,startTime:e.target.value}))}><option value="">— Select —</option>{wiSlots.map(s=><option key={s.id} value={s.startTime}>{fmt12(s.startTime)}</option>)}<option value="custom">Custom…</option></select></div></div>
         {wi.startTime==="custom"&&<div className="f"><label>Custom Time</label><input type="time" value={wi.customTime||""} onChange={e=>setWi(p=>({...p,customTime:e.target.value}))}/></div>}
         <div className="g2"><div className="f"><label>Players</label><input type="number" min={1} max={selWIType?.maxPlayers||20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value)}))}/></div><div className="f"><label>Status</label><select value={wi.status} onChange={e=>setWi(p=>({...p,status:e.target.value}))}><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div></div>
         <div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{selWIType?.name} · {wi.playerCount}p</span><strong style={{color:"var(--accB)"}}>{fmtMoney(calcWI(wi.typeId,wi.playerCount))}</strong></div>
-        <div className="ma"><button className="btn btn-s" onClick={()=>{setShowWI(false);setWi({customerName:"",phone:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});}}>Cancel</button><button className="btn btn-p" disabled={!wi.customerName.trim()||!wi.date||(!wi.startTime||(wi.startTime==="custom"&&!wi.customTime))} onClick={()=>{const st=wi.startTime==="custom"?wi.customTime:wi.startTime;setReservations(p=>[...p,{...wi,id:Date.now(),startTime:st,amount:calcWI(wi.typeId,wi.playerCount),players:[],userId:null}]);showToast("Walk-in added");setShowWI(false);setWi({customerName:"",phone:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});}}>Add</button></div>
+        <div className="ma"><button className="btn btn-s" onClick={()=>{setShowWI(false);setWi({customerName:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});}}>Cancel</button><button className="btn btn-p" disabled={!wi.customerName.trim()||!wi.date||(!wi.startTime||(wi.startTime==="custom"&&!wi.customTime))} onClick={()=>{const st=wi.startTime==="custom"?wi.customTime:wi.startTime;setReservations(p=>[...p,{...wi,id:Date.now(),startTime:st,amount:calcWI(wi.typeId,wi.playerCount),players:[],userId:null}]);showToast("Walk-in added");setShowWI(false);setWi({customerName:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});}}>Add</button></div>
       </div></div>}
       <div className="tabs">
         <button className={`tab${tab==="dashboard"?" on":""}`} onClick={()=>setTab("dashboard")}>Dashboard</button>
