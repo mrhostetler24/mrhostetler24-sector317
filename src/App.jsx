@@ -580,7 +580,7 @@ function validateLbName(val,allUsers,currentUserId){
   if(taken)return"That leaderboard name is already taken — choose a different one and try again";
   return null;
 }
-function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=false,label=null}){
+function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=false,label=null,activeWaiverDoc=null,existingUserIds=[]}){
   const {phone="",userId=null,name="",status="idle"}=value;
   const clean=cleanPh(phone);
   const [searching,setSearching]=useState(false);
@@ -623,14 +623,22 @@ function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFullName=
           <button className="btn btn-ok btn-sm" style={{marginBottom:2}} onClick={()=>onChange({...value,name:name.trim(),status:"named"})}>✓ Confirm</button>
         )}
       </div>
-      {status==="found"&&(foundUser||userId)&&(
-        <div className="pi-found" style={{display:"flex",alignItems:"center",gap:".4rem"}}>
-          <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(foundUser?.name||name)}</span>
-          {showFullName
-            ? <span>✓ <strong style={{color:"var(--txt)"}}>{foundUser?.name||name}</strong></span>
-            : <span style={{color:"var(--okB)"}}>✓ Player found{foundUser?.authProvider&&<span style={{marginLeft:".35rem",fontSize:".68rem",color:"var(--muted)"}}>({foundUser.authProvider})</span>}</span>}
-        </div>
-      )}
+      {status==="found"&&(foundUser||userId)&&(()=>{
+        const isDup=existingUserIds.includes(userId);
+        const waiverOk=foundUser&&activeWaiverDoc?hasValidWaiver(foundUser,activeWaiverDoc):null;
+        return <div className="pi-found" style={{display:"flex",alignItems:"center",gap:".4rem",flexWrap:"wrap"}}>
+          {isDup
+            ? <span style={{color:"var(--dangerL)",fontWeight:600,fontSize:".78rem"}}>⚠ This player is already on the roster</span>
+            : <>
+                <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(foundUser?.name||name)}</span>
+                {showFullName
+                  ? <span>✓ <strong style={{color:"var(--txt)"}}>{foundUser?.name||name}</strong></span>
+                  : <span style={{color:"var(--okB)"}}>✓ Player found{foundUser?.authProvider&&<span style={{marginLeft:".35rem",fontSize:".68rem",color:"var(--muted)"}}>({foundUser.authProvider})</span>}</span>}
+                {waiverOk===true&&<span style={{fontSize:".68rem",background:"rgba(100,200,100,.12)",color:"var(--okB)",border:"1px solid rgba(100,200,100,.3)",borderRadius:3,padding:"1px 5px"}}>✓ Waiver signed</span>}
+                {waiverOk===false&&<span style={{fontSize:".68rem",background:"rgba(192,57,43,.1)",color:"var(--dangerL)",border:"1px solid rgba(192,57,43,.3)",borderRadius:3,padding:"1px 5px"}}>⚠ No waiver</span>}
+              </>}
+        </div>;
+      })()}
       {status==="named"&&(
         <div className="pi-found" style={{display:"flex",alignItems:"center",gap:".4rem"}}>
           <span style={{background:"var(--surf2)",color:"var(--acc)",border:"1px solid var(--acc2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(name)}</span>
@@ -894,8 +902,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
     }
   };
   // private skips step 5 (player count)
-  const steps=isPrivate?["Mode","Type","Date","Time","Group & Pay"]:["Mode","Type","Date","Time","Players","Payment"];
-  const canNext=isPrivate?[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true]:[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,playerCount>=minP,true];
+  const steps=isPrivate?["Mode","Type","Date","Time","Payment","Players"]:["Mode","Type","Date","Time","Payment","Players"];
+  const canNext=[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true,true];
   const isStaffBooker=['staff','manager','admin'].includes(currentUser.access);
   if(!currentUser.authProvider)return(
     <div className="mo"><div className="mc"><div className="mt2">Social Sign-In Required</div>
@@ -1013,12 +1021,12 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
             <div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.25)",borderRadius:6,padding:".85rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem",flexWrap:"wrap"}}>
               <div>
                 <div style={{fontFamily:"var(--fd)",fontSize:".78rem",letterSpacing:".08em",color:"var(--acc)",marginBottom:".2rem"}}>SECOND LANE AVAILABLE</div>
-                <div style={{fontSize:".84rem",color:"var(--txt)"}}>Both lanes are open at <strong>{fmt12(secondLanePrompt)}</strong> — add the second for your full group?</div>
+                <div style={{fontSize:".84rem",color:"var(--txt)"}}>Both lanes are open at <strong>{fmt12(secondLanePrompt)}</strong> — you can add the second lane if you have more than {selMode==="versus"?"12":"6"} players in your party!</div>
                 <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".2rem"}}>+{fmtMoney(pricePerSlot)} · Accommodates up to {maxCombined} players across both lanes</div>
               </div>
               <div style={{display:"flex",gap:".5rem",flexShrink:0}}>
-                <button className="btn btn-s btn-sm" onClick={()=>setSecondLanePrompt(null)}>No thanks</button>
-                <button className="btn btn-p btn-sm" onClick={()=>{setSelSlots(p=>[...p,{startTime:secondLanePrompt}]);setSecondLanePrompt(null);}}>+ Add Lane</button>
+                <button className="btn btn-s btn-sm" onClick={()=>setSecondLanePrompt(null)}>{selSlots.filter(s=>s.startTime===secondLanePrompt).length>1?"Done ✓":"No thanks"}</button>
+                <button className="btn btn-p btn-sm" onClick={()=>setSelSlots(p=>[...p,{startTime:secondLanePrompt}])}>+ Add Lane</button>
               </div>
             </div>
             {adjSlots.length>0&&<div style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:6,padding:".75rem 1rem"}}>
@@ -1026,7 +1034,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
               <div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
                 {adjSlots.map(t=><button key={t.startTime} className="btn btn-s btn-sm" onClick={()=>{setSelSlots(p=>[...p,{startTime:t.startTime}]);setSecondLanePrompt(null);}}>{fmt12(t.startTime)}</button>)}
               </div>
-              <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".45rem"}}>Add a second timeslot to run your group through in shifts</div>
+              <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".45rem"}}>Add additional timeslot for extended time in structure</div>
             </div>}
           </div>;
         })()}
@@ -1035,6 +1043,13 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       {step===5&&!isPrivate&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Players{selType?.pricingMode==="per_person"&&<span style={{color:"var(--accB)",marginLeft:".5rem"}}>{fmtMoney(selType.price)}/player</span>}</p>
         <div className="f"><label>Number of Players {isVersusOpen&&<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>(min 4, max {maxP})</span>}{!isVersusOpen&&<span style={{fontSize:".78rem",color:"var(--muted)"}}>max {maxP}</span>}</label><input type="number" min={minP} max={maxP} value={playerCount} onChange={e=>setPlayerCount(Math.min(maxP,Math.max(minP,+e.target.value)))}/>{isVersusOpen&&playerCount<4&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ Versus open play requires a minimum of 4 players.</div>}</div>
+        <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
+        <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
+        <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
+        <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+      </>}
+      {step===6&&!isPrivate&&<>
+        <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem"}}>Optionally add your group's phone numbers to speed up check-in. You can also do this later from your reservations.</p>
         {/* Player 1 — booker by default, or replacement input if booking for someone else */}
         <div className="player-inputs">
           {!bookingForOther
@@ -1053,16 +1068,21 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
                 </div>
               </div>
             : <div>
-                <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} onChange={setPlayer1Input} showFullName={true}/>
+                <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} activeWaiverDoc={activeWaiverDoc} onChange={setPlayer1Input} showFullName={true}/>
                 <div style={{marginTop:".4rem"}}><label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}><input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>Booking for someone else</label></div>
               </div>
           }
           {playerCount>1&&playerInputs.map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={currentUser.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}
         </div>
-        <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
       </>}
       {step===5&&isPrivate&&<>
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>Private ({lanesBooked>1?`${lanesBooked} lanes · `:""}max {maxP} players) — Flat</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span></div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
+        <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
+        <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
+        <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+      </>}
+      {step===6&&isPrivate&&<>
+        <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem"}}>Optionally add your group's phone numbers to speed up check-in. You can also do this later from your reservations.</p>
         <div className="player-inputs" style={{marginBottom:".75rem"}}>
           {!bookingForOther
             ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
@@ -1085,17 +1105,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
               </div>
           }
         </div>
-        <p style={{fontSize:".78rem",color:"var(--muted)",marginBottom:".75rem"}}>Optionally add group member phone numbers to speed up check-in:</p>
         <div className="player-inputs">{playerInputs.map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={currentUser.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}</div>
-        <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
-        <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
-        <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
-      </>}
-      {step===6&&!isPrivate&&<>
-        <div className="pay-sum"><div className="pay-row tot"><span>Total Due</span><span>{fmtMoney(total)}</span></div></div>
-        <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
-        <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
-        <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
       </>}
       <div className="ma">
         <button className="btn btn-s" onClick={()=>step===1?onClose():(step===4&&(setSelSlots([]),setSecondLanePrompt(null)),setStep(s=>s-1))}>{step===1?"Cancel":"← Back"}</button>
@@ -1481,6 +1491,13 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
 
   const saveGroup=async()=>{
     setSaveGroupError(null);
+    // Guard: check for duplicates before saving
+    const allInputIds=[
+      bookerIsPlayer?user.id:player1Input.userId,
+      ...playerInputs.map(p=>p.userId)
+    ].filter(Boolean);
+    const hasDup=allInputIds.length!==new Set(allInputIds).size;
+    if(hasDup){setSaveGroupError("Duplicate player detected — each player can only appear once on the roster.");return;}
     setSaveGroupBusy(true);
     // Helper: ensure guest players have a DB user row
     const resolvePlayer=async(p)=>{
@@ -1599,12 +1616,16 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             </div>
           }
           {/* Remaining players */}
-          {playerInputs.map((pi,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
-              <div style={{flex:1}}><PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={user.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/></div>
+          {playerInputs.map((pi,i)=>{
+            const currentUserIds=[
+              bookerIsPlayer?user.id:player1Input.userId,
+              ...playerInputs.filter((_,j)=>j!==i).map(p=>p.userId)
+            ].filter(Boolean);
+            return <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
+              <div style={{flex:1}}><PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={user.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/></div>
               <button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>
-            </div>
-          ))}
+            </div>;
+          })}
         </div>
         {playerInputs.length<(editRes?.playerCount||1)-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
         {editRes?.typeId&&resTypes.find(x=>x.id===editRes.typeId)?.style==="open"&&<div style={{fontSize:".74rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".5rem .75rem"}}>⚠ Open play — removing players does not issue a refund. Contact staff for refund requests.</div>}
@@ -2364,23 +2385,20 @@ useEffect(() => {
   const handleBook=async b=>{
     try{
       const p1=b.player1||{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
-      // Resolve guest users for extra players who have no userId
+      // Resolve guest users for extra players (throws on failure — no silent fallback)
       const resolveExtra=async(p)=>{
         if(p.userId) return {userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||""),phone:p.phone||""};
         if(!p.name?.trim()) return null;
-        try{
-          const guest=await createGuestUser({name:p.name.trim(),phone:p.phone||null,createdByUserId:currentUser.id});
-          return {userId:guest.id,name:guest.name,phone:p.phone||""};
-        }catch(e){
-          return {userId:null,name:p.name.trim(),phone:p.phone||""};
-        }
+        const guest=await createGuestUser({name:p.name.trim(),phone:p.phone||null,createdByUserId:currentUser.id});
+        return {userId:guest.id,name:guest.name,phone:p.phone||""};
       };
       const extraResolved=(await Promise.all((b.extraPlayers||[]).filter(p=>p.phone||p.name).map(resolveExtra))).filter(Boolean);
       const players=[p1,...extraResolved];
       const newRes=await createReservation({...b,status:"confirmed",players:[]});
-      await Promise.all(players.map(p=>addPlayerToReservation(newRes.id,p,[])));
-      const fresh={...newRes,players};
-      setReservations(p=>[fresh,...p]);
+      // Insert players — await all so failures surface immediately
+      const savedPlayers=await Promise.all(players.map(p=>addPlayerToReservation(newRes.id,p,[])));
+      // Use actual DB rows (with real IDs) so local state matches reload
+      setReservations(p=>[{...newRes,players:savedPlayers},...p]);
     }catch(err){showToast("Booking error: "+err.message);}
   };
 
