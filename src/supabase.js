@@ -391,7 +391,8 @@ export async function deleteSessionTemplate(id) {
 const mapReservationRows = rows =>
   (rows ?? []).map(r => ({
     ...toReservation(r),
-    players: (r.players ?? []).map(p => ({
+    // Read from 'roster' alias — avoids conflict with the 'players' JSONB column on reservations
+    players: (r.roster ?? []).map(p => ({
       id:     p.id,
       userId: p.user_id ?? null,
       name:   p.name,
@@ -401,14 +402,22 @@ const mapReservationRows = rows =>
 
 export async function fetchReservations() {
   const { data, error } = await supabase
-    .rpc('get_reservations_with_players', { p_today_only: false })
+    .from('reservations')
+    .select('*, roster:reservation_players(*)')
+    .order('date', { ascending: false })
+    .order('start_time')
   if (error) throw error
   return mapReservationRows(data)
 }
 
 export async function fetchTodaysReservations() {
+  const today = new Date().toISOString().split('T')[0]
   const { data, error } = await supabase
-    .rpc('get_reservations_with_players', { p_today_only: true })
+    .from('reservations')
+    .select('*, roster:reservation_players(*)')
+    .eq('date', today)
+    .neq('status', 'cancelled')
+    .order('start_time')
   if (error) throw error
   return mapReservationRows(data)
 }
