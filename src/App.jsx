@@ -152,14 +152,14 @@ function getSlotStatus(date,startTime,typeId,reservations,resTypes,templates) {
     const freeLane = lanes.find(l=>l.type===null);
     return freeLane
       ? {available:true,laneNum:freeLane.laneNum,slotsLeft:lanes.filter(l=>l.type===null).length,lanes}
-      : {available:false,reason:"All lanes occupied",lanes};
+      : {available:false,reason:"Sold out!",lanes};
   }
 
   // Open play: need a lane that is free OR already open with same mode and has player capacity
   const cap = laneCapacity(desired.mode);
   let bestLane = lanes.find(l=>l.type==="open"&&l.mode===desired.mode&&l.playerCount<cap);
   if(!bestLane) bestLane = lanes.find(l=>l.type===null); // fresh lane
-  if(!bestLane) return {available:false,reason:"All lanes occupied",lanes};
+  if(!bestLane) return {available:false,reason:"Sold out!",lanes};
 
   const spotsInLane = bestLane.type===null ? cap : cap - bestLane.playerCount;
   const freeLanes = lanes.filter(l=>l.type===null).length;
@@ -1029,31 +1029,29 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
               </div>;
             })}</div>
           </>}
-          {/* ── ADJACENT SLOT OFFERS (extended time) ── */}
-          {selSlots.length>0&&!addingMore&&!secondLanePrompt&&(()=>{
+          {/* ── ADDITIONAL TIME SLOTS — always shown when slots are selected, independent of second-lane prompt ── */}
+          {selSlots.length>0&&!addingMore&&(()=>{
             const addedTimes=new Set(selSlots.map(s=>s.startTime));
             const adjAvail=slotsForDate.filter(t=>{
               if(addedTimes.has(t.startTime)) return false;
               const st=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
               return st.available;
             });
-            return <>
-              {adjAvail.length>0&&<div style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:6,padding:".65rem .85rem",marginBottom:".5rem"}}>
-                <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--muted)",marginBottom:".45rem"}}>ADDITIONAL TIME IN STRUCTURE</div>
-                <div style={{display:"flex",gap:".4rem",flexWrap:"wrap"}}>
-                  {adjAvail.map(t=>{
-                    const tst=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
-                    const adjHasTwoLanes=isPrivate&&(tst.lanes||[]).filter(l=>l.type===null).length>1;
-                    return <button key={t.startTime} className="btn btn-s btn-sm" onClick={()=>{
-                      addSlot(t.startTime);
-                      // If the adjacent slot also has 2 free lanes, offer second lane for it
-                      if(adjHasTwoLanes) setSecondLanePrompt(t.startTime);
-                    }}>+ {fmt12(t.startTime)}</button>;
-                  })}
-                </div>
-                <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".4rem"}}>Add additional timeslot for extended time in structure</div>
-              </div>}
-            </>;
+            if(!adjAvail.length) return null;
+            return <div style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:6,padding:".65rem .85rem",marginTop:".5rem"}}>
+              <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--muted)",marginBottom:".45rem"}}>ADDITIONAL TIME IN STRUCTURE</div>
+              <div style={{display:"flex",gap:".4rem",flexWrap:"wrap"}}>
+                {adjAvail.map(t=>{
+                  const tst=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
+                  const adjHasTwoLanes=isPrivate&&(tst.lanes||[]).filter(l=>l.type===null).length>1;
+                  return <button key={t.startTime} className="btn btn-s btn-sm" onClick={()=>{
+                    addSlot(t.startTime);
+                    if(adjHasTwoLanes) setSecondLanePrompt(t.startTime);
+                  }}>+ {fmt12(t.startTime)}</button>;
+                })}
+              </div>
+              <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".4rem"}}>Add additional timeslot for extended time in structure</div>
+            </div>;
           })()}
         </>;
       })()}
