@@ -1266,9 +1266,9 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
                 const slotsAtTime=selSlots.filter(s=>s.startTime===st);
                 const sl1=slotsAtTime[0];
                 const sl2=slotsAtTime[1];
-                if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:lane1Players.length||1,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1)});
-                if(sl2&&lane2Players.length>0) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:lane2Players.length,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0],bookingForOther:false,extraPlayers:lane2Players.slice(1)});
-                else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:1,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:"",phone:""},bookingForOther:false,extraPlayers:[]});
+                if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1)});
+                if(sl2&&lane2Players.length>0) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0],bookingForOther:false,extraPlayers:lane2Players.slice(1)});
+                else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:"",phone:""},bookingForOther:false,extraPlayers:[]});
               });
             } else {
               // Single lane — filter blanks then send all players to every slot
