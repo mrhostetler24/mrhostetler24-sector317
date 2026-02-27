@@ -1064,16 +1064,11 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
           <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
           <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
           {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
-          <div style={{marginTop:".75rem",display:"flex",justifyContent:"flex-end"}}>
-            <button className="btn btn-p" disabled={paying} onClick={()=>{setPaying(true);setPayError(null);setTimeout(()=>{setPaying(false);setPaymentSuccess(true);},1200);}}>
-              {paying?"Processing…":`Pay ${fmtMoney(total)} & Continue →`}
-            </button>
-          </div>
         </>}
         {paymentSuccess&&<div style={{background:"rgba(100,200,100,.1)",border:"1px solid rgba(100,200,100,.35)",borderRadius:6,padding:".85rem 1rem",marginTop:".5rem",display:"flex",alignItems:"center",gap:".75rem"}}>
           <span style={{fontSize:"1.4rem"}}>✅</span>
           <div><div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--okB)",letterSpacing:".06em",marginBottom:".15rem"}}>PAYMENT SUCCESSFUL</div>
-          <div style={{fontSize:".78rem",color:"var(--muted)"}}>Your reservation is confirmed. Add your group's phone numbers below to speed up check-in.</div></div>
+          <div style={{fontSize:".78rem",color:"var(--muted)"}}>Your reservation is confirmed. Add your group members on the next screen to speed up check-in.</div></div>
         </div>}
       </>}
       {step===6&&!isPrivate&&<>
@@ -1092,7 +1087,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
           ];
           return <>
             {multiSlot&&<div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .85rem"}}>
-              ✅ All players will be assigned to all <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong>. If a player is only attending one slot, update their roster at check-in.
+              All players will be assigned to all <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong>. If a player is only attending one slot, update each time slot or lane by clicking <strong style={{color:"var(--txt)"}}>Manage Team</strong> from your reservations.
             </div>}
             <div className="player-inputs">
               {/* Player 1 — booker */}
@@ -1145,16 +1140,11 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
           <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
           <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
           {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
-          <div style={{marginTop:".75rem",display:"flex",justifyContent:"flex-end"}}>
-            <button className="btn btn-p" disabled={paying} onClick={()=>{setPaying(true);setPayError(null);setTimeout(()=>{setPaying(false);setPaymentSuccess(true);},1200);}}>
-              {paying?"Processing…":`Pay ${fmtMoney(total)} & Continue →`}
-            </button>
-          </div>
         </>}
         {paymentSuccess&&<div style={{background:"rgba(100,200,100,.1)",border:"1px solid rgba(100,200,100,.35)",borderRadius:6,padding:".85rem 1rem",marginTop:".5rem",display:"flex",alignItems:"center",gap:".75rem"}}>
           <span style={{fontSize:"1.4rem"}}>✅</span>
           <div><div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--okB)",letterSpacing:".06em",marginBottom:".15rem"}}>PAYMENT SUCCESSFUL</div>
-          <div style={{fontSize:".78rem",color:"var(--muted)"}}>Your reservation is confirmed. Add your group's phone numbers below to speed up check-in.</div></div>
+          <div style={{fontSize:".78rem",color:"var(--muted)"}}>Your reservation is confirmed. Add your group members on the next screen to speed up check-in.</div></div>
         </div>}
       </>}
       {step===6&&isPrivate&&<>
@@ -1219,7 +1209,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
 
           return <>
             {multiSlot&&<div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .85rem"}}>
-              ✅ All players will be assigned to all <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong>. If a player is only attending one slot, update their roster at check-in.
+              All players will be assigned to all <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong>. If a player is only attending one slot, update each time slot or lane by clicking <strong style={{color:"var(--txt)"}}>Manage Team</strong> from your reservations.
             </div>}
             {isDualLane?<>
               {/* Lane 1 */}
@@ -1241,36 +1231,48 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         })()}
       </>}
       <div className="ma">
-        <button className="btn btn-s" onClick={()=>{if(step===1)return onClose();if(step===4){setSelSlots([]);setSecondLanePrompt(null);}if(step===5){setPaymentSuccess(false);setPayError(null);}setStep(s=>s-1);}}>{step===1?"Cancel":"← Back"}</button>
+        {step!==6&&<button className="btn btn-s" onClick={()=>{if(step===1)return onClose();if(step===4){setSelSlots([]);setSecondLanePrompt(null);}if(step===5){setPaymentSuccess(false);setPayError(null);}setStep(s=>s-1);}}>{step===1?"Cancel":"← Back"}</button>}
+        {step===6&&<button className="btn btn-s" onClick={()=>{const w=window.open("","_blank","width=680,height=820");if(!w)return;w.document.write(`<!DOCTYPE html><html><head><title>Receipt — Sector 317</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:2.5rem 3rem;}.logo{font-family:Arial Black,Arial,sans-serif;font-size:2rem;font-weight:900;letter-spacing:.12em;color:#c8e03a;margin-bottom:.15rem;}.tagline{font-size:.78rem;color:#555;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2rem;}h2{font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;border-bottom:2px solid #c8e03a;padding-bottom:.5rem;margin-bottom:1.25rem;}.row{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #eee;font-size:.92rem;}.row .lbl{color:#555;}.row .val{font-weight:600;}.total-row{display:flex;justify-content:space-between;padding:.75rem 0;margin-top:.5rem;font-size:1.1rem;font-weight:700;border-top:2px solid #111;}.footer{margin-top:2.5rem;font-size:.74rem;color:#888;text-align:center;line-height:1.6;}.ref{font-family:monospace;}.no-print{text-align:center;margin-bottom:1.5rem;display:flex;gap:.75rem;justify-content:center;}button{padding:.55rem 1.4rem;border-radius:5px;font-size:.88rem;font-weight:600;cursor:pointer;border:2px solid #111;}button.print-btn{background:#c8e03a;color:#111;border-color:#c8e03a;}button.close-btn{background:#fff;color:#111;}@media print{.no-print{display:none;}}</style></head><body><div class="no-print"><button class="print-btn" onclick="window.print()">🖨 Print Receipt</button><button class="close-btn" onclick="window.close()">✕ Close</button></div><div class="logo">SECTOR 317</div><div class="tagline">Tactical Escape Experience · Indianapolis, IN</div><h2>Booking Receipt</h2><div class="row"><span class="lbl">Customer</span><span class="val">${currentUser.name}</span></div><div class="row"><span class="lbl">Session Type</span><span class="val">${selType?.name||"—"}</span></div><div class="row"><span class="lbl">Date</span><span class="val">${selDate?new Date(selDate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}):"—"}</span></div><div class="row"><span class="lbl">Time(s)</span><span class="val">${[...new Set(selSlots.map(s=>s.startTime))].sort().map(st=>fmt12(st)).join(", ")}</span></div><div class="row"><span class="lbl">Players</span><span class="val">${effPlayerCount}</span></div><div class="row"><span class="lbl">Status</span><span class="val">Confirmed ✔</span></div><div class="total-row"><span>Amount Charged</span><span>${fmtMoney(total)}</span></div><div class="footer">Sector 317 · sector317.com · Indianapolis, IN<br/>Payment processed securely via GoDaddy Payments<br/><span class="ref">Receipt generated ${new Date().toLocaleString("en-US",{dateStyle:"long",timeStyle:"short"})}</span><br/><em>Please retain this receipt for your records.</em></div></body></html>`);w.document.close();}}>🖨 Print Receipt</button>}
         {step<steps.length
-          ?<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>
+          ?<>{!paymentSuccess&&step===5
+              ?<button className="btn btn-p" disabled={paying} onClick={()=>{setPaying(true);setPayError(null);setTimeout(()=>{setPaying(false);setPaymentSuccess(true);setStep(s=>s+1);},1200);}}>{paying?"Processing…":`Pay ${fmtMoney(total)} & Confirm Reservation →`}</button>
+              :<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>
+            }</>
           :<button className="btn btn-p" onClick={()=>{
             const p1=bookingForOther
               ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:""),phone:player1Input.phone}
               :{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
             const isDualLane=lanesBooked>1;
             const capPerLane=perLaneCap;
-            // All players in order: booker first, then extras
-            const allPlayers=[p1,...playerInputs.filter(p=>p.phone||p.name).map(pi=>({
+            const resolveInput=pi=>({
               userId:pi.userId??null,
               name:pi.name||(pi.userId?users.find(u=>u.id===pi.userId)?.name||"":""),
               phone:pi.phone||""
-            }))];
+            });
             if(isDualLane){
-              // Split players into lane buckets — first capPerLane → lane 1, rest → lane 2
-              const lane1Players=allPlayers.slice(0,capPerLane);
-              const lane2Players=allPlayers.slice(capPerLane);
-              // selSlots sorted by startTime — for each time, slot[0] = lane1, slot[1] = lane2
+              // Split playerInputs by POSITION first (before filtering blanks)
+              // Lane 1 extras = first (capPerLane-1) slots; Lane 2 extras = remaining slots
+              // p1 (booker) always goes to Lane 1
+              const lane1ExtraRaw=playerInputs.slice(0,capPerLane-1);
+              const lane2ExtraRaw=playerInputs.slice(capPerLane-1);
+              // Filter blanks within each lane after splitting
+              const lane1Extras=lane1ExtraRaw.filter(p=>p.phone||p.name).map(resolveInput);
+              const lane2Extras=lane2ExtraRaw.filter(p=>p.phone||p.name).map(resolveInput);
+              const lane1Players=[p1,...lane1Extras];
+              const lane2Players=lane2Extras; // Lane 2 has no guaranteed anchor player
+              // selSlots: for each unique time, slot[0]=lane1, slot[1]=lane2
               const uniqueTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
               uniqueTimes.forEach(st=>{
                 const slotsAtTime=selSlots.filter(s=>s.startTime===st);
                 const sl1=slotsAtTime[0];
                 const sl2=slotsAtTime[1];
-                if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1)});
-                if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0]||{userId:null,name:"",phone:""},bookingForOther:false,extraPlayers:lane2Players.slice(1)});
+                if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:lane1Players.length||1,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1)});
+                if(sl2&&lane2Players.length>0) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:lane2Players.length,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0],bookingForOther:false,extraPlayers:lane2Players.slice(1)});
+                else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:1,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:"",phone:""},bookingForOther:false,extraPlayers:[]});
               });
             } else {
-              // Single lane — all players go to every slot
+              // Single lane — filter blanks then send all players to every slot
+              const allPlayers=[p1,...playerInputs.filter(p=>p.phone||p.name).map(resolveInput)];
               selSlots.forEach(s=>{
                 onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:p1,bookingForOther,extraPlayers:allPlayers.slice(1)});
               });
