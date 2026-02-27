@@ -860,6 +860,12 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   const [playerInputs,setPlayerInputs]=useState([]);
   const [bookingForOther,setBookingForOther]=useState(false);
   const [player1Input,setPlayer1Input]=useState({phone:"",userId:null,name:"",status:"idle"});
+  const [paymentSuccess,setPaymentSuccess]=useState(false);
+  const [paying,setPaying]=useState(false);
+  const [payError,setPayError]=useState(null);
+  // For multi-slot bookings: track which slots each player is assigned to
+  // slotAssignments[playerIndex] = Set of startTime strings
+  const [slotAssignments,setSlotAssignments]=useState({});
   const bookable=resTypes.filter(rt=>rt.active&&rt.availableForBooking);
   const selType=bookable.find(rt=>rt.mode===selMode&&rt.style===selStyle);
   const allDates=get60Dates(sessionTemplates);
@@ -884,26 +890,25 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   useEffect(()=>{ setPlayerInputs(Array.from({length:Math.max(0,effPlayerCount-1)},(_,i)=>playerInputs[i]||{phone:"",userId:null,name:"",status:"idle"})); },[effPlayerCount]);
   const addSlot=st=>{
     setSelSlots(p=>{
-      // Private: allow up to 2 entries per startTime (one per lane); open: deduplicate
       const existing=p.filter(s=>s.startTime===st).length;
       if(isPrivate&&existing>=2) return p;
       if(!isPrivate&&existing>=1) return p;
       return [...p,{startTime:st}];
     });
     setAddingMore(false);
-    // For private, check if a second lane is available and we haven't already added two
     if(isPrivate){
       const alreadyTwo=selSlots.filter(s=>s.startTime===st).length>=1;
       if(!alreadyTwo){
         const status=getSlotStatus(selDate,st,selType?.id,reservations,resTypes,sessionTemplates);
         const freeLanesAfter=(status.lanes||[]).filter(l=>l.type===null).length;
         if(freeLanesAfter>1) setSecondLanePrompt(st);
+        else setSecondLanePrompt(null);
       }
     }
   };
   // private skips step 5 (player count)
   const steps=isPrivate?["Mode","Type","Date","Time","Payment","Players"]:["Mode","Type","Date","Time","Payment","Players"];
-  const canNext=[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,true,true];
+  const canNext=[true,!!selMode,!!selStyle,!!selDate,selSlots.length>0,paymentSuccess,true];
   const isStaffBooker=['staff','manager','admin'].includes(currentUser.access);
   if(!currentUser.authProvider)return(
     <div className="mo"><div className="mc"><div className="mt2">Social Sign-In Required</div>
@@ -973,148 +978,373 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
         {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=(new Date(dates[0]+"T12:00:00").getDay()+6)%7;return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");return <div key={d} className={`date-cell${selDate===d?" sel":""}${!availMap[d]?" na":""}`} onClick={()=>availMap[d]&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
       </>}
-      {step===4&&<>
-        <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".65rem"}}>Pick time slots for <strong style={{color:"var(--txt)"}}>{selDate?fmt(selDate):"—"}</strong></p>
-        {selSlots.length>0&&<>{
-  // Group by startTime so dual-lane shows as one chip with "×2"
-  Object.entries(selSlots.reduce((acc,s)=>{acc[s.startTime]=(acc[s.startTime]||0)+1;return acc;},{})).map(([st,count])=>(
-    <div className="session-block" key={st}>
-      <div className="session-block-info">
-        <strong>{fmt12(st)}</strong>
-        {count>1&&<span style={{marginLeft:".4rem",fontSize:".72rem",color:"var(--acc)",fontFamily:"var(--fd)",letterSpacing:".06em"}}>×{count} LANES</span>}
-      </div>
-      <button className="chip-remove" onClick={()=>{
-        if(count>1){setSelSlots(p=>{const idx=p.findLastIndex?.(s=>s.startTime===st)??p.map(s=>s.startTime).lastIndexOf(st);return p.filter((_,i)=>i!==idx);});}
-        else{setSelSlots(p=>p.filter(x=>x.startTime!==st));}
-        setSecondLanePrompt(null);
-      }}>✕</button>
-    </div>
-  ))
-}<div style={{marginBottom:".75rem"}}/></> }
-        {(selSlots.length===0||addingMore)&&<>
-          {/* Slot cards with per-lane info */}
-        <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=>{
-  const laneInfo=status.lanes||[];
-  return <div key={tmpl.id} className={`slot-card${added?" added":!status.available?" unavail":""}`} onClick={()=>!added&&status.available&&addSlot(tmpl.startTime)}>
-    <div className="slot-time">{fmt12(tmpl.startTime)}</div>
-    {added?<div className="slot-info" style={{color:"var(--okB)"}}>✓ Added</div>:status.available?<>
-      <div className="slot-info" style={{color:"var(--okB)",fontSize:".72rem"}}>{(()=>{if(selType?.style==="private"){const total=(status.lanes||[]).length;const free=status.slotsLeft??total;return free<total?`${free} lane${free!==1?"s":""} free`:"Available";}else{const cap=laneCapacity(selMode||"coop");const spots=status.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";}})()} </div>
-      {laneInfo.length>0&&<div style={{marginTop:".35rem",display:"flex",flexDirection:"column",gap:"2px"}}>
-        {laneInfo.map(l=><div key={l.laneNum} style={{fontSize:".6rem",fontFamily:"var(--fd)",letterSpacing:".04em",display:"flex",justifyContent:"space-between",color:l.type===null?"rgba(200,224,58,.4)":l.type==="private"?"var(--dangerL)":l.mode===selType?.mode?"var(--okB)":"var(--warn)"}}>
-          <span>Lane {l.laneNum}</span>
-          <span>{l.type===null?"Free":l.type==="private"?"Private":l.mode==="coop"?`Co-Op ${l.playerCount}/6`:`Versus ${l.playerCount}/12`}</span>
-        </div>)}
-      </div>}
-    </>:<div className="slot-reason">{status.reason}</div>}
-  </div>;})}
-</div>
-        </>}
-        {secondLanePrompt&&isPrivate&&selSlots.filter(s=>s.startTime===secondLanePrompt).length<2&&(()=>{
-          const maxCombined=selMode==="coop"?12:24;
-          const adjSlots=slotsForDate.filter(t=>{
-            if(t.startTime<=secondLanePrompt) return false; // only future slots
-            if(selSlots.some(s=>s.startTime===t.startTime)) return false; // already added
-            const st=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
-            return st.available;
-          });
-          return <div style={{display:"flex",flexDirection:"column",gap:".6rem",marginBottom:".75rem"}}>
-            <div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.25)",borderRadius:6,padding:".85rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"1rem",flexWrap:"wrap"}}>
-              <div>
-                <div style={{fontFamily:"var(--fd)",fontSize:".78rem",letterSpacing:".08em",color:"var(--acc)",marginBottom:".2rem"}}>SECOND LANE AVAILABLE</div>
-                <div style={{fontSize:".84rem",color:"var(--txt)"}}>Both lanes are open at <strong>{fmt12(secondLanePrompt)}</strong> — you can add the second lane if you have more than {selMode==="versus"?"12":"6"} players in your party!</div>
-                <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".2rem"}}>+{fmtMoney(pricePerSlot)} · Accommodates up to {maxCombined} players across both lanes</div>
-              </div>
-              <div style={{display:"flex",gap:".5rem",flexShrink:0}}>
-                <button className="btn btn-s btn-sm" onClick={()=>setSecondLanePrompt(null)}>{selSlots.filter(s=>s.startTime===secondLanePrompt).length>1?"Done ✓":"No thanks"}</button>
-                <button className="btn btn-p btn-sm" onClick={()=>setSelSlots(p=>[...p,{startTime:secondLanePrompt}])}>+ Add Lane</button>
-              </div>
+      {step===4&&(()=>{
+        // Unique startTimes selected (deduplicated for display)
+        const uniqueTimes=[...new Set(selSlots.map(s=>s.startTime))];
+        // Current secondLanePrompt lane count for the prompted slot
+        const promptLaneCount=secondLanePrompt?selSlots.filter(s=>s.startTime===secondLanePrompt).length:0;
+        const maxCombined=selMode==="coop"?12:24;
+        return <>
+          <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".65rem"}}>Pick time slots for <strong style={{color:"var(--txt)"}}>{selDate?fmt(selDate):"—"}</strong></p>
+          {/* ── SECOND LANE PROMPT — stays at top so it never scrolls off ── */}
+          {secondLanePrompt&&isPrivate&&promptLaneCount<2&&<div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.35)",borderRadius:6,padding:".85rem 1rem",marginBottom:".75rem"}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:".78rem",letterSpacing:".08em",color:"var(--acc)",marginBottom:".3rem"}}>SECOND LANE AVAILABLE</div>
+            <div style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".25rem"}}>Both lanes are open at <strong>{fmt12(secondLanePrompt)}</strong> — add the second lane if you have more than {selMode==="versus"?"12":"6"} players!</div>
+            <div style={{fontSize:".72rem",color:"var(--muted)",marginBottom:".6rem"}}>+{fmtMoney(pricePerSlot)} · Accommodates up to {maxCombined} players across both lanes</div>
+            <div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
+              <button className="btn btn-p btn-sm" onClick={()=>setSelSlots(p=>[...p,{startTime:secondLanePrompt}])}>+ Add Second Lane</button>
+              <button className="btn btn-s btn-sm" onClick={()=>setSecondLanePrompt(null)}>No thanks</button>
             </div>
-            {adjSlots.length>0&&<div style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:6,padding:".75rem 1rem"}}>
-              <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--muted)",marginBottom:".55rem"}}>OTHER AVAILABLE SLOTS TODAY</div>
-              <div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
-                {adjSlots.map(t=><button key={t.startTime} className="btn btn-s btn-sm" onClick={()=>{setSelSlots(p=>[...p,{startTime:t.startTime}]);setSecondLanePrompt(null);}}>{fmt12(t.startTime)}</button>)}
-              </div>
-              <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".45rem"}}>Add additional timeslot for extended time in structure</div>
-            </div>}
-          </div>;
-        })()}
-        {selSlots.length>0&&!addingMore&&!secondLanePrompt&&<button className="btn btn-s btn-sm" onClick={()=>setAddingMore(true)}>+ Add Another Slot</button>}
-      </>}
+          </div>}
+          {/* ── SELECTED SLOTS CHIPS ── */}
+          {uniqueTimes.length>0&&<div style={{marginBottom:".6rem",display:"flex",flexWrap:"wrap",gap:".4rem"}}>
+            {uniqueTimes.map(st=>{
+              const count=selSlots.filter(s=>s.startTime===st).length;
+              return <div className="session-block" key={st} style={{display:"inline-flex",alignItems:"center",gap:".5rem"}}>
+                <strong>{fmt12(st)}</strong>
+                {count>1&&<span style={{fontSize:".72rem",color:"var(--acc)",fontFamily:"var(--fd)",letterSpacing:".06em"}}>×2 LANES</span>}
+                <button className="chip-remove" style={{marginLeft:".25rem"}} onClick={()=>{
+                  if(count>1){setSelSlots(p=>{const idx=p.findLastIndex?.(s=>s.startTime===st)??p.map(s=>s.startTime).lastIndexOf(st);return p.filter((_,i)=>i!==idx);});}
+                  else{setSelSlots(p=>p.filter(x=>x.startTime!==st));}
+                  if(secondLanePrompt===st) setSecondLanePrompt(null);
+                }}>✕</button>
+              </div>;
+            })}
+          </div>}
+          {/* ── SLOT PICKER (shown when no slots yet, or adding more) ── */}
+          {(selSlots.length===0||addingMore)&&<>
+            <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=>{
+              const laneInfo=status.lanes||[];
+              return <div key={tmpl.id} className={`slot-card${added?" added":!status.available?" unavail":""}`} onClick={()=>!added&&status.available&&addSlot(tmpl.startTime)}>
+                <div className="slot-time">{fmt12(tmpl.startTime)}</div>
+                {added?<div className="slot-info" style={{color:"var(--okB)"}}>✓ Added</div>:status.available?<>
+                  <div className="slot-info" style={{color:"var(--okB)",fontSize:".72rem"}}>{(()=>{if(selType?.style==="private"){const total=(status.lanes||[]).length;const free=status.slotsLeft??total;return free<total?`${free} lane${free!==1?"s":""} free`:"Available";}else{const cap=laneCapacity(selMode||"coop");const spots=status.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";}})()}</div>
+                  {laneInfo.length>0&&<div style={{marginTop:".35rem",display:"flex",flexDirection:"column",gap:"2px"}}>
+                    {laneInfo.map(l=><div key={l.laneNum} style={{fontSize:".6rem",fontFamily:"var(--fd)",letterSpacing:".04em",display:"flex",justifyContent:"space-between",color:l.type===null?"rgba(200,224,58,.4)":l.type==="private"?"var(--dangerL)":l.mode===selType?.mode?"var(--okB)":"var(--warn)"}}>
+                      <span>Lane {l.laneNum}</span>
+                      <span>{l.type===null?"Free":l.type==="private"?"Private":l.mode==="coop"?`Co-Op ${l.playerCount}/6`:`Versus ${l.playerCount}/12`}</span>
+                    </div>)}
+                  </div>}
+                </>:<div className="slot-reason">{status.reason}</div>}
+              </div>;
+            })}</div>
+          </>}
+          {/* ── ADJACENT SLOT OFFERS (extended time) ── */}
+          {selSlots.length>0&&!addingMore&&!secondLanePrompt&&(()=>{
+            const addedTimes=new Set(selSlots.map(s=>s.startTime));
+            const adjAvail=slotsForDate.filter(t=>{
+              if(addedTimes.has(t.startTime)) return false;
+              const st=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
+              return st.available;
+            });
+            return <>
+              {adjAvail.length>0&&<div style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:6,padding:".65rem .85rem",marginBottom:".5rem"}}>
+                <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--muted)",marginBottom:".45rem"}}>ADDITIONAL TIME IN STRUCTURE</div>
+                <div style={{display:"flex",gap:".4rem",flexWrap:"wrap"}}>
+                  {adjAvail.map(t=>{
+                    const tst=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
+                    const adjHasTwoLanes=isPrivate&&(tst.lanes||[]).filter(l=>l.type===null).length>1;
+                    return <button key={t.startTime} className="btn btn-s btn-sm" onClick={()=>{
+                      addSlot(t.startTime);
+                      // If the adjacent slot also has 2 free lanes, offer second lane for it
+                      if(adjHasTwoLanes) setSecondLanePrompt(t.startTime);
+                    }}>+ {fmt12(t.startTime)}</button>;
+                  })}
+                </div>
+                <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".4rem"}}>Add additional timeslot for extended time in structure</div>
+              </div>}
+            </>;
+          })()}
+        </>;
+      })()}
       {step===5&&!isPrivate&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Players{selType?.pricingMode==="per_person"&&<span style={{color:"var(--accB)",marginLeft:".5rem"}}>{fmtMoney(selType.price)}/player</span>}</p>
         <div className="f"><label>Number of Players {isVersusOpen&&<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>(min 4, max {maxP})</span>}{!isVersusOpen&&<span style={{fontSize:".78rem",color:"var(--muted)"}}>max {maxP}</span>}</label><input type="number" min={minP} max={maxP} value={playerCount} onChange={e=>setPlayerCount(Math.min(maxP,Math.max(minP,+e.target.value)))}/>{isVersusOpen&&playerCount<4&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ Versus open play requires a minimum of 4 players.</div>}</div>
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
-        <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
-        <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
-        <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+        {!paymentSuccess&&<>
+          <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
+          <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
+          <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+          {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
+          <div style={{marginTop:".75rem",display:"flex",justifyContent:"flex-end"}}>
+            <button className="btn btn-p" disabled={paying} onClick={()=>{setPaying(true);setPayError(null);setTimeout(()=>{setPaying(false);setPaymentSuccess(true);},1200);}}>
+              {paying?"Processing…":`Pay ${fmtMoney(total)} & Continue →`}
+            </button>
+          </div>
+        </>}
+        {paymentSuccess&&<div style={{background:"rgba(100,200,100,.1)",border:"1px solid rgba(100,200,100,.35)",borderRadius:6,padding:".85rem 1rem",marginTop:".5rem",display:"flex",alignItems:"center",gap:".75rem"}}>
+          <span style={{fontSize:"1.4rem"}}>✅</span>
+          <div><div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--okB)",letterSpacing:".06em",marginBottom:".15rem"}}>PAYMENT SUCCESSFUL</div>
+          <div style={{fontSize:".78rem",color:"var(--muted)"}}>Your reservation is confirmed. Add your group's phone numbers below to speed up check-in.</div></div>
+        </div>}
       </>}
       {step===6&&!isPrivate&&<>
         <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem"}}>Optionally add your group's phone numbers to speed up check-in. You can also do this later from your reservations.</p>
-        {/* Player 1 — booker by default, or replacement input if booking for someone else */}
-        <div className="player-inputs">
-          {!bookingForOther
-            ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
-                <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".4rem"}}>PLAYER 1</div>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
-                    <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
-                    <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
-                    <span style={{fontSize:".75rem",color:"var(--okB)"}}>— you</span>
+        {(()=>{
+          const uniqueSlotTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
+          const multiSlot=uniqueSlotTimes.length>1;
+          const capPerSlot=perLaneCap*(isPrivate?lanesBooked:1);
+          // Count how many players are checked into each slot
+          const slotCheckedCount=st=>{
+            let n=0;
+            // Player 1
+            const p1Id=bookingForOther?player1Input.userId:currentUser.id;
+            if(p1Id&&slotAssignments['p1']?.has(st)) n++;
+            else if(!multiSlot) n++; // single slot: everyone is implicitly in
+            playerInputs.forEach((_,i)=>{if(slotAssignments[`p${i+2}`]?.has(st)) n++;else if(!multiSlot) n++;});
+            return n;
+          };
+          const toggleAssign=(key,st)=>{
+            setSlotAssignments(prev=>{
+              const cur=new Set(prev[key]||[]);
+              if(cur.has(st)){cur.delete(st);}else{
+                // Check capacity
+                const already=slotCheckedCount(st);
+                if(already>=capPerSlot) return prev; // at capacity
+                cur.add(st);
+              }
+              return {...prev,[key]:cur};
+            });
+          };
+          // Init: assign everyone to all slots by default on first render
+          return <>
+            {multiSlot&&<div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .85rem"}}>
+              You have <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong> booked. Check each player into the slot(s) they'll attend. Each slot holds up to <strong style={{color:"var(--txt)"}}>{capPerSlot}</strong> players.
+            </div>}
+            <div className="player-inputs">
+              {/* Player 1 */}
+              {!bookingForOther
+                ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
+                      <div>
+                        <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".2rem"}}>PLAYER 1 — YOU</div>
+                        <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
+                          <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
+                          <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:".3rem"}}>
+                        {multiSlot?uniqueSlotTimes.map(st=>{
+                          const checked=(slotAssignments['p1']||new Set()).has(st);
+                          const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
+                          return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer"}}>
+                            <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign('p1',st)} style={{accentColor:"var(--acc)"}}/>
+                            {fmt12(st)}
+                          </label>;
+                        }):<label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
+                          <input type="checkbox" checked={!bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                          {isPrivate?"I'm not playing — booking for my group":"Booking for someone else"}
+                        </label>}
+                      </div>
+                    </div>
                   </div>
-                  <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",whiteSpace:"nowrap"}}>
-                    <input type="checkbox" checked={bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
-                    Booking for someone else
-                  </label>
-                </div>
-              </div>
-            : <div>
-                <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} activeWaiverDoc={activeWaiverDoc} onChange={setPlayer1Input} showFullName={true}/>
-                <div style={{marginTop:".4rem"}}><label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}><input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>Booking for someone else</label></div>
-              </div>
-          }
-          {playerCount>1&&playerInputs.map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={currentUser.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}
-        </div>
+                : <div style={{marginBottom:".5rem"}}>
+                    <div style={{display:"flex",alignItems:"flex-start",gap:".75rem",flexWrap:"wrap"}}>
+                      <div style={{flex:1}}>
+                        <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} activeWaiverDoc={activeWaiverDoc} onChange={setPlayer1Input} showFullName={true}/>
+                        <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",marginTop:".35rem"}}>
+                          <input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>
+                          {isPrivate?"I'm not playing — booking for my group":"Booking for someone else"}
+                        </label>
+                      </div>
+                      {multiSlot&&<div style={{display:"flex",flexDirection:"column",gap:".3rem",paddingTop:".35rem"}}>
+                        {uniqueSlotTimes.map(st=>{
+                          const checked=(slotAssignments['p1']||new Set()).has(st);
+                          const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
+                          return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer"}}>
+                            <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign('p1',st)} style={{accentColor:"var(--acc)"}}/>
+                            {fmt12(st)}
+                          </label>;
+                        })}
+                      </div>}
+                    </div>
+                  </div>
+              }
+              {/* Additional players */}
+              {playerInputs.map((pi,i)=>{
+                const key=`p${i+2}`;
+                const currentUserIds=[
+                  bookingForOther?player1Input.userId:currentUser.id,
+                  ...playerInputs.filter((_,j)=>j!==i).map(p=>p.userId)
+                ].filter(Boolean);
+                return <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
+                  <div style={{flex:1}}>
+                    <PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={currentUser.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>
+                  </div>
+                  {multiSlot&&<div style={{display:"flex",flexDirection:"column",gap:".3rem",paddingTop:"1.6rem",flexShrink:0}}>
+                    {uniqueSlotTimes.map(st=>{
+                      const checked=(slotAssignments[key]||new Set()).has(st);
+                      const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
+                      return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer",whiteSpace:"nowrap"}}>
+                        <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign(key,st)} style={{accentColor:"var(--acc)"}}/>
+                        {fmt12(st)}
+                      </label>;
+                    })}
+                  </div>}
+                  {!multiSlot&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>}
+                </div>;
+              })}
+            </div>
+            {!isPrivate&&playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+          </>;
+        })()}
       </>}
       {step===5&&isPrivate&&<>
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>Private ({lanesBooked>1?`${lanesBooked} lanes · `:""}max {maxP} players) — Flat</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span></div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
-        <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
-        <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
-        <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+        {!paymentSuccess&&<>
+          <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
+          <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
+          <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+          {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
+          <div style={{marginTop:".75rem",display:"flex",justifyContent:"flex-end"}}>
+            <button className="btn btn-p" disabled={paying} onClick={()=>{setPaying(true);setPayError(null);setTimeout(()=>{setPaying(false);setPaymentSuccess(true);},1200);}}>
+              {paying?"Processing…":`Pay ${fmtMoney(total)} & Continue →`}
+            </button>
+          </div>
+        </>}
+        {paymentSuccess&&<div style={{background:"rgba(100,200,100,.1)",border:"1px solid rgba(100,200,100,.35)",borderRadius:6,padding:".85rem 1rem",marginTop:".5rem",display:"flex",alignItems:"center",gap:".75rem"}}>
+          <span style={{fontSize:"1.4rem"}}>✅</span>
+          <div><div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--okB)",letterSpacing:".06em",marginBottom:".15rem"}}>PAYMENT SUCCESSFUL</div>
+          <div style={{fontSize:".78rem",color:"var(--muted)"}}>Your reservation is confirmed. Add your group's phone numbers below to speed up check-in.</div></div>
+        </div>}
       </>}
       {step===6&&isPrivate&&<>
         <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem"}}>Optionally add your group's phone numbers to speed up check-in. You can also do this later from your reservations.</p>
-        <div className="player-inputs" style={{marginBottom:".75rem"}}>
-          {!bookingForOther
-            ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
-                <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".4rem"}}>PLAYER 1</div>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
-                    <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
-                    <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
-                    <span style={{fontSize:".75rem",color:"var(--okB)"}}>— you</span>
+        {(()=>{
+          const uniqueSlotTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
+          const multiSlot=uniqueSlotTimes.length>1;
+          const capPerSlot=perLaneCap*(isPrivate?lanesBooked:1);
+          // Count how many players are checked into each slot
+          const slotCheckedCount=st=>{
+            let n=0;
+            // Player 1
+            const p1Id=bookingForOther?player1Input.userId:currentUser.id;
+            if(p1Id&&slotAssignments['p1']?.has(st)) n++;
+            else if(!multiSlot) n++; // single slot: everyone is implicitly in
+            playerInputs.forEach((_,i)=>{if(slotAssignments[`p${i+2}`]?.has(st)) n++;else if(!multiSlot) n++;});
+            return n;
+          };
+          const toggleAssign=(key,st)=>{
+            setSlotAssignments(prev=>{
+              const cur=new Set(prev[key]||[]);
+              if(cur.has(st)){cur.delete(st);}else{
+                // Check capacity
+                const already=slotCheckedCount(st);
+                if(already>=capPerSlot) return prev; // at capacity
+                cur.add(st);
+              }
+              return {...prev,[key]:cur};
+            });
+          };
+          // Init: assign everyone to all slots by default on first render
+          return <>
+            {multiSlot&&<div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .85rem"}}>
+              You have <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong> booked. Check each player into the slot(s) they'll attend. Each slot holds up to <strong style={{color:"var(--txt)"}}>{capPerSlot}</strong> players.
+            </div>}
+            <div className="player-inputs">
+              {/* Player 1 */}
+              {!bookingForOther
+                ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
+                      <div>
+                        <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".2rem"}}>PLAYER 1 — YOU</div>
+                        <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
+                          <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
+                          <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:".3rem"}}>
+                        {multiSlot?uniqueSlotTimes.map(st=>{
+                          const checked=(slotAssignments['p1']||new Set()).has(st);
+                          const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
+                          return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer"}}>
+                            <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign('p1',st)} style={{accentColor:"var(--acc)"}}/>
+                            {fmt12(st)}
+                          </label>;
+                        }):<label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
+                          <input type="checkbox" checked={!bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                          {isPrivate?"I'm not playing — booking for my group":"Booking for someone else"}
+                        </label>}
+                      </div>
+                    </div>
                   </div>
-                  <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",whiteSpace:"nowrap"}}>
-                    <input type="checkbox" checked={bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
-                    I'm not playing — booking for my group
-                  </label>
-                </div>
-              </div>
-            : <div>
-                <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} onChange={setPlayer1Input} showFullName={true}/>
-                <div style={{marginTop:".4rem"}}><label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}><input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>I'm not playing — booking for my group</label></div>
-              </div>
-          }
-        </div>
-        <div className="player-inputs">{playerInputs.map((pi,i)=><PlayerPhoneInput key={i} index={i} value={pi} users={users} bookerUserId={currentUser.id} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>)}</div>
+                : <div style={{marginBottom:".5rem"}}>
+                    <div style={{display:"flex",alignItems:"flex-start",gap:".75rem",flexWrap:"wrap"}}>
+                      <div style={{flex:1}}>
+                        <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} activeWaiverDoc={activeWaiverDoc} onChange={setPlayer1Input} showFullName={true}/>
+                        <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",marginTop:".35rem"}}>
+                          <input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>
+                          {isPrivate?"I'm not playing — booking for my group":"Booking for someone else"}
+                        </label>
+                      </div>
+                      {multiSlot&&<div style={{display:"flex",flexDirection:"column",gap:".3rem",paddingTop:".35rem"}}>
+                        {uniqueSlotTimes.map(st=>{
+                          const checked=(slotAssignments['p1']||new Set()).has(st);
+                          const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
+                          return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer"}}>
+                            <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign('p1',st)} style={{accentColor:"var(--acc)"}}/>
+                            {fmt12(st)}
+                          </label>;
+                        })}
+                      </div>}
+                    </div>
+                  </div>
+              }
+              {/* Additional players */}
+              {playerInputs.map((pi,i)=>{
+                const key=`p${i+2}`;
+                const currentUserIds=[
+                  bookingForOther?player1Input.userId:currentUser.id,
+                  ...playerInputs.filter((_,j)=>j!==i).map(p=>p.userId)
+                ].filter(Boolean);
+                return <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
+                  <div style={{flex:1}}>
+                    <PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={currentUser.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>
+                  </div>
+                  {multiSlot&&<div style={{display:"flex",flexDirection:"column",gap:".3rem",paddingTop:"1.6rem",flexShrink:0}}>
+                    {uniqueSlotTimes.map(st=>{
+                      const checked=(slotAssignments[key]||new Set()).has(st);
+                      const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
+                      return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer",whiteSpace:"nowrap"}}>
+                        <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign(key,st)} style={{accentColor:"var(--acc)"}}/>
+                        {fmt12(st)}
+                      </label>;
+                    })}
+                  </div>}
+                  {!multiSlot&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>}
+                </div>;
+              })}
+            </div>
+            {!isPrivate&&playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+          </>;
+        })()}
       </>}
       <div className="ma">
-        <button className="btn btn-s" onClick={()=>step===1?onClose():(step===4&&(setSelSlots([]),setSecondLanePrompt(null)),setStep(s=>s-1))}>{step===1?"Cancel":"← Back"}</button>
-        {step<steps.length?<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>:<button className="btn btn-p" onClick={()=>{
-  const p1=bookingForOther
-    ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:""),phone:player1Input.phone}
-    :{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
-  selSlots.forEach(s=>{onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:p1,bookingForOther,extraPlayers:playerInputs});});
-}}>{isPrivate?`Pay ${fmtMoney(total)} & Confirm`:`Pay ${fmtMoney(total)} & Confirm`}</button>}
+        <button className="btn btn-s" onClick={()=>{if(step===1)return onClose();if(step===4){setSelSlots([]);setSecondLanePrompt(null);}if(step===5){setPaymentSuccess(false);setPayError(null);}setStep(s=>s-1);}}>{step===1?"Cancel":"← Back"}</button>
+        {step<steps.length
+          ?<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>
+          :<button className="btn btn-p" onClick={()=>{
+            const p1=bookingForOther
+              ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:""),phone:player1Input.phone}
+              :{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
+            const uniqueSlotTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
+            const multiSlot=uniqueSlotTimes.length>1;
+            // Build per-slot player lists from slotAssignments
+            const getPlayersForSlot=st=>{
+              const p1In=multiSlot?(slotAssignments['p1']||new Set()).has(st):true;
+              const extras=playerInputs.map((pi,i)=>{
+                const key=`p${i+2}`;
+                const inSlot=multiSlot?(slotAssignments[key]||new Set()).has(st):true;
+                return inSlot?pi:null;
+              }).filter(Boolean);
+              return {player1:p1In?p1:null,extraPlayers:extras,playerCount:effPlayerCount};
+            };
+            // For same startTime with 2 lanes (dual-lane), still fire one booking per selSlot entry
+            selSlots.forEach(s=>{
+              const slotData=getPlayersForSlot(s.startTime);
+              onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:slotData.playerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:slotData.player1||p1,bookingForOther,extraPlayers:slotData.extraPlayers});
+            });
+          }}>Confirm Reservation →</button>}
       </div>
     </div></div>
   );
