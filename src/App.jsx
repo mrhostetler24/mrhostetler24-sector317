@@ -806,7 +806,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
       {!selDate&&<>
         <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".6rem"}}>Pick a new date:</p>
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
-        {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=(new Date(dates[0]+"T12:00:00").getDay()+6)%7;return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");const avail=reschedAvailMap[d];const isCurrent=d===res.date;return <div key={d} className={`date-cell${isCurrent?" sel":""}${!avail?" na":""}`} onClick={()=>avail&&!isCurrent&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
+        {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=(new Date(dates[0]+"T12:00:00").getDay()+6)%7;return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");const avail=reschedAvailMap[d];const isCurrent=d===res.date;return <div key={d} className={`date-cell${isCurrent?" sel":""}${!avail?" na":""}`} onClick={()=>avail&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
       </>}
       {selDate&&!selTime&&<>
         <p style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".6rem"}}>Available times on <strong>{fmt(selDate)}</strong>:</p>
@@ -982,7 +982,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       }}>✕</button>
     </div>
   ))
-}<div style={{marginBottom:".75rem"}}/></>}}
+}<div style={{marginBottom:".75rem"}}/></>
         {(selSlots.length===0||addingMore)&&<>
           {/* Slot cards with per-lane info */}
         <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=>{

@@ -461,15 +461,28 @@ export async function updateReservation(id, changes) {
 }
 
 export async function addPlayerToReservation(resId, player, currentPlayers) {
-  // Write to normalized reservation_players table (source of truth)
+  // Try SECURITY DEFINER RPC first — bypasses RLS for customer-initiated bookings
+  const { data: rpcData, error: rpcErr } = await supabase
+    .rpc('add_reservation_player', {
+      p_reservation_id: resId,
+      p_user_id:        player.userId ?? null,
+      p_name:           player.name,
+      p_phone:          player.phone ?? null,
+    })
+  if (!rpcErr && rpcData) {
+    return { id: rpcData.id, userId: rpcData.user_id ?? null, name: rpcData.name, phone: rpcData.phone ?? null }
+  }
+
+  // Fallback: direct insert (works for staff/admin whose RLS allows it)
   const { data, error } = await supabase.from('reservation_players').insert({
     reservation_id: resId,
     user_id:        player.userId ?? null,
     name:           player.name,
     phone:          player.phone ?? null,
   }).select().single()
-  if (error) throw error
-  // Return in the shape App.jsx expects (same as players array items)
+  if (error) throw new Error(
+    `Could not add player — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${error.message}`
+  )
   return { id: data.id, userId: data.user_id ?? null, name: data.name, phone: data.phone ?? null }
 }
 
@@ -495,14 +508,27 @@ export async function removePlayerFromReservation(playerId) {
  *  Used by saveGroup in CustomerPortal. App.jsx should call this instead of
  *  updateReservation(id, { players }) which writes to the stale JSONB column. */
 export async function syncReservationPlayers(resId, players) {
-  // Delete all existing players for this reservation
+  // Try SECURITY DEFINER RPC first — bypasses RLS
+  const { data: rpcData, error: rpcErr } = await supabase
+    .rpc('sync_reservation_players', {
+      p_reservation_id: resId,
+      p_players: players.map(p => ({
+        user_id: p.userId ?? null,
+        name:    p.name,
+        phone:   p.phone ?? null,
+      })),
+    })
+  if (!rpcErr && rpcData) {
+    return rpcData.map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null }))
+  }
+
+  // Fallback: direct delete + insert (works for staff/admin)
   const { error: delErr } = await supabase
     .from('reservation_players').delete().eq('reservation_id', resId)
-  if (delErr) throw delErr
+  if (delErr) throw new Error(`sync delete failed — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${delErr.message}`)
 
   if (!players.length) return []
 
-  // Insert new player list
   const rows = players.map(p => ({
     reservation_id: resId,
     user_id:        p.userId ?? null,
@@ -511,7 +537,7 @@ export async function syncReservationPlayers(resId, players) {
   }))
   const { data, error } = await supabase
     .from('reservation_players').insert(rows).select()
-  if (error) throw error
+  if (error) throw new Error(`sync insert failed: ${error.message}`)
   return data.map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null }))
 }
 
