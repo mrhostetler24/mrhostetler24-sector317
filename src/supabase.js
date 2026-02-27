@@ -388,38 +388,48 @@ export async function deleteSessionTemplate(id) {
 // RESERVATIONS
 // ============================================================
 
-const mapReservationRows = rows =>
-  (rows ?? []).map(r => ({
+const mergePlayersIntoReservations = (resRows, playerRows) => {
+  const all = playerRows ?? []
+  return (resRows ?? []).map(r => ({
     ...toReservation(r),
-    // Read from 'roster' alias — avoids conflict with the 'players' JSONB column on reservations
-    players: (r.roster ?? []).map(p => ({
-      id:     p.id,
-      userId: p.user_id ?? null,
-      name:   p.name,
-      phone:  p.phone ?? null,
-    })),
+    players: all
+      .filter(p => p.reservation_id === r.id)
+      .map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null })),
   }))
+}
 
 export async function fetchReservations() {
-  const { data, error } = await supabase
+  const { data: resData, error: resErr } = await supabase
     .from('reservations')
-    .select('*, roster:reservation_players(*)')
+    .select('*')
     .order('date', { ascending: false })
     .order('start_time')
-  if (error) throw error
-  return mapReservationRows(data)
+  if (resErr) throw resErr
+
+  const ids = (resData ?? []).map(r => r.id)
+  const { data: playerData } = ids.length
+    ? await supabase.from('reservation_players').select('*').in('reservation_id', ids)
+    : { data: [] }
+
+  return mergePlayersIntoReservations(resData, playerData)
 }
 
 export async function fetchTodaysReservations() {
   const today = new Date().toISOString().split('T')[0]
-  const { data, error } = await supabase
+  const { data: resData, error: resErr } = await supabase
     .from('reservations')
-    .select('*, roster:reservation_players(*)')
+    .select('*')
     .eq('date', today)
     .neq('status', 'cancelled')
     .order('start_time')
-  if (error) throw error
-  return mapReservationRows(data)
+  if (resErr) throw resErr
+
+  const ids = (resData ?? []).map(r => r.id)
+  const { data: playerData } = ids.length
+    ? await supabase.from('reservation_players').select('*').in('reservation_id', ids)
+    : { data: [] }
+
+  return mergePlayersIntoReservations(resData, playerData)
 }
 
 export async function createReservation(res) {
