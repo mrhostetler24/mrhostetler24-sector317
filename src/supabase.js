@@ -407,9 +407,10 @@ export async function fetchReservations() {
   if (resErr) throw resErr
 
   const ids = (resData ?? []).map(r => r.id)
-  const { data: playerData } = ids.length
+  const { data: playerData, error: playerErr } = ids.length
     ? await supabase.from('reservation_players').select('*').in('reservation_id', ids)
     : { data: [] }
+  if (playerErr) throw new Error(`reservation_players fetch failed: ${playerErr.message}`)
 
   return mergePlayersIntoReservations(resData, playerData)
 }
@@ -425,9 +426,10 @@ export async function fetchTodaysReservations() {
   if (resErr) throw resErr
 
   const ids = (resData ?? []).map(r => r.id)
-  const { data: playerData } = ids.length
+  const { data: playerData, error: playerErr } = ids.length
     ? await supabase.from('reservation_players').select('*').in('reservation_id', ids)
     : { data: [] }
+  if (playerErr) throw new Error(`reservation_players fetch failed: ${playerErr.message}`)
 
   return mergePlayersIntoReservations(resData, playerData)
 }
