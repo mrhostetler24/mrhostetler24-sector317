@@ -1077,42 +1077,27 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         </div>}
       </>}
       {step===6&&!isPrivate&&<>
-        <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem"}}>Optionally add your group's phone numbers to speed up check-in. You can also do this later from your reservations.</p>
+        <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem"}}>Add your group's phone numbers to speed up check-in. You can also do this later from your reservations.</p>
         {(()=>{
           const uniqueSlotTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
           const multiSlot=uniqueSlotTimes.length>1;
-          const capPerSlot=perLaneCap*(isPrivate?lanesBooked:1);
-          // Count how many players are checked into each slot
-          const slotCheckedCount=st=>{
-            let n=0;
-            // Player 1
-            const p1Id=bookingForOther?player1Input.userId:currentUser.id;
-            if(p1Id&&slotAssignments['p1']?.has(st)) n++;
-            else if(!multiSlot) n++; // single slot: everyone is implicitly in
-            playerInputs.forEach((_,i)=>{if(slotAssignments[`p${i+2}`]?.has(st)) n++;else if(!multiSlot) n++;});
-            return n;
-          };
-          const toggleAssign=(key,st)=>{
-            setSlotAssignments(prev=>{
-              const cur=new Set(prev[key]||[]);
-              if(cur.has(st)){cur.delete(st);}else{
-                // Check capacity
-                const already=slotCheckedCount(st);
-                if(already>=capPerSlot) return prev; // at capacity
-                cur.add(st);
-              }
-              return {...prev,[key]:cur};
-            });
-          };
-          // Init: assign everyone to all slots by default on first render
+          // Only show slot checkboxes if player counts differ across slots (mismatch)
+          // For open-play non-private, playerCount is fixed so no mismatch — never show checkboxes
+          const showSlotBoxes=false;
+          const allPlayerInputs=[
+            bookingForOther
+              ?player1Input
+              :{phone:currentUser.phone||"",userId:currentUser.id,name:currentUser.name,status:"found"},
+            ...playerInputs
+          ];
           return <>
             {multiSlot&&<div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .85rem"}}>
-              You have <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong> booked. Check each player into the slot(s) they'll attend. Each slot holds up to <strong style={{color:"var(--txt)"}}>{capPerSlot}</strong> players.
+              ✅ All players will be assigned to all <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong>. If a player is only attending one slot, update their roster at check-in.
             </div>}
             <div className="player-inputs">
-              {/* Player 1 */}
+              {/* Player 1 — booker */}
               {!bookingForOther
-                ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
+                ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem",marginBottom:".5rem"}}>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
                       <div>
                         <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".2rem"}}>PLAYER 1 — YOU</div>
@@ -1121,46 +1106,22 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
                           <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
                         </div>
                       </div>
-                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:".3rem"}}>
-                        {multiSlot?uniqueSlotTimes.map(st=>{
-                          const checked=(slotAssignments['p1']||new Set()).has(st);
-                          const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
-                          return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer"}}>
-                            <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign('p1',st)} style={{accentColor:"var(--acc)"}}/>
-                            {fmt12(st)}
-                          </label>;
-                        }):<label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
-                          <input type="checkbox" checked={!bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
-                          {isPrivate?"I'm not playing — booking for my group":"Booking for someone else"}
-                        </label>}
-                      </div>
+                      <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
+                        <input type="checkbox" checked={bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                        Booking for someone else
+                      </label>
                     </div>
                   </div>
                 : <div style={{marginBottom:".5rem"}}>
-                    <div style={{display:"flex",alignItems:"flex-start",gap:".75rem",flexWrap:"wrap"}}>
-                      <div style={{flex:1}}>
-                        <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} activeWaiverDoc={activeWaiverDoc} onChange={setPlayer1Input} showFullName={true}/>
-                        <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",marginTop:".35rem"}}>
-                          <input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>
-                          {isPrivate?"I'm not playing — booking for my group":"Booking for someone else"}
-                        </label>
-                      </div>
-                      {multiSlot&&<div style={{display:"flex",flexDirection:"column",gap:".3rem",paddingTop:".35rem"}}>
-                        {uniqueSlotTimes.map(st=>{
-                          const checked=(slotAssignments['p1']||new Set()).has(st);
-                          const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
-                          return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer"}}>
-                            <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign('p1',st)} style={{accentColor:"var(--acc)"}}/>
-                            {fmt12(st)}
-                          </label>;
-                        })}
-                      </div>}
-                    </div>
+                    <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} activeWaiverDoc={activeWaiverDoc} onChange={setPlayer1Input} showFullName={true}/>
+                    <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",marginTop:".35rem"}}>
+                      <input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>
+                      Booking for someone else
+                    </label>
                   </div>
               }
               {/* Additional players */}
               {playerInputs.map((pi,i)=>{
-                const key=`p${i+2}`;
                 const currentUserIds=[
                   bookingForOther?player1Input.userId:currentUser.id,
                   ...playerInputs.filter((_,j)=>j!==i).map(p=>p.userId)
@@ -1169,21 +1130,11 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
                   <div style={{flex:1}}>
                     <PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={currentUser.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>
                   </div>
-                  {multiSlot&&<div style={{display:"flex",flexDirection:"column",gap:".3rem",paddingTop:"1.6rem",flexShrink:0}}>
-                    {uniqueSlotTimes.map(st=>{
-                      const checked=(slotAssignments[key]||new Set()).has(st);
-                      const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
-                      return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer",whiteSpace:"nowrap"}}>
-                        <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign(key,st)} style={{accentColor:"var(--acc)"}}/>
-                        {fmt12(st)}
-                      </label>;
-                    })}
-                  </div>}
-                  {!multiSlot&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>}
+                  <button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>
                 </div>;
               })}
             </div>
-            {!isPrivate&&playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+            {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
           </>;
         })()}
       </>}
@@ -1207,113 +1158,85 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
         </div>}
       </>}
       {step===6&&isPrivate&&<>
-        <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem"}}>Optionally add your group's phone numbers to speed up check-in. You can also do this later from your reservations.</p>
+        <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem"}}>Add your group's phone numbers to speed up check-in. You can also do this later from your reservations.</p>
         {(()=>{
           const uniqueSlotTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
           const multiSlot=uniqueSlotTimes.length>1;
-          const capPerSlot=perLaneCap*(isPrivate?lanesBooked:1);
-          // Count how many players are checked into each slot
-          const slotCheckedCount=st=>{
-            let n=0;
-            // Player 1
-            const p1Id=bookingForOther?player1Input.userId:currentUser.id;
-            if(p1Id&&slotAssignments['p1']?.has(st)) n++;
-            else if(!multiSlot) n++; // single slot: everyone is implicitly in
-            playerInputs.forEach((_,i)=>{if(slotAssignments[`p${i+2}`]?.has(st)) n++;else if(!multiSlot) n++;});
-            return n;
+          const isDualLane=lanesBooked>1;
+          const capPerLane=perLaneCap;
+          // Detect player count mismatch across slots — only show checkboxes if counts differ
+          // For private, playerCount is fixed so no mismatch; checkboxes never needed
+          const showSlotBoxes=false;
+          // For dual-lane, split player inputs into two lane buckets
+          // Lane 1 = first perLaneCap slots, Lane 2 = next perLaneCap slots
+          // Player list = [booker, ...playerInputs]. We show them in lane groups.
+          const allInputs=[
+            {key:"p1",isBooker:!bookingForOther,input:bookingForOther?player1Input:{phone:currentUser.phone||"",userId:currentUser.id,name:currentUser.name,status:"found"}},
+            ...playerInputs.map((pi,i)=>({key:`p${i+2}`,isBooker:false,input:pi,idx:i}))
+          ];
+          const lane1Inputs=isDualLane?allInputs.slice(0,capPerLane):allInputs;
+          const lane2Inputs=isDualLane?allInputs.slice(capPerLane):[];
+
+          const renderPlayerRow=(entry,showRemove)=>{
+            const {key,isBooker,input,idx}=entry;
+            if(isBooker&&!bookingForOther){
+              return <div key={key} className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem",marginBottom:".5rem"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
+                  <div>
+                    <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".2rem"}}>PLAYER 1 — YOU</div>
+                    <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
+                      <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
+                      <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
+                    </div>
+                  </div>
+                  <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
+                    <input type="checkbox" checked={bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
+                    I'm not playing — booking for my group
+                  </label>
+                </div>
+              </div>;
+            }
+            if(isBooker&&bookingForOther){
+              return <div key={key} style={{marginBottom:".5rem"}}>
+                <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} activeWaiverDoc={activeWaiverDoc} onChange={setPlayer1Input} showFullName={true}/>
+                <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",marginTop:".35rem"}}>
+                  <input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>
+                  I'm not playing — booking for my group
+                </label>
+              </div>;
+            }
+            const currentUserIds=[
+              bookingForOther?player1Input.userId:currentUser.id,
+              ...playerInputs.filter((_,j)=>j!==idx).map(p=>p.userId)
+            ].filter(Boolean);
+            return <div key={key} style={{display:"flex",alignItems:"flex-start",gap:".5rem",marginBottom:".25rem"}}>
+              <div style={{flex:1}}>
+                <PlayerPhoneInput index={idx} value={input} users={users} bookerUserId={currentUser.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[idx]=v;return n;})}/>
+              </div>
+              {showRemove&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==idx))} title="Remove player">✕</button>}
+            </div>;
           };
-          const toggleAssign=(key,st)=>{
-            setSlotAssignments(prev=>{
-              const cur=new Set(prev[key]||[]);
-              if(cur.has(st)){cur.delete(st);}else{
-                // Check capacity
-                const already=slotCheckedCount(st);
-                if(already>=capPerSlot) return prev; // at capacity
-                cur.add(st);
-              }
-              return {...prev,[key]:cur};
-            });
-          };
-          // Init: assign everyone to all slots by default on first render
+
           return <>
             {multiSlot&&<div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .85rem"}}>
-              You have <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong> booked. Check each player into the slot(s) they'll attend. Each slot holds up to <strong style={{color:"var(--txt)"}}>{capPerSlot}</strong> players.
+              ✅ All players will be assigned to all <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong>. If a player is only attending one slot, update their roster at check-in.
             </div>}
-            <div className="player-inputs">
-              {/* Player 1 */}
-              {!bookingForOther
-                ? <div className="pi-row" style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:4,padding:".6rem 1rem"}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
-                      <div>
-                        <div style={{fontSize:".68rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc)",marginBottom:".2rem"}}>PLAYER 1 — YOU</div>
-                        <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
-                          <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
-                          <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
-                        </div>
-                      </div>
-                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:".3rem"}}>
-                        {multiSlot?uniqueSlotTimes.map(st=>{
-                          const checked=(slotAssignments['p1']||new Set()).has(st);
-                          const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
-                          return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer"}}>
-                            <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign('p1',st)} style={{accentColor:"var(--acc)"}}/>
-                            {fmt12(st)}
-                          </label>;
-                        }):<label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
-                          <input type="checkbox" checked={!bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
-                          {isPrivate?"I'm not playing — booking for my group":"Booking for someone else"}
-                        </label>}
-                      </div>
-                    </div>
-                  </div>
-                : <div style={{marginBottom:".5rem"}}>
-                    <div style={{display:"flex",alignItems:"flex-start",gap:".75rem",flexWrap:"wrap"}}>
-                      <div style={{flex:1}}>
-                        <PlayerPhoneInput index={null} label="Player 1" value={player1Input} users={users} bookerUserId={null} activeWaiverDoc={activeWaiverDoc} onChange={setPlayer1Input} showFullName={true}/>
-                        <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer",marginTop:".35rem"}}>
-                          <input type="checkbox" checked={bookingForOther} onChange={e=>setBookingForOther(e.target.checked)} style={{accentColor:"var(--acc)"}}/>
-                          {isPrivate?"I'm not playing — booking for my group":"Booking for someone else"}
-                        </label>
-                      </div>
-                      {multiSlot&&<div style={{display:"flex",flexDirection:"column",gap:".3rem",paddingTop:".35rem"}}>
-                        {uniqueSlotTimes.map(st=>{
-                          const checked=(slotAssignments['p1']||new Set()).has(st);
-                          const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
-                          return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer"}}>
-                            <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign('p1',st)} style={{accentColor:"var(--acc)"}}/>
-                            {fmt12(st)}
-                          </label>;
-                        })}
-                      </div>}
-                    </div>
-                  </div>
-              }
-              {/* Additional players */}
-              {playerInputs.map((pi,i)=>{
-                const key=`p${i+2}`;
-                const currentUserIds=[
-                  bookingForOther?player1Input.userId:currentUser.id,
-                  ...playerInputs.filter((_,j)=>j!==i).map(p=>p.userId)
-                ].filter(Boolean);
-                return <div key={i} style={{display:"flex",alignItems:"flex-start",gap:".5rem"}}>
-                  <div style={{flex:1}}>
-                    <PlayerPhoneInput index={i} value={pi} users={users} bookerUserId={currentUser.id} activeWaiverDoc={activeWaiverDoc} existingUserIds={currentUserIds} onChange={v=>setPlayerInputs(p=>{const n=[...p];n[i]=v;return n;})}/>
-                  </div>
-                  {multiSlot&&<div style={{display:"flex",flexDirection:"column",gap:".3rem",paddingTop:"1.6rem",flexShrink:0}}>
-                    {uniqueSlotTimes.map(st=>{
-                      const checked=(slotAssignments[key]||new Set()).has(st);
-                      const atCap=!checked&&slotCheckedCount(st)>=capPerSlot;
-                      return <label key={st} style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".76rem",color:atCap?"var(--muted)":"var(--txt)",cursor:atCap?"not-allowed":"pointer",whiteSpace:"nowrap"}}>
-                        <input type="checkbox" checked={checked} disabled={atCap} onChange={()=>toggleAssign(key,st)} style={{accentColor:"var(--acc)"}}/>
-                        {fmt12(st)}
-                      </label>;
-                    })}
-                  </div>}
-                  {!multiSlot&&<button className="btn btn-d btn-sm" style={{marginTop:"1.6rem",flexShrink:0}} onClick={()=>setPlayerInputs(p=>p.filter((_,j)=>j!==i))} title="Remove player">✕</button>}
-                </div>;
-              })}
-            </div>
-            {!isPrivate&&playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+            {isDualLane?<>
+              {/* Lane 1 */}
+              <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".65rem 1rem",marginBottom:"1rem"}}>
+                <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--acc)",letterSpacing:".1em",marginBottom:".65rem"}}>🎯 LANE 1 — UP TO {capPerLane} PLAYERS</div>
+                <div className="player-inputs">{lane1Inputs.map(e=>renderPlayerRow(e,!e.isBooker))}</div>
+              </div>
+              {/* Lane 2 */}
+              <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".65rem 1rem",marginBottom:".75rem"}}>
+                <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--acc)",letterSpacing:".1em",marginBottom:".65rem"}}>🎯 LANE 2 — UP TO {capPerLane} PLAYERS</div>
+                <div className="player-inputs">{lane2Inputs.map(e=>renderPlayerRow(e,true))}</div>
+                {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+              </div>
+            </>:<>
+              <div className="player-inputs">{lane1Inputs.map(e=>renderPlayerRow(e,!e.isBooker))}</div>
+              {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+            </>}
           </>;
         })()}
       </>}
@@ -1325,24 +1248,34 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
             const p1=bookingForOther
               ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:""),phone:player1Input.phone}
               :{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
-            const uniqueSlotTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
-            const multiSlot=uniqueSlotTimes.length>1;
-            // Build per-slot player lists from slotAssignments
-            const getPlayersForSlot=st=>{
-              const p1In=multiSlot?(slotAssignments['p1']||new Set()).has(st):true;
-              const extras=playerInputs.map((pi,i)=>{
-                const key=`p${i+2}`;
-                const inSlot=multiSlot?(slotAssignments[key]||new Set()).has(st):true;
-                return inSlot?pi:null;
-              }).filter(Boolean);
-              return {player1:p1In?p1:null,extraPlayers:extras,playerCount:effPlayerCount};
-            };
-            // For same startTime with 2 lanes (dual-lane), still fire one booking per selSlot entry
-            selSlots.forEach(s=>{
-              const slotData=getPlayersForSlot(s.startTime);
-              onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:slotData.playerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:slotData.player1||p1,bookingForOther,extraPlayers:slotData.extraPlayers});
-            });
-          }}>Confirm Reservation →</button>}
+            const isDualLane=lanesBooked>1;
+            const capPerLane=perLaneCap;
+            // All players in order: booker first, then extras
+            const allPlayers=[p1,...playerInputs.filter(p=>p.phone||p.name).map(pi=>({
+              userId:pi.userId??null,
+              name:pi.name||(pi.userId?users.find(u=>u.id===pi.userId)?.name||"":""),
+              phone:pi.phone||""
+            }))];
+            if(isDualLane){
+              // Split players into lane buckets — first capPerLane → lane 1, rest → lane 2
+              const lane1Players=allPlayers.slice(0,capPerLane);
+              const lane2Players=allPlayers.slice(capPerLane);
+              // selSlots sorted by startTime — for each time, slot[0] = lane1, slot[1] = lane2
+              const uniqueTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
+              uniqueTimes.forEach(st=>{
+                const slotsAtTime=selSlots.filter(s=>s.startTime===st);
+                const sl1=slotsAtTime[0];
+                const sl2=slotsAtTime[1];
+                if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1)});
+                if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0]||{userId:null,name:"",phone:""},bookingForOther:false,extraPlayers:lane2Players.slice(1)});
+              });
+            } else {
+              // Single lane — all players go to every slot
+              selSlots.forEach(s=>{
+                onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:p1,bookingForOther,extraPlayers:allPlayers.slice(1)});
+              });
+            }
+          }}>Set Team →</button>}
       </div>
     </div></div>
   );

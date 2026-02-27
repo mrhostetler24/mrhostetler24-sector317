@@ -469,7 +469,8 @@ export async function addPlayerToReservation(resId, player, currentPlayers) {
       p_name:           player.name,
       p_phone:          player.phone ?? null,
     })
-  if (!rpcErr && rpcData) {
+  // rpcData is a single row object — check explicitly for id presence
+  if (!rpcErr && rpcData && rpcData.id) {
     return { id: rpcData.id, userId: rpcData.user_id ?? null, name: rpcData.name, phone: rpcData.phone ?? null }
   }
 
@@ -518,7 +519,8 @@ export async function syncReservationPlayers(resId, players) {
         phone:   p.phone ?? null,
       })),
     })
-  if (!rpcErr && rpcData) {
+  // rpcData can be [] (empty array) on success — Array.isArray check avoids falsy [] bug
+  if (!rpcErr && Array.isArray(rpcData)) {
     return rpcData.map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null }))
   }
 
