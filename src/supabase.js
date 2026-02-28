@@ -86,6 +86,7 @@ const toReservation = r => r ? ({
   status:       r.status,
   paid:         r.paid ?? false,
   players:      r.players ?? [],
+  createdAt:    r.created_at ?? null,
 }) : null
 
 const toShift = r => r ? ({

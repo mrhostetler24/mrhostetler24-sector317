@@ -1852,8 +1852,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [player1Input,setPlayer1Input]=useState({phone:"",userId:null,name:"",status:"idle"});
   const today=todayStr();
   const myRes=reservations.filter(r=>r.userId===user.id);
-  const upcoming=myRes.filter(r=>r.date>=today&&r.status!=="cancelled");
-  const past=myRes.filter(r=>r.date<today||r.status==="completed");
+  const upcoming=myRes.filter(r=>r.date>=today&&r.status!=="cancelled").sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
+  const past=myRes.filter(r=>r.date<today||r.status==="completed").sort((a,b)=>b.date.localeCompare(a.date)||b.startTime.localeCompare(a.startTime));
   const valid=hasValidWaiver(user,activeWaiverDoc);
   const wDate=latestWaiverDate(user);
   const editRes=reservations.find(r=>r.id===editResId);
@@ -2175,8 +2175,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dismissedDups,setDismissedDups]=useState([]);
   const [showWidgetMenu,setShowWidgetMenu]=useState(false);
   const [dashWidgets,setDashWidgets]=useState(()=>isAdmin
-    ?{revenue:true,bookings:true,players:true,utilization:true,slots:true,types:true}
-    :{bookings:true,players:true,slots:true,types:true});
+    ?{revenue:true,bookings:true,players:true,utilization:true,avgCoopPriv:true,avgVsPriv:true,avgCoopOpen:true,avgVsOpen:true,newUsers:true,leadTime:true}
+    :{bookings:true,players:true,avgCoopPriv:true,avgVsPriv:true,avgCoopOpen:true,avgVsOpen:true,leadTime:true});
   const toggleWidget=id=>setDashWidgets(p=>({...p,[id]:!p[id]}));
   const showToast=msg=>{setToastMsg(msg);setTimeout(()=>setToastMsg(null),3200);};
   const [mergeTarget,setMergeTarget]=useState(null);
@@ -2365,17 +2365,20 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             {showWidgetMenu&&<div className="widget-panel">
               <div className="widget-panel-title">Show / Hide Widgets</div>
               {[
-                {id:"revenue",    label:"Revenue",              adminOnly:true},
-                {id:"utilization",label:"Utilization",          adminOnly:true},
-                {id:"bookings",   label:"Bookings",             adminOnly:false},
-                {id:"players",    label:"Total Players",        adminOnly:false},
-                {id:"slots",      label:"Active Session Slots", adminOnly:false},
-                {id:"types",      label:"Active Types",         adminOnly:false},
-              ].map(w=>{
-                const locked=w.adminOnly&&!isAdmin;
-                return <div key={w.id} className={`widget-row${locked?" widget-locked":""}`}>
-                  <span style={{color:locked?"var(--muted)":"var(--txt)"}}>{w.label}{locked&&<span style={{fontSize:".62rem",color:"var(--muted)",marginLeft:".3rem"}}>🔒 admin</span>}</span>
-                  <label className="toggle-switch" onClick={()=>!locked&&toggleWidget(w.id)} style={{cursor:locked?"not-allowed":"pointer"}}>
+                {id:"revenue",     label:"Revenue",                adminOnly:true},
+                {id:"utilization", label:"Utilization",            adminOnly:true},
+                {id:"newUsers",    label:"New Users",              adminOnly:true},
+                {id:"bookings",    label:"Bookings",               adminOnly:false},
+                {id:"players",     label:"Avg Players / Lane",     adminOnly:false},
+                {id:"avgCoopPriv", label:"Avg — Private Co-Op",    adminOnly:false},
+                {id:"avgVsPriv",   label:"Avg — Private Versus",   adminOnly:false},
+                {id:"avgCoopOpen", label:"Avg — Open Co-Op",       adminOnly:false},
+                {id:"avgVsOpen",   label:"Avg — Open Versus",      adminOnly:false},
+                {id:"leadTime",    label:"Avg Lead Time",          adminOnly:false},
+              ].filter(w=>isAdmin||!w.adminOnly).map(w=>{
+                return <div key={w.id} className="widget-row">
+                  <span>{w.label}</span>
+                  <label className="toggle-switch" onClick={()=>toggleWidget(w.id)} style={{cursor:"pointer"}}>
                     <div className={`toggle-track${dashWidgets[w.id]?" on":""}`}><div className="toggle-knob"/></div>
                   </label>
                 </div>;
@@ -2386,10 +2389,12 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <div className="stats-grid">
           {(()=>{
             const active=dashRes.filter(r=>r.status!=="cancelled");
+            const completed=dashRes.filter(r=>r.status==="completed");
             const revenue=active.reduce((s,r)=>s+r.amount,0);
-            const players=active.reduce((s,r)=>s+r.playerCount,0);
             const coopRes=active.filter(r=>{const rt=getType(r.typeId);return rt?.mode==="coop";});
             const vsRes=active.filter(r=>{const rt=getType(r.typeId);return rt?.mode==="versus";});
+            // Utilization
+            const allPlayers=active.reduce((s,r)=>s+r.playerCount,0);
             const getOfferedSessions=()=>{
               const activeTmpls=sessionTemplates.filter(t=>t.active);
               if(!activeTmpls.length) return 0;
@@ -2403,28 +2408,58 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               else{const dates=reservations.map(r=>r.date).sort();from=dates[0]||todayStr();}
               if(!from) return 0;
               let count=0;
-              const start=new Date(from+"T12:00:00");
-              const end=new Date(to+"T12:00:00");
-              for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
-                const dayName=d.toLocaleDateString("en-US",{weekday:"long"});
-                count+=activeTmpls.filter(t=>t.dayOfWeek===dayName).length;
-              }
+              const start=new Date(from+"T12:00:00"),end=new Date(to+"T12:00:00");
+              for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){const dayName=d.toLocaleDateString("en-US",{weekday:"long"});count+=activeTmpls.filter(t=>t.dayOfWeek===dayName).length;}
               return count;
             };
             const offeredSessions=getOfferedSessions();
             const totalCapacity=offeredSessions*6.22;
-            const utilPct=totalCapacity>0?Math.round((players/totalCapacity)*100):null;
-            const activeSlots=sessionTemplates.filter(s=>s.active).length;
+            const utilPct=totalCapacity>0?Math.round((allPlayers/totalCapacity)*100):null;
+            // Avg players per lane by type — completed only
+            const byMode=(mode,style)=>completed.filter(r=>{const rt=getType(r.typeId);return rt?.mode===mode&&rt?.style===style;});
+            const completedCoopPriv=byMode("coop","private");
+            const completedVsPriv=byMode("versus","private");
+            const completedCoopOpen=byMode("coop","open");
+            const completedVsOpen=byMode("versus","open");
+            // For open play, group by (date,startTime) so each distinct lane = one data point
+            const laneGroups=arr=>{const m={};arr.forEach(r=>{const k=`${r.date}|${r.startTime}`;m[k]=(m[k]||0)+r.playerCount;});return Object.values(m);};
+            const coopPrivLanes=completedCoopPriv.map(r=>r.playerCount);
+            const vsPrivLanes=completedVsPriv.map(r=>r.playerCount);
+            const coopOpenLanes=laneGroups(completedCoopOpen);
+            const vsOpenLanes=laneGroups(completedVsOpen);
+            const arrAvg=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
+            const fmt2=v=>v===null?"—":v.toFixed(2);
+            const sum=arr=>arr.reduce((s,v)=>s+v,0);
+            // Combined avg/lane across all 4 types (completed only)
+            const allLanes=[...coopPrivLanes,...vsPrivLanes,...coopOpenLanes,...vsOpenLanes];
+            const avgPerLane=arrAvg(allLanes);
+            // New users in period
+            const now2=new Date();
+            let uFrom="",uTo=today;
+            if(dashPeriod==="day"){uFrom=uTo=today;}
+            else if(dashPeriod==="week"){const d=new Date(now2);d.setDate(d.getDate()-d.getDay());uFrom=d.toISOString().slice(0,10);}
+            else if(dashPeriod==="month"){uFrom=`${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,"0")}-01`;}
+            else if(dashPeriod==="year"){uFrom=`${now2.getFullYear()}-01-01`;}
+            else if(dashPeriod==="custom"){uFrom=dashFrom;uTo=dashTo;}
+            const newUsersInPeriod=users.filter(u=>{if(!u.createdAt)return !uFrom;const d=u.createdAt.slice(0,10);return(!uFrom||d>=uFrom)&&(!uTo||d<=uTo);});
+            const authedNewUsers=newUsersInPeriod.filter(u=>u.authProvider);
+            // Lead time: avg hours from reservation createdAt → session start (completed only)
+            const leadHours=arr=>{const valid=arr.filter(r=>r.createdAt);if(!valid.length)return null;return valid.reduce((s,r)=>s+Math.max(0,(new Date(`${r.date}T${r.startTime}:00`)-new Date(r.createdAt))/3600000),0)/valid.length;};
+            const fmtLT=h=>h===null?"—":h<24?`${h.toFixed(1)}h`:`${(h/24).toFixed(1)}d`;
             const w=dashWidgets;
             const revStr=fmtMoney(revenue);
             const revSzCls=revStr.length>10?" stat-val-xs":revStr.length>7?" stat-val-sm":"";
             return <>
               {isAdmin&&w.revenue&&<div className="stat-card"><div className="stat-lbl">Revenue</div><div className={`stat-val${revSzCls}`}>{revStr}</div></div>}
               {w.bookings&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} versus</div></div>}
-              {w.players&&<div className="stat-card"><div className="stat-lbl">Total Players</div><div className="stat-val">{players}</div><div className="stat-sub">avg {active.length?Math.round(players/active.length):0}/session</div></div>}
+              {w.players&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane</div><div className="stat-val">{fmt2(avgPerLane)}</div><div className="stat-sub">{sum(allLanes)} players · {allLanes.length} lanes (completed)</div></div>}
               {isAdmin&&w.utilization&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions · 6.22 avg cap</div></div>}
-              {w.slots&&<div className="stat-card"><div className="stat-lbl">Active Session Slots</div><div className="stat-val">{activeSlots}</div><div className="stat-sub">weekly recurring</div></div>}
-              {w.types&&<div className="stat-card"><div className="stat-lbl">Active Types</div><div className="stat-val">{resTypes.filter(rt=>rt.active).length}</div></div>}
+              {w.avgCoopPriv&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane — Private Co-Op</div><div className="stat-val">{fmt2(arrAvg(coopPrivLanes))}</div><div className="stat-sub">{sum(coopPrivLanes)} total · {coopPrivLanes.length} lanes</div></div>}
+              {w.avgVsPriv&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane — Private Versus</div><div className="stat-val">{fmt2(arrAvg(vsPrivLanes))}</div><div className="stat-sub">{sum(vsPrivLanes)} total · {vsPrivLanes.length} lanes</div></div>}
+              {w.avgCoopOpen&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane — Open Co-Op</div><div className="stat-val">{fmt2(arrAvg(coopOpenLanes))}</div><div className="stat-sub">{sum(coopOpenLanes)} total · {coopOpenLanes.length} lanes</div></div>}
+              {w.avgVsOpen&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane — Open Versus</div><div className="stat-val">{fmt2(arrAvg(vsOpenLanes))}</div><div className="stat-sub">{sum(vsOpenLanes)} total · {vsOpenLanes.length} lanes</div></div>}
+              {isAdmin&&w.newUsers&&<div className="stat-card"><div className="stat-lbl">New Users</div><div className="stat-val">{newUsersInPeriod.length}</div><div className="stat-sub">{authedNewUsers.length} authenticated</div></div>}
+              {w.leadTime&&<div className="stat-card"><div className="stat-lbl">Avg Lead Time</div><div className="stat-val">{fmtLT(leadHours(completed))}</div><div className="stat-sub">Co-Op Priv {fmtLT(leadHours(completedCoopPriv))} · Vs Priv {fmtLT(leadHours(completedVsPriv))}</div><div className="stat-sub">Co-Op Open {fmtLT(leadHours(completedCoopOpen))} · Vs Open {fmtLT(leadHours(completedVsOpen))}</div></div>}
             </>;
           })()}
         </div>
