@@ -1171,6 +1171,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
           ];
           const lane1Inputs=isDualLane?allInputs.slice(0,capPerLane):allInputs;
           const lane2Inputs=isDualLane?allInputs.slice(capPerLane):[];
+          const isVersus=selMode==="versus";
+          const teamSize=isVersus?Math.floor(capPerLane/2):capPerLane;
 
           const renderPlayerRow=(entry,showRemove)=>{
             const {key,isBooker,input,idx}=entry;
@@ -1216,19 +1218,48 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
             {multiSlot&&<div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".75rem",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .85rem"}}>
               All players will be assigned to all <strong style={{color:"var(--txt)"}}>{uniqueSlotTimes.length} time slots</strong>. If a player is only attending one slot, update each time slot or lane by clicking <strong style={{color:"var(--txt)"}}>Manage Team</strong> from your reservations.
             </div>}
-            {isDualLane?<>
-              {/* Lane 1 */}
+            {(isVersus&&isDualLane)?<>
+              {/* Versus private dual-lane: Lane 1 → Team 1 + Team 2, Lane 2 → Team 1 + Team 2 */}
+              {[{label:"LANE 1",inputs:lane1Inputs},{label:"LANE 2",inputs:lane2Inputs}].map(({label,inputs},li)=>(
+                <div key={label} style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".65rem 1rem",marginBottom:"1rem"}}>
+                  <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--acc)",letterSpacing:".1em",marginBottom:".75rem"}}>🏠 {label}</div>
+                  {/* Team 1 — Hunters */}
+                  <div style={{border:"1px solid rgba(200,224,58,.25)",borderRadius:4,padding:".5rem .75rem",marginBottom:".65rem"}}>
+                    <div style={{fontFamily:"var(--fd)",fontSize:".68rem",color:"var(--acc)",letterSpacing:".08em",marginBottom:".5rem"}}>🏹 TEAM 1 — HUNTERS — UP TO {teamSize} PLAYERS</div>
+                    <div className="player-inputs">{inputs.slice(0,teamSize).map(e=>renderPlayerRow(e,li===0?!e.isBooker:true))}</div>
+                  </div>
+                  {/* Team 2 — Coyotes */}
+                  <div style={{border:"1px solid rgba(120,120,120,.2)",borderRadius:4,padding:".5rem .75rem"}}>
+                    <div style={{fontFamily:"var(--fd)",fontSize:".68rem",color:"var(--muted)",letterSpacing:".08em",marginBottom:".5rem"}}>🐺 TEAM 2 — COYOTES — UP TO {teamSize} PLAYERS</div>
+                    <div className="player-inputs">{inputs.slice(teamSize).map(e=>renderPlayerRow(e,true))}</div>
+                    {li===1&&playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+                  </div>
+                </div>
+              ))}
+            </>:(isVersus&&!isDualLane)?<>
+              {/* Versus private single-lane: Team 1 + Team 2 */}
+              <div style={{border:"1px solid rgba(200,224,58,.25)",borderRadius:4,padding:".5rem .75rem",marginBottom:".65rem"}}>
+                <div style={{fontFamily:"var(--fd)",fontSize:".68rem",color:"var(--acc)",letterSpacing:".08em",marginBottom:".5rem"}}>🏹 TEAM 1 — HUNTERS — UP TO {teamSize} PLAYERS</div>
+                <div className="player-inputs">{allInputs.slice(0,teamSize).map(e=>renderPlayerRow(e,!e.isBooker))}</div>
+              </div>
+              <div style={{border:"1px solid rgba(120,120,120,.2)",borderRadius:4,padding:".5rem .75rem",marginBottom:".75rem"}}>
+                <div style={{fontFamily:"var(--fd)",fontSize:".68rem",color:"var(--muted)",letterSpacing:".08em",marginBottom:".5rem"}}>🐺 TEAM 2 — COYOTES — UP TO {teamSize} PLAYERS</div>
+                <div className="player-inputs">{allInputs.slice(teamSize).map(e=>renderPlayerRow(e,true))}</div>
+                {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+              </div>
+            </>:isDualLane?<>
+              {/* Coop dual-lane */}
               <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".65rem 1rem",marginBottom:"1rem"}}>
-                <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--acc)",letterSpacing:".1em",marginBottom:".65rem"}}>🎯 LANE 1 — UP TO {capPerLane} PLAYERS</div>
+                <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--acc)",letterSpacing:".1em",marginBottom:".65rem"}}>🏠 LANE 1 — UP TO {capPerLane} PLAYERS</div>
                 <div className="player-inputs">{lane1Inputs.map(e=>renderPlayerRow(e,!e.isBooker))}</div>
               </div>
-              {/* Lane 2 */}
               <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".65rem 1rem",marginBottom:".75rem"}}>
-                <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--acc)",letterSpacing:".1em",marginBottom:".65rem"}}>🎯 LANE 2 — UP TO {capPerLane} PLAYERS</div>
+                <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--acc)",letterSpacing:".1em",marginBottom:".65rem"}}>🏠 LANE 2 — UP TO {capPerLane} PLAYERS</div>
                 <div className="player-inputs">{lane2Inputs.map(e=>renderPlayerRow(e,true))}</div>
                 {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
               </div>
             </>:<>
+              {/* Coop single-lane */}
               <div className="player-inputs">{lane1Inputs.map(e=>renderPlayerRow(e,!e.isBooker))}</div>
               {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
             </>}
@@ -1254,6 +1285,9 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
               name:pi.name||(pi.userId?users.find(u=>u.id===pi.userId)?.name||"":""),
               phone:pi.phone||""
             });
+            // One paymentGroupId per checkout — all lanes/slots share it so only 1 payment record is created
+            const paymentGroupId=crypto.randomUUID();
+            const totalPlayerCount=effPlayerCount;
             if(isDualLane){
               // Split playerInputs by POSITION first (before filtering blanks)
               // Lane 1 extras = first (capPerLane-1) slots; Lane 2 extras = remaining slots
@@ -1271,15 +1305,15 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
                 const slotsAtTime=selSlots.filter(s=>s.startTime===st);
                 const sl1=slotsAtTime[0];
                 const sl2=slotsAtTime[1];
-                if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1)});
-                if(sl2&&lane2Players.length>0) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0],bookingForOther:false,extraPlayers:lane2Players.slice(1)});
-                else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:"",phone:""},bookingForOther:false,extraPlayers:[]});
+                if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
+                if(sl2&&lane2Players.length>0) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0],bookingForOther:false,extraPlayers:lane2Players.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
+                else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:"",phone:""},bookingForOther:false,extraPlayers:[],paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
               });
             } else {
               // Single lane — filter blanks then send all players to every slot
               const allPlayers=[p1,...playerInputs.filter(p=>p.phone||p.name).map(resolveInput)];
               selSlots.forEach(s=>{
-                onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:p1,bookingForOther,extraPlayers:allPlayers.slice(1)});
+                onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:p1,bookingForOther,extraPlayers:allPlayers.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
               });
             }
           }}>Set Team →</button>}
@@ -2008,7 +2042,6 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
               {isUp&&<><button className="btn btn-s btn-sm" onClick={()=>setEditResId(r.id)}>Manage Team</button>
               <button className="btn btn-s btn-sm" onClick={()=>setModifyRes({res:r,mode:"reschedule"})}>Reschedule</button>
               {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={()=>setModifyRes({res:r,mode:"upgrade"})}>⬆ Upgrade</button>}</>}
-              <button className="btn btn-s btn-sm" onClick={()=>setReceiptRes(r)}>🧾 Receipt</button>
             </div></td></tr>;})}
         </tbody></table>
         {!(tab==="upcoming"?upcoming:past).length&&<div className="empty"><div className="ei">🎯</div><p>No {tab} missions.</p></div>}
@@ -2537,6 +2570,7 @@ export default function App(){
   const [shifts,setShifts]=useState([]);
   const [payments,setPayments]=useState([]);
   const [loading,setLoading]=useState(true);
+  const paymentGroups=useRef({}); // tracks paymentGroupId → true to prevent duplicate payment records
   const [dbError,setDbError]=useState(null);
   const [toastAlert,setToastAlert]=useState(null);
   const activeWaiver=waiverDocs.find(d=>d.active);
@@ -2771,25 +2805,32 @@ useEffect(() => {
       const savedPlayers=await Promise.all(players.map(p=>addPlayerToReservation(newRes.id,p,[])));
       // Use actual DB rows (with real IDs) so local state matches reload
       setReservations(p=>[{...newRes,players:savedPlayers},...p]);
-      // Create payment record — snapshot freezes receipt data at checkout time
-      try{
-        const rt=resTypes.find(x=>x.id===newRes.typeId);
-        const snapshot={
-          customerName: newRes.customerName,
-          sessionType:  rt?.name??'—',
-          mode:         rt?.mode??'—',
-          style:        rt?.style??'—',
-          date:         newRes.date,
-          startTime:    newRes.startTime,
-          playerCount:  newRes.playerCount,
-          amount:       newRes.amount,
-          status:       newRes.status,
-          paid:         newRes.paid,
-          refNum:       newRes.id.replace(/-/g,'').slice(0,12).toUpperCase(),
-        };
-        const pmt=await createPayment({userId:currentUser.id,reservationId:newRes.id,customerName:newRes.customerName,amount:newRes.amount,status:'paid',snapshot});
-        setPayments(prev=>[pmt,...prev]);
-      }catch(pmtErr){console.warn("Payment record error:",pmtErr.message);}
+      // Create ONE payment record per checkout transaction (group). Multi-lane bookings
+      // share a paymentGroupId — only the first reservation in the group creates the record.
+      const groupId=b.paymentGroupId;
+      const alreadyCreated=groupId&&paymentGroups.current[groupId];
+      if(!alreadyCreated){
+        try{
+          const rt=resTypes.find(x=>x.id===newRes.typeId);
+          const totalAmt=b.totalTransactionAmount??newRes.amount;
+          const snapshot={
+            customerName: newRes.customerName,
+            sessionType:  rt?.name??'—',
+            mode:         rt?.mode??'—',
+            style:        rt?.style??'—',
+            date:         newRes.date,
+            startTime:    newRes.startTime,
+            playerCount:  b.totalPlayerCount??newRes.playerCount,
+            amount:       totalAmt,
+            status:       newRes.status,
+            paid:         newRes.paid,
+            refNum:       newRes.id.replace(/-/g,'').slice(0,12).toUpperCase(),
+          };
+          const pmt=await createPayment({userId:currentUser.id,reservationId:newRes.id,customerName:newRes.customerName,amount:totalAmt,status:'paid',snapshot});
+          setPayments(prev=>[pmt,...prev]);
+          if(groupId) paymentGroups.current[groupId]=true;
+        }catch(pmtErr){console.warn("Payment record error:",pmtErr.message);}
+      }
     }catch(err){showToast("Booking error: "+err.message);}
   };
 
