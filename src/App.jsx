@@ -768,7 +768,10 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   if(isUpgrade&&upgradeChoice==="move"){
     const moveSlotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
     return <div className="mo"><div className="mc" style={{maxWidth:560}}>
-      <div className="mt2">Pick a New Slot — Private {rt?.mode==="coop"?"Co-Op":"Versus"}</div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
+        <div className="mt2">Pick a New Slot — Private {rt?.mode==="coop"?"Co-Op":"Versus"}</div>
+        <button className="btn btn-s btn-sm" style={{padding:".25rem .6rem",lineHeight:1,flexShrink:0,marginLeft:".5rem"}} onClick={onClose} title="Close">✕</button>
+      </div>
       <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>Select a date and time where your group will have the lane to yourselves.</p>
       {!selDate&&<>
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
@@ -811,7 +814,10 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
     const hoursUntil=(resDateTime-Date.now())/(1000*60*60);
     const isWithin24h=hoursUntil>0&&hoursUntil<24;
     return <div className="mo"><div className="mc" style={{maxWidth:560}}>
-      <div className="mt2">Reschedule Reservation</div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
+        <div className="mt2">Reschedule Reservation</div>
+        <button className="btn btn-s btn-sm" style={{padding:".25rem .6rem",lineHeight:1,flexShrink:0,marginLeft:".5rem"}} onClick={onClose} title="Close">✕</button>
+      </div>
       <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>
         Current: <strong style={{color:"var(--txt)"}}>{fmt(res.date)} · {fmt12(res.startTime)}</strong>
       </p>
@@ -935,7 +941,10 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   );
   return(
     <div className="mo"><div className="mc" style={{maxWidth:660}}>
-      <div style={{display:"flex",gap:".25rem",marginBottom:"1.1rem"}}>{steps.map((s,i)=><div key={s} style={{flex:1,height:3,borderRadius:2,background:i<step?"var(--acc)":"var(--bdr)",transition:"background .3s"}}/>)}</div>
+      <div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:"1.1rem"}}>
+        <div style={{flex:1,display:"flex",gap:".25rem"}}>{steps.map((s,i)=><div key={s} style={{flex:1,height:3,borderRadius:2,background:i<step?"var(--acc)":"var(--bdr)",transition:"background .3s"}}/>)}</div>
+        <button className="btn btn-s btn-sm" style={{padding:".25rem .6rem",lineHeight:1,flexShrink:0}} onClick={onClose} title="Close">✕</button>
+      </div>
       <div className="mt2">{steps[step-1]}</div>
       {step===1&&<div className="mode-grid">{["coop","versus"].map(m=>{const has=bookable.some(rt=>rt.mode===m);return <div key={m} className={`mode-card${selMode===m?" sel":""}${!has?" disabled":""}`} onClick={()=>{if(has){setSelMode(m);if(m==="versus")setPlayerCount(p=>Math.max(4,p));}}}><div className="mode-icon">{m==="coop"
   ?<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHsAAACACAYAAAArkhalAAADM0lEQVR4nO3cW47jIBBAUTKahWQZUfavKMvITjJfSMhjOzzqBb7ns9sd4yoKA447JQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJnTzboCG9+f5Hf2Mx/21XGyWuiCJJG+tlPRlLkQj0aUVkj79BaSkn+hSb9K3bfToPH+tT1jKAei58Pfn+fUIWEubLTthDdfKPgrGXiD3jn3cXzfvgNa2tfZvNblV9llAvBPYYqa2/vFuQK8IVT3Kuv0uyZ49SbOasrJ7qvpxf90iLp8sO775Pdu6qnOC8+y9TPjVRhi3pUuvlqouE332e8n29bIYdUwr2yOQLbP+svJXrHrXTZVWLb2/575eHr9i0s0maFJBq/kciWXZyO7eyPk0TVXZNSTX39uEz17lJpVtFSStjZb35/ndm81rnEfrs1NaqLItdtRmr3T1ypYOyF5lWW+WaN7PNTuQepAskq1xnloaVa7VeadLdlTSSddIuOowfpVEp2S/VOsx5YOQqMpZu8RnSbSppJbsK1X1ltdXpn6hshVFS7hKsq9c1ZnE0z2ptmQqyY7Wo730Duda8VMbxldPuNb1acZtmSc6Hmq3aFuOk2nZPpMJWtTvf0mova6z46ziYzobXy3htSPW2XGWMTFfeq1W5S2TsO1x1nFwW2fvJT3/LEpnkGxLhBf7QgQ1i/i8eLZJ2JkwO2hloCT3mCVEaceoEMk+qohtwj2G+ZZJWPRO4Z7s2qGvHNotvg9WGpmEReKe7F9yZ8hJLn8uUU2ak7BoXJMtNaEZSZb0MB15OA9f2Sn1v8LTQjpBR8tKyXO0CvlvNrKe5UxZWS3D6kpLrCNhK7s1WOU9ved+vsok7Ixrsn8FbbTSNO6f0SdhZ9wr+2jbtPZvR89VkpqERa38MK//9AZI454+8ipR1ESnFGxvfOvXo8GRYf4s4TWfHTmpR9yH8TOeb0zOmMxfQic7pf/vsy3r1d7heNWOED7ZWeumhERCIrwxKinMBE2DxCRr5uRuTVPZe46qvWU/3furQpaWvbCU2v7/2RVMXdm/XDWpl7Z9Fg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACbyD58mQREvKhY+AAAAAElFTkSuQmCC" alt="co-op" style={{width:48,height:48,objectFit:"contain",display:"block",filter:"drop-shadow(0 0 8px rgba(200,224,58,.3))"}} />
