@@ -885,20 +885,22 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   const slotStatuses=slotsForDate.map(t=>({tmpl:t,status:selType?getSlotStatus(selDate,t.startTime,selType.id,reservations,resTypes,sessionTemplates):{available:false},added:selSlots.some(s=>s.startTime===t.startTime)}));
   const isPrivate=selStyle==="private";
   const isVersusOpen=selMode==="versus"&&selStyle==="open";
-  const minP=isVersusOpen?4:1;
   // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
   const firstSlotStatus=selSlots.length>0&&selType?getSlotStatus(selDate,selSlots[0].startTime,selType.id,reservations,resTypes,sessionTemplates):null;
   const openMaxFromLane=firstSlotStatus?.spotsLeft??laneCapacity(selMode||"coop");
+  const spotsLocked=isVersusOpen&&openMaxFromLane>0&&openMaxFromLane<4;
+  const minP=isVersusOpen?(spotsLocked?openMaxFromLane:4):1;
   // For private: capacity scales with lanes booked at the same startTime
   const lanesBooked=isPrivate&&selSlots.length>0
     ? Math.max(1, selSlots.filter(s=>s.startTime===selSlots[0]?.startTime).length)
     : 1;
   const perLaneCap=selMode==="versus"?12:6;
-  const maxP=isPrivate?perLaneCap*lanesBooked:isVersusOpen?Math.min(12,openMaxFromLane):6;
+  const maxP=isPrivate?perLaneCap*lanesBooked:Math.min(perLaneCap,openMaxFromLane);
   const effPlayerCount=isPrivate?maxP:playerCount;
   const pricePerSlot=selType?selType.pricingMode==="flat"?selType.price:selType.price*effPlayerCount:0;
   const total=pricePerSlot*selSlots.length;
   useEffect(()=>{ setPlayerInputs(Array.from({length:Math.max(0,effPlayerCount-1)},(_,i)=>playerInputs[i]||{phone:"",userId:null,name:"",status:"idle"})); },[effPlayerCount]);
+  useEffect(()=>{ if(!isPrivate) setPlayerCount(p=>Math.max(minP,Math.min(p,maxP))); },[maxP,minP]);
   const addSlot=st=>{
     setSelSlots(p=>{
       const existing=p.filter(s=>s.startTime===st).length;
@@ -1071,7 +1073,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
       })()}
       {step===5&&!isPrivate&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Players{selType?.pricingMode==="per_person"&&<span style={{color:"var(--accB)",marginLeft:".5rem"}}>{fmtMoney(selType.price)}/player</span>}</p>
-        <div className="f"><label>Number of Players {isVersusOpen&&<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>(min 4, max {maxP})</span>}{!isVersusOpen&&<span style={{fontSize:".78rem",color:"var(--muted)"}}>max {maxP}</span>}</label><input type="number" min={minP} max={maxP} value={playerCount} onChange={e=>setPlayerCount(Math.min(maxP,Math.max(minP,+e.target.value)))}/>{isVersusOpen&&playerCount<4&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ Versus open play requires a minimum of 4 players.</div>}</div>
+        <div className="f"><label>Number of Players {spotsLocked?<span style={{fontSize:".78rem",color:"var(--dangerL)",fontWeight:600}}>({openMaxFromLane} spot{openMaxFromLane!==1?"s":""} left — fixed)</span>:isVersusOpen?<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>(min 4, max {maxP})</span>:<span style={{fontSize:".78rem",color:"var(--muted)"}}>max {maxP}</span>}</label>{spotsLocked?<div style={{fontSize:"1.1rem",fontWeight:700,color:"var(--accB)",padding:".35rem 0"}}>{openMaxFromLane} player{openMaxFromLane!==1?"s":""}</div>:<input type="number" min={minP} max={maxP} value={playerCount} onChange={e=>setPlayerCount(Math.min(maxP,Math.max(minP,+e.target.value)))}/>}{spotsLocked?<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".3rem"}}>⚠ This lane only has {openMaxFromLane} spot{openMaxFromLane!==1?"s":""} remaining — booking qty is fixed.</div>:!isVersusOpen&&!isPrivate&&openMaxFromLane<perLaneCap&&selSlots.length>0?<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".3rem"}}>⚠ This lane already has {perLaneCap-openMaxFromLane} of {perLaneCap} players — max {openMaxFromLane} spot{openMaxFromLane!==1?"s":""} remaining.</div>:isVersusOpen&&playerCount<4&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ Versus open play requires a minimum of 4 players.</div>}</div>
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
