@@ -6,7 +6,7 @@ import {
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   fetchResTypes, upsertResType, deleteResType,
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
-  fetchReservations, createReservation, updateReservation, addPlayerToReservation, syncReservationPlayers,
+  fetchReservations, createReservation, updateReservation, addPlayerToReservation, removePlayerFromReservation, syncReservationPlayers,
   fetchShifts, createShift, updateShift, deleteShift,
   createPayment, fetchPayments, mergeUsers, linkAuthToGuest,
 } from "./supabase.js";
@@ -2162,6 +2162,185 @@ function MergeAccountsModal({users,targetUser,reservations,onMerge,onClose}){
   );
 }
 
+function FohView({reservations,setReservations,resTypes,sessionTemplates,users,setUsers,activeWaiverDoc}){
+  const [expandedSlot,setExpandedSlot]=useState(null);
+  const [expandedRes,setExpandedRes]=useState({});
+  const [signingFor,setSigningFor]=useState(null);
+  const [signedName,setSignedName]=useState("");
+  const [addingTo,setAddingTo]=useState(null);
+  const [newPlayerName,setNewPlayerName]=useState("");
+  const [sendConfirm,setSendConfirm]=useState(null);
+  const [statusBusy,setStatusBusy]=useState(null);
+  const [clock,setClock]=useState(new Date());
+  const [showWI,setShowWI]=useState(null);
+  const [wi,setWi]=useState({customerName:"",typeId:"",playerCount:1,customTime:""});
+  const [wiSaving,setWiSaving]=useState(false);
+  const [toast,setToast]=useState(null);
+  const [showMerch,setShowMerch]=useState(false);
+  useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
+  const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  const today=todayStr();
+  const getType=id=>resTypes.find(t=>t.id===id);
+  const todayRes=reservations.filter(r=>r.date===today&&r.status!=="cancelled");
+  const todayTmpls=sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(today));
+  const slotTimes=[...new Set([...todayTmpls.map(t=>t.startTime),...todayRes.map(r=>r.startTime)])].sort();
+  const playerWaiverOk=player=>{if(!player.userId)return false;return hasValidWaiver(users.find(u=>u.id===player.userId),activeWaiverDoc);};
+  const sBadge=status=>{
+    const map={confirmed:{bg:"rgba(90,138,58,.15)",color:"var(--okB)",bdr:"rgba(90,138,58,.3)"},ready:{bg:"rgba(40,200,100,.18)",color:"#2dc86e",bdr:"rgba(40,200,100,.4)"},"no-show":{bg:"rgba(184,150,12,.12)",color:"var(--warnL)",bdr:"rgba(184,150,12,.25)"},sent:{bg:"rgba(100,130,240,.18)",color:"#8096f0",bdr:"rgba(100,130,240,.35)"},completed:{bg:"var(--accD)",color:"var(--accB)",bdr:"rgba(138,154,53,.25)"}};
+    const label={confirmed:"Confirmed",ready:"Ready","no-show":"No Show",sent:"Sent",completed:"Completed"};
+    const s=map[status]||map.confirmed;
+    return <span style={{display:"inline-block",padding:".25rem .65rem",borderRadius:4,background:s.bg,color:s.color,border:`1px solid ${s.bdr}`,fontWeight:600,fontSize:".8rem",whiteSpace:"nowrap"}}>{label[status]||status}</span>;
+  };
+  const setResStatus=async(resId,status)=>{setStatusBusy(resId);try{await updateReservation(resId,{status});setReservations(p=>p.map(r=>r.id===resId?{...r,status}:r));}catch(e){showMsg("Error: "+e.message);}setStatusBusy(null);};
+  const doSendGroup=async time=>{const readyOnes=todayRes.filter(r=>r.startTime===time&&r.status==="ready");setSendConfirm(null);setStatusBusy(time);try{for(const r of readyOnes){await updateReservation(r.id,{status:"sent"});}setReservations(p=>p.map(r=>r.date===today&&r.startTime===time&&r.status==="ready"?{...r,status:"sent"}:r));showMsg("Group sent to training room!");}catch(e){showMsg("Error: "+e.message);}setStatusBusy(null);};
+  const doSignWaiver=async()=>{const{player}=signingFor;if(!player.userId||!signedName.trim())return;const ts=new Date().toISOString();setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:signedName.trim(),waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));try{await signWaiver(player.userId,signedName.trim(),activeWaiverDoc?.id);}catch(e){}showMsg("Waiver signed for "+player.name);setSigningFor(null);setSignedName("");};
+  const doAddPlayer=async resId=>{if(!newPlayerName.trim())return;try{const p=await addPlayerToReservation(resId,{name:newPlayerName.trim(),userId:null});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));setNewPlayerName("");setAddingTo(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
+  const doRemovePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}};
+  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;if(!wi.customerName.trim()||!wi.typeId||!time)return;const rt=getType(wi.typeId);const amount=rt?(rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount):0;setWiSaving(true);try{const newRes=await createReservation({typeId:wi.typeId,userId:null,customerName:wi.customerName.trim(),date:today,startTime:time,playerCount:wi.playerCount,amount,status:"confirmed",paid:false});setReservations(p=>[...p,{...newRes,players:[]}]);setShowWI(null);setWi({customerName:"",typeId:"",playerCount:1,customTime:""});showMsg("Walk-in created");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
+  const resetWI=()=>{setShowWI(null);setWi({customerName:"",typeId:"",playerCount:1,customTime:""});};
+  return(
+    <div style={{paddingBottom:"2rem"}}>
+      {toast&&<div style={{position:"fixed",top:"1rem",right:"1rem",background:"var(--surf)",border:"1px solid var(--acc2)",borderRadius:8,padding:".75rem 1.4rem",zIndex:9999,fontSize:".95rem",fontWeight:600,boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>{toast}</div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.5rem",flexWrap:"wrap",gap:".75rem"}}>
+        <div>
+          <div style={{fontSize:"1.45rem",fontWeight:700,color:"var(--txt)"}}>{new Date(today+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</div>
+          <div style={{fontSize:"1.05rem",color:"var(--muted)",marginTop:".15rem"}}>{clock.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}<span style={{marginLeft:".75rem",fontSize:".8rem"}}>{slotTimes.length} slot{slotTimes.length!==1?"s":""} · {todayRes.length} reservation{todayRes.length!==1?"s":""}</span></div>
+        </div>
+        <div style={{display:"flex",gap:".6rem"}}>
+          <button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>setShowMerch(true)}>🛍 Merchandise</button>
+          <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:""});}}>+ Walk-In</button>
+        </div>
+      </div>
+      {slotTimes.length===0&&<div style={{textAlign:"center",color:"var(--muted)",padding:"4rem 2rem",fontSize:"1rem",border:"1px dashed var(--bdr)",borderRadius:10}}>No sessions scheduled for today.</div>}
+      {slotTimes.map(time=>{
+        const slotResItems=todayRes.filter(r=>r.startTime===time);
+        const tmpl=todayTmpls.find(t=>t.startTime===time);
+        const allResolved=slotResItems.length>0&&slotResItems.every(r=>r.status==="ready"||r.status==="no-show"||r.status==="sent");
+        const allSent=slotResItems.length>0&&slotResItems.every(r=>r.status==="sent"||r.status==="no-show");
+        const canSend=allResolved&&!allSent;
+        const isOpen=expandedSlot===time;
+        return(
+          <div key={time} style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:12,marginBottom:"1rem",overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"1rem",padding:"1rem 1.4rem",cursor:"pointer",userSelect:"none"}} onClick={()=>setExpandedSlot(isOpen?null:time)}>
+              <div style={{fontSize:"1.55rem",fontWeight:800,color:"var(--acc)",minWidth:90,fontVariantNumeric:"tabular-nums"}}>{fmt12(time)}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:600,color:"var(--txt)",fontSize:".95rem"}}>{slotResItems.length} reservation{slotResItems.length!==1?"s":""}{tmpl?` · ${tmpl.maxSessions} lane${tmpl.maxSessions!==1?"s":""}`:""}</div>
+                <div style={{display:"flex",gap:".35rem",marginTop:".3rem",flexWrap:"wrap"}}>{slotResItems.map(r=><span key={r.id} style={{marginBottom:".1rem"}}>{sBadge(r.status)}</span>)}</div>
+              </div>
+              {canSend&&<button className="btn btn-p" style={{fontSize:".9rem",padding:".5rem 1.1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setSendConfirm(time);}}>Send Group →</button>}
+              {allSent&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(100,130,240,.18)",color:"#8096f0",border:"1px solid rgba(100,130,240,.35)",fontWeight:600,fontSize:".8rem"}}>SENT</span>}
+              <span style={{color:"var(--muted)",fontSize:"1.1rem",flexShrink:0}}>{isOpen?"▲":"▼"}</span>
+            </div>
+            {isOpen&&(
+              <div style={{borderTop:"1px solid var(--bdr)",padding:"1rem 1.2rem"}}>
+                {slotResItems.length===0&&<div style={{color:"var(--muted)",textAlign:"center",padding:".75rem 0",fontSize:".9rem"}}>No reservations for this slot yet.</div>}
+                {slotResItems.map(res=>{
+                  const rt=getType(res.typeId);
+                  const isResExp=!!expandedRes[res.id];
+                  const players=res.players||[];
+                  const wOkCount=players.filter(playerWaiverOk).length;
+                  const allWaiversOk=players.length>0&&wOkCount===players.length;
+                  const isBusy=statusBusy===res.id;
+                  return(
+                    <div key={res.id} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:".65rem",overflow:"hidden"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:".65rem",padding:".85rem 1rem",cursor:"pointer"}} onClick={()=>setExpandedRes(p=>({...p,[res.id]:!p[res.id]}))}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:700,fontSize:"1.05rem",color:"var(--txt)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{res.customerName}</div>
+                          <div style={{display:"flex",gap:".35rem",marginTop:".2rem",alignItems:"center",flexWrap:"wrap"}}>
+                            {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
+                            <span style={{fontSize:".8rem",color:"var(--muted)"}}>👥 {res.playerCount}</span>
+                            <span style={{fontSize:".8rem",color:allWaiversOk?"var(--ok)":wOkCount>0?"var(--warn)":"var(--danger)"}}>{players.length>0?`${wOkCount}/${players.length} waivers`:"no players added"}</span>
+                          </div>
+                        </div>
+                        {sBadge(res.status)}
+                        <span style={{color:"var(--muted)",fontSize:".9rem",flexShrink:0}}>{isResExp?"▲":"▼"}</span>
+                      </div>
+                      {isResExp&&(
+                        <div style={{borderTop:"1px solid var(--bdr)",padding:".85rem 1rem"}}>
+                          <div style={{fontWeight:600,fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem",textTransform:"uppercase",letterSpacing:".05em"}}>Players</div>
+                          {players.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".5rem"}}>No players added yet.</div>}
+                          {players.map(player=>{
+                            const wOk=playerWaiverOk(player);
+                            return(
+                              <div key={player.id} style={{display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 0",borderBottom:"1px solid var(--bdr)"}}>
+                                <span style={{flex:1,fontSize:".95rem",color:"var(--txt)"}}>{player.name||"—"}</span>
+                                {!player.userId&&<span style={{fontSize:".7rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .4rem"}}>guest</span>}
+                                {player.userId?(wOk?(<span style={{color:"var(--ok)",fontSize:".85rem",fontWeight:600,whiteSpace:"nowrap"}}>✓ Waiver</span>):(<button className="btn btn-sm btn-warn" style={{whiteSpace:"nowrap"}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign Waiver</button>)):(<span style={{fontSize:".75rem",color:"var(--muted)"}}>no account</span>)}
+                                <button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.2rem",padding:"0 .2rem",lineHeight:1,flexShrink:0}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button>
+                              </div>
+                            );
+                          })}
+                          {addingTo===res.id?(
+                            <div style={{display:"flex",gap:".5rem",marginTop:".6rem",alignItems:"center"}}>
+                              <input placeholder="Player name" value={newPlayerName} onChange={e=>setNewPlayerName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doAddPlayer(res.id)} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".45rem .7rem",color:"var(--txt)",fontSize:".9rem"}}/>
+                              <button className="btn btn-sm btn-p" onClick={()=>doAddPlayer(res.id)}>Add</button>
+                              <button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);setNewPlayerName("");}}>✕</button>
+                            </div>
+                          ):(
+                            <button className="btn btn-sm btn-s" style={{marginTop:".5rem"}} onClick={()=>{setAddingTo(res.id);setNewPlayerName("");}}>+ Add Player</button>
+                          )}
+                          {res.status!=="sent"&&res.status!=="completed"&&(
+                            <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",borderTop:"1px solid var(--bdr)",paddingTop:".75rem",marginTop:".75rem"}}>
+                              {res.status!=="ready"&&<button className="btn btn-sm" style={{background:"rgba(40,200,100,.2)",color:"#2dc86e",border:"1px solid rgba(40,200,100,.4)"}} disabled={isBusy} onClick={()=>setResStatus(res.id,"ready")}>{isBusy?"…":"✓ Mark Ready"}</button>}
+                              {res.status==="ready"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo Ready</button>}
+                              {res.status!=="no-show"&&<button className="btn btn-sm btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
+                              {res.status==="no-show"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <button className="btn btn-s" style={{width:"100%",marginTop:".25rem",fontSize:".9rem"}} onClick={()=>{setShowWI(time);setWi({customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:""});}}>+ Walk-In this Slot</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {showWI&&(
+        <div className="mo"><div className="mc">
+          <div className="mt2">Walk-In{showWI!=="custom"?` — ${fmt12(showWI)}`:""}</div>
+          <div className="f"><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value}))} placeholder="Full name" autoFocus/></div>
+          <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value}))}><option value="">— Select —</option>{resTypes.filter(rt=>rt.active).map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select></div>
+          {showWI==="custom"&&<div className="f"><label>Start Time</label><input type="time" value={wi.customTime} onChange={e=>setWi(p=>({...p,customTime:e.target.value}))}/></div>}
+          <div className="f"><label>Player Count</label><input type="number" min={1} max={20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value)}))}/></div>
+          {wi.typeId&&(()=>{const rt=getType(wi.typeId);if(!rt)return null;const amt=rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount;return<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{rt.name} · {wi.playerCount}p</span><strong style={{color:"var(--accB)"}}>{fmtMoney(amt)}</strong></div>;})()}
+          <div style={{background:"rgba(184,150,12,.08)",border:"1px solid var(--warn)",borderRadius:5,padding:".6rem .8rem",fontSize:".8rem",color:"var(--warnL)",marginBottom:".75rem"}}>💳 Collect payment via card terminal. No account required for walk-ins.</div>
+          <div className="ma"><button className="btn btn-s" onClick={resetWI}>Cancel</button><button className="btn btn-p" disabled={wiSaving||!wi.customerName.trim()||!wi.typeId||(showWI==="custom"&&!wi.customTime)} onClick={doCreateWalkIn}>{wiSaving?"Creating…":"Create Walk-In"}</button></div>
+        </div></div>
+      )}
+      {signingFor&&(
+        <div className="mo"><div className="mc" style={{maxWidth:640}}>
+          <div className="mt2">Sign Waiver — {signingFor.player.name}</div>
+          {activeWaiverDoc?.body&&<div style={{maxHeight:320,overflowY:"auto",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".9rem",marginBottom:"1rem",fontSize:".85rem",whiteSpace:"pre-wrap",color:"var(--txt)",lineHeight:1.6}}>{activeWaiverDoc.body}</div>}
+          {!activeWaiverDoc&&<div style={{color:"var(--muted)",marginBottom:"1rem",fontSize:".9rem"}}>No active waiver document configured.</div>}
+          <div className="f"><label>Full Legal Name (signature)</label><input value={signedName} onChange={e=>setSignedName(e.target.value)} placeholder="Type full name to sign" autoFocus/></div>
+          <div className="ma"><button className="btn btn-s" onClick={()=>{setSigningFor(null);setSignedName("");}}>Cancel</button><button className="btn btn-p" disabled={!signedName.trim()||!activeWaiverDoc} onClick={doSignWaiver}>I Agree &amp; Sign</button></div>
+        </div></div>
+      )}
+      {sendConfirm&&(
+        <div className="mo"><div className="mc">
+          <div className="mt2">Send Group?</div>
+          <p style={{color:"var(--muted)",marginBottom:"1.2rem",lineHeight:1.6}}>Send all <strong style={{color:"var(--txt)"}}>Ready</strong> parties at <strong style={{color:"var(--acc)"}}>{fmt12(sendConfirm)}</strong> to the safety &amp; training room?<br/>No-shows will remain marked as No Show.</p>
+          <div className="ma"><button className="btn btn-s" onClick={()=>setSendConfirm(null)}>No, Go Back</button><button className="btn btn-p" disabled={statusBusy===sendConfirm} onClick={()=>doSendGroup(sendConfirm)}>{statusBusy===sendConfirm?"Sending…":"Yes, Send Group"}</button></div>
+        </div></div>
+      )}
+      {showMerch&&(
+        <div className="mo"><div className="mc">
+          <div className="mt2">🛍 Merchandise &amp; Equipment</div>
+          <div style={{textAlign:"center",padding:"2rem 1rem",color:"var(--muted)"}}>
+            <div style={{fontSize:"2rem",marginBottom:".75rem",opacity:.4}}>🏪</div>
+            <div style={{fontSize:".95rem"}}>Inventory management coming soon.</div>
+            <div style={{fontSize:".8rem",marginTop:".5rem"}}>T-shirts, swag, and equipment purchases will be processed here.</div>
+          </div>
+          <div className="ma"><button className="btn btn-p" onClick={()=>setShowMerch(false)}>Close</button></div>
+        </div></div>
+      )}
+    </div>
+  );
+}
+
 function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,sessionTemplates,setSessionTemplates,waiverDocs,setWaiverDocs,activeWaiverDoc,users,setUsers,shifts,setShifts,payments,setPayments,onAlert}){
   const [tab,setTab]=useState("dashboard");
   const [toastMsg,setToastMsg]=useState(null);
@@ -2172,6 +2351,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dashPeriod,setDashPeriod]=useState("all");
   const [dashFrom,setDashFrom]=useState("");
   const [dashTo,setDashTo]=useState("");
+  const [recentPage,setRecentPage]=useState(0);
   const [dismissedDups,setDismissedDups]=useState([]);
   const [showWidgetMenu,setShowWidgetMenu]=useState(false);
   const [dashWidgets,setDashWidgets]=useState(()=>isAdmin
@@ -2343,6 +2523,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
         {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
+        <button style={{marginLeft:"auto"}} className={`tab${tab==="foh"?" on":""}`} onClick={()=>setTab("foh")}>FOH</button>
+        <button className={`tab${tab==="scoring"?" on":""}`} onClick={()=>setTab("scoring")}>Scoring</button>
       </div>
 
       {tab==="dashboard"&&<>
@@ -2365,16 +2547,16 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             {showWidgetMenu&&<div className="widget-panel">
               <div className="widget-panel-title">Show / Hide Widgets</div>
               {[
-                {id:"revenue",     label:"Revenue",                adminOnly:true},
-                {id:"utilization", label:"Utilization",            adminOnly:true},
-                {id:"newUsers",    label:"New Users",              adminOnly:true},
-                {id:"bookings",    label:"Bookings",               adminOnly:false},
-                {id:"players",     label:"Avg Players / Lane",     adminOnly:false},
-                {id:"avgCoopPriv", label:"Avg — Private Co-Op",    adminOnly:false},
-                {id:"avgVsPriv",   label:"Avg — Private Versus",   adminOnly:false},
-                {id:"avgCoopOpen", label:"Avg — Open Co-Op",       adminOnly:false},
-                {id:"avgVsOpen",   label:"Avg — Open Versus",      adminOnly:false},
-                {id:"leadTime",    label:"Avg Lead Time",          adminOnly:false},
+                {id:"revenue",     label:"Revenue",       adminOnly:true},
+                {id:"utilization", label:"Utilization",   adminOnly:true},
+                {id:"newUsers",    label:"New Users",     adminOnly:true},
+                {id:"bookings",    label:"Bookings",      adminOnly:false},
+                {id:"players",     label:"Avg/Lane",      adminOnly:false},
+                {id:"avgCoopPriv", label:"Priv Co-Op",    adminOnly:false},
+                {id:"avgVsPriv",   label:"Priv Versus",   adminOnly:false},
+                {id:"avgCoopOpen", label:"Open Co-Op",    adminOnly:false},
+                {id:"avgVsOpen",   label:"Open Versus",   adminOnly:false},
+                {id:"leadTime",    label:"Lead Time",     adminOnly:false},
               ].filter(w=>isAdmin||!w.adminOnly).map(w=>{
                 return <div key={w.id} className="widget-row">
                   <span>{w.label}</span>
@@ -2415,22 +2597,22 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const offeredSessions=getOfferedSessions();
             const totalCapacity=offeredSessions*6.22;
             const utilPct=totalCapacity>0?Math.round((allPlayers/totalCapacity)*100):null;
-            // Avg players per lane by type — completed only
-            const byMode=(mode,style)=>completed.filter(r=>{const rt=getType(r.typeId);return rt?.mode===mode&&rt?.style===style;});
-            const completedCoopPriv=byMode("coop","private");
-            const completedVsPriv=byMode("versus","private");
-            const completedCoopOpen=byMode("coop","open");
-            const completedVsOpen=byMode("versus","open");
+            // Avg players per lane by type — all non-cancelled
+            const byMode=(mode,style)=>active.filter(r=>{const rt=getType(r.typeId);return rt?.mode===mode&&rt?.style===style;});
+            const activeCoopPriv=byMode("coop","private");
+            const activeVsPriv=byMode("versus","private");
+            const activeCoopOpen=byMode("coop","open");
+            const activeVsOpen=byMode("versus","open");
             // For open play, group by (date,startTime) so each distinct lane = one data point
             const laneGroups=arr=>{const m={};arr.forEach(r=>{const k=`${r.date}|${r.startTime}`;m[k]=(m[k]||0)+r.playerCount;});return Object.values(m);};
-            const coopPrivLanes=completedCoopPriv.map(r=>r.playerCount);
-            const vsPrivLanes=completedVsPriv.map(r=>r.playerCount);
-            const coopOpenLanes=laneGroups(completedCoopOpen);
-            const vsOpenLanes=laneGroups(completedVsOpen);
+            const coopPrivLanes=activeCoopPriv.map(r=>r.playerCount);
+            const vsPrivLanes=activeVsPriv.map(r=>r.playerCount);
+            const coopOpenLanes=laneGroups(activeCoopOpen);
+            const vsOpenLanes=laneGroups(activeVsOpen);
             const arrAvg=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
             const fmt2=v=>v===null?"—":v.toFixed(2);
             const sum=arr=>arr.reduce((s,v)=>s+v,0);
-            // Combined avg/lane across all 4 types (completed only)
+            // Combined avg/lane across all 4 types
             const allLanes=[...coopPrivLanes,...vsPrivLanes,...coopOpenLanes,...vsOpenLanes];
             const avgPerLane=arrAvg(allLanes);
             // New users in period
@@ -2443,7 +2625,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             else if(dashPeriod==="custom"){uFrom=dashFrom;uTo=dashTo;}
             const newUsersInPeriod=users.filter(u=>{if(!u.createdAt)return !uFrom;const d=u.createdAt.slice(0,10);return(!uFrom||d>=uFrom)&&(!uTo||d<=uTo);});
             const authedNewUsers=newUsersInPeriod.filter(u=>u.authProvider);
-            // Lead time: avg hours from reservation createdAt → session start (completed only)
+            // Lead time: avg hours from reservation createdAt → session start
             const leadHours=arr=>{const valid=arr.filter(r=>r.createdAt);if(!valid.length)return null;return valid.reduce((s,r)=>s+Math.max(0,(new Date(`${r.date}T${r.startTime}:00`)-new Date(r.createdAt))/3600000),0)/valid.length;};
             const fmtLT=h=>h===null?"—":h<24?`${h.toFixed(1)}h`:`${(h/24).toFixed(1)}d`;
             const w=dashWidgets;
@@ -2451,25 +2633,38 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const revSzCls=revStr.length>10?" stat-val-xs":revStr.length>7?" stat-val-sm":"";
             return <>
               {isAdmin&&w.revenue&&<div className="stat-card"><div className="stat-lbl">Revenue</div><div className={`stat-val${revSzCls}`}>{revStr}</div></div>}
-              {w.bookings&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} versus</div></div>}
-              {w.players&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane</div><div className="stat-val">{fmt2(avgPerLane)}</div><div className="stat-sub">{sum(allLanes)} players · {allLanes.length} lanes (completed)</div></div>}
-              {isAdmin&&w.utilization&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions · 6.22 avg cap</div></div>}
-              {w.avgCoopPriv&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane — Private Co-Op</div><div className="stat-val">{fmt2(arrAvg(coopPrivLanes))}</div><div className="stat-sub">{sum(coopPrivLanes)} total · {coopPrivLanes.length} lanes</div></div>}
-              {w.avgVsPriv&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane — Private Versus</div><div className="stat-val">{fmt2(arrAvg(vsPrivLanes))}</div><div className="stat-sub">{sum(vsPrivLanes)} total · {vsPrivLanes.length} lanes</div></div>}
-              {w.avgCoopOpen&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane — Open Co-Op</div><div className="stat-val">{fmt2(arrAvg(coopOpenLanes))}</div><div className="stat-sub">{sum(coopOpenLanes)} total · {coopOpenLanes.length} lanes</div></div>}
-              {w.avgVsOpen&&<div className="stat-card"><div className="stat-lbl">Avg Players / Lane — Open Versus</div><div className="stat-val">{fmt2(arrAvg(vsOpenLanes))}</div><div className="stat-sub">{sum(vsOpenLanes)} total · {vsOpenLanes.length} lanes</div></div>}
+              {w.bookings&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} vs</div></div>}
+              {w.players&&<div className="stat-card"><div className="stat-lbl">Avg / Lane</div><div className="stat-val">{fmt2(avgPerLane)}</div><div className="stat-sub">{sum(allLanes)}p · {allLanes.length} lanes</div></div>}
+              {isAdmin&&w.utilization&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions</div></div>}
+              {w.avgCoopPriv&&<div className="stat-card"><div className="stat-lbl">Priv Co-Op</div><div className="stat-val">{fmt2(arrAvg(coopPrivLanes))}</div><div className="stat-sub">{sum(coopPrivLanes)}p · {coopPrivLanes.length} lanes</div></div>}
+              {w.avgVsPriv&&<div className="stat-card"><div className="stat-lbl">Priv Versus</div><div className="stat-val">{fmt2(arrAvg(vsPrivLanes))}</div><div className="stat-sub">{sum(vsPrivLanes)}p · {vsPrivLanes.length} lanes</div></div>}
+              {w.avgCoopOpen&&<div className="stat-card"><div className="stat-lbl">Open Co-Op</div><div className="stat-val">{fmt2(arrAvg(coopOpenLanes))}</div><div className="stat-sub">{sum(coopOpenLanes)}p · {coopOpenLanes.length} lanes</div></div>}
+              {w.avgVsOpen&&<div className="stat-card"><div className="stat-lbl">Open Versus</div><div className="stat-val">{fmt2(arrAvg(vsOpenLanes))}</div><div className="stat-sub">{sum(vsOpenLanes)}p · {vsOpenLanes.length} lanes</div></div>}
               {isAdmin&&w.newUsers&&<div className="stat-card"><div className="stat-lbl">New Users</div><div className="stat-val">{newUsersInPeriod.length}</div><div className="stat-sub">{authedNewUsers.length} authenticated</div></div>}
-              {w.leadTime&&<div className="stat-card"><div className="stat-lbl">Avg Lead Time</div><div className="stat-val">{fmtLT(leadHours(completed))}</div><div className="stat-sub">Co-Op Priv {fmtLT(leadHours(completedCoopPriv))} · Vs Priv {fmtLT(leadHours(completedVsPriv))}</div><div className="stat-sub">Co-Op Open {fmtLT(leadHours(completedCoopOpen))} · Vs Open {fmtLT(leadHours(completedVsOpen))}</div></div>}
+              {w.leadTime&&<div className="stat-card"><div className="stat-lbl">Lead Time</div><div className="stat-val">{fmtLT(leadHours(active))}</div><div className="stat-sub">CP {fmtLT(leadHours(activeCoopPriv))} · VP {fmtLT(leadHours(activeVsPriv))}</div><div className="stat-sub">CO {fmtLT(leadHours(activeCoopOpen))} · VO {fmtLT(leadHours(activeVsOpen))}</div></div>}
             </>;
           })()}
         </div>
         {alertShifts.length>0&&<div className="alert-banner"><div className="alert-dot"/><strong style={{color:"var(--warnL)"}}>⚠ {alertShifts.length} shift conflict{alertShifts.length!==1?"s":""} need coverage</strong></div>}
-        <div className="tw"><div className="th"><span className="ttl">Recent Bookings</span></div>
-          <table><thead><tr><th>Customer</th><th>Type</th><th>Date</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Status</th></tr></thead>
-            <tbody>{[...dashRes].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10).map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td>{isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}<td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td></tr>;})}
-            </tbody>
-          </table>
-        </div>
+        {(()=>{
+          const thirtyAgo=new Date();thirtyAgo.setDate(thirtyAgo.getDate()-30);const t30=thirtyAgo.toISOString();
+          const recentSorted=[...reservations].filter(r=>r.createdAt&&r.createdAt>=t30).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+          const pageSize=50;const totalPages=Math.ceil(recentSorted.length/pageSize)||1;
+          const pageRows=recentSorted.slice(recentPage*pageSize,(recentPage+1)*pageSize);
+          return <div className="tw">
+            <div className="th"><span className="ttl">Recent Bookings</span><span style={{marginLeft:"auto",fontSize:".75rem",color:"var(--muted)"}}>{recentSorted.length} in last 30 days</span></div>
+            <table><thead><tr><th>Booked</th><th>Customer</th><th>Type</th><th>Session</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Status</th></tr></thead>
+              <tbody>{pageRows.map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{fmt(r.createdAt?.slice(0,10))}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td>{isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}<td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td></tr>;})}
+              </tbody>
+            </table>
+            {totalPages>1&&<div style={{display:"flex",gap:".5rem",justifyContent:"center",padding:".75rem 0",alignItems:"center"}}>
+              <button className="btn btn-sm btn-s" disabled={recentPage===0} onClick={()=>setRecentPage(p=>p-1)}>← Prev</button>
+              <span style={{fontSize:".8rem",color:"var(--muted)"}}>{recentPage+1} / {totalPages}</span>
+              <button className="btn btn-sm btn-s" disabled={recentPage>=totalPages-1} onClick={()=>setRecentPage(p=>p+1)}>Next →</button>
+            </div>}
+          </div>;
+        })()}
+
       </>}
 
       {tab==="reservations"&&<>
@@ -2571,6 +2766,17 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             </tr>;
           })}
           </tbody></table></div>
+      </>}
+
+      {tab==="foh"&&<FohView reservations={reservations} setReservations={setReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={setUsers} activeWaiverDoc={activeWaiverDoc}/>}
+
+      {tab==="scoring"&&<>
+        <div className="ph"><span className="pt">Scoring</span></div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"1rem",padding:"4rem 2rem",color:"var(--muted)",textAlign:"center"}}>
+          <div style={{fontSize:"3rem",opacity:.25}}>🎯</div>
+          <div style={{fontSize:"1.2rem",fontWeight:600,color:"var(--txt)"}}>Scoring</div>
+          <div style={{fontSize:".95rem"}}>Scoring functionality coming soon.</div>
+        </div>
       </>}
     </div>
   );
