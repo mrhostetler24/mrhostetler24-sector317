@@ -157,23 +157,30 @@ export async function fetchUserByPhone(phone) {
   const { data, error } = await supabase
     .rpc('lookup_user_by_phone', { p_phone: phone })
   if (!error && data) {
-    const row = data?.[0] ?? null
-    return row ? {
-      id:              row.id,
-      name:            row.name,
-      phone:           row.phone,
-      access:          row.access,
-      leaderboardName: row.leaderboard_name,
-      email: null, authId: null, authProvider: null,
-      waivers: [], needsRewaiverDocId: null,
-      active: true, role: null, isReal: true,
-    } : null
+    // RPC returns SETOF — take the first row (ordered: auth'd accounts first)
+    const row = Array.isArray(data) ? (data[0] ?? null) : (data ?? null)
+    return row ? toUser(row) : null
   }
-  // RPC not deployed yet — fall back to direct query (works for staff/admin only)
+  // RPC failed or not deployed — fall back to direct query (works for staff/admin only)
   const { data: d2, error: e2 } = await supabase
-    .from('users').select('*').eq('phone', phone).maybeSingle()
+    .from('users').select('*').eq('phone', phone).limit(1).maybeSingle()
   if (e2) return null  // RLS blocked it — return null rather than crash
   return toUser(d2)
+}
+
+export async function linkAuthToGuest(userId, authId, email, provider) {
+  // SECURITY DEFINER RPC — links OAuth credentials to an existing guest account,
+  // bypassing RLS (a guest row has auth_id=null so normal UPDATE policies block it)
+  const { data, error } = await supabase.rpc('link_auth_to_guest', {
+    p_user_id:  userId,
+    p_auth_id:  authId,
+    p_email:    email  ?? '',
+    p_provider: provider ?? '',
+  })
+  if (error) throw error
+  // RPC returns a single users row
+  const row = Array.isArray(data) ? (data[0] ?? null) : (data ?? null)
+  return row ? toUser(row) : null
 }
 
 export async function fetchUserByEmail(email) {
