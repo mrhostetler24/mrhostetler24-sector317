@@ -104,7 +104,6 @@ const toReservationPlayer = r => r ? ({
   reservationId: r.reservation_id,
   userId:        r.user_id ?? null,
   name:          r.name,
-  phone:         r.phone ?? null,
 }) : null
 
 const toRun = r => r ? ({
@@ -445,7 +444,7 @@ const mergePlayersIntoReservations = (resRows, playerRows) => {
     ...toReservation(r),
     players: all
       .filter(p => p.reservation_id === r.id)
-      .map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null })),
+      .map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name })),
   }))
 }
 
@@ -517,18 +516,17 @@ export async function updateReservation(id, changes) {
   return toReservation(data)
 }
 
-export async function addPlayerToReservation(resId, player, currentPlayers) {
+export async function addPlayerToReservation(resId, player) {
   // Try SECURITY DEFINER RPC first — bypasses RLS for customer-initiated bookings
   const { data: rpcData, error: rpcErr } = await supabase
     .rpc('add_reservation_player', {
       p_reservation_id: resId,
       p_user_id:        player.userId ?? null,
       p_name:           player.name,
-      p_phone:          player.phone ?? null,
     })
   // rpcData is a single row object — check explicitly for id presence
   if (!rpcErr && rpcData && rpcData.id) {
-    return { id: rpcData.id, userId: rpcData.user_id ?? null, name: rpcData.name, phone: rpcData.phone ?? null }
+    return { id: rpcData.id, userId: rpcData.user_id ?? null, name: rpcData.name }
   }
 
   // Fallback: direct insert (works for staff/admin whose RLS allows it)
@@ -536,12 +534,11 @@ export async function addPlayerToReservation(resId, player, currentPlayers) {
     reservation_id: resId,
     user_id:        player.userId ?? null,
     name:           player.name,
-    phone:          player.phone ?? null,
   }).select().single()
   if (error) throw new Error(
     `Could not add player — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${error.message}`
   )
-  return { id: data.id, userId: data.user_id ?? null, name: data.name, phone: data.phone ?? null }
+  return { id: data.id, userId: data.user_id ?? null, name: data.name }
 }
 
 /** Fetch all players for a reservation from the normalized table */
@@ -573,12 +570,11 @@ export async function syncReservationPlayers(resId, players) {
       p_players: players.map(p => ({
         user_id: p.userId ?? null,
         name:    p.name,
-        phone:   p.phone ?? null,
       })),
     })
   // rpcData can be [] (empty array) on success — Array.isArray check avoids falsy [] bug
   if (!rpcErr && Array.isArray(rpcData)) {
-    return rpcData.map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, phone: p.phone ?? null }))
+    return rpcData.map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name }))
   }
 
   // Fallback: direct delete + insert via proven add_reservation_player RPC per player.
@@ -599,7 +595,6 @@ export async function updateReservationPlayer(id, changes) {
   const row = {}
   if (changes.userId !== undefined) row.user_id = changes.userId
   if (changes.name   !== undefined) row.name    = changes.name
-  if (changes.phone  !== undefined) row.phone   = changes.phone
   const { data, error } = await supabase
     .from('reservation_players').update(row).eq('id', id).select().single()
   if (error) throw error

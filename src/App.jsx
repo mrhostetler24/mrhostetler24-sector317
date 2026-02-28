@@ -1276,14 +1276,13 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
             }</>
           :<button className="btn btn-p" onClick={()=>{
             const p1=bookingForOther
-              ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:""),phone:player1Input.phone}
-              :{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
+              ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:"")}
+              :{userId:currentUser.id,name:currentUser.name};
             const isDualLane=lanesBooked>1;
             const capPerLane=perLaneCap;
             const resolveInput=pi=>({
               userId:pi.userId??null,
               name:pi.name||(pi.userId?users.find(u=>u.id===pi.userId)?.name||"":""),
-              phone:pi.phone||""
             });
             // One paymentGroupId per checkout — all lanes/slots share it so only 1 payment record is created
             const paymentGroupId=crypto.randomUUID();
@@ -1307,7 +1306,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
                 const sl2=slotsAtTime[1];
                 if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
                 if(sl2&&lane2Players.length>0) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0],bookingForOther:false,extraPlayers:lane2Players.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
-                else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:"",phone:""},bookingForOther:false,extraPlayers:[],paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
+                else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:""},bookingForOther:false,extraPlayers:[],paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
               });
             } else {
               // Single lane — filter blanks then send all players to every slot
@@ -1429,7 +1428,7 @@ See you on the field — SECTOR 317`
           return(
             <div className="player-row" key={i}>
               <span className="player-name">{p.name}</span>
-              <span className="player-phone">{fmtPhone(p.phone)||"—"}</span>
+              <span className="player-phone">{fmtPhone(u?.phone)||"—"}</span>
               {/* Waiver status badge */}
               <span style={{
                 fontSize:".68rem",fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
@@ -1891,18 +1890,16 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     };
     let p1;
     if(bookerIsPlayer){
-      p1={userId:user.id,name:user.name,phone:user.phone||""};
+      p1={userId:user.id,name:user.name};
     } else {
       p1=await resolvePlayer({
         userId:player1Input.userId??null,
         name:player1Input.name||(player1Input.userId?users.find(u=>u.id===player1Input.userId)?.name||"":""),
-        phone:player1Input.phone||"",
       });
     }
     const extraRaw=playerInputs.filter(p=>p.phone||p.name).map(p=>({
       userId:p.userId??null,
       name:p.name||(p.userId?users.find(u=>u.id===p.userId)?.name||"":""),
-      phone:p.phone||"",
     }));
     const extra=await Promise.all(extraRaw.map(resolvePlayer));
     const newPlayers=[p1,...extra].filter(p=>p.name?.trim());
@@ -2236,7 +2233,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const addPlayer=async(resId,player)=>{
     try{
       const res=reservations.find(r=>r.id===resId);
-      const updated=await addPlayerToReservation(resId,player,res?.players||[]);
+      const updated=await addPlayerToReservation(resId,player);
       setReservations(p=>p.map(r=>r.id===resId?updated:r));
       showToast(`${player.name} added`);
     }catch(e){showToast("Error adding player: "+e.message);}
@@ -2859,19 +2856,19 @@ useEffect(() => {
 
   const handleBook=async b=>{
     try{
-      const p1=b.player1||{userId:currentUser.id,name:currentUser.name,phone:currentUser.phone||""};
+      const p1=b.player1||{userId:currentUser.id,name:currentUser.name};
       // Resolve guest users for extra players (throws on failure — no silent fallback)
       const resolveExtra=async(p)=>{
-        if(p.userId) return {userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||""),phone:p.phone||""};
+        if(p.userId) return {userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||"")};
         if(!p.name?.trim()) return null;
         const guest=await createGuestUser({name:p.name.trim(),phone:p.phone||null,createdByUserId:currentUser.id});
-        return {userId:guest.id,name:guest.name,phone:p.phone||""};
+        return {userId:guest.id,name:guest.name};
       };
       const extraResolved=(await Promise.all((b.extraPlayers||[]).filter(p=>p.phone||p.name).map(resolveExtra))).filter(Boolean);
       const players=[p1,...extraResolved];
       const newRes=await createReservation({...b,status:"confirmed",players:[]});
       // Insert players — await all so failures surface immediately
-      const savedPlayers=await Promise.all(players.map(p=>addPlayerToReservation(newRes.id,p,[])));
+      const savedPlayers=await Promise.all(players.map(p=>addPlayerToReservation(newRes.id,p)));
       // Use actual DB rows (with real IDs) so local state matches reload
       setReservations(p=>[{...newRes,players:savedPlayers},...p]);
       // Create ONE payment record per checkout transaction (group). Multi-lane bookings
@@ -2913,7 +2910,7 @@ useEffect(() => {
 
   const handleAddPlayer=async(resId,player)=>{
     try{
-      const newPlayer=await addPlayerToReservation(resId,player,[]);
+      const newPlayer=await addPlayerToReservation(resId,player);
       setReservations(p=>p.map(r=>r.id===resId?{...r,players:[...(r.players||[]),newPlayer]}:r));
     }catch(err){showToast("Error adding player: "+err.message);}
   };
