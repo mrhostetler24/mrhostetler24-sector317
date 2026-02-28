@@ -419,6 +419,14 @@ export async function fetchPayments() {
   return (data ?? []).map(toPayment)
 }
 
+export async function mergeUsers(winnerId, loserId) {
+  const { error } = await supabase.rpc('merge_user_accounts', {
+    p_winner_id: winnerId,
+    p_loser_id:  loserId,
+  })
+  if (error) throw error
+}
+
 
 // ============================================================
 // RESERVATIONS
