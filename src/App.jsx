@@ -2168,7 +2168,8 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const [signingFor,setSigningFor]=useState(null);
   const [signedName,setSignedName]=useState("");
   const [addingTo,setAddingTo]=useState(null);
-  const [newPlayerName,setNewPlayerName]=useState("");
+  const [addInput,setAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
+  const [wiStep,setWiStep]=useState("details");
   const [sendConfirm,setSendConfirm]=useState(null);
   const [statusBusy,setStatusBusy]=useState(null);
   const [clock,setClock]=useState(new Date());
@@ -2194,11 +2195,13 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const setResStatus=async(resId,status)=>{setStatusBusy(resId);try{await updateReservation(resId,{status});setReservations(p=>p.map(r=>r.id===resId?{...r,status}:r));}catch(e){showMsg("Error: "+e.message);}setStatusBusy(null);};
   const doSendGroup=async time=>{const readyOnes=todayRes.filter(r=>r.startTime===time&&r.status==="ready");setSendConfirm(null);setStatusBusy(time);try{for(const r of readyOnes){await updateReservation(r.id,{status:"sent"});}setReservations(p=>p.map(r=>r.date===today&&r.startTime===time&&r.status==="ready"?{...r,status:"sent"}:r));showMsg("Group sent to training room!");}catch(e){showMsg("Error: "+e.message);}setStatusBusy(null);};
   const doSignWaiver=async()=>{const{player}=signingFor;if(!player.userId||!signedName.trim())return;const ts=new Date().toISOString();setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:signedName.trim(),waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));try{await signWaiver(player.userId,signedName.trim(),activeWaiverDoc?.id);}catch(e){}showMsg("Waiver signed for "+player.name);setSigningFor(null);setSignedName("");};
-  const doAddPlayer=async resId=>{if(!newPlayerName.trim())return;try{const p=await addPlayerToReservation(resId,{name:newPlayerName.trim(),userId:null});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));setNewPlayerName("");setAddingTo(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
+  const resetAddInput=()=>setAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
+  const doAddLookup=async()=>{const clean=cleanPh(addInput.phone);if(clean.length<10)return;setAddInput(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setAddInput(p=>({...p,foundUserId:found.id,name:found.name,lookupStatus:"found"}));}else{setAddInput(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setAddInput(p=>({...p,lookupStatus:"notfound"}));}};
+  const doAddPlayer=async resId=>{const userId=addInput.foundUserId||null;const name=userId?(users.find(u=>u.id===userId)?.name||addInput.name):addInput.name.trim();if(!name)return;try{const p=await addPlayerToReservation(resId,{name,userId});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));resetAddInput();setAddingTo(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
   const doRemovePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}};
   const doWiLookup=async()=>{const clean=cleanPh(wi.phone);if(clean.length<10)return;setWi(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWi(p=>({...p,foundUserId:found.id,customerName:found.name,lookupStatus:"found"}));}else{setWi(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWi(p=>({...p,lookupStatus:"notfound"}));}};
-  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const amount=rt?(rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount):0;setWiSaving(true);try{const newRes=await createReservation({typeId:wi.typeId,userId:wi.foundUserId||null,customerName:name,date:today,startTime:time,playerCount:wi.playerCount,amount,status:"confirmed",paid:false});setReservations(p=>[...p,{...newRes,players:[]}]);resetWI();showMsg("Walk-in created");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
-  const resetWI=()=>{setShowWI(null);setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:""});};
+  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const amount=rt?(rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount):0;setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const newRes=await createReservation({typeId:wi.typeId,userId,customerName:name,date:today,startTime:time,playerCount:wi.playerCount,amount,status:"confirmed",paid:true});setReservations(p=>[...p,{...newRes,players:[]}]);resetWI();showMsg("Walk-in created");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
+  const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:""});};
   return(
     <div style={{paddingBottom:"2rem"}}>
       {toast&&<div style={{position:"fixed",top:"1rem",right:"1rem",background:"var(--surf)",border:"1px solid var(--acc2)",borderRadius:8,padding:".75rem 1.4rem",zIndex:9999,fontSize:".95rem",fontWeight:600,boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>{toast}</div>}
@@ -2272,13 +2275,19 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
                             );
                           })}
                           {addingTo===res.id?(
-                            <div style={{display:"flex",gap:".5rem",marginTop:".6rem",alignItems:"center"}}>
-                              <input placeholder="Player name" value={newPlayerName} onChange={e=>setNewPlayerName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doAddPlayer(res.id)} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".45rem .7rem",color:"var(--txt)",fontSize:".9rem"}}/>
-                              <button className="btn btn-sm btn-p" onClick={()=>doAddPlayer(res.id)}>Add</button>
-                              <button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);setNewPlayerName("");}}>✕</button>
+                            <div style={{marginTop:".6rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".6rem .75rem"}}>
+                              <div style={{display:"flex",gap:".4rem",alignItems:"center",marginBottom:".35rem"}}>
+                                <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={addInput.phone} onChange={e=>setAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doAddLookup()} placeholder="Phone" autoFocus style={{fontSize:".9rem"}}/></div>
+                                {(addInput.lookupStatus==="idle"||addInput.lookupStatus==="searching")&&<button className="btn btn-sm btn-s" disabled={cleanPh(addInput.phone).length<10||addInput.lookupStatus==="searching"} onClick={doAddLookup}>{addInput.lookupStatus==="searching"?"…":"Search →"}</button>}
+                                {addInput.lookupStatus!=="idle"&&addInput.lookupStatus!=="searching"&&<button className="btn btn-sm btn-s" onClick={resetAddInput}>✕</button>}
+                                <button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);resetAddInput();}}>Cancel</button>
+                              </div>
+                              {addInput.lookupStatus==="found"&&addInput.foundUserId&&(()=>{const u=users.find(x=>x.id===addInput.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".35rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ {u?.name||addInput.name}</span>{u?.authProvider&&<span style={{fontSize:".7rem",color:"var(--muted)"}}>({u.authProvider})</span>}<button className="btn btn-sm btn-p" style={{marginLeft:"auto"}} onClick={()=>doAddPlayer(res.id)}>Add ✓</button></div>;})()}
+                              {(addInput.lookupStatus==="notfound"||addInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".4rem",alignItems:"center"}}><input placeholder="Player name" value={addInput.name} onChange={e=>setAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&addInput.name.trim()&&doAddPlayer(res.id)} autoFocus={addInput.lookupStatus==="notfound"} style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".4rem .6rem",color:"var(--txt)",fontSize:".9rem"}}/><button className="btn btn-sm btn-p" disabled={!addInput.name.trim()} onClick={()=>doAddPlayer(res.id)}>Add</button></div>}
+                              {addInput.lookupStatus==="notfound"&&<div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>No account found — type a name to add as a guest.</div>}
                             </div>
                           ):(
-                            <button className="btn btn-sm btn-s" style={{marginTop:".5rem"}} onClick={()=>{setAddingTo(res.id);setNewPlayerName("");}}>+ Add Player</button>
+                            <button className="btn btn-sm btn-s" style={{marginTop:".5rem"}} onClick={()=>{setAddingTo(res.id);resetAddInput();}}>+ Add Player</button>
                           )}
                           {res.status!=="sent"&&res.status!=="completed"&&(
                             <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",borderTop:"1px solid var(--bdr)",paddingTop:".75rem",marginTop:".75rem"}}>
@@ -2299,28 +2308,47 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
           </div>
         );
       })}
-      {showWI&&(
-        <div className="mo"><div className="mc">
-          <div className="mt2">Walk-In{showWI!=="custom"?` — ${fmt12(showWI)}`:""}</div>
-          <div className="f">
-            <label>Phone Number</label>
-            <div style={{display:"flex",gap:".5rem",alignItems:"center"}}>
-              <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={wi.phone} onChange={e=>setWi(p=>({...p,phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,customerName:""}))} onKeyDown={e=>e.key==="Enter"&&doWiLookup()} placeholder="Area code + number" autoFocus/></div>
-              {(wi.lookupStatus==="idle"||wi.lookupStatus==="searching")&&<button className="btn btn-s" disabled={cleanPh(wi.phone).length<10||wi.lookupStatus==="searching"} onClick={doWiLookup}>{wi.lookupStatus==="searching"?"…":"Search →"}</button>}
-              {wi.lookupStatus!=="idle"&&wi.lookupStatus!=="searching"&&<button className="btn btn-s" onClick={()=>setWi(p=>({...p,phone:"",lookupStatus:"idle",foundUserId:null,customerName:""}))}>✕ Clear</button>}
-            </div>
-          </div>
-          {wi.lookupStatus==="found"&&wi.foundUserId&&(()=>{const u=users.find(x=>x.id===wi.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",background:"rgba(40,200,100,.1)",border:"1px solid rgba(40,200,100,.3)",borderRadius:6,padding:".6rem .85rem",marginBottom:".5rem"}}><span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:28,height:28,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".75rem",flexShrink:0}}>{getInitials(u?.name||"")}</span><div><div style={{fontWeight:700,color:"var(--txt)",fontSize:".95rem"}}>{u?.name}</div><div style={{fontSize:".75rem",color:"var(--muted)"}}>{u?.phone?fmtPhone(u.phone):""}{u?.authProvider?` · ${u.authProvider}`:""}</div></div><span style={{marginLeft:"auto",color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ Found</span></div>;})()}
-          {wi.lookupStatus==="notfound"&&<div style={{marginBottom:".5rem"}}><div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".4rem"}}>No account found — enter a name to continue as a guest.</div><div className="f" style={{marginBottom:0}}><label>Customer Name <span style={{color:"var(--danger)"}}>*</span></label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last" autoFocus/></div></div>}
-          {wi.lookupStatus==="named"&&<div style={{marginBottom:".5rem"}}><div className="f" style={{marginBottom:".35rem"}}><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last"/></div><div style={{fontSize:".75rem",color:"var(--muted)"}}>Guest walk-in — no existing account.</div></div>}
-          <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value}))}><option value="">— Select —</option>{resTypes.filter(rt=>rt.active).map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select></div>
-          {showWI==="custom"&&<div className="f"><label>Start Time</label><input type="time" value={wi.customTime} onChange={e=>setWi(p=>({...p,customTime:e.target.value}))}/></div>}
-          <div className="f"><label>Player Count</label><input type="number" min={1} max={20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value)}))}/></div>
-          {wi.typeId&&(()=>{const rt=getType(wi.typeId);if(!rt)return null;const amt=rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount;return<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{rt.name} · {wi.playerCount}p</span><strong style={{color:"var(--accB)"}}>{fmtMoney(amt)}</strong></div>;})()}
-          <div style={{background:"rgba(184,150,12,.08)",border:"1px solid var(--warn)",borderRadius:5,padding:".6rem .8rem",fontSize:".8rem",color:"var(--warnL)",marginBottom:".75rem"}}>💳 Collect payment via card terminal. No account required for walk-ins.</div>
-          <div className="ma"><button className="btn btn-s" onClick={resetWI}>Cancel</button><button className="btn btn-p" disabled={wiSaving||!wi.typeId||(showWI==="custom"&&!wi.customTime)||!(wi.lookupStatus==="found"||(wi.lookupStatus==="named"&&wi.customerName.trim()))} onClick={doCreateWalkIn}>{wiSaving?"Creating…":"Create Walk-In"}</button></div>
-        </div></div>
-      )}
+      {showWI&&(()=>{
+        const wiName=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();
+        const wiRt=getType(wi.typeId);
+        const wiAmt=wiRt?(wiRt.pricingMode==="flat"?wiRt.price:wiRt.price*wi.playerCount):0;
+        const canProceed=wi.typeId&&(showWI==="custom"?wi.customTime:true)&&(wi.lookupStatus==="found"||(wi.lookupStatus==="named"&&wi.customerName.trim()));
+        return(
+          <div className="mo"><div className="mc">
+            {wiStep==="details"&&<>
+              <div className="mt2">Walk-In{showWI!=="custom"?` — ${fmt12(showWI)}`:""}</div>
+              <div className="f">
+                <label>Phone Number</label>
+                <div style={{display:"flex",gap:".5rem",alignItems:"center"}}>
+                  <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={wi.phone} onChange={e=>setWi(p=>({...p,phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,customerName:""}))} onKeyDown={e=>e.key==="Enter"&&doWiLookup()} placeholder="Area code + number" autoFocus/></div>
+                  {(wi.lookupStatus==="idle"||wi.lookupStatus==="searching")&&<button className="btn btn-s" disabled={cleanPh(wi.phone).length<10||wi.lookupStatus==="searching"} onClick={doWiLookup}>{wi.lookupStatus==="searching"?"…":"Search →"}</button>}
+                  {wi.lookupStatus!=="idle"&&wi.lookupStatus!=="searching"&&<button className="btn btn-s" onClick={()=>setWi(p=>({...p,phone:"",lookupStatus:"idle",foundUserId:null,customerName:""}))}>✕ Clear</button>}
+                </div>
+              </div>
+              {wi.lookupStatus==="found"&&wi.foundUserId&&(()=>{const u=users.find(x=>x.id===wi.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",background:"rgba(40,200,100,.1)",border:"1px solid rgba(40,200,100,.3)",borderRadius:6,padding:".6rem .85rem",marginBottom:".5rem"}}><span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:28,height:28,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".75rem",flexShrink:0}}>{getInitials(u?.name||"")}</span><div><div style={{fontWeight:700,color:"var(--txt)",fontSize:".95rem"}}>{u?.name}</div><div style={{fontSize:".75rem",color:"var(--muted)"}}>{u?.phone?fmtPhone(u.phone):""}{u?.authProvider?` · ${u.authProvider}`:""}</div></div><span style={{marginLeft:"auto",color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ Found</span></div>;})()}
+              {wi.lookupStatus==="notfound"&&<div style={{marginBottom:".5rem"}}><div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".4rem"}}>No account found — enter a name to continue as a guest.</div><div className="f" style={{marginBottom:0}}><label>Customer Name <span style={{color:"var(--danger)"}}>*</span></label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last" autoFocus/></div></div>}
+              {wi.lookupStatus==="named"&&<div style={{marginBottom:".5rem"}}><div className="f" style={{marginBottom:".35rem"}}><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last"/></div><div style={{fontSize:".75rem",color:"var(--muted)"}}>Guest walk-in — no existing account.</div></div>}
+              <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value}))}><option value="">— Select —</option>{resTypes.filter(rt=>rt.active).map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select></div>
+              {showWI==="custom"&&<div className="f"><label>Start Time</label><input type="time" value={wi.customTime} onChange={e=>setWi(p=>({...p,customTime:e.target.value}))}/></div>}
+              <div className="f"><label>Player Count</label><input type="number" min={1} max={20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value)}))}/></div>
+              {wiRt&&<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{wiRt.name} · {wi.playerCount}p</span><strong style={{color:"var(--accB)"}}>{fmtMoney(wiAmt)}</strong></div>}
+              <div className="ma"><button className="btn btn-s" onClick={resetWI}>Cancel</button><button className="btn btn-p" disabled={!canProceed} onClick={()=>setWiStep("payment")}>Continue to Payment →</button></div>
+            </>}
+            {wiStep==="payment"&&<>
+              <div className="mt2">Collect Payment</div>
+              <div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:8,padding:"1rem 1.2rem",marginBottom:"1rem"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Customer</span><strong style={{color:"var(--txt)"}}>{wiName}</strong></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Type</span><span style={{color:"var(--txt)"}}>{wiRt?.name}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Players</span><span style={{color:"var(--txt)"}}>{wi.playerCount}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Time</span><span style={{color:"var(--txt)"}}>{fmt12(showWI==="custom"?wi.customTime:showWI)}</span></div>
+                <div style={{borderTop:"1px solid var(--bdr)",marginTop:".6rem",paddingTop:".6rem",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}><span style={{fontWeight:600,color:"var(--txt)"}}>Total Due</span><span style={{fontSize:"1.6rem",fontWeight:800,color:"var(--accB)"}}>{fmtMoney(wiAmt)}</span></div>
+              </div>
+              <div style={{background:"rgba(184,150,12,.08)",border:"1px solid var(--warn)",borderRadius:6,padding:".75rem 1rem",fontSize:".9rem",color:"var(--warnL)",marginBottom:"1rem",textAlign:"center"}}>💳 Present card terminal to customer for <strong>{fmtMoney(wiAmt)}</strong></div>
+              <div className="ma"><button className="btn btn-s" onClick={()=>setWiStep("details")}>← Back</button><button className="btn btn-p" disabled={wiSaving} onClick={doCreateWalkIn}>{wiSaving?"Processing…":"Payment Collected — Complete Walk-In"}</button></div>
+            </>}
+          </div></div>
+        );
+      })()}
       {signingFor&&(
         <div className="mo"><div className="mc" style={{maxWidth:640}}>
           <div className="mt2">Sign Waiver — {signingFor.player.name}</div>
