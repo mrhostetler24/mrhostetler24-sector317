@@ -2173,7 +2173,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const [statusBusy,setStatusBusy]=useState(null);
   const [clock,setClock]=useState(new Date());
   const [showWI,setShowWI]=useState(null);
-  const [wi,setWi]=useState({customerName:"",typeId:"",playerCount:1,customTime:""});
+  const [wi,setWi]=useState({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:""});
   const [wiSaving,setWiSaving]=useState(false);
   const [toast,setToast]=useState(null);
   const [showMerch,setShowMerch]=useState(false);
@@ -2196,8 +2196,9 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const doSignWaiver=async()=>{const{player}=signingFor;if(!player.userId||!signedName.trim())return;const ts=new Date().toISOString();setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:signedName.trim(),waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));try{await signWaiver(player.userId,signedName.trim(),activeWaiverDoc?.id);}catch(e){}showMsg("Waiver signed for "+player.name);setSigningFor(null);setSignedName("");};
   const doAddPlayer=async resId=>{if(!newPlayerName.trim())return;try{const p=await addPlayerToReservation(resId,{name:newPlayerName.trim(),userId:null});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));setNewPlayerName("");setAddingTo(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
   const doRemovePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}};
-  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;if(!wi.customerName.trim()||!wi.typeId||!time)return;const rt=getType(wi.typeId);const amount=rt?(rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount):0;setWiSaving(true);try{const newRes=await createReservation({typeId:wi.typeId,userId:null,customerName:wi.customerName.trim(),date:today,startTime:time,playerCount:wi.playerCount,amount,status:"confirmed",paid:false});setReservations(p=>[...p,{...newRes,players:[]}]);setShowWI(null);setWi({customerName:"",typeId:"",playerCount:1,customTime:""});showMsg("Walk-in created");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
-  const resetWI=()=>{setShowWI(null);setWi({customerName:"",typeId:"",playerCount:1,customTime:""});};
+  const doWiLookup=async()=>{const clean=cleanPh(wi.phone);if(clean.length<10)return;setWi(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWi(p=>({...p,foundUserId:found.id,customerName:found.name,lookupStatus:"found"}));}else{setWi(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWi(p=>({...p,lookupStatus:"notfound"}));}};
+  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const amount=rt?(rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount):0;setWiSaving(true);try{const newRes=await createReservation({typeId:wi.typeId,userId:wi.foundUserId||null,customerName:name,date:today,startTime:time,playerCount:wi.playerCount,amount,status:"confirmed",paid:false});setReservations(p=>[...p,{...newRes,players:[]}]);resetWI();showMsg("Walk-in created");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
+  const resetWI=()=>{setShowWI(null);setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:""});};
   return(
     <div style={{paddingBottom:"2rem"}}>
       {toast&&<div style={{position:"fixed",top:"1rem",right:"1rem",background:"var(--surf)",border:"1px solid var(--acc2)",borderRadius:8,padding:".75rem 1.4rem",zIndex:9999,fontSize:".95rem",fontWeight:600,boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>{toast}</div>}
@@ -2208,7 +2209,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
         </div>
         <div style={{display:"flex",gap:".6rem"}}>
           <button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>setShowMerch(true)}>🛍 Merchandise</button>
-          <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:""});}}>+ Walk-In</button>
+          <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:""});}}>+ Walk-In</button>
         </div>
       </div>
       {slotTimes.length===0&&<div style={{textAlign:"center",color:"var(--muted)",padding:"4rem 2rem",fontSize:"1rem",border:"1px dashed var(--bdr)",borderRadius:10}}>No sessions scheduled for today.</div>}
@@ -2292,7 +2293,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
                     </div>
                   );
                 })}
-                <button className="btn btn-s" style={{width:"100%",marginTop:".25rem",fontSize:".9rem"}} onClick={()=>{setShowWI(time);setWi({customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:""});}}>+ Walk-In this Slot</button>
+                <button className="btn btn-s" style={{width:"100%",marginTop:".25rem",fontSize:".9rem"}} onClick={()=>{setShowWI(time);setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:""});}}>+ Walk-In this Slot</button>
               </div>
             )}
           </div>
@@ -2301,13 +2302,23 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
       {showWI&&(
         <div className="mo"><div className="mc">
           <div className="mt2">Walk-In{showWI!=="custom"?` — ${fmt12(showWI)}`:""}</div>
-          <div className="f"><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value}))} placeholder="Full name" autoFocus/></div>
+          <div className="f">
+            <label>Phone Number</label>
+            <div style={{display:"flex",gap:".5rem",alignItems:"center"}}>
+              <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={wi.phone} onChange={e=>setWi(p=>({...p,phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,customerName:""}))} onKeyDown={e=>e.key==="Enter"&&doWiLookup()} placeholder="Area code + number" autoFocus/></div>
+              {(wi.lookupStatus==="idle"||wi.lookupStatus==="searching")&&<button className="btn btn-s" disabled={cleanPh(wi.phone).length<10||wi.lookupStatus==="searching"} onClick={doWiLookup}>{wi.lookupStatus==="searching"?"…":"Search →"}</button>}
+              {wi.lookupStatus!=="idle"&&wi.lookupStatus!=="searching"&&<button className="btn btn-s" onClick={()=>setWi(p=>({...p,phone:"",lookupStatus:"idle",foundUserId:null,customerName:""}))}>✕ Clear</button>}
+            </div>
+          </div>
+          {wi.lookupStatus==="found"&&wi.foundUserId&&(()=>{const u=users.find(x=>x.id===wi.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",background:"rgba(40,200,100,.1)",border:"1px solid rgba(40,200,100,.3)",borderRadius:6,padding:".6rem .85rem",marginBottom:".5rem"}}><span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:28,height:28,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".75rem",flexShrink:0}}>{getInitials(u?.name||"")}</span><div><div style={{fontWeight:700,color:"var(--txt)",fontSize:".95rem"}}>{u?.name}</div><div style={{fontSize:".75rem",color:"var(--muted)"}}>{u?.phone?fmtPhone(u.phone):""}{u?.authProvider?` · ${u.authProvider}`:""}</div></div><span style={{marginLeft:"auto",color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ Found</span></div>;})()}
+          {wi.lookupStatus==="notfound"&&<div style={{marginBottom:".5rem"}}><div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".4rem"}}>No account found — enter a name to continue as a guest.</div><div className="f" style={{marginBottom:0}}><label>Customer Name <span style={{color:"var(--danger)"}}>*</span></label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last" autoFocus/></div></div>}
+          {wi.lookupStatus==="named"&&<div style={{marginBottom:".5rem"}}><div className="f" style={{marginBottom:".35rem"}}><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last"/></div><div style={{fontSize:".75rem",color:"var(--muted)"}}>Guest walk-in — no existing account.</div></div>}
           <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value}))}><option value="">— Select —</option>{resTypes.filter(rt=>rt.active).map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select></div>
           {showWI==="custom"&&<div className="f"><label>Start Time</label><input type="time" value={wi.customTime} onChange={e=>setWi(p=>({...p,customTime:e.target.value}))}/></div>}
           <div className="f"><label>Player Count</label><input type="number" min={1} max={20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value)}))}/></div>
           {wi.typeId&&(()=>{const rt=getType(wi.typeId);if(!rt)return null;const amt=rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount;return<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{rt.name} · {wi.playerCount}p</span><strong style={{color:"var(--accB)"}}>{fmtMoney(amt)}</strong></div>;})()}
           <div style={{background:"rgba(184,150,12,.08)",border:"1px solid var(--warn)",borderRadius:5,padding:".6rem .8rem",fontSize:".8rem",color:"var(--warnL)",marginBottom:".75rem"}}>💳 Collect payment via card terminal. No account required for walk-ins.</div>
-          <div className="ma"><button className="btn btn-s" onClick={resetWI}>Cancel</button><button className="btn btn-p" disabled={wiSaving||!wi.customerName.trim()||!wi.typeId||(showWI==="custom"&&!wi.customTime)} onClick={doCreateWalkIn}>{wiSaving?"Creating…":"Create Walk-In"}</button></div>
+          <div className="ma"><button className="btn btn-s" onClick={resetWI}>Cancel</button><button className="btn btn-p" disabled={wiSaving||!wi.typeId||(showWI==="custom"&&!wi.customTime)||!(wi.lookupStatus==="found"||(wi.lookupStatus==="named"&&wi.customerName.trim()))} onClick={doCreateWalkIn}>{wiSaving?"Creating…":"Create Walk-In"}</button></div>
         </div></div>
       )}
       {signingFor&&(
