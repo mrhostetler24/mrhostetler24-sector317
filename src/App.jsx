@@ -2172,7 +2172,7 @@ function MergeAccountsModal({users,targetUser,reservations,onMerge,onClose}){
   );
 }
 
-function FohView({reservations,setReservations,resTypes,sessionTemplates,users,setUsers,activeWaiverDoc}){
+function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,setUsers,activeWaiverDoc}){
   const [expandedSlot,setExpandedSlot]=useState(null);
   const [expandedRes,setExpandedRes]=useState({});
   const [signingFor,setSigningFor]=useState(null);
@@ -2184,7 +2184,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const [statusBusy,setStatusBusy]=useState(null);
   const [clock,setClock]=useState(new Date());
   const [showWI,setShowWI]=useState(null);
-  const [wi,setWi]=useState({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false,splitA:0});
+  const [wi,setWi]=useState({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraTimes:[],addSecondLane:false,splitA:0});
   const [wiSaving,setWiSaving]=useState(false);
   const [toast,setToast]=useState(null);
   const [showMerch,setShowMerch]=useState(false);
@@ -2216,8 +2216,8 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const doAddPlayer=async resId=>{const userId=addInput.foundUserId||null;const name=userId?(users.find(u=>u.id===userId)?.name||addInput.name):addInput.name.trim();if(!name)return;try{const p=await addPlayerToReservation(resId,{name,userId});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));resetAddInput();setAddingTo(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
   const doRemovePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}};
   const doWiLookup=async()=>{const clean=cleanPh(wi.phone);if(clean.length<10)return;setWi(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWi(p=>({...p,foundUserId:found.id,customerName:found.name,lookupStatus:"found"}));}else{setWi(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWi(p=>({...p,lookupStatus:"notfound"}));}};
-  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const isOpen=rt?.style==="open";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const doSplit=isOpen&&wi.splitA>0&&wi.splitA<playerCount;const base={typeId:wi.typeId,date:today,startTime:time,status:"confirmed",paid:true};setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null});userId=newUser.id;setUsers(p=>[...p,newUser]);}if(doSplit){const sB=playerCount-wi.splitA;const rA=await createReservation({...base,userId,customerName:name,playerCount:wi.splitA,amount:rt.price*wi.splitA});const rB=await createReservation({...base,userId,customerName:name,playerCount:sB,amount:rt.price*sB});setReservations(p=>[...p,{...rA,players:[]},{...rB,players:[]}]);showMsg(`Walk-in created — split ${wi.splitA}+${sB} across 2 lanes`);}else{const lanePrice=isPriv?rt.price*(wi.addSecondLane?2:1):rt.price*playerCount;const newRes=await createReservation({...base,userId,customerName:name,playerCount,amount:isPriv?rt.price:lanePrice});setReservations(p=>[...p,{...newRes,players:[]}]);if(isPriv&&wi.addSecondLane){const newRes2=await createReservation({...base,userId,customerName:name,playerCount,amount:rt.price});setReservations(p=>[...p,{...newRes2,players:[]}]);}showMsg("Walk-in created"+(isPriv&&wi.addSecondLane?" — 2 lanes":""));}resetWI();}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
-  const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false,splitA:0});};
+  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const isOpen=rt?.style==="open";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const doSplit=isOpen&&wi.splitA>0&&wi.splitA<playerCount;const bookDate=wi.date||today;const allTimes=[time,...(wi.extraTimes||[])];const base={typeId:wi.typeId,date:bookDate,status:"confirmed",paid:true};setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const newReses=[];for(const t of allTimes){if(doSplit){const sB=playerCount-wi.splitA;const rA=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:wi.splitA,amount:rt.price*wi.splitA});const rB=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:sB,amount:rt.price*sB});newReses.push({...rA,players:[]},{...rB,players:[]});}else{const lanePrice=isPriv?rt.price*(wi.addSecondLane?2:1):rt.price*playerCount;const newRes=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:isPriv?rt.price:lanePrice});newReses.push({...newRes,players:[]});if(isPriv&&wi.addSecondLane){const newRes2=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:rt.price});newReses.push({...newRes2,players:[]});}}}setReservations(p=>[...p,...newReses]);const extraMsg=wi.extraTimes?.length?` · ${allTimes.length} sessions`:"";if(doSplit)showMsg(`Walk-in created — split ${wi.splitA}+${playerCount-wi.splitA} across 2 lanes${extraMsg}`);else showMsg("Walk-in created"+(isPriv&&wi.addSecondLane?" — 2 lanes":"")+extraMsg);resetWI();}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
+  const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraTimes:[],addSecondLane:false,splitA:0});};
   activeWorkRef.current=!!(showWI||signingFor||sendConfirm||addingTo||statusBusy||wiSaving);
   return(
     <div style={{paddingBottom:"2rem"}}>
@@ -2229,7 +2229,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
         </div>
         <div style={{display:"flex",gap:".6rem"}}>
           <button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>setShowMerch(true)}>🛍 Merchandise</button>
-          <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:"",addSecondLane:false});}}>+ Walk-In</button>
+          <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraTimes:[],addSecondLane:false,splitA:0});}}>+ Walk-In</button>
         </div>
       </div>
       {slotTimes.length===0&&<div style={{textAlign:"center",color:"var(--muted)",padding:"4rem 2rem",fontSize:"1rem",border:"1px dashed var(--bdr)",borderRadius:10}}>No sessions scheduled for today.</div>}
@@ -2376,7 +2376,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
                       {slotResItems.map(renderResCard)}
                     </>
                   )}
-                  <button className="btn btn-s" style={{width:"100%",marginTop:".25rem",fontSize:".9rem"}} onClick={()=>{setShowWI(time);setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:"",addSecondLane:false});}}>+ Walk-In this Slot</button>
+                  <button className="btn btn-s" style={{width:"100%",marginTop:".25rem",fontSize:".9rem"}} onClick={()=>{setShowWI(time);setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraTimes:[],addSecondLane:false,splitA:0});}}>+ Walk-In this Slot</button>
                 </div>
               );
             })()}
@@ -2388,10 +2388,25 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
         const wiRt=getType(wi.typeId);
         const wiIsPriv=wiRt?.style==="private";
         const wiIsOpen=wiRt?.style==="open";
+        const wiDate=wi.date||today;
         const wiTime=showWI==="custom"?wi.customTime:showWI;
-        const wiAllLanes=wiTime?buildLanes(today,wiTime,reservations,resTypes,sessionTemplates).lanes:[];
+        const wiAllLanes=wiTime?buildLanes(wiDate,wiTime,reservations,resTypes,sessionTemplates).lanes:[];
         const wiFreeLanes=wiAllLanes.filter(l=>l.type===null).length;
-        const offerSecondLane=wiIsPriv&&wiFreeLanes>=2;
+        const offerSecondLane=wiIsPriv;
+        // Slot picker options for this date
+        const wiDateTmpls=sessionTemplates.filter(tmpl=>tmpl.active&&tmpl.dayOfWeek===getDayName(wiDate));
+        const wiDateRes=reservations.filter(res=>res.date===wiDate&&res.status!=="cancelled");
+        const wiDateAllSlots=[...new Set([...wiDateTmpls.map(tmpl=>tmpl.startTime),...wiDateRes.map(res=>res.startTime)])].sort();
+        const wiAvailSlots=wiDate===today?wiDateAllSlots.filter(t=>!slotIsHistory(t)):wiDateAllSlots;
+        // Extra timeslots available (same date, same type, has capacity, not the primary)
+        const wiExtraTimes=wi.extraTimes||[];
+        const wiExtraAvail=wiTime&&wi.typeId?wiAvailSlots.filter(st=>{
+          if(st===wiTime)return false;
+          const el=buildLanes(wiDate,st,reservations,resTypes,sessionTemplates).lanes;
+          if(wiIsPriv)return el.filter(l=>l.type===null).length>0;
+          if(wiIsOpen&&wiRt?.mode){const c=openPlayCapacity(wiRt.mode,el);return c.total>=wi.playerCount;}
+          return false;
+        }):[];
         // Capacity check for current type+playerCount
         const wiCap=wiIsOpen&&wiRt?.mode&&wiTime?openPlayCapacity(wiRt.mode,wiAllLanes):null;
         const wiCapStatus=!wiCap?"ok":wi.playerCount>wiCap.total?"full":wi.playerCount>wiCap.maxSingle?"split":"ok";
@@ -2405,12 +2420,13 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
           if(rt.style==="open"){const c=openPlayCapacity(rt.mode,wiAllLanes);return c.total>0;}
           return true;
         });
-        const wiAmt=wiRt?(wiIsPriv?wiRt.price*(wi.addSecondLane?2:1):wiRt.price*wi.playerCount):0;
-        const canProceed=wi.typeId&&(showWI==="custom"?wi.customTime:true)&&(wi.lookupStatus==="found"||(wi.lookupStatus==="named"&&wi.customerName.trim()))&&wiCapStatus!=="full"&&(wiCapStatus!=="split"||splitValid);
+        const slotCount=1+(wiExtraTimes.length||0);
+        const wiAmt=wiRt?(wiIsPriv?wiRt.price*(wi.addSecondLane?2:1)*slotCount:wiRt.price*wi.playerCount*slotCount):0;
+        const canProceed=wi.typeId&&wiTime&&(wi.lookupStatus==="found"||(wi.lookupStatus==="named"&&wi.customerName.trim()))&&wiCapStatus!=="full"&&(wiCapStatus!=="split"||splitValid);
         return(
           <div className="mo"><div className="mc">
             {wiStep==="details"&&<>
-              <div className="mt2">Walk-In{showWI!=="custom"?` — ${fmt12(showWI)}`:""}</div>
+              <div className="mt2">Walk-In{wiTime?` — ${wiDate!==today?new Date(wiDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})+" ":""}${fmt12(wiTime)}`:""}</div>
               <div className="f">
                 <label>Phone Number</label>
                 <div style={{display:"flex",gap:".5rem",alignItems:"center"}}>
@@ -2422,14 +2438,26 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
               {wi.lookupStatus==="found"&&wi.foundUserId&&(()=>{const u=users.find(x=>x.id===wi.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",background:"rgba(40,200,100,.1)",border:"1px solid rgba(40,200,100,.3)",borderRadius:6,padding:".6rem .85rem",marginBottom:".5rem"}}><span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:28,height:28,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".75rem",flexShrink:0}}>{getInitials(u?.name||"")}</span><div><div style={{fontWeight:700,color:"var(--txt)",fontSize:".95rem"}}>{u?.name}</div><div style={{fontSize:".75rem",color:"var(--muted)"}}>{u?.phone?fmtPhone(u.phone):""}{u?.authProvider?` · ${u.authProvider}`:""}</div></div><span style={{marginLeft:"auto",color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ Found</span></div>;})()}
               {wi.lookupStatus==="notfound"&&<div style={{marginBottom:".5rem"}}><div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".4rem"}}>No account found — enter a name to continue as a guest.</div><div className="f" style={{marginBottom:0}}><label>Customer Name <span style={{color:"var(--danger)"}}>*</span></label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last" autoFocus/></div></div>}
               {wi.lookupStatus==="named"&&<div style={{marginBottom:".5rem"}}><div className="f" style={{marginBottom:".35rem"}}><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last"/></div><div style={{fontSize:".75rem",color:"var(--muted)"}}>Guest walk-in — no existing account.</div></div>}
-              <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value,splitA:0}))}><option value="">— Select —</option>{filteredResTypes.map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select>{wiTime&&filteredResTypes.length===0&&<div style={{fontSize:".78rem",color:"var(--danger)",marginTop:".3rem"}}>No booking types available for this time slot.</div>}</div>
-              {showWI==="custom"&&<div className="f"><label>Start Time</label><input type="time" value={wi.customTime} onChange={e=>setWi(p=>({...p,customTime:e.target.value,splitA:0}))}/></div>}
-              {offerSecondLane&&<div style={{background:"rgba(40,200,100,.08)",border:"1px solid rgba(40,200,100,.3)",borderRadius:8,padding:".65rem .9rem",marginBottom:".5rem",display:"flex",alignItems:"center",gap:".75rem",cursor:"pointer"}} onClick={()=>setWi(p=>({...p,addSecondLane:!p.addSecondLane}))}><input type="checkbox" checked={wi.addSecondLane} readOnly style={{width:18,height:18,cursor:"pointer",accentColor:"var(--acc)"}}/><div style={{flex:1}}><div style={{fontWeight:700,color:"#2dc86e",fontSize:".9rem"}}>Both lanes available!</div><div style={{fontSize:".8rem",color:"var(--muted)"}}>Add second lane — {wiRt?.mode==="versus"?"up to 24":"up to 12"} players total.</div></div><span style={{fontWeight:700,color:"var(--accB)",whiteSpace:"nowrap"}}>+{fmtMoney(wiRt?.price||0)}</span></div>}
-              {!wiIsPriv&&<div className="f"><label>Player Count</label><input type="number" min={1} max={wiCap?wiCap.total:20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value),splitA:0}))}/></div>}
+              {showWI==="custom"&&<div style={{marginBottom:".75rem"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".35rem"}}>
+                  <span style={{fontWeight:600,fontSize:".85rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".04em"}}>Date &amp; Time</span>
+                  <input type="date" value={wiDate} min={today} onChange={e=>setWi(p=>({...p,date:e.target.value,customTime:"",extraTimes:[],splitA:0}))} style={{fontSize:".82rem",padding:".25rem .5rem",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,color:"var(--txt)"}}/>
+                </div>
+                {wiAvailSlots.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",padding:".65rem",background:"var(--bg2)",border:"1px dashed var(--bdr)",borderRadius:6,textAlign:"center"}}>No slots available for this date.</div>}
+                {wiAvailSlots.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:".4rem"}}>{wiAvailSlots.map(st=>{const sel=wi.customTime===st;const lns=buildLanes(wiDate,st,reservations,resTypes,sessionTemplates).lanes;const free=lns.filter(l=>l.type===null).length;return<button key={st} type="button" onClick={()=>setWi(p=>({...p,customTime:st,extraTimes:[],splitA:0}))} style={{padding:".4rem .9rem",borderRadius:20,fontSize:".9rem",fontWeight:sel?700:500,border:`2px solid ${sel?"var(--acc)":"var(--bdr)"}`,background:sel?"var(--accD)":"var(--bg2)",color:sel?"var(--accB)":free===0?"var(--muted)":"var(--txt)",cursor:"pointer"}}>{fmt12(st)}{free===0?" ✕":""}</button>;})}</div>}
+              </div>}
+              <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value,splitA:0,extraTimes:[]}))}><option value="">— Select —</option>{filteredResTypes.map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select>{wiTime&&filteredResTypes.length===0&&<div style={{fontSize:".78rem",color:"var(--danger)",marginTop:".3rem"}}>No booking types available for this time slot.</div>}</div>
+              {offerSecondLane&&<div style={{background:"rgba(40,200,100,.08)",border:"1px solid rgba(40,200,100,.3)",borderRadius:8,padding:".65rem .9rem",marginBottom:".5rem",display:"flex",alignItems:"center",gap:".75rem",cursor:"pointer"}} onClick={()=>setWi(p=>({...p,addSecondLane:!p.addSecondLane}))}><input type="checkbox" checked={wi.addSecondLane} readOnly style={{width:18,height:18,cursor:"pointer",accentColor:"var(--acc)"}}/><div style={{flex:1}}><div style={{fontWeight:700,color:"#2dc86e",fontSize:".9rem"}}>{wiFreeLanes>=2?"Both lanes available":"Add second lane"}</div><div style={{fontSize:".8rem",color:"var(--muted)"}}>Book both lanes — {wiRt?.mode==="versus"?"up to 24":"up to 12"} players total.</div></div><span style={{fontWeight:700,color:"var(--accB)",whiteSpace:"nowrap"}}>+{fmtMoney(wiRt?.price||0)}</span></div>}
+              {!wiIsPriv&&<div className="f"><label>Player Count</label><input type="number" min={1} max={wiCap?wiCap.total:20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value),splitA:0,extraTimes:[]}))} /></div>}
               {wiIsPriv&&<div style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".5rem",padding:".45rem .6rem",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5}}>Private: up to <strong style={{color:"var(--txt)"}}>{wiRt?.maxPlayers||laneCapacity(wiRt?.mode||"coop")}</strong> players{wi.addSecondLane?` per lane (${(wiRt?.maxPlayers||laneCapacity(wiRt?.mode||"coop"))*2} total across both)`:""}</div>}
               {wiCapStatus==="full"&&<div style={{background:"rgba(184,50,50,.1)",border:"1px solid rgba(184,50,50,.4)",borderRadius:7,padding:".7rem 1rem",marginBottom:".5rem"}}><div style={{fontWeight:700,color:"var(--danger)",fontSize:".9rem",marginBottom:".2rem"}}>No room for {wi.playerCount} players</div><div style={{fontSize:".82rem",color:"var(--muted)"}}>All {wiRt?.mode} lanes are full at this time. Please choose a different time slot.</div></div>}
               {wiCapStatus==="split"&&(()=>{const b0=wiCap.blocks[0]||0;const b1=wiCap.blocks[1]||0;const maxA=Math.min(b0,wi.playerCount-1);return(<div style={{background:"rgba(184,150,12,.08)",border:"1px solid var(--warn)",borderRadius:7,padding:".75rem 1rem",marginBottom:".5rem"}}><div style={{fontWeight:700,color:"var(--warnL)",fontSize:".9rem",marginBottom:".35rem"}}>⚠ Group of {wi.playerCount} can't fit in one {wiRt?.mode} lane</div><div style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".65rem"}}>Split across 2 lanes, or choose a different time.</div><div style={{display:"flex",alignItems:"center",gap:".6rem",flexWrap:"wrap",marginBottom:".45rem"}}><span style={{fontSize:".85rem",color:"var(--txt)",fontWeight:600}}>Lane A</span><span style={{fontSize:".75rem",color:"var(--muted)"}}>({b0} spot{b0!==1?"s":""} avail.)</span><input type="number" min={1} max={maxA} value={wi.splitA||""} onChange={e=>setWi(p=>({...p,splitA:Math.min(maxA,Math.max(1,+e.target.value))}))} style={{width:56,textAlign:"center",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".3rem .4rem",color:"var(--txt)",fontSize:".95rem"}}/><span style={{fontSize:".85rem",color:"var(--muted)"}}>players</span></div><div style={{display:"flex",alignItems:"center",gap:".6rem",flexWrap:"wrap"}}><span style={{fontSize:".85rem",color:"var(--txt)",fontWeight:600}}>Lane B</span><span style={{fontSize:".75rem",color:"var(--muted)"}}>({b1} spot{b1!==1?"s":""} avail.)</span><span style={{minWidth:56,textAlign:"center",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:5,padding:".3rem .4rem",color:wi.splitA>0&&splitB>b1?"var(--danger)":"var(--txt)",fontSize:".95rem",display:"inline-block"}}>{wi.splitA>0?splitB:"—"}</span><span style={{fontSize:".85rem",color:"var(--muted)"}}>players</span>{wi.splitA>0&&splitB>b1&&<span style={{fontSize:".75rem",color:"var(--danger)"}}>exceeds lane B capacity</span>}</div></div>);})()}
-              {wiRt&&wiCapStatus!=="full"&&<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{wiRt.name}{!wiIsPriv?` · ${wi.playerCount}p`:""}{wiCapStatus==="split"&&splitValid?" · split 2 lanes":""}{wi.addSecondLane?" · 2 lanes":""}</span><strong style={{color:"var(--accB)"}}>{fmtMoney(wiAmt)}</strong></div>}
+              {wiRt&&wiTime&&wiExtraAvail.length>0&&<div style={{marginBottom:".5rem"}}>
+                <div style={{fontWeight:600,fontSize:".82rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".04em",marginBottom:".35rem"}}>Add More Sessions</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:".35rem"}}>{wiExtraAvail.map(st=>{const sel=wiExtraTimes.includes(st);return<button key={st} type="button" onClick={()=>setWi(p=>({...p,extraTimes:sel?p.extraTimes.filter(x=>x!==st):[...p.extraTimes,st]}))} style={{padding:".35rem .75rem",borderRadius:20,fontSize:".85rem",fontWeight:sel?700:500,border:`2px solid ${sel?"var(--acc)":"var(--bdr)"}`,background:sel?"var(--accD)":"var(--bg2)",color:sel?"var(--accB)":"var(--txt)",cursor:"pointer"}}>{fmt12(st)}</button>;})}</div>
+                {wiExtraTimes.length>0&&<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".3rem"}}>{wiExtraTimes.length} additional session{wiExtraTimes.length!==1?"s":""} selected</div>}
+              </div>}
+              {wiRt&&wiCapStatus!=="full"&&<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{wiRt.name}{!wiIsPriv?` · ${wi.playerCount}p`:""}{wiCapStatus==="split"&&splitValid?" · split 2 lanes":""}{wi.addSecondLane?" · 2 lanes":""}{slotCount>1?` · ${slotCount} sessions`:""}</span><strong style={{color:"var(--accB)"}}>{fmtMoney(wiAmt)}</strong></div>}
               <div className="ma"><button className="btn btn-s" onClick={resetWI}>Cancel</button><button className="btn btn-p" disabled={!canProceed} onClick={()=>setWiStep("payment")}>Continue to Payment →</button></div>
             </>}
             {wiStep==="payment"&&<>
@@ -2438,7 +2466,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Customer</span><strong style={{color:"var(--txt)"}}>{wiName}</strong></div>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Type</span><span style={{color:"var(--txt)"}}>{wiRt?.name}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Players</span><span style={{color:"var(--txt)"}}>{wi.playerCount}{wiCapStatus==="split"&&splitValid?` (${wi.splitA}+${splitB} split)`:""}</span></div>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Time</span><span style={{color:"var(--txt)"}}>{fmt12(showWI==="custom"?wi.customTime:showWI)}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Session{slotCount>1?"s":""}</span><span style={{color:"var(--txt)",textAlign:"right"}}>{[wiTime,...wiExtraTimes].map(t=>fmt12(t)).join(", ")}{wiDate!==today?" · "+new Date(wiDate+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"}):""}</span></div>
                 <div style={{borderTop:"1px solid var(--bdr)",marginTop:".6rem",paddingTop:".6rem",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}><span style={{fontWeight:600,color:"var(--txt)"}}>Total Due</span><span style={{fontSize:"1.6rem",fontWeight:800,color:"var(--accB)"}}>{fmtMoney(wiAmt)}</span></div>
               </div>
               <div style={{background:"rgba(184,150,12,.08)",border:"1px solid var(--warn)",borderRadius:6,padding:".75rem 1rem",fontSize:".9rem",color:"var(--warnL)",marginBottom:"1rem",textAlign:"center"}}>💳 Present card terminal to customer for <strong>{fmtMoney(wiAmt)}</strong></div>
@@ -2660,8 +2688,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
         {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
-        <button style={{marginLeft:"auto"}} className={`tab${tab==="foh"?" on":""}`} onClick={()=>setTab("foh")}>FOH</button>
-        <button className={`tab${tab==="scoring"?" on":""}`} onClick={()=>setTab("scoring")}>Scoring</button>
+        <button style={{marginLeft:"auto"}} className={`tab${tab==="ops"?" on":""}`} onClick={()=>setTab("ops")}>Operations</button>
       </div>
 
       {tab==="dashboard"&&<>
@@ -2905,16 +2932,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           </tbody></table></div>
       </>}
 
-      {tab==="foh"&&<FohView reservations={reservations} setReservations={setReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={setUsers} activeWaiverDoc={activeWaiverDoc}/>}
-
-      {tab==="scoring"&&<>
-        <div className="ph"><span className="pt">Scoring</span></div>
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"1rem",padding:"4rem 2rem",color:"var(--muted)",textAlign:"center"}}>
-          <div style={{fontSize:"3rem",opacity:.25}}>🎯</div>
-          <div style={{fontSize:"1.2rem",fontWeight:600,color:"var(--txt)"}}>Scoring</div>
-          <div style={{fontSize:".95rem"}}>Scoring functionality coming soon.</div>
-        </div>
-      </>}
+      {tab==="ops"&&<OpsView reservations={reservations} setReservations={setReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={setUsers} activeWaiverDoc={activeWaiverDoc}/>}
     </div>
   );
 }
