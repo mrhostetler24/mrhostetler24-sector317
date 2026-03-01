@@ -90,7 +90,7 @@ const fmt12 = t => { if(!t)return""; const[h,m]=t.split(":"); const hr=+h; retur
 const fmtTS = ts => new Date(ts).toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"});
 const getDayName = d => new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"long"});
 const cleanPh = p => (p||"").replace(/\D/g,"");
-const todayStr = () => new Date().toISOString().split("T")[0];
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 const sortTemplates = arr => [...arr].sort((a,b)=>{
   const di=DAYS_OF_WEEK.indexOf(a.dayOfWeek)-DAYS_OF_WEEK.indexOf(b.dayOfWeek);
   return di!==0?di:a.startTime.localeCompare(b.startTime);
