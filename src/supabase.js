@@ -217,13 +217,27 @@ export async function createUser(user) {
  * - createdByUserId: the staff/customer who added them via the reservation screen
  * - is_real: true — this is a real person who needs to complete signup on arrival
  */
+// Compute default leaderboard name: initials + last 4 of phone (e.g. "AB-1234")
+function _guestLbName(name, phone) {
+  const clean = (phone || '').replace(/\D/g, '')
+  const last4 = clean.length >= 4 ? clean.slice(-4) : '0000'
+  const parts = (name || '').trim().split(/\s+/)
+  const initials = parts.length >= 2
+    ? parts[0][0].toUpperCase() + parts[parts.length - 1][0].toUpperCase()
+    : (name || '').slice(0, 2).toUpperCase()
+  return `${initials}-${last4}`
+}
+
 export async function createGuestUser({ name, phone, createdByUserId }) {
+  const leaderboardName = _guestLbName(name, phone)
+
   // Try SECURITY DEFINER RPC first — bypasses RLS so customers can create guest rows
   const { data: rpcData, error: rpcErr } = await supabase
     .rpc('create_guest_user', {
       p_name:               name,
       p_phone:              phone ?? null,
       p_created_by_user_id: createdByUserId ?? null,
+      p_leaderboard_name:   leaderboardName,
     })
   if (!rpcErr && rpcData) return toUser(rpcData)
 
@@ -237,6 +251,7 @@ export async function createGuestUser({ name, phone, createdByUserId }) {
     is_real:               true,
     auth_provider:         null,
     created_by_user_id:    createdByUserId ?? null,
+    leaderboard_name:      leaderboardName,
   }).select().single()
   if (error) throw new Error(
     `Could not create guest user — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${error.message}`
