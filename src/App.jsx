@@ -2188,13 +2188,19 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const [wiSaving,setWiSaving]=useState(false);
   const [toast,setToast]=useState(null);
   const [showMerch,setShowMerch]=useState(false);
+  const [showHistory,setShowHistory]=useState(false);
+  const activeWorkRef=useRef(false);
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
+  useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
   const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
   const today=todayStr();
   const getType=id=>resTypes.find(t=>t.id===id);
   const todayRes=reservations.filter(r=>r.date===today&&r.status!=="cancelled");
   const todayTmpls=sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(today));
   const slotTimes=[...new Set([...todayTmpls.map(t=>t.startTime),...todayRes.map(r=>r.startTime)])].sort();
+  const slotIsHistory=time=>{const[h,m]=time.split(':').map(Number);return clock.getHours()*60+clock.getMinutes()>=h*60+m+75;};
+  const activeSlots=slotTimes.filter(t=>!slotIsHistory(t));
+  const historySlots=[...slotTimes.filter(slotIsHistory)].reverse();
   const playerWaiverOk=player=>{if(!player.userId)return false;return hasValidWaiver(users.find(u=>u.id===player.userId),activeWaiverDoc);};
   const sBadge=status=>{
     const map={confirmed:{bg:"rgba(90,138,58,.15)",color:"var(--okB)",bdr:"rgba(90,138,58,.3)"},ready:{bg:"rgba(40,200,100,.18)",color:"#2dc86e",bdr:"rgba(40,200,100,.4)"},"no-show":{bg:"rgba(184,150,12,.12)",color:"var(--warnL)",bdr:"rgba(184,150,12,.25)"},sent:{bg:"rgba(100,130,240,.18)",color:"#8096f0",bdr:"rgba(100,130,240,.35)"},completed:{bg:"var(--accD)",color:"var(--accB)",bdr:"rgba(138,154,53,.25)"}};
@@ -2212,6 +2218,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const doWiLookup=async()=>{const clean=cleanPh(wi.phone);if(clean.length<10)return;setWi(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWi(p=>({...p,foundUserId:found.id,customerName:found.name,lookupStatus:"found"}));}else{setWi(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWi(p=>({...p,lookupStatus:"notfound"}));}};
   const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const isOpen=rt?.style==="open";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const doSplit=isOpen&&wi.splitA>0&&wi.splitA<playerCount;const base={typeId:wi.typeId,date:today,startTime:time,status:"confirmed",paid:true};setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null});userId=newUser.id;setUsers(p=>[...p,newUser]);}if(doSplit){const sB=playerCount-wi.splitA;const rA=await createReservation({...base,userId,customerName:name,playerCount:wi.splitA,amount:rt.price*wi.splitA});const rB=await createReservation({...base,userId,customerName:name,playerCount:sB,amount:rt.price*sB});setReservations(p=>[...p,{...rA,players:[]},{...rB,players:[]}]);showMsg(`Walk-in created — split ${wi.splitA}+${sB} across 2 lanes`);}else{const lanePrice=isPriv?rt.price*(wi.addSecondLane?2:1):rt.price*playerCount;const newRes=await createReservation({...base,userId,customerName:name,playerCount,amount:isPriv?rt.price:lanePrice});setReservations(p=>[...p,{...newRes,players:[]}]);if(isPriv&&wi.addSecondLane){const newRes2=await createReservation({...base,userId,customerName:name,playerCount,amount:rt.price});setReservations(p=>[...p,{...newRes2,players:[]}]);}showMsg("Walk-in created"+(isPriv&&wi.addSecondLane?" — 2 lanes":""));}resetWI();}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
   const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false,splitA:0});};
+  activeWorkRef.current=!!(showWI||signingFor||sendConfirm||addingTo||statusBusy||wiSaving);
   return(
     <div style={{paddingBottom:"2rem"}}>
       {toast&&<div style={{position:"fixed",top:"1rem",right:"1rem",background:"var(--surf)",border:"1px solid var(--acc2)",borderRadius:8,padding:".75rem 1.4rem",zIndex:9999,fontSize:".95rem",fontWeight:600,boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>{toast}</div>}
@@ -2226,7 +2233,10 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
         </div>
       </div>
       {slotTimes.length===0&&<div style={{textAlign:"center",color:"var(--muted)",padding:"4rem 2rem",fontSize:"1rem",border:"1px dashed var(--bdr)",borderRadius:10}}>No sessions scheduled for today.</div>}
-      {slotTimes.map(time=>{
+      {activeSlots.length===0&&slotTimes.length>0&&<div style={{textAlign:"center",color:"var(--muted)",padding:"2rem",fontSize:".95rem",border:"1px dashed var(--bdr)",borderRadius:10}}>All sessions have ended. Check History below.</div>}
+      {[...activeSlots,...(historySlots.length>0?['__hist__']:[]),...(showHistory?historySlots:[])].map(entry=>{
+        if(entry==='__hist__')return(<div key="__hist__" style={{display:"flex",alignItems:"center",gap:".75rem",marginTop:".75rem",marginBottom:".5rem",cursor:"pointer",userSelect:"none"}} onClick={()=>setShowHistory(h=>!h)}><div style={{flex:1,height:1,background:"var(--bdr)"}}/><span style={{fontSize:".8rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".08em",whiteSpace:"nowrap",padding:"0 .6rem",display:"flex",alignItems:"center",gap:".4rem"}}><span style={{fontSize:".7rem"}}>{showHistory?"▲":"▼"}</span>History · {historySlots.length} slot{historySlots.length!==1?"s":""} ended</span><div style={{flex:1,height:1,background:"var(--bdr)"}}/></div>);
+        const time=entry;const isHist=historySlots.includes(time);
         const slotResItems=todayRes.filter(r=>r.startTime===time);
         const tmpl=todayTmpls.find(t=>t.startTime===time);
         const {lanes}=buildLanes(today,time,reservations,resTypes,sessionTemplates);
@@ -2236,7 +2246,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
         const canSend=allResolved&&!allSent;
         const isOpen=expandedSlot===time;
         return(
-          <div key={time} style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:12,marginBottom:"1rem",overflow:"hidden"}}>
+          <div key={time} style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:12,marginBottom:"1rem",overflow:"hidden",opacity:isHist?.65:1,filter:isHist?"saturate(.45)":"none"}}>
             {/* ── Collapsed slot header ── */}
             <div style={{display:"flex",alignItems:"stretch",cursor:"pointer",userSelect:"none",minHeight:78}} onClick={()=>setExpandedSlot(isOpen?null:time)}>
               <div style={{padding:".85rem 1.1rem",display:"flex",flexDirection:"column",justifyContent:"center",minWidth:100,flexShrink:0}}>
