@@ -2273,7 +2273,7 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
                 {activeLanes.map((lane,li)=>{
                   const players=lane.reservations.flatMap(r=>r.players||[]);const wOkCount=players.filter(playerWaiverOk).length;
                   const laneIsFull=lane.type==="private"||(lane.type==="open"&&lane.playerCount>=laneCapacity(lane.mode));
-                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<activeLanes.length-1?"1px solid var(--bdr)":"none",minWidth:0}}>
+                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<activeLanes.length-1?"1px solid var(--bdr)":"none",minWidth:0,background:laneIsFull?"rgba(220,60,60,.1)":"transparent"}}>
                     <div style={{fontSize:".65rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",marginBottom:".3rem"}}>{laneIsFull&&<><strong style={{color:"var(--acc)"}}>FULL!</strong>{" — "}</>}Lane {lane.laneNum} · {lane.mode} · {lane.type}</div>
                     {lane.reservations.map(res=>{
                       const rt=getType(res.typeId);const rPlayers=res.players||[];const rWok=rPlayers.filter(playerWaiverOk).length;
