@@ -478,7 +478,19 @@ const mergePlayersIntoReservations = (resRows, playerRows) => {
   }))
 }
 
+const rpcRowsToReservations = rows =>
+  rows.map(row => ({
+    ...toReservation(row),
+    players: (row.players ?? []).map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name })),
+  }))
+
 export async function fetchReservations() {
+  // Try SECURITY DEFINER RPC — bypasses RLS on reservation_players
+  const { data: rpcData, error: rpcErr } = await supabase
+    .rpc('get_reservations_with_players')
+  if (!rpcErr && rpcData) return rpcRowsToReservations(rpcData)
+
+  // Fallback: direct query (subject to RLS)
   const { data: resData, error: resErr } = await supabase
     .from('reservations')
     .select('*')
@@ -497,6 +509,13 @@ export async function fetchReservations() {
 
 export async function fetchTodaysReservations() {
   const today = new Date().toISOString().split('T')[0]
+
+  // Try SECURITY DEFINER RPC — bypasses RLS on reservation_players
+  const { data: rpcData, error: rpcErr } = await supabase
+    .rpc('get_reservations_with_players', { p_date: today })
+  if (!rpcErr && rpcData) return rpcRowsToReservations(rpcData)
+
+  // Fallback: direct query (subject to RLS)
   const { data: resData, error: resErr } = await supabase
     .from('reservations')
     .select('*')
