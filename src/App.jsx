@@ -2243,10 +2243,10 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
         const tmpl=todayTmpls.find(t=>t.startTime===time);
         const {lanes}=buildLanes(today,time,reservations,resTypes,sessionTemplates);
         const activeLanes=lanes.filter(l=>l.type!==null);
-        const resReadyToSend=r=>{const pl=r.players||[];const wOk=pl.filter(playerWaiverOk).length;return(r.status==="arrived"||r.status==="ready")&&(pl.length===0||wOk===pl.length);};
-        const allResolved=slotResItems.length>0&&slotResItems.every(r=>resReadyToSend(r)||r.status==="no-show"||r.status==="sent");
+        const laneReady=lane=>lane.reservations.length>0&&lane.reservations.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
+        const allLanesReady=activeLanes.length>0?activeLanes.every(laneReady):slotResItems.length>0&&slotResItems.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
         const allSent=slotResItems.length>0&&slotResItems.every(r=>r.status==="sent"||r.status==="no-show");
-        const canSend=allResolved&&!allSent;
+        const canSend=allLanesReady&&!allSent;
         const isOpen=expandedSlot===time;
         return(
           <div key={time} style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:12,marginBottom:"1rem",overflow:"hidden",opacity:isHist?.65:1,filter:isHist?"saturate(.45)":"none"}}>
@@ -2273,8 +2273,9 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
                 {lanes.length>0&&lanes.map((lane,li)=>{
                   const players=lane.reservations.flatMap(r=>r.players||[]);const wOkCount=players.filter(playerWaiverOk).length;
                   const laneIsFull=lane.type==="private"||(lane.type==="open"&&lane.playerCount>=laneCapacity(lane.mode));
-                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<lanes.length-1?"1px solid var(--bdr)":"none",minWidth:0,background:laneIsFull?"rgba(220,60,60,.1)":"transparent"}}>
-                    <div style={{fontSize:".65rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",marginBottom:".3rem"}}>{laneIsFull&&<><strong style={{color:"var(--acc)"}}>FULL!</strong>{" — "}</>}Lane {lane.laneNum} · {lane.mode} · {lane.type}</div>
+                  const lnReady=laneReady(lane);
+                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<lanes.length-1?"1px solid var(--bdr)":"none",minWidth:0,background:lnReady?"rgba(40,200,100,.06)":laneIsFull?"rgba(220,60,60,.1)":"transparent"}}>
+                    <div style={{fontSize:".65rem",color:lnReady?"#2dc86e":"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",marginBottom:".3rem"}}>{laneIsFull&&!lnReady&&<><strong style={{color:"var(--acc)"}}>FULL!</strong>{" — "}</>}Lane {lane.laneNum} · {lane.mode} · {lane.type}{lnReady&&<strong style={{marginLeft:".35rem"}}> ✓ READY</strong>}</div>
                     {lane.reservations.map(res=>{
                       const rt=getType(res.typeId);const rPlayers=res.players||[];const rWok=rPlayers.filter(playerWaiverOk).length;
                       return <div key={res.id} style={{marginBottom:".25rem"}}>
@@ -2291,7 +2292,7 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
                 })}
               </div>
               <div style={{padding:".75rem 1rem",display:"flex",alignItems:"center",gap:".5rem",flexShrink:0}}>
-                {canSend&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setSendConfirm(time);}}>Send Group →</button>}
+                {canSend&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setSendConfirm(time);}}>Send {fmt12(time)}? →</button>}
                 {allSent&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(100,130,240,.18)",color:"#8096f0",border:"1px solid rgba(100,130,240,.35)",fontWeight:600,fontSize:".8rem"}}>SENT</span>}
                 <span style={{color:"var(--muted)",fontSize:"1.1rem"}}>{isOpen?"▲":"▼"}</span>
               </div>
@@ -2361,10 +2362,12 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
                           </>
                         )}
                         {res.status!=="sent"&&res.status!=="completed"&&(
-                          <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",borderTop:"1px solid var(--bdr)",paddingTop:".75rem",marginTop:".75rem"}}>
-                            {res.status!=="arrived"&&res.status!=="ready"&&<button className="btn btn-sm" style={{background:"rgba(40,200,100,.2)",color:"#2dc86e",border:"1px solid rgba(40,200,100,.4)"}} disabled={isBusy} onClick={()=>setResStatus(res.id,"arrived")}>{isBusy?"…":"✓ Mark Arrived"}</button>}
-                            {(res.status==="arrived"||res.status==="ready")&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo Arrived</button>}
-                            {res.status!=="no-show"&&<button className="btn btn-sm btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
+                          <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",borderTop:"1px solid var(--bdr)",paddingTop:".75rem",marginTop:".75rem",alignItems:"center"}}>
+                            {(res.status==="arrived"||res.status==="ready")
+                              ?<span style={{color:"#2dc86e",fontWeight:700,fontSize:".88rem"}}>✓ Arrived</span>
+                              :res.status!=="no-show"&&<button className="btn btn-sm" style={{background:allWaiversOk||players.length===0?"rgba(40,200,100,.2)":"var(--surf)",color:allWaiversOk||players.length===0?"#2dc86e":"var(--muted)",border:`1px solid ${allWaiversOk||players.length===0?"rgba(40,200,100,.4)":"var(--bdr)"}`}} disabled={isBusy||(players.length>0&&!allWaiversOk)} title={players.length>0&&!allWaiversOk?"All waivers must be signed before marking arrived":undefined} onClick={()=>setResStatus(res.id,"arrived")}>{isBusy?"…":"✓ Mark Arrived"}</button>}
+                            {(res.status==="arrived"||res.status==="ready")&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
+                            {res.status!=="no-show"&&res.status!=="arrived"&&res.status!=="ready"&&<button className="btn btn-sm btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
                             {res.status==="no-show"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
                           </div>
                         )}
@@ -2378,10 +2381,11 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
                   {activeLanes.length>0?(
                     activeLanes.map(lane=>(
                       <div key={lane.laneNum} style={{marginBottom:"1rem"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".6rem",paddingBottom:".45rem",borderBottom:"2px solid var(--bdr)"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".6rem",paddingBottom:".45rem",borderBottom:`2px solid ${laneReady(lane)?"rgba(40,200,100,.4)":"var(--bdr)"}`}}>
                           <span style={{fontWeight:700,fontSize:".8rem",color:"var(--txt)"}}>Lane {lane.laneNum}</span>
                           <span className={`badge b-${lane.mode}`}>{lane.mode}</span>
                           <span className={`badge b-${lane.type}`}>{lane.type}</span>
+                          {laneReady(lane)&&<span style={{fontSize:".75rem",fontWeight:700,color:"#2dc86e",background:"rgba(40,200,100,.12)",border:"1px solid rgba(40,200,100,.35)",borderRadius:4,padding:".15rem .5rem"}}>✓ Lane Ready</span>}
                           <span style={{fontSize:".78rem",color:"var(--muted)",marginLeft:"auto"}}>👥 {lane.playerCount}p booked</span>
                         </div>
                         {lane.reservations.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",padding:".5rem 0"}}>No bookings in this lane.</div>}
