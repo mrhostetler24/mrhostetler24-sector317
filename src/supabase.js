@@ -231,7 +231,7 @@ function _guestLbName(name, phone) {
 export async function createGuestUser({ name, phone, createdByUserId }) {
   const leaderboardName = _guestLbName(name, phone)
 
-  // Try SECURITY DEFINER RPC first — bypasses RLS so customers can create guest rows
+  // Try updated RPC (with p_leaderboard_name) — SECURITY DEFINER bypasses RLS
   const { data: rpcData, error: rpcErr } = await supabase
     .rpc('create_guest_user', {
       p_name:               name,
@@ -241,7 +241,21 @@ export async function createGuestUser({ name, phone, createdByUserId }) {
     })
   if (!rpcErr && rpcData) return toUser(rpcData)
 
-  // Fallback: direct insert (works for staff/admin whose RLS allows it)
+  // Fallback: old RPC signature (before migration adds p_leaderboard_name)
+  const { data: rpcOld, error: rpcOldErr } = await supabase
+    .rpc('create_guest_user', {
+      p_name:               name,
+      p_phone:              phone ?? null,
+      p_created_by_user_id: createdByUserId ?? null,
+    })
+  if (!rpcOldErr && rpcOld) {
+    const created = toUser(rpcOld)
+    // Best-effort patch of leaderboard name on the created row
+    await supabase.from('users').update({ leaderboard_name: leaderboardName }).eq('id', created.id)
+    return { ...created, leaderboardName }
+  }
+
+  // Last resort: direct insert (requires permissive RLS INSERT policy)
   const { data, error } = await supabase.from('users').insert({
     name,
     phone:                 phone ?? null,
@@ -254,7 +268,7 @@ export async function createGuestUser({ name, phone, createdByUserId }) {
     leaderboard_name:      leaderboardName,
   }).select().single()
   if (error) throw new Error(
-    `Could not create guest user — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${error.message}`
+    `Could not create guest user — RPC: ${rpcOldErr?.message ?? rpcErr?.message ?? 'n/a'}, Direct: ${error.message}`
   )
   return toUser(data)
 }
