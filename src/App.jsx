@@ -123,25 +123,35 @@ function buildLanes(date,startTime,reservations,resTypes,templates) {
   for(const r of privRes){
     if(laneIdx<numLanes){lanes[laneIdx].type="private";lanes[laneIdx].mode=resTypes.find(x=>x.id===r.typeId)?.mode;lanes[laneIdx].reservations.push(r);lanes[laneIdx].playerCount+=(r.playerCount||1);laneIdx++;}
   }
-  // Second pass: group open-play by mode, pack into lanes
-  const openByMode={};
+  // Second pass: open-play per-reservation, respecting capacity — spill to next free lane
   for(const r of openRes){
     const mode=resTypes.find(x=>x.id===r.typeId)?.mode||"unknown";
-    (openByMode[mode]=openByMode[mode]||[]).push(r);
-  }
-  for(const [mode,rList] of Object.entries(openByMode)){
-    // Find an existing open lane for this mode, or take a free lane
-    let targetLane = lanes.find(l=>l.type==="open"&&l.mode===mode);
-    if(!targetLane) targetLane = lanes.find(l=>l.type===null);
-    if(!targetLane) continue; // no room (shouldn't happen with valid data)
-    targetLane.type="open";targetLane.mode=mode;
-    for(const r of rList){targetLane.reservations.push(r);targetLane.playerCount+=(r.playerCount||1);}
+    const cap=laneCapacity(mode);const cnt=r.playerCount||1;
+    // Prefer: existing mode lane with space → free lane → existing mode lane (overflow)
+    let targetLane=lanes.find(l=>l.type==="open"&&l.mode===mode&&l.playerCount+cnt<=cap);
+    if(!targetLane) targetLane=lanes.find(l=>l.type===null);
+    if(!targetLane) targetLane=lanes.find(l=>l.type==="open"&&l.mode===mode);
+    if(!targetLane) continue;
+    targetLane.type="open";targetLane.mode=mode;targetLane.reservations.push(r);targetLane.playerCount+=cnt;
   }
   return {tmpl,lanes};
 }
 
 // Max players per open-play lane based on mode
 function laneCapacity(mode){return mode==="versus"?12:6;}
+
+// Returns available capacity for a new open-play booking at a given mode
+// blocks: sorted descending — each entry is "spots remaining" in an existing or free lane
+function openPlayCapacity(mode,allLanes){
+  const cap=laneCapacity(mode);
+  const modeLanes=allLanes.filter(l=>l.type==="open"&&l.mode===mode);
+  const freeLanes=allLanes.filter(l=>l.type===null);
+  const blocks=[
+    ...modeLanes.map(l=>Math.max(0,cap-l.playerCount)),
+    ...freeLanes.map(()=>cap)
+  ].filter(b=>b>0).sort((a,b)=>b-a);
+  return{maxSingle:blocks[0]||0,total:blocks.reduce((s,b)=>s+b,0),blocks};
+}
 
 function getSlotStatus(date,startTime,typeId,reservations,resTypes,templates) {
   const {tmpl,lanes} = buildLanes(date,startTime,reservations,resTypes,templates);
@@ -2174,7 +2184,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const [statusBusy,setStatusBusy]=useState(null);
   const [clock,setClock]=useState(new Date());
   const [showWI,setShowWI]=useState(null);
-  const [wi,setWi]=useState({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false});
+  const [wi,setWi]=useState({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false,splitA:0});
   const [wiSaving,setWiSaving]=useState(false);
   const [toast,setToast]=useState(null);
   const [showMerch,setShowMerch]=useState(false);
@@ -2200,8 +2210,8 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const doAddPlayer=async resId=>{const userId=addInput.foundUserId||null;const name=userId?(users.find(u=>u.id===userId)?.name||addInput.name):addInput.name.trim();if(!name)return;try{const p=await addPlayerToReservation(resId,{name,userId});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));resetAddInput();setAddingTo(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
   const doRemovePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}};
   const doWiLookup=async()=>{const clean=cleanPh(wi.phone);if(clean.length<10)return;setWi(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWi(p=>({...p,foundUserId:found.id,customerName:found.name,lookupStatus:"found"}));}else{setWi(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWi(p=>({...p,lookupStatus:"notfound"}));}};
-  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const lanePrice=rt?(isPriv?rt.price:rt.price*playerCount):0;setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const newRes=await createReservation({typeId:wi.typeId,userId,customerName:name,date:today,startTime:time,playerCount,amount:lanePrice,status:"confirmed",paid:true});setReservations(p=>[...p,{...newRes,players:[]}]);if(isPriv&&wi.addSecondLane){const newRes2=await createReservation({typeId:wi.typeId,userId,customerName:name,date:today,startTime:time,playerCount,amount:lanePrice,status:"confirmed",paid:true});setReservations(p=>[...p,{...newRes2,players:[]}]);}resetWI();showMsg("Walk-in created"+(isPriv&&wi.addSecondLane?" — 2 lanes":""));}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
-  const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false});};
+  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const isOpen=rt?.style==="open";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const doSplit=isOpen&&wi.splitA>0&&wi.splitA<playerCount;const base={typeId:wi.typeId,date:today,startTime:time,status:"confirmed",paid:true};setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null});userId=newUser.id;setUsers(p=>[...p,newUser]);}if(doSplit){const sB=playerCount-wi.splitA;const rA=await createReservation({...base,userId,customerName:name,playerCount:wi.splitA,amount:rt.price*wi.splitA});const rB=await createReservation({...base,userId,customerName:name,playerCount:sB,amount:rt.price*sB});setReservations(p=>[...p,{...rA,players:[]},{...rB,players:[]}]);showMsg(`Walk-in created — split ${wi.splitA}+${sB} across 2 lanes`);}else{const lanePrice=isPriv?rt.price*(wi.addSecondLane?2:1):rt.price*playerCount;const newRes=await createReservation({...base,userId,customerName:name,playerCount,amount:isPriv?rt.price:lanePrice});setReservations(p=>[...p,{...newRes,players:[]}]);if(isPriv&&wi.addSecondLane){const newRes2=await createReservation({...base,userId,customerName:name,playerCount,amount:rt.price});setReservations(p=>[...p,{...newRes2,players:[]}]);}showMsg("Walk-in created"+(isPriv&&wi.addSecondLane?" — 2 lanes":""));}resetWI();}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
+  const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false,splitA:0});};
   return(
     <div style={{paddingBottom:"2rem"}}>
       {toast&&<div style={{position:"fixed",top:"1rem",right:"1rem",background:"var(--surf)",border:"1px solid var(--acc2)",borderRadius:8,padding:".75rem 1.4rem",zIndex:9999,fontSize:".95rem",fontWeight:600,boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>{toast}</div>}
@@ -2367,12 +2377,26 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
         const wiName=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();
         const wiRt=getType(wi.typeId);
         const wiIsPriv=wiRt?.style==="private";
+        const wiIsOpen=wiRt?.style==="open";
         const wiTime=showWI==="custom"?wi.customTime:showWI;
-        const {lanes:wiLanes}=wiTime?buildLanes(today,wiTime,reservations,resTypes,sessionTemplates):{lanes:[]};
-        const wiFreeLanes=wiLanes.filter(l=>l.type===null).length;
+        const wiAllLanes=wiTime?buildLanes(today,wiTime,reservations,resTypes,sessionTemplates).lanes:[];
+        const wiFreeLanes=wiAllLanes.filter(l=>l.type===null).length;
         const offerSecondLane=wiIsPriv&&wiFreeLanes>=2;
+        // Capacity check for current type+playerCount
+        const wiCap=wiIsOpen&&wiRt?.mode&&wiTime?openPlayCapacity(wiRt.mode,wiAllLanes):null;
+        const wiCapStatus=!wiCap?"ok":wi.playerCount>wiCap.total?"full":wi.playerCount>wiCap.maxSingle?"split":"ok";
+        const splitB=wi.splitA>0?wi.playerCount-wi.splitA:0;
+        const splitValid=wiCapStatus==="split"&&wi.splitA>0&&wi.splitA<wi.playerCount&&wi.splitA<=(wiCap?.blocks[0]||0)&&splitB<=(wiCap?.blocks[1]||0);
+        // Filter types by what the slot can still accommodate
+        const filteredResTypes=resTypes.filter(rt=>{
+          if(!rt.active||!rt.availableForBooking)return false;
+          if(!wiTime)return true;
+          if(rt.style==="private")return wiFreeLanes>0;
+          if(rt.style==="open"){const c=openPlayCapacity(rt.mode,wiAllLanes);return c.total>0;}
+          return true;
+        });
         const wiAmt=wiRt?(wiIsPriv?wiRt.price*(wi.addSecondLane?2:1):wiRt.price*wi.playerCount):0;
-        const canProceed=wi.typeId&&(showWI==="custom"?wi.customTime:true)&&(wi.lookupStatus==="found"||(wi.lookupStatus==="named"&&wi.customerName.trim()));
+        const canProceed=wi.typeId&&(showWI==="custom"?wi.customTime:true)&&(wi.lookupStatus==="found"||(wi.lookupStatus==="named"&&wi.customerName.trim()))&&wiCapStatus!=="full"&&(wiCapStatus!=="split"||splitValid);
         return(
           <div className="mo"><div className="mc">
             {wiStep==="details"&&<>
@@ -2388,12 +2412,14 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
               {wi.lookupStatus==="found"&&wi.foundUserId&&(()=>{const u=users.find(x=>x.id===wi.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",background:"rgba(40,200,100,.1)",border:"1px solid rgba(40,200,100,.3)",borderRadius:6,padding:".6rem .85rem",marginBottom:".5rem"}}><span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:28,height:28,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".75rem",flexShrink:0}}>{getInitials(u?.name||"")}</span><div><div style={{fontWeight:700,color:"var(--txt)",fontSize:".95rem"}}>{u?.name}</div><div style={{fontSize:".75rem",color:"var(--muted)"}}>{u?.phone?fmtPhone(u.phone):""}{u?.authProvider?` · ${u.authProvider}`:""}</div></div><span style={{marginLeft:"auto",color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ Found</span></div>;})()}
               {wi.lookupStatus==="notfound"&&<div style={{marginBottom:".5rem"}}><div style={{fontSize:".8rem",color:"var(--muted)",marginBottom:".4rem"}}>No account found — enter a name to continue as a guest.</div><div className="f" style={{marginBottom:0}}><label>Customer Name <span style={{color:"var(--danger)"}}>*</span></label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last" autoFocus/></div></div>}
               {wi.lookupStatus==="named"&&<div style={{marginBottom:".5rem"}}><div className="f" style={{marginBottom:".35rem"}}><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last"/></div><div style={{fontSize:".75rem",color:"var(--muted)"}}>Guest walk-in — no existing account.</div></div>}
-              <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value}))}><option value="">— Select —</option>{resTypes.filter(rt=>rt.active).map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select></div>
-              {showWI==="custom"&&<div className="f"><label>Start Time</label><input type="time" value={wi.customTime} onChange={e=>setWi(p=>({...p,customTime:e.target.value}))}/></div>}
+              <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value,splitA:0}))}><option value="">— Select —</option>{filteredResTypes.map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select>{wiTime&&filteredResTypes.length===0&&<div style={{fontSize:".78rem",color:"var(--danger)",marginTop:".3rem"}}>No booking types available for this time slot.</div>}</div>
+              {showWI==="custom"&&<div className="f"><label>Start Time</label><input type="time" value={wi.customTime} onChange={e=>setWi(p=>({...p,customTime:e.target.value,splitA:0}))}/></div>}
               {offerSecondLane&&<div style={{background:"rgba(40,200,100,.08)",border:"1px solid rgba(40,200,100,.3)",borderRadius:8,padding:".65rem .9rem",marginBottom:".5rem",display:"flex",alignItems:"center",gap:".75rem",cursor:"pointer"}} onClick={()=>setWi(p=>({...p,addSecondLane:!p.addSecondLane}))}><input type="checkbox" checked={wi.addSecondLane} readOnly style={{width:18,height:18,cursor:"pointer",accentColor:"var(--acc)"}}/><div style={{flex:1}}><div style={{fontWeight:700,color:"#2dc86e",fontSize:".9rem"}}>Both lanes available!</div><div style={{fontSize:".8rem",color:"var(--muted)"}}>Add second lane — {wiRt?.mode==="versus"?"up to 24":"up to 12"} players total.</div></div><span style={{fontWeight:700,color:"var(--accB)",whiteSpace:"nowrap"}}>+{fmtMoney(wiRt?.price||0)}</span></div>}
-              {!wiIsPriv&&<div className="f"><label>Player Count</label><input type="number" min={1} max={20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value)}))}/></div>}
+              {!wiIsPriv&&<div className="f"><label>Player Count</label><input type="number" min={1} max={wiCap?wiCap.total:20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value),splitA:0}))}/></div>}
               {wiIsPriv&&<div style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".5rem",padding:".45rem .6rem",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5}}>Private: up to <strong style={{color:"var(--txt)"}}>{wiRt?.maxPlayers||laneCapacity(wiRt?.mode||"coop")}</strong> players{wi.addSecondLane?` per lane (${(wiRt?.maxPlayers||laneCapacity(wiRt?.mode||"coop"))*2} total across both)`:""}</div>}
-              {wiRt&&<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{wiRt.name}{!wiIsPriv?` · ${wi.playerCount}p`:""}{wi.addSecondLane?" · 2 lanes":""}</span><strong style={{color:"var(--accB)"}}>{fmtMoney(wiAmt)}</strong></div>}
+              {wiCapStatus==="full"&&<div style={{background:"rgba(184,50,50,.1)",border:"1px solid rgba(184,50,50,.4)",borderRadius:7,padding:".7rem 1rem",marginBottom:".5rem"}}><div style={{fontWeight:700,color:"var(--danger)",fontSize:".9rem",marginBottom:".2rem"}}>No room for {wi.playerCount} players</div><div style={{fontSize:".82rem",color:"var(--muted)"}}>All {wiRt?.mode} lanes are full at this time. Please choose a different time slot.</div></div>}
+              {wiCapStatus==="split"&&(()=>{const b0=wiCap.blocks[0]||0;const b1=wiCap.blocks[1]||0;const maxA=Math.min(b0,wi.playerCount-1);return(<div style={{background:"rgba(184,150,12,.08)",border:"1px solid var(--warn)",borderRadius:7,padding:".75rem 1rem",marginBottom:".5rem"}}><div style={{fontWeight:700,color:"var(--warnL)",fontSize:".9rem",marginBottom:".35rem"}}>⚠ Group of {wi.playerCount} can't fit in one {wiRt?.mode} lane</div><div style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".65rem"}}>Split across 2 lanes, or choose a different time.</div><div style={{display:"flex",alignItems:"center",gap:".6rem",flexWrap:"wrap",marginBottom:".45rem"}}><span style={{fontSize:".85rem",color:"var(--txt)",fontWeight:600}}>Lane A</span><span style={{fontSize:".75rem",color:"var(--muted)"}}>({b0} spot{b0!==1?"s":""} avail.)</span><input type="number" min={1} max={maxA} value={wi.splitA||""} onChange={e=>setWi(p=>({...p,splitA:Math.min(maxA,Math.max(1,+e.target.value))}))} style={{width:56,textAlign:"center",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".3rem .4rem",color:"var(--txt)",fontSize:".95rem"}}/><span style={{fontSize:".85rem",color:"var(--muted)"}}>players</span></div><div style={{display:"flex",alignItems:"center",gap:".6rem",flexWrap:"wrap"}}><span style={{fontSize:".85rem",color:"var(--txt)",fontWeight:600}}>Lane B</span><span style={{fontSize:".75rem",color:"var(--muted)"}}>({b1} spot{b1!==1?"s":""} avail.)</span><span style={{minWidth:56,textAlign:"center",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:5,padding:".3rem .4rem",color:wi.splitA>0&&splitB>b1?"var(--danger)":"var(--txt)",fontSize:".95rem",display:"inline-block"}}>{wi.splitA>0?splitB:"—"}</span><span style={{fontSize:".85rem",color:"var(--muted)"}}>players</span>{wi.splitA>0&&splitB>b1&&<span style={{fontSize:".75rem",color:"var(--danger)"}}>exceeds lane B capacity</span>}</div></div>);})()}
+              {wiRt&&wiCapStatus!=="full"&&<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{wiRt.name}{!wiIsPriv?` · ${wi.playerCount}p`:""}{wiCapStatus==="split"&&splitValid?" · split 2 lanes":""}{wi.addSecondLane?" · 2 lanes":""}</span><strong style={{color:"var(--accB)"}}>{fmtMoney(wiAmt)}</strong></div>}
               <div className="ma"><button className="btn btn-s" onClick={resetWI}>Cancel</button><button className="btn btn-p" disabled={!canProceed} onClick={()=>setWiStep("payment")}>Continue to Payment →</button></div>
             </>}
             {wiStep==="payment"&&<>
@@ -2401,7 +2427,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
               <div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:8,padding:"1rem 1.2rem",marginBottom:"1rem"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Customer</span><strong style={{color:"var(--txt)"}}>{wiName}</strong></div>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Type</span><span style={{color:"var(--txt)"}}>{wiRt?.name}</span></div>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Players</span><span style={{color:"var(--txt)"}}>{wi.playerCount}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Players</span><span style={{color:"var(--txt)"}}>{wi.playerCount}{wiCapStatus==="split"&&splitValid?` (${wi.splitA}+${splitB} split)`:""}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:".4rem"}}><span style={{color:"var(--muted)"}}>Time</span><span style={{color:"var(--txt)"}}>{fmt12(showWI==="custom"?wi.customTime:showWI)}</span></div>
                 <div style={{borderTop:"1px solid var(--bdr)",marginTop:".6rem",paddingTop:".6rem",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}><span style={{fontWeight:600,color:"var(--txt)"}}>Total Due</span><span style={{fontSize:"1.6rem",fontWeight:800,color:"var(--accB)"}}>{fmtMoney(wiAmt)}</span></div>
               </div>
