@@ -2300,12 +2300,13 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
             {/* ── Expanded slot body ── */}
             {isOpen&&(()=>{
               const renderResCard=res=>{
-                const rt=getType(res.typeId);const isResExp=!!expandedRes[res.id];const players=res.players||[];
+                const rt=getType(res.typeId);const players=res.players||[];
                 const wOkCount=players.filter(playerWaiverOk).length;const allWaiversOk=players.length>0&&wOkCount===players.length;const isBusy=statusBusy===res.id;
                 const maxForRes=rt?.style==="private"?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):(res.playerCount||99);const canAddMore=players.length<maxForRes;
                 return(
                   <div key={res.id} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:".6rem",overflow:"hidden"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:".65rem",padding:".85rem 1rem",cursor:"pointer"}} onClick={()=>setExpandedRes(p=>({...p,[res.id]:!p[res.id]}))}>
+                    {/* ── Card header: name + status badge ── */}
+                    <div style={{display:"flex",alignItems:"flex-start",gap:".65rem",padding:".75rem 1rem .35rem"}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontWeight:700,fontSize:"1.05rem",color:"var(--txt)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{res.customerName}</div>
                         <div style={{display:"flex",gap:".35rem",marginTop:".2rem",alignItems:"center",flexWrap:"wrap"}}>
@@ -2315,72 +2316,72 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
                         </div>
                       </div>
                       {sBadge(res.status)}
-                      <span style={{color:"var(--muted)",fontSize:".9rem",flexShrink:0}}>{isResExp?"▲":"▼"}</span>
                     </div>
-                    {isResExp&&(
-                      <div style={{borderTop:"1px solid var(--bdr)",padding:".85rem 1rem"}}>
-                        {rt?.mode==="versus"?(()=>{
-                          const isPrivVs=rt?.style==="private";
-                          const getTeam=pid=>{if(versusTeams[res.id]?.[pid]!==undefined)return versusTeams[res.id][pid];const idx=players.findIndex(p=>p.id===pid);return idx<6?1:2;};
-                          const t1=players.filter(p=>getTeam(p.id)===1);
-                          const t2=players.filter(p=>getTeam(p.id)===2);
-                          const switchT=pid=>setVersusTeams(prev=>({...prev,[res.id]:{...(prev[res.id]||{}),[pid]:getTeam(pid)===1?2:1}}));
-                          const pRow=(player,teamNum)=>{const wOk=playerWaiverOk(player);return(<div key={player.id} style={{display:"flex",alignItems:"center",gap:".35rem",padding:".4rem 0",borderBottom:"1px solid var(--bdr)"}}><span style={{flex:1,fontSize:".88rem",color:"var(--txt)",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{player.name||"—"}</span>{isPrivVs&&<button style={{background:"none",border:"1px solid var(--bdr)",borderRadius:4,color:"var(--muted)",cursor:"pointer",fontSize:".65rem",padding:"1px .35rem",flexShrink:0}} onClick={()=>switchT(player.id)}>{teamNum===1?"→T2":"←T1"}</button>}{!player.userId&&<span style={{fontSize:".65rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .3rem",flexShrink:0}}>guest</span>}{player.userId?(wOk?<span style={{color:"var(--ok)",fontSize:".78rem",fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>✓W</span>:<button className="btn btn-sm btn-warn" style={{whiteSpace:"nowrap",fontSize:".72rem",padding:"1px .4rem",flexShrink:0}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign</button>):<span style={{fontSize:".68rem",color:"var(--muted)",flexShrink:0}}>—</span>}<button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.1rem",padding:"0 .1rem",lineHeight:1,flexShrink:0}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button></div>);};
-                          const addPanel=teamNum=>{const isAddingThisTeam=addingTo===res.id&&addingToTeam===teamNum;const tPlayers=teamNum===1?t1:t2;const teamFull=tPlayers.length>=6;if(isAddingThisTeam){return(<div style={{marginTop:".4rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".5rem .65rem"}}><div style={{display:"flex",gap:".35rem",alignItems:"center",marginBottom:".3rem"}}><div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={addInput.phone} onChange={e=>setAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doAddLookup(res.id)} placeholder="Phone" autoFocus style={{fontSize:".85rem"}}/></div>{(addInput.lookupStatus==="idle"||addInput.lookupStatus==="searching")&&<button className="btn btn-sm btn-s" disabled={cleanPh(addInput.phone).length<10||addInput.lookupStatus==="searching"} onClick={()=>doAddLookup(res.id)}>{addInput.lookupStatus==="searching"?"…":"→"}</button>}{addInput.lookupStatus!=="idle"&&addInput.lookupStatus!=="searching"&&<button className="btn btn-sm btn-s" onClick={resetAddInput}>✕</button>}<button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);setAddingToTeam(null);resetAddInput();}}>×</button></div>{addInput.lookupStatus==="found"&&addInput.foundUserId&&(()=>{const u=users.find(x=>x.id===addInput.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".4rem",marginBottom:".3rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".82rem"}}>✓ {u?.name||addInput.name}</span>{u?.authProvider&&<span style={{fontSize:".68rem",color:"var(--muted)"}}>({u.authProvider})</span>}</div>;})()}{addInput.lookupStatus==="duplicate"&&<div style={{background:"rgba(220,60,60,.1)",border:"1px solid rgba(220,60,60,.4)",borderRadius:5,padding:".35rem .55rem",marginBottom:".3rem",fontSize:".79rem",color:"var(--danger)",fontWeight:600}}>{addInput.name} is already assigned to this time slot.</div>}{(addInput.lookupStatus==="notfound"||addInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".35rem",alignItems:"center"}}><input placeholder="Name" value={addInput.name} onChange={e=>setAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&addInput.name.trim()&&doAddPlayer(res.id)} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".35rem .5rem",color:"var(--txt)",fontSize:".85rem"}}/><button className="btn btn-sm btn-p" disabled={!addInput.name.trim()} onClick={()=>doAddPlayer(res.id)}>Add</button></div>}{addInput.lookupStatus==="notfound"&&<div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".2rem"}}>No account — type name to add as guest.</div>}</div>);}if(!teamFull&&canAddMore){return<button className="btn btn-sm btn-s" style={{width:"100%",marginTop:".35rem",fontSize:".78rem"}} onClick={()=>{setAddingTo(res.id);setAddingToTeam(teamNum);resetAddInput();}}>+ Add to Team {teamNum}</button>;}return null;};
-                          return(<div><div style={{fontWeight:600,fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem",textTransform:"uppercase",letterSpacing:".05em"}}>Players <span style={{textTransform:"none",fontWeight:400,color:players.length>=maxForRes?"var(--danger)":"var(--muted)"}}>{players.length}/{maxForRes}</span></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".65rem"}}>{[1,2].map(tn=>{const tPlayers=tn===1?t1:t2;return(<div key={tn} style={{background:"var(--bg)",border:"1px solid var(--bdr)",borderRadius:6,padding:".5rem .6rem"}}><div style={{fontWeight:700,fontSize:".73rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".04em",marginBottom:".35rem"}}>Team {tn} <span style={{fontWeight:400}}>({tPlayers.length}/6)</span></div>{tPlayers.length===0&&<div style={{fontSize:".78rem",color:"var(--muted)",padding:".2rem 0"}}>—</div>}{tPlayers.map(p=>pRow(p,tn))}{addPanel(tn)}</div>);})}</div></div>);
-                        })():(
-                          <>
-                          <div style={{fontWeight:600,fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem",textTransform:"uppercase",letterSpacing:".05em"}}>Players <span style={{textTransform:"none",fontWeight:400,color:players.length>=maxForRes?"var(--danger)":"var(--muted)"}}>{players.length}/{maxForRes}</span></div>
-                          {players.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".5rem"}}>No players added yet.</div>}
-                          {players.map(player=>{
-                            const wOk=playerWaiverOk(player);
-                            return(
-                              <div key={player.id} style={{display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 0",borderBottom:"1px solid var(--bdr)"}}>
-                                <span style={{flex:1,fontSize:".95rem",color:"var(--txt)"}}>{player.name||"—"}</span>
-                                {!player.userId&&<span style={{fontSize:".7rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .4rem"}}>guest</span>}
-                                {player.userId?(wOk?(<span style={{color:"var(--ok)",fontSize:".85rem",fontWeight:600,whiteSpace:"nowrap"}}>✓ Waiver</span>):(<button className="btn btn-sm btn-warn" style={{whiteSpace:"nowrap"}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign Waiver</button>)):(<span style={{fontSize:".75rem",color:"var(--muted)"}}>no account</span>)}
-                                <button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.2rem",padding:"0 .2rem",lineHeight:1,flexShrink:0}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button>
-                              </div>
-                            );
-                          })}
-                          {addingTo===res.id?(
-                            <div style={{marginTop:".6rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".6rem .75rem"}}>
-                              <div style={{display:"flex",gap:".4rem",alignItems:"center",marginBottom:".35rem"}}>
-                                <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={addInput.phone} onChange={e=>setAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doAddLookup(res.id)} placeholder="Phone" autoFocus style={{fontSize:".9rem"}}/></div>
-                                {(addInput.lookupStatus==="idle"||addInput.lookupStatus==="searching")&&<button className="btn btn-sm btn-s" disabled={cleanPh(addInput.phone).length<10||addInput.lookupStatus==="searching"} onClick={()=>doAddLookup(res.id)}>{addInput.lookupStatus==="searching"?"…":"Search →"}</button>}
-                                {addInput.lookupStatus!=="idle"&&addInput.lookupStatus!=="searching"&&<button className="btn btn-sm btn-s" onClick={resetAddInput}>✕</button>}
-                                <button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);resetAddInput();}}>Cancel</button>
-                              </div>
-                              {addInput.lookupStatus==="found"&&addInput.foundUserId&&(()=>{const u=users.find(x=>x.id===addInput.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".35rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ {u?.name||addInput.name}</span>{u?.authProvider&&<span style={{fontSize:".7rem",color:"var(--muted)"}}>({u.authProvider})</span>}</div>;})()}
-                              {addInput.lookupStatus==="duplicate"&&<div style={{background:"rgba(220,60,60,.1)",border:"1px solid rgba(220,60,60,.4)",borderRadius:5,padding:".4rem .65rem",marginBottom:".35rem",fontSize:".82rem",color:"var(--danger)",fontWeight:600}}>{addInput.name} is already assigned to this time slot.</div>}
-                              {(addInput.lookupStatus==="notfound"||addInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".4rem",alignItems:"center"}}><input placeholder="Player name" value={addInput.name} onChange={e=>setAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&addInput.name.trim()&&doAddPlayer(res.id)} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".4rem .6rem",color:"var(--txt)",fontSize:".9rem"}}/><button className="btn btn-sm btn-p" disabled={!addInput.name.trim()} onClick={()=>doAddPlayer(res.id)}>Add</button></div>}
-                              {addInput.lookupStatus==="notfound"&&<div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>No account found — type a name to add as a guest.</div>}
-                            </div>
-                          ):(
-                            canAddMore?<button className="btn btn-sm btn-s" style={{marginTop:".5rem"}} onClick={()=>{setAddingTo(res.id);resetAddInput();}}>+ Add Player</button>:<div style={{fontSize:".8rem",color:"var(--muted)",marginTop:".5rem",fontStyle:"italic"}}>Player limit reached ({maxForRes}/{maxForRes})</div>
-                          )}
-                          </>
-                        )}
-                        {res.status!=="sent"&&res.status!=="completed"&&(
-                          <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",borderTop:"1px solid var(--bdr)",paddingTop:".75rem",marginTop:".75rem",alignItems:"center"}}>
-                            {(res.status==="arrived"||res.status==="ready")
-                              ?<span style={{color:"#2dc86e",fontWeight:700,fontSize:".88rem"}}>✓ Arrived</span>
-                              :res.status!=="no-show"&&<button className="btn btn-sm" style={{background:allWaiversOk||players.length===0?"rgba(40,200,100,.2)":"var(--surf)",color:allWaiversOk||players.length===0?"#2dc86e":"var(--muted)",border:`1px solid ${allWaiversOk||players.length===0?"rgba(40,200,100,.4)":"var(--bdr)"}`}} disabled={isBusy||(players.length>0&&!allWaiversOk)} title={players.length>0&&!allWaiversOk?"All waivers must be signed before marking arrived":undefined} onClick={()=>setResStatus(res.id,"arrived")}>{isBusy?"…":"✓ Mark Arrived"}</button>}
-                            {(res.status==="arrived"||res.status==="ready")&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
-                            {res.status!=="no-show"&&res.status!=="arrived"&&res.status!=="ready"&&<button className="btn btn-sm btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
-                            {res.status==="no-show"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
-                          </div>
-                        )}
+                    {/* ── Action buttons — always visible, no expand needed ── */}
+                    {res.status!=="sent"&&res.status!=="completed"&&(
+                      <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",padding:".3rem 1rem .6rem",alignItems:"center"}}>
+                        {(res.status==="arrived"||res.status==="ready")
+                          ?<span style={{color:"#2dc86e",fontWeight:700,fontSize:".88rem"}}>✓ Arrived</span>
+                          :res.status!=="no-show"&&<button className="btn btn-sm" style={{background:allWaiversOk||players.length===0?"rgba(40,200,100,.2)":"var(--surf)",color:allWaiversOk||players.length===0?"#2dc86e":"var(--muted)",border:`1px solid ${allWaiversOk||players.length===0?"rgba(40,200,100,.4)":"var(--bdr)"}`}} disabled={isBusy||(players.length>0&&!allWaiversOk)} title={players.length>0&&!allWaiversOk?"All waivers must be signed before marking arrived":undefined} onClick={()=>setResStatus(res.id,"arrived")}>{isBusy?"…":"✓ Mark Arrived"}</button>}
+                        {(res.status==="arrived"||res.status==="ready")&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
+                        {res.status!=="no-show"&&res.status!=="arrived"&&res.status!=="ready"&&<button className="btn btn-sm btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
+                        {res.status==="no-show"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
                       </div>
                     )}
+                    {/* ── Players — always visible ── */}
+                    <div style={{borderTop:"1px solid var(--bdr)",padding:".65rem 1rem"}}>
+                      {rt?.mode==="versus"?(()=>{
+                        const isPrivVs=rt?.style==="private";
+                        const getTeam=pid=>{if(versusTeams[res.id]?.[pid]!==undefined)return versusTeams[res.id][pid];const idx=players.findIndex(p=>p.id===pid);return idx<6?1:2;};
+                        const t1=players.filter(p=>getTeam(p.id)===1);
+                        const t2=players.filter(p=>getTeam(p.id)===2);
+                        const switchT=pid=>setVersusTeams(prev=>({...prev,[res.id]:{...(prev[res.id]||{}),[pid]:getTeam(pid)===1?2:1}}));
+                        const pRow=(player,teamNum)=>{const wOk=playerWaiverOk(player);return(<div key={player.id} style={{display:"flex",alignItems:"center",gap:".35rem",padding:".4rem 0",borderBottom:"1px solid var(--bdr)"}}><span style={{flex:1,fontSize:".88rem",color:"var(--txt)",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{player.name||"—"}</span>{isPrivVs&&<button style={{background:"none",border:"1px solid var(--bdr)",borderRadius:4,color:"var(--muted)",cursor:"pointer",fontSize:".65rem",padding:"1px .35rem",flexShrink:0}} onClick={()=>switchT(player.id)}>{teamNum===1?"→T2":"←T1"}</button>}{!player.userId&&<span style={{fontSize:".65rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .3rem",flexShrink:0}}>guest</span>}{player.userId?(wOk?<span style={{color:"var(--ok)",fontSize:".78rem",fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>✓W</span>:<button className="btn btn-sm btn-warn" style={{whiteSpace:"nowrap",fontSize:".72rem",padding:"1px .4rem",flexShrink:0}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign</button>):<span style={{fontSize:".68rem",color:"var(--muted)",flexShrink:0}}>—</span>}<button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.1rem",padding:"0 .1rem",lineHeight:1,flexShrink:0}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button></div>);};
+                        const addPanel=teamNum=>{const isAddingThisTeam=addingTo===res.id&&addingToTeam===teamNum;const tPlayers=teamNum===1?t1:t2;const teamFull=tPlayers.length>=6;if(isAddingThisTeam){return(<div style={{marginTop:".4rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".5rem .65rem"}}><div style={{display:"flex",gap:".35rem",alignItems:"center",marginBottom:".3rem"}}><div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={addInput.phone} onChange={e=>setAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doAddLookup(res.id)} placeholder="Phone" autoFocus style={{fontSize:".85rem"}}/></div>{(addInput.lookupStatus==="idle"||addInput.lookupStatus==="searching")&&<button className="btn btn-sm btn-s" disabled={cleanPh(addInput.phone).length<10||addInput.lookupStatus==="searching"} onClick={()=>doAddLookup(res.id)}>{addInput.lookupStatus==="searching"?"…":"→"}</button>}{addInput.lookupStatus!=="idle"&&addInput.lookupStatus!=="searching"&&<button className="btn btn-sm btn-s" onClick={resetAddInput}>✕</button>}<button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);setAddingToTeam(null);resetAddInput();}}>×</button></div>{addInput.lookupStatus==="found"&&addInput.foundUserId&&(()=>{const u=users.find(x=>x.id===addInput.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".4rem",marginBottom:".3rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".82rem"}}>✓ {u?.name||addInput.name}</span>{u?.authProvider&&<span style={{fontSize:".68rem",color:"var(--muted)"}}>({u.authProvider})</span>}</div>;})()}{addInput.lookupStatus==="duplicate"&&<div style={{background:"rgba(220,60,60,.1)",border:"1px solid rgba(220,60,60,.4)",borderRadius:5,padding:".35rem .55rem",marginBottom:".3rem",fontSize:".79rem",color:"var(--danger)",fontWeight:600}}>{addInput.name} is already assigned to this time slot.</div>}{(addInput.lookupStatus==="notfound"||addInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".35rem",alignItems:"center"}}><input placeholder="Name" value={addInput.name} onChange={e=>setAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&addInput.name.trim()&&doAddPlayer(res.id)} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".35rem .5rem",color:"var(--txt)",fontSize:".85rem"}}/><button className="btn btn-sm btn-p" disabled={!addInput.name.trim()} onClick={()=>doAddPlayer(res.id)}>Add</button></div>}{addInput.lookupStatus==="notfound"&&<div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".2rem"}}>No account — type name to add as guest.</div>}</div>);}if(!teamFull&&canAddMore){return<button className="btn btn-sm btn-s" style={{width:"100%",marginTop:".35rem",fontSize:".78rem"}} onClick={()=>{setAddingTo(res.id);setAddingToTeam(teamNum);resetAddInput();}}>+ Add to Team {teamNum}</button>;}return null;};
+                        return(<div><div style={{fontWeight:600,fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem",textTransform:"uppercase",letterSpacing:".05em"}}>Players <span style={{textTransform:"none",fontWeight:400,color:players.length>=maxForRes?"var(--danger)":"var(--muted)"}}>{players.length}/{maxForRes}</span></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:".65rem"}}>{[1,2].map(tn=>{const tPlayers=tn===1?t1:t2;return(<div key={tn} style={{background:"var(--bg)",border:"1px solid var(--bdr)",borderRadius:6,padding:".5rem .6rem"}}><div style={{fontWeight:700,fontSize:".73rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".04em",marginBottom:".35rem"}}>Team {tn} <span style={{fontWeight:400}}>({tPlayers.length}/6)</span></div>{tPlayers.length===0&&<div style={{fontSize:".78rem",color:"var(--muted)",padding:".2rem 0"}}>—</div>}{tPlayers.map(p=>pRow(p,tn))}{addPanel(tn)}</div>);})}</div></div>);
+                      })():(
+                        <>
+                        <div style={{fontWeight:600,fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem",textTransform:"uppercase",letterSpacing:".05em"}}>Players <span style={{textTransform:"none",fontWeight:400,color:players.length>=maxForRes?"var(--danger)":"var(--muted)"}}>{players.length}/{maxForRes}</span></div>
+                        {players.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".5rem"}}>No players added yet.</div>}
+                        {players.map(player=>{
+                          const wOk=playerWaiverOk(player);
+                          return(
+                            <div key={player.id} style={{display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 0",borderBottom:"1px solid var(--bdr)"}}>
+                              <span style={{flex:1,fontSize:".95rem",color:"var(--txt)"}}>{player.name||"—"}</span>
+                              {!player.userId&&<span style={{fontSize:".7rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .4rem"}}>guest</span>}
+                              {player.userId?(wOk?(<span style={{color:"var(--ok)",fontSize:".85rem",fontWeight:600,whiteSpace:"nowrap"}}>✓ Waiver</span>):(<button className="btn btn-sm btn-warn" style={{whiteSpace:"nowrap"}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign Waiver</button>)):(<span style={{fontSize:".75rem",color:"var(--muted)"}}>no account</span>)}
+                              <button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.2rem",padding:"0 .2rem",lineHeight:1,flexShrink:0}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button>
+                            </div>
+                          );
+                        })}
+                        {addingTo===res.id?(
+                          <div style={{marginTop:".6rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".6rem .75rem"}}>
+                            <div style={{display:"flex",gap:".4rem",alignItems:"center",marginBottom:".35rem"}}>
+                              <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={addInput.phone} onChange={e=>setAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doAddLookup(res.id)} placeholder="Phone" autoFocus style={{fontSize:".9rem"}}/></div>
+                              {(addInput.lookupStatus==="idle"||addInput.lookupStatus==="searching")&&<button className="btn btn-sm btn-s" disabled={cleanPh(addInput.phone).length<10||addInput.lookupStatus==="searching"} onClick={()=>doAddLookup(res.id)}>{addInput.lookupStatus==="searching"?"…":"Search →"}</button>}
+                              {addInput.lookupStatus!=="idle"&&addInput.lookupStatus!=="searching"&&<button className="btn btn-sm btn-s" onClick={resetAddInput}>✕</button>}
+                              <button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);resetAddInput();}}>Cancel</button>
+                            </div>
+                            {addInput.lookupStatus==="found"&&addInput.foundUserId&&(()=>{const u=users.find(x=>x.id===addInput.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".35rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ {u?.name||addInput.name}</span>{u?.authProvider&&<span style={{fontSize:".7rem",color:"var(--muted)"}}>({u.authProvider})</span>}</div>;})()}
+                            {addInput.lookupStatus==="duplicate"&&<div style={{background:"rgba(220,60,60,.1)",border:"1px solid rgba(220,60,60,.4)",borderRadius:5,padding:".4rem .65rem",marginBottom:".35rem",fontSize:".82rem",color:"var(--danger)",fontWeight:600}}>{addInput.name} is already assigned to this time slot.</div>}
+                            {(addInput.lookupStatus==="notfound"||addInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".4rem",alignItems:"center"}}><input placeholder="Player name" value={addInput.name} onChange={e=>setAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&addInput.name.trim()&&doAddPlayer(res.id)} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".4rem .6rem",color:"var(--txt)",fontSize:".9rem"}}/><button className="btn btn-sm btn-p" disabled={!addInput.name.trim()} onClick={()=>doAddPlayer(res.id)}>Add</button></div>}
+                            {addInput.lookupStatus==="notfound"&&<div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>No account found — type a name to add as a guest.</div>}
+                          </div>
+                        ):(
+                          canAddMore?<button className="btn btn-sm btn-s" style={{marginTop:".5rem"}} onClick={()=>{setAddingTo(res.id);resetAddInput();}}>+ Add Player</button>:<div style={{fontSize:".8rem",color:"var(--muted)",marginTop:".5rem",fontStyle:"italic"}}>Player limit reached ({maxForRes}/{maxForRes})</div>
+                        )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               };
               return(
                 <div style={{borderTop:"1px solid var(--bdr)",padding:"1rem 1.2rem"}}>
                   {activeLanes.length>0?(
-                    activeLanes.map(lane=>(
-                      <div key={lane.laneNum} style={{marginBottom:"1rem"}}>
+                    <div style={{display:"flex",gap:"1rem",alignItems:"flex-start"}}>
+                    {activeLanes.map(lane=>(
+                      <div key={lane.laneNum} style={{flex:1,minWidth:0}}>
                         <div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".6rem",paddingBottom:".45rem",borderBottom:`2px solid ${laneReady(lane)?"rgba(40,200,100,.4)":"var(--bdr)"}`}}>
                           <span style={{fontWeight:700,fontSize:".8rem",color:"var(--txt)"}}>Lane {lane.laneNum}</span>
                           <span className={`badge b-${lane.mode}`}>{lane.mode}</span>
@@ -2391,7 +2392,8 @@ function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,s
                         {lane.reservations.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",padding:".5rem 0"}}>No bookings in this lane.</div>}
                         {lane.reservations.map(renderResCard)}
                       </div>
-                    ))
+                    ))}
+                    </div>
                   ):(
                     <>
                       {slotResItems.length===0&&<div style={{color:"var(--muted)",textAlign:"center",padding:".75rem 0",fontSize:".9rem"}}>No reservations for this slot yet.</div>}
