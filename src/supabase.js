@@ -488,6 +488,7 @@ export async function fetchReservations() {
   // Try SECURITY DEFINER RPC — bypasses RLS on reservation_players
   const { data: rpcData, error: rpcErr } = await supabase
     .rpc('get_reservations_with_players')
+  if (rpcErr) console.error('[fetchReservations] RPC error:', rpcErr.message, rpcErr.code)
   if (!rpcErr && rpcData) return rpcRowsToReservations(rpcData)
 
   // Fallback: direct query (subject to RLS)
@@ -502,7 +503,10 @@ export async function fetchReservations() {
   const { data: playerData, error: playerErr } = ids.length
     ? await supabase.from('reservation_players').select('*').in('reservation_id', ids)
     : { data: [] }
-  if (playerErr) throw new Error(`reservation_players fetch failed: ${playerErr.message}`)
+  if (playerErr) {
+    console.error('[fetchReservations] reservation_players RLS blocked:', playerErr.message, playerErr.code)
+    return mergePlayersIntoReservations(resData, [])
+  }
 
   return mergePlayersIntoReservations(resData, playerData)
 }
@@ -513,6 +517,7 @@ export async function fetchTodaysReservations() {
   // Try SECURITY DEFINER RPC — bypasses RLS on reservation_players
   const { data: rpcData, error: rpcErr } = await supabase
     .rpc('get_reservations_with_players', { p_date: today })
+  if (rpcErr) console.error('[fetchTodaysReservations] RPC error:', rpcErr.message, rpcErr.code)
   if (!rpcErr && rpcData) return rpcRowsToReservations(rpcData)
 
   // Fallback: direct query (subject to RLS)
@@ -528,7 +533,10 @@ export async function fetchTodaysReservations() {
   const { data: playerData, error: playerErr } = ids.length
     ? await supabase.from('reservation_players').select('*').in('reservation_id', ids)
     : { data: [] }
-  if (playerErr) throw new Error(`reservation_players fetch failed: ${playerErr.message}`)
+  if (playerErr) {
+    console.error('[fetchTodaysReservations] reservation_players RLS blocked:', playerErr.message, playerErr.code)
+    return mergePlayersIntoReservations(resData, [])
+  }
 
   return mergePlayersIntoReservations(resData, playerData)
 }
