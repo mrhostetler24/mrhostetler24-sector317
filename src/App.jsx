@@ -1899,32 +1899,28 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     setSaveGroupBusy(true);
     // Helper: ensure guest players have a DB user row
     const resolvePlayer=async(p)=>{
-      if(p.userId) return p; // already linked to an existing user
-      if(!p.name?.trim()) return p; // empty slot, skip
-      // Create a guest user row in the DB — throws if it fails (RPC must be deployed)
-      const guest=await createGuestUser({
-        name:p.name.trim(),
-        phone:p.phone||null,
-        createdByUserId:user.id,
-      });
+      if(p.userId) return p;
+      if(!p.name?.trim()) return p;
+      const guest=await createGuestUser({name:p.name.trim(),phone:p.phone||null,createdByUserId:user.id});
+      setUsers(prev=>[...prev,guest]);
       return {...p,userId:guest.id};
     };
-    let p1;
-    if(bookerIsPlayer){
-      p1={userId:user.id,name:user.name};
-    } else {
-      p1=await resolvePlayer({
-        userId:player1Input.userId??null,
-        name:player1Input.name||(player1Input.userId?users.find(u=>u.id===player1Input.userId)?.name||"":""),
-      });
-    }
-    const extraRaw=playerInputs.filter(p=>p.phone||p.name).map(p=>({
-      userId:p.userId??null,
-      name:p.name||(p.userId?users.find(u=>u.id===p.userId)?.name||"":""),
-    }));
-    const extra=await Promise.all(extraRaw.map(resolvePlayer));
-    const newPlayers=[p1,...extra].filter(p=>p.name?.trim());
     try{
+      let p1;
+      if(bookerIsPlayer){
+        p1={userId:user.id,name:user.name};
+      } else {
+        p1=await resolvePlayer({
+          userId:player1Input.userId??null,
+          name:player1Input.name||(player1Input.userId?users.find(u=>u.id===player1Input.userId)?.name||"":""),
+        });
+      }
+      const extraRaw=playerInputs.filter(p=>p.phone||p.name).map(p=>({
+        userId:p.userId??null,
+        name:p.name||(p.userId?users.find(u=>u.id===p.userId)?.name||"":""),
+      }));
+      const extra=await Promise.all(extraRaw.map(resolvePlayer));
+      const newPlayers=[p1,...extra].filter(p=>p.name?.trim());
       const updatedPlayers=await syncReservationPlayers(editResId,newPlayers);
       setReservations(prev=>prev.map(r=>r.id===editResId?{...r,players:updatedPlayers}:r));
       setEditResId(null);
