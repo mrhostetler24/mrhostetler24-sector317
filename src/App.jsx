@@ -2174,7 +2174,7 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const [statusBusy,setStatusBusy]=useState(null);
   const [clock,setClock]=useState(new Date());
   const [showWI,setShowWI]=useState(null);
-  const [wi,setWi]=useState({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:""});
+  const [wi,setWi]=useState({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false});
   const [wiSaving,setWiSaving]=useState(false);
   const [toast,setToast]=useState(null);
   const [showMerch,setShowMerch]=useState(false);
@@ -2196,12 +2196,12 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
   const doSendGroup=async time=>{const readyOnes=todayRes.filter(r=>r.startTime===time&&r.status==="ready");setSendConfirm(null);setStatusBusy(time);try{for(const r of readyOnes){await updateReservation(r.id,{status:"sent"});}setReservations(p=>p.map(r=>r.date===today&&r.startTime===time&&r.status==="ready"?{...r,status:"sent"}:r));showMsg("Group sent to training room!");}catch(e){showMsg("Error: "+e.message);}setStatusBusy(null);};
   const doSignWaiver=async()=>{const{player}=signingFor;if(!player.userId||!signedName.trim())return;const ts=new Date().toISOString();setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:signedName.trim(),waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));try{await signWaiver(player.userId,signedName.trim(),activeWaiverDoc?.id);}catch(e){}showMsg("Waiver signed for "+player.name);setSigningFor(null);setSignedName("");};
   const resetAddInput=()=>setAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
-  const doAddLookup=async()=>{const clean=cleanPh(addInput.phone);if(clean.length<10)return;setAddInput(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setAddInput(p=>({...p,foundUserId:found.id,name:found.name,lookupStatus:"found"}));}else{setAddInput(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setAddInput(p=>({...p,lookupStatus:"notfound"}));}};
+  const doAddLookup=async(resId)=>{const clean=cleanPh(addInput.phone);if(clean.length<10)return;setAddInput(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){if(resId!=null){try{const pl=await addPlayerToReservation(resId,{name:found.name,userId:found.id});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),pl]}:r));resetAddInput();setAddingTo(null);showMsg("Added: "+found.name);}catch(e){showMsg("Error: "+e.message);setAddInput(p=>({...p,foundUserId:found.id,name:found.name,lookupStatus:"found"}));}}else{setAddInput(p=>({...p,foundUserId:found.id,name:found.name,lookupStatus:"found"}));}}else{setAddInput(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setAddInput(p=>({...p,lookupStatus:"notfound"}));}};
   const doAddPlayer=async resId=>{const userId=addInput.foundUserId||null;const name=userId?(users.find(u=>u.id===userId)?.name||addInput.name):addInput.name.trim();if(!name)return;try{const p=await addPlayerToReservation(resId,{name,userId});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));resetAddInput();setAddingTo(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
   const doRemovePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}};
   const doWiLookup=async()=>{const clean=cleanPh(wi.phone);if(clean.length<10)return;setWi(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWi(p=>({...p,foundUserId:found.id,customerName:found.name,lookupStatus:"found"}));}else{setWi(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWi(p=>({...p,lookupStatus:"notfound"}));}};
-  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const amount=rt?(rt.pricingMode==="flat"?rt.price:rt.price*wi.playerCount):0;setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const newRes=await createReservation({typeId:wi.typeId,userId,customerName:name,date:today,startTime:time,playerCount:wi.playerCount,amount,status:"confirmed",paid:true});setReservations(p=>[...p,{...newRes,players:[]}]);resetWI();showMsg("Walk-in created");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
-  const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:""});};
+  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const lanePrice=rt?(isPriv?rt.price:rt.price*playerCount):0;setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const newRes=await createReservation({typeId:wi.typeId,userId,customerName:name,date:today,startTime:time,playerCount,amount:lanePrice,status:"confirmed",paid:true});setReservations(p=>[...p,{...newRes,players:[]}]);if(isPriv&&wi.addSecondLane){const newRes2=await createReservation({typeId:wi.typeId,userId,customerName:name,date:today,startTime:time,playerCount,amount:lanePrice,status:"confirmed",paid:true});setReservations(p=>[...p,{...newRes2,players:[]}]);}resetWI();showMsg("Walk-in created"+(isPriv&&wi.addSecondLane?" — 2 lanes":""));}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
+  const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",addSecondLane:false});};
   return(
     <div style={{paddingBottom:"2rem"}}>
       {toast&&<div style={{position:"fixed",top:"1rem",right:"1rem",background:"var(--surf)",border:"1px solid var(--acc2)",borderRadius:8,padding:".75rem 1.4rem",zIndex:9999,fontSize:".95rem",fontWeight:600,boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>{toast}</div>}
@@ -2212,106 +2212,166 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
         </div>
         <div style={{display:"flex",gap:".6rem"}}>
           <button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>setShowMerch(true)}>🛍 Merchandise</button>
-          <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:""});}}>+ Walk-In</button>
+          <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:"",addSecondLane:false});}}>+ Walk-In</button>
         </div>
       </div>
       {slotTimes.length===0&&<div style={{textAlign:"center",color:"var(--muted)",padding:"4rem 2rem",fontSize:"1rem",border:"1px dashed var(--bdr)",borderRadius:10}}>No sessions scheduled for today.</div>}
       {slotTimes.map(time=>{
         const slotResItems=todayRes.filter(r=>r.startTime===time);
         const tmpl=todayTmpls.find(t=>t.startTime===time);
+        const {lanes}=buildLanes(today,time,reservations,resTypes,sessionTemplates);
+        const activeLanes=lanes.filter(l=>l.type!==null);
         const allResolved=slotResItems.length>0&&slotResItems.every(r=>r.status==="ready"||r.status==="no-show"||r.status==="sent");
         const allSent=slotResItems.length>0&&slotResItems.every(r=>r.status==="sent"||r.status==="no-show");
         const canSend=allResolved&&!allSent;
         const isOpen=expandedSlot===time;
         return(
           <div key={time} style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:12,marginBottom:"1rem",overflow:"hidden"}}>
-            <div style={{display:"flex",alignItems:"center",gap:"1rem",padding:"1rem 1.4rem",cursor:"pointer",userSelect:"none"}} onClick={()=>setExpandedSlot(isOpen?null:time)}>
-              <div style={{fontSize:"1.55rem",fontWeight:800,color:"var(--acc)",minWidth:90,fontVariantNumeric:"tabular-nums"}}>{fmt12(time)}</div>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:600,color:"var(--txt)",fontSize:".95rem"}}>{slotResItems.length} reservation{slotResItems.length!==1?"s":""}{tmpl?` · ${tmpl.maxSessions} lane${tmpl.maxSessions!==1?"s":""}`:""}</div>
-                <div style={{display:"flex",gap:".35rem",marginTop:".3rem",flexWrap:"wrap"}}>{slotResItems.map(r=><span key={r.id} style={{marginBottom:".1rem"}}>{sBadge(r.status)}</span>)}</div>
+            {/* ── Collapsed slot header ── */}
+            <div style={{display:"flex",alignItems:"stretch",cursor:"pointer",userSelect:"none",minHeight:78}} onClick={()=>setExpandedSlot(isOpen?null:time)}>
+              <div style={{padding:".85rem 1.1rem",display:"flex",flexDirection:"column",justifyContent:"center",minWidth:100,flexShrink:0}}>
+                <div style={{fontSize:"1.4rem",fontWeight:800,color:"var(--acc)",fontVariantNumeric:"tabular-nums",lineHeight:1.1}}>{fmt12(time)}</div>
+                <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".25rem"}}>{tmpl?`${tmpl.maxSessions} lane${tmpl.maxSessions!==1?"s":""}`:""}{tmpl&&slotResItems.length>0?" · ":""}{slotResItems.length>0?`${slotResItems.length} booking${slotResItems.length!==1?"s":""}`:""}</div>
               </div>
-              {canSend&&<button className="btn btn-p" style={{fontSize:".9rem",padding:".5rem 1.1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setSendConfirm(time);}}>Send Group →</button>}
-              {allSent&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(100,130,240,.18)",color:"#8096f0",border:"1px solid rgba(100,130,240,.35)",fontWeight:600,fontSize:".8rem"}}>SENT</span>}
-              <span style={{color:"var(--muted)",fontSize:"1.1rem",flexShrink:0}}>{isOpen?"▲":"▼"}</span>
-            </div>
-            {isOpen&&(
-              <div style={{borderTop:"1px solid var(--bdr)",padding:"1rem 1.2rem"}}>
-                {slotResItems.length===0&&<div style={{color:"var(--muted)",textAlign:"center",padding:".75rem 0",fontSize:".9rem"}}>No reservations for this slot yet.</div>}
-                {slotResItems.map(res=>{
-                  const rt=getType(res.typeId);
-                  const isResExp=!!expandedRes[res.id];
-                  const players=res.players||[];
-                  const wOkCount=players.filter(playerWaiverOk).length;
-                  const allWaiversOk=players.length>0&&wOkCount===players.length;
-                  const isBusy=statusBusy===res.id;
-                  return(
-                    <div key={res.id} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:".65rem",overflow:"hidden"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:".65rem",padding:".85rem 1rem",cursor:"pointer"}} onClick={()=>setExpandedRes(p=>({...p,[res.id]:!p[res.id]}))}>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontWeight:700,fontSize:"1.05rem",color:"var(--txt)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{res.customerName}</div>
-                          <div style={{display:"flex",gap:".35rem",marginTop:".2rem",alignItems:"center",flexWrap:"wrap"}}>
-                            {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
-                            <span style={{fontSize:".8rem",color:"var(--muted)"}}>👥 {res.playerCount}</span>
-                            <span style={{fontSize:".8rem",color:allWaiversOk?"var(--ok)":wOkCount>0?"var(--warn)":"var(--danger)"}}>{players.length>0?`${wOkCount}/${players.length} waivers`:"no players added"}</span>
-                          </div>
-                        </div>
-                        {sBadge(res.status)}
-                        <span style={{color:"var(--muted)",fontSize:".9rem",flexShrink:0}}>{isResExp?"▲":"▼"}</span>
-                      </div>
-                      {isResExp&&(
-                        <div style={{borderTop:"1px solid var(--bdr)",padding:".85rem 1rem"}}>
-                          <div style={{fontWeight:600,fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem",textTransform:"uppercase",letterSpacing:".05em"}}>Players</div>
-                          {players.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".5rem"}}>No players added yet.</div>}
-                          {players.map(player=>{
-                            const wOk=playerWaiverOk(player);
-                            return(
-                              <div key={player.id} style={{display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 0",borderBottom:"1px solid var(--bdr)"}}>
-                                <span style={{flex:1,fontSize:".95rem",color:"var(--txt)"}}>{player.name||"—"}</span>
-                                {!player.userId&&<span style={{fontSize:".7rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .4rem"}}>guest</span>}
-                                {player.userId?(wOk?(<span style={{color:"var(--ok)",fontSize:".85rem",fontWeight:600,whiteSpace:"nowrap"}}>✓ Waiver</span>):(<button className="btn btn-sm btn-warn" style={{whiteSpace:"nowrap"}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign Waiver</button>)):(<span style={{fontSize:".75rem",color:"var(--muted)"}}>no account</span>)}
-                                <button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.2rem",padding:"0 .2rem",lineHeight:1,flexShrink:0}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button>
-                              </div>
-                            );
-                          })}
-                          {addingTo===res.id?(
-                            <div style={{marginTop:".6rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".6rem .75rem"}}>
-                              <div style={{display:"flex",gap:".4rem",alignItems:"center",marginBottom:".35rem"}}>
-                                <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={addInput.phone} onChange={e=>setAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doAddLookup()} placeholder="Phone" autoFocus style={{fontSize:".9rem"}}/></div>
-                                {(addInput.lookupStatus==="idle"||addInput.lookupStatus==="searching")&&<button className="btn btn-sm btn-s" disabled={cleanPh(addInput.phone).length<10||addInput.lookupStatus==="searching"} onClick={doAddLookup}>{addInput.lookupStatus==="searching"?"…":"Search →"}</button>}
-                                {addInput.lookupStatus!=="idle"&&addInput.lookupStatus!=="searching"&&<button className="btn btn-sm btn-s" onClick={resetAddInput}>✕</button>}
-                                <button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);resetAddInput();}}>Cancel</button>
-                              </div>
-                              {addInput.lookupStatus==="found"&&addInput.foundUserId&&(()=>{const u=users.find(x=>x.id===addInput.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".35rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ {u?.name||addInput.name}</span>{u?.authProvider&&<span style={{fontSize:".7rem",color:"var(--muted)"}}>({u.authProvider})</span>}<button className="btn btn-sm btn-p" style={{marginLeft:"auto"}} onClick={()=>doAddPlayer(res.id)}>Add ✓</button></div>;})()}
-                              {(addInput.lookupStatus==="notfound"||addInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".4rem",alignItems:"center"}}><input placeholder="Player name" value={addInput.name} onChange={e=>setAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&addInput.name.trim()&&doAddPlayer(res.id)} autoFocus={addInput.lookupStatus==="notfound"} style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".4rem .6rem",color:"var(--txt)",fontSize:".9rem"}}/><button className="btn btn-sm btn-p" disabled={!addInput.name.trim()} onClick={()=>doAddPlayer(res.id)}>Add</button></div>}
-                              {addInput.lookupStatus==="notfound"&&<div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>No account found — type a name to add as a guest.</div>}
-                            </div>
-                          ):(
-                            <button className="btn btn-sm btn-s" style={{marginTop:".5rem"}} onClick={()=>{setAddingTo(res.id);resetAddInput();}}>+ Add Player</button>
-                          )}
-                          {res.status!=="sent"&&res.status!=="completed"&&(
-                            <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",borderTop:"1px solid var(--bdr)",paddingTop:".75rem",marginTop:".75rem"}}>
-                              {res.status!=="ready"&&<button className="btn btn-sm" style={{background:"rgba(40,200,100,.2)",color:"#2dc86e",border:"1px solid rgba(40,200,100,.4)"}} disabled={isBusy} onClick={()=>setResStatus(res.id,"ready")}>{isBusy?"…":"✓ Mark Ready"}</button>}
-                              {res.status==="ready"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo Ready</button>}
-                              {res.status!=="no-show"&&<button className="btn btn-sm btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
-                              {res.status==="no-show"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
-                            </div>
-                          )}
-                        </div>
-                      )}
+              <div style={{flex:1,display:"flex",borderLeft:"1px solid var(--bdr)",overflow:"hidden"}}>
+                {activeLanes.length===0&&slotResItems.length===0&&<div style={{padding:".85rem 1.1rem",color:"var(--muted)",fontSize:".9rem",display:"flex",alignItems:"center"}}>No bookings yet</div>}
+                {activeLanes.length===0&&slotResItems.length>0&&slotResItems.map((res,ri)=>{
+                  const rt=getType(res.typeId);const players=res.players||[];const wOkCount=players.filter(playerWaiverOk).length;
+                  return <div key={res.id} style={{flex:1,padding:".65rem 1rem",borderRight:ri<slotResItems.length-1?"1px solid var(--bdr)":"none",minWidth:0}}>
+                    <div style={{fontWeight:700,color:"var(--txt)",fontSize:".92rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{res.customerName}</div>
+                    <div style={{display:"flex",gap:".3rem",marginTop:".2rem",alignItems:"center",flexWrap:"wrap"}}>
+                      {rt&&<><span className={`badge b-${rt.mode}`} style={{fontSize:".65rem"}}>{rt.mode}</span><span className={`badge b-${rt.style}`} style={{fontSize:".65rem"}}>{rt.style}</span></>}
+                      <span style={{fontSize:".75rem",color:"var(--muted)"}}>👥{res.playerCount}</span>
+                      {players.length>0&&<span style={{fontSize:".72rem",color:wOkCount===players.length?"var(--ok)":wOkCount>0?"var(--warn)":"var(--danger)"}}>{wOkCount}/{players.length}w</span>}
+                      {sBadge(res.status)}
                     </div>
-                  );
+                  </div>;
                 })}
-                <button className="btn btn-s" style={{width:"100%",marginTop:".25rem",fontSize:".9rem"}} onClick={()=>{setShowWI(time);setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:""});}}>+ Walk-In this Slot</button>
+                {activeLanes.map((lane,li)=>{
+                  const players=lane.reservations.flatMap(r=>r.players||[]);const wOkCount=players.filter(playerWaiverOk).length;
+                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<activeLanes.length-1?"1px solid var(--bdr)":"none",minWidth:0}}>
+                    <div style={{fontSize:".65rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",marginBottom:".3rem"}}>Lane {lane.laneNum} · {lane.mode} · {lane.type}</div>
+                    {lane.reservations.map(res=>{
+                      const rt=getType(res.typeId);const rPlayers=res.players||[];const rWok=rPlayers.filter(playerWaiverOk).length;
+                      return <div key={res.id} style={{marginBottom:".25rem"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:".35rem",flexWrap:"wrap"}}>
+                          <span style={{fontWeight:700,color:"var(--txt)",fontSize:".9rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:160}}>{res.customerName}</span>
+                          <span style={{fontSize:".75rem",color:"var(--muted)",whiteSpace:"nowrap"}}>👥{res.playerCount}</span>
+                          {rPlayers.length>0&&<span style={{fontSize:".7rem",color:rWok===rPlayers.length?"var(--ok)":rWok>0?"var(--warn)":"var(--danger)",whiteSpace:"nowrap"}}>{rWok}/{rPlayers.length}w</span>}
+                          {sBadge(res.status)}
+                        </div>
+                      </div>;
+                    })}
+                    {lane.reservations.length===0&&<div style={{fontSize:".8rem",color:"var(--muted)"}}>Available</div>}
+                  </div>;
+                })}
               </div>
-            )}
+              <div style={{padding:".75rem 1rem",display:"flex",alignItems:"center",gap:".5rem",flexShrink:0}}>
+                {canSend&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setSendConfirm(time);}}>Send Group →</button>}
+                {allSent&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(100,130,240,.18)",color:"#8096f0",border:"1px solid rgba(100,130,240,.35)",fontWeight:600,fontSize:".8rem"}}>SENT</span>}
+                <span style={{color:"var(--muted)",fontSize:"1.1rem"}}>{isOpen?"▲":"▼"}</span>
+              </div>
+            </div>
+            {/* ── Expanded slot body ── */}
+            {isOpen&&(()=>{
+              const renderResCard=res=>{
+                const rt=getType(res.typeId);const isResExp=!!expandedRes[res.id];const players=res.players||[];
+                const wOkCount=players.filter(playerWaiverOk).length;const allWaiversOk=players.length>0&&wOkCount===players.length;const isBusy=statusBusy===res.id;
+                const maxForRes=rt?.style==="private"?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):(res.playerCount||99);const canAddMore=players.length<maxForRes;
+                return(
+                  <div key={res.id} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:".6rem",overflow:"hidden"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:".65rem",padding:".85rem 1rem",cursor:"pointer"}} onClick={()=>setExpandedRes(p=>({...p,[res.id]:!p[res.id]}))}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:"1.05rem",color:"var(--txt)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{res.customerName}</div>
+                        <div style={{display:"flex",gap:".35rem",marginTop:".2rem",alignItems:"center",flexWrap:"wrap"}}>
+                          {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
+                          <span style={{fontSize:".8rem",color:"var(--muted)"}}>👥 {res.playerCount}</span>
+                          <span style={{fontSize:".8rem",color:allWaiversOk?"var(--ok)":wOkCount>0?"var(--warn)":"var(--danger)"}}>{players.length>0?`${wOkCount}/${players.length} waivers`:"no players added"}</span>
+                        </div>
+                      </div>
+                      {sBadge(res.status)}
+                      <span style={{color:"var(--muted)",fontSize:".9rem",flexShrink:0}}>{isResExp?"▲":"▼"}</span>
+                    </div>
+                    {isResExp&&(
+                      <div style={{borderTop:"1px solid var(--bdr)",padding:".85rem 1rem"}}>
+                        <div style={{fontWeight:600,fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem",textTransform:"uppercase",letterSpacing:".05em"}}>Players <span style={{textTransform:"none",fontWeight:400,color:players.length>=maxForRes?"var(--danger)":"var(--muted)"}}>{players.length}/{maxForRes}</span></div>
+                        {players.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".5rem"}}>No players added yet.</div>}
+                        {players.map(player=>{
+                          const wOk=playerWaiverOk(player);
+                          return(
+                            <div key={player.id} style={{display:"flex",alignItems:"center",gap:".5rem",padding:".5rem 0",borderBottom:"1px solid var(--bdr)"}}>
+                              <span style={{flex:1,fontSize:".95rem",color:"var(--txt)"}}>{player.name||"—"}</span>
+                              {!player.userId&&<span style={{fontSize:".7rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .4rem"}}>guest</span>}
+                              {player.userId?(wOk?(<span style={{color:"var(--ok)",fontSize:".85rem",fontWeight:600,whiteSpace:"nowrap"}}>✓ Waiver</span>):(<button className="btn btn-sm btn-warn" style={{whiteSpace:"nowrap"}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign Waiver</button>)):(<span style={{fontSize:".75rem",color:"var(--muted)"}}>no account</span>)}
+                              <button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.2rem",padding:"0 .2rem",lineHeight:1,flexShrink:0}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button>
+                            </div>
+                          );
+                        })}
+                        {addingTo===res.id?(
+                          <div style={{marginTop:".6rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".6rem .75rem"}}>
+                            <div style={{display:"flex",gap:".4rem",alignItems:"center",marginBottom:".35rem"}}>
+                              <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={addInput.phone} onChange={e=>setAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doAddLookup(res.id)} placeholder="Phone" autoFocus style={{fontSize:".9rem"}}/></div>
+                              {(addInput.lookupStatus==="idle"||addInput.lookupStatus==="searching")&&<button className="btn btn-sm btn-s" disabled={cleanPh(addInput.phone).length<10||addInput.lookupStatus==="searching"} onClick={()=>doAddLookup(res.id)}>{addInput.lookupStatus==="searching"?"…":"Search →"}</button>}
+                              {addInput.lookupStatus!=="idle"&&addInput.lookupStatus!=="searching"&&<button className="btn btn-sm btn-s" onClick={resetAddInput}>✕</button>}
+                              <button className="btn btn-sm btn-s" onClick={()=>{setAddingTo(null);resetAddInput();}}>Cancel</button>
+                            </div>
+                            {addInput.lookupStatus==="found"&&addInput.foundUserId&&(()=>{const u=users.find(x=>x.id===addInput.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".35rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ {u?.name||addInput.name}</span>{u?.authProvider&&<span style={{fontSize:".7rem",color:"var(--muted)"}}>({u.authProvider})</span>}</div>;})()}
+                            {(addInput.lookupStatus==="notfound"||addInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".4rem",alignItems:"center"}}><input placeholder="Player name" value={addInput.name} onChange={e=>setAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&addInput.name.trim()&&doAddPlayer(res.id)} autoFocus={addInput.lookupStatus==="notfound"} style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".4rem .6rem",color:"var(--txt)",fontSize:".9rem"}}/><button className="btn btn-sm btn-p" disabled={!addInput.name.trim()} onClick={()=>doAddPlayer(res.id)}>Add</button></div>}
+                            {addInput.lookupStatus==="notfound"&&<div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>No account found — type a name to add as a guest.</div>}
+                          </div>
+                        ):(
+                          canAddMore?<button className="btn btn-sm btn-s" style={{marginTop:".5rem"}} onClick={()=>{setAddingTo(res.id);resetAddInput();}}>+ Add Player</button>:<div style={{fontSize:".8rem",color:"var(--muted)",marginTop:".5rem",fontStyle:"italic"}}>Player limit reached ({maxForRes}/{maxForRes})</div>
+                        )}
+                        {res.status!=="sent"&&res.status!=="completed"&&(
+                          <div style={{display:"flex",gap:".5rem",flexWrap:"wrap",borderTop:"1px solid var(--bdr)",paddingTop:".75rem",marginTop:".75rem"}}>
+                            {res.status!=="ready"&&<button className="btn btn-sm" style={{background:"rgba(40,200,100,.2)",color:"#2dc86e",border:"1px solid rgba(40,200,100,.4)"}} disabled={isBusy} onClick={()=>setResStatus(res.id,"ready")}>{isBusy?"…":"✓ Mark Ready"}</button>}
+                            {res.status==="ready"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo Ready</button>}
+                            {res.status!=="no-show"&&<button className="btn btn-sm btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
+                            {res.status==="no-show"&&<button className="btn btn-sm btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              };
+              return(
+                <div style={{borderTop:"1px solid var(--bdr)",padding:"1rem 1.2rem"}}>
+                  {activeLanes.length>0?(
+                    activeLanes.map(lane=>(
+                      <div key={lane.laneNum} style={{marginBottom:"1rem"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".6rem",paddingBottom:".45rem",borderBottom:"2px solid var(--bdr)"}}>
+                          <span style={{fontWeight:700,fontSize:".8rem",color:"var(--txt)"}}>Lane {lane.laneNum}</span>
+                          <span className={`badge b-${lane.mode}`}>{lane.mode}</span>
+                          <span className={`badge b-${lane.type}`}>{lane.type}</span>
+                          <span style={{fontSize:".78rem",color:"var(--muted)",marginLeft:"auto"}}>👥 {lane.playerCount}p booked</span>
+                        </div>
+                        {lane.reservations.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",padding:".5rem 0"}}>No bookings in this lane.</div>}
+                        {lane.reservations.map(renderResCard)}
+                      </div>
+                    ))
+                  ):(
+                    <>
+                      {slotResItems.length===0&&<div style={{color:"var(--muted)",textAlign:"center",padding:".75rem 0",fontSize:".9rem"}}>No reservations for this slot yet.</div>}
+                      {slotResItems.map(renderResCard)}
+                    </>
+                  )}
+                  <button className="btn btn-s" style={{width:"100%",marginTop:".25rem",fontSize:".9rem"}} onClick={()=>{setShowWI(time);setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:resTypes.find(rt=>rt.active)?.id||"",playerCount:1,customTime:"",addSecondLane:false});}}>+ Walk-In this Slot</button>
+                </div>
+              );
+            })()}
           </div>
         );
       })}
       {showWI&&(()=>{
         const wiName=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();
         const wiRt=getType(wi.typeId);
-        const wiAmt=wiRt?(wiRt.pricingMode==="flat"?wiRt.price:wiRt.price*wi.playerCount):0;
+        const wiIsPriv=wiRt?.style==="private";
+        const wiTime=showWI==="custom"?wi.customTime:showWI;
+        const {lanes:wiLanes}=wiTime?buildLanes(today,wiTime,reservations,resTypes,sessionTemplates):{lanes:[]};
+        const wiFreeLanes=wiLanes.filter(l=>l.type===null).length;
+        const offerSecondLane=wiIsPriv&&wiFreeLanes>=2;
+        const wiAmt=wiRt?(wiIsPriv?wiRt.price*(wi.addSecondLane?2:1):wiRt.price*wi.playerCount):0;
         const canProceed=wi.typeId&&(showWI==="custom"?wi.customTime:true)&&(wi.lookupStatus==="found"||(wi.lookupStatus==="named"&&wi.customerName.trim()));
         return(
           <div className="mo"><div className="mc">
@@ -2330,8 +2390,10 @@ function FohView({reservations,setReservations,resTypes,sessionTemplates,users,s
               {wi.lookupStatus==="named"&&<div style={{marginBottom:".5rem"}}><div className="f" style={{marginBottom:".35rem"}}><label>Customer Name</label><input value={wi.customerName} onChange={e=>setWi(p=>({...p,customerName:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} placeholder="First Last"/></div><div style={{fontSize:".75rem",color:"var(--muted)"}}>Guest walk-in — no existing account.</div></div>}
               <div className="f"><label>Type</label><select value={wi.typeId} onChange={e=>setWi(p=>({...p,typeId:e.target.value}))}><option value="">— Select —</option>{resTypes.filter(rt=>rt.active).map(rt=><option key={rt.id} value={rt.id}>{rt.name}</option>)}</select></div>
               {showWI==="custom"&&<div className="f"><label>Start Time</label><input type="time" value={wi.customTime} onChange={e=>setWi(p=>({...p,customTime:e.target.value}))}/></div>}
-              <div className="f"><label>Player Count</label><input type="number" min={1} max={20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value)}))}/></div>
-              {wiRt&&<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{wiRt.name} · {wi.playerCount}p</span><strong style={{color:"var(--accB)"}}>{fmtMoney(wiAmt)}</strong></div>}
+              {offerSecondLane&&<div style={{background:"rgba(40,200,100,.08)",border:"1px solid rgba(40,200,100,.3)",borderRadius:8,padding:".65rem .9rem",marginBottom:".5rem",display:"flex",alignItems:"center",gap:".75rem",cursor:"pointer"}} onClick={()=>setWi(p=>({...p,addSecondLane:!p.addSecondLane}))}><input type="checkbox" checked={wi.addSecondLane} readOnly style={{width:18,height:18,cursor:"pointer",accentColor:"var(--acc)"}}/><div style={{flex:1}}><div style={{fontWeight:700,color:"#2dc86e",fontSize:".9rem"}}>Both lanes available!</div><div style={{fontSize:".8rem",color:"var(--muted)"}}>Add second lane — {wiRt?.mode==="versus"?"up to 24":"up to 12"} players total.</div></div><span style={{fontWeight:700,color:"var(--accB)",whiteSpace:"nowrap"}}>+{fmtMoney(wiRt?.price||0)}</span></div>}
+              {!wiIsPriv&&<div className="f"><label>Player Count</label><input type="number" min={1} max={20} value={wi.playerCount} onChange={e=>setWi(p=>({...p,playerCount:Math.max(1,+e.target.value)}))}/></div>}
+              {wiIsPriv&&<div style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".5rem",padding:".45rem .6rem",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5}}>Private: up to <strong style={{color:"var(--txt)"}}>{wiRt?.maxPlayers||laneCapacity(wiRt?.mode||"coop")}</strong> players{wi.addSecondLane?` per lane (${(wiRt?.maxPlayers||laneCapacity(wiRt?.mode||"coop"))*2} total across both)`:""}</div>}
+              {wiRt&&<div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{wiRt.name}{!wiIsPriv?` · ${wi.playerCount}p`:""}{wi.addSecondLane?" · 2 lanes":""}</span><strong style={{color:"var(--accB)"}}>{fmtMoney(wiAmt)}</strong></div>}
               <div className="ma"><button className="btn btn-s" onClick={resetWI}>Cancel</button><button className="btn btn-p" disabled={!canProceed} onClick={()=>setWiStep("payment")}>Continue to Payment →</button></div>
             </>}
             {wiStep==="payment"&&<>
