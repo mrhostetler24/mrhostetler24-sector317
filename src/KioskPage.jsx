@@ -482,14 +482,14 @@ export default function KioskPage() {
     <div style={{ ...S.page, cursor: 'pointer', userSelect: 'none' }}
       onPointerDown={() => { enterFullscreen(); setPhase('phone') }}>
       <ExitCorners />
-      <img src="/logo.png" alt="Sector 317" style={{ height: 110, opacity: .9, marginBottom: '3rem' }} />
-      <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.2em', fontSize: '1.4rem', color: 'var(--acc)', textTransform: 'uppercase', marginBottom: '.8rem' }}>Self-Service Check-In</div>
-      <div style={{ color: 'var(--muted)', fontSize: '1.05rem', marginBottom: '3.5rem' }}>Look up your reservation, manage your team, and sign your waiver.</div>
-      <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.15em', fontSize: '1.1rem', color: 'var(--txt)', opacity: .6, animation: 'kpulse 2s ease-in-out infinite' }}>TOUCH TO BEGIN</div>
-      <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.4rem' }}
+      <img src="/logo.png" alt="Sector 317" style={{ height: 200, opacity: .9, marginBottom: '3rem' }} />
+      <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.2em', fontSize: '2.4rem', color: 'var(--acc)', textTransform: 'uppercase', marginBottom: '1rem' }}>Self-Service Check-In</div>
+      <div style={{ color: 'var(--muted)', fontSize: '1.5rem', marginBottom: '4rem' }}>Look up your reservation, manage your team, and sign your waiver.</div>
+      <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.15em', fontSize: '2rem', color: 'var(--txt)', opacity: .6, animation: 'kpulse 2s ease-in-out infinite' }}>TOUCH TO BEGIN</div>
+      <div style={{ position: 'fixed', bottom: 64, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.6rem' }}
         onPointerDown={e => e.stopPropagation()}>
-        <QRCodeSVG value={KIOSK_QR_URL} size={80} fgColor="#c8e03a" bgColor="#25261f" level="M" style={{ borderRadius: 4, opacity: .7 }} />
-        <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase' }}>Scan to create / sign in</div>
+        <QRCodeSVG value={KIOSK_QR_URL} size={220} fgColor="#c8e03a" bgColor="#25261f" level="M" style={{ borderRadius: 8, opacity: .75 }} />
+        <div style={{ fontSize: '1rem', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase' }}>Scan to create / sign in</div>
       </div>
       {!isFullscreen && (
         <button style={{ position: 'fixed', bottom: 16, right: 16, background: 'none', border: '1px solid var(--bdr)', color: 'var(--muted)', fontSize: '.8rem', padding: '.4rem .8rem', borderRadius: 6, cursor: 'pointer' }}
