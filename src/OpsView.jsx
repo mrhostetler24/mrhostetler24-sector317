@@ -739,7 +739,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   );
 }
 
-export default function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,setUsers,activeWaiverDoc}){
+export default function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,setUsers,activeWaiverDoc,currentUser}){
   const [expandedSlot,setExpandedSlot]=useState(null);
   const [expandedRes,setExpandedRes]=useState({});
   const [signingFor,setSigningFor]=useState(null);

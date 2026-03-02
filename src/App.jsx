@@ -3080,7 +3080,7 @@ useEffect(() => {
           </div>
         </nav>
         <div className="content">
-          <OpsView reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} activeWaiverDoc={activeWaiver}/>
+          <OpsView reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} activeWaiverDoc={activeWaiver} currentUser={liveUser}/>
         </div>
       </div>
     </>);
