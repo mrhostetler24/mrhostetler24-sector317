@@ -222,10 +222,12 @@ export async function createUser(user) {
  * - is_real: true — this is a real person who needs to complete signup on arrival
  */
 // Compute default leaderboard name: initials + last 4 of phone (e.g. "AB-1234")
+const _NAME_SUFFIXES = new Set(['jr','jr.','sr','sr.','ii','iii','iv','v','vi','esq','esq.'])
 function _guestLbName(name, phone) {
   const clean = (phone || '').replace(/\D/g, '')
   const last4 = clean.length >= 4 ? clean.slice(-4) : '0000'
   const parts = (name || '').trim().split(/\s+/)
+  while (parts.length > 1 && _NAME_SUFFIXES.has(parts[parts.length - 1].toLowerCase())) parts.pop()
   const initials = parts.length >= 2
     ? parts[0][0].toUpperCase() + parts[parts.length - 1][0].toUpperCase()
     : (name || '').slice(0, 2).toUpperCase()

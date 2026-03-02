@@ -556,7 +556,8 @@ function WaiverViewModal({user,waiverDocs,activeWaiverDoc,onClose}){
   );
 }
 
-const getInitials=name=>{if(!name)return"??";const p=name.trim().split(/\s+/);return p.length>=2?p[0][0].toUpperCase()+p[p.length-1][0].toUpperCase():name.slice(0,2).toUpperCase();};
+const NAME_SUFFIXES=new Set(['jr','jr.','sr','sr.','ii','iii','iv','v','vi','esq','esq.']);
+const getInitials=name=>{if(!name)return"??";const p=name.trim().split(/\s+/);while(p.length>1&&NAME_SUFFIXES.has(p[p.length-1].toLowerCase()))p.pop();return p.length>=2?p[0][0].toUpperCase()+p[p.length-1][0].toUpperCase():name.slice(0,2).toUpperCase();};
 
 // Phone mask — formats as (XXX) XXX-XXXX for display, stores clean 10-digit
 function fmtPhoneMask(raw){const d=cleanPh(raw);if(d.length<=3)return d;if(d.length<=6)return`(${d.slice(0,3)}) ${d.slice(3)}`;return`(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6,10)}`;}
