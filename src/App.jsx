@@ -273,6 +273,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .b-ok{background:rgba(58,125,255,.12);color:#60a5fa;border:1px solid rgba(58,125,255,.25);}
 .b-done{background:rgba(21,128,61,.12);color:#4ade80;border:1px solid rgba(21,128,61,.25);}
 .b-cancel{background:rgba(107,114,128,.12);color:#9ca3af;border:1px solid rgba(107,114,128,.25);}
+.b-noshow{background:rgba(220,38,38,.12);color:#f87171;border:1px solid rgba(220,38,38,.25);}
 .b-warn{background:rgba(184,150,12,.12);color:var(--warnL);border:1px solid rgba(184,150,12,.25);}
 .b-coop{background:rgba(20,184,166,.12);color:#2dd4bf;}
 .b-versus{background:rgba(124,58,237,.12);color:#a78bfa;}
@@ -1439,7 +1440,7 @@ See you on the field — SECTOR 317`
         <td><div style={{display:"flex",alignItems:"center",gap:".5rem"}}><button className={`expand-toggle${open?" open":""}`} onClick={e=>{e.stopPropagation();setOpen(o=>!o)}}>{open?"▾":"▸"}</button><div><div style={{fontWeight:600}}>{res.customerName}</div><div style={{fontSize:".74rem",color:"var(--muted)"}}>{fmt(res.date)} · {fmt12(res.startTime)}</div></div></div></td>
         <td><div style={{fontSize:".82rem"}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td>
         <td><div>{res.players.length}/{res.playerCount}</div><div style={{fontSize:".72rem",color:wOk>0&&wOk>=res.players.length?"var(--okB)":"var(--warnL)"}}>{wOk}/{res.players.length} waivers ✓</div></td>
-        <td><span className={`badge ${res.status==="confirmed"?"b-ok":res.status==="completed"?"b-done":"b-cancel"}`}>{res.status}</span></td>
+        <td><span className={`badge ${res.status==="confirmed"?"b-ok":res.status==="completed"?"b-done":res.status==="no-show"?"b-noshow":"b-cancel"}`}>{res.status}</span></td>
         {isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(res.amount)}</td>}
       </tr>
       {open&&<tr><td colSpan={isAdmin?5:4} style={{padding:0}}><div className="res-expand">
@@ -1736,7 +1737,7 @@ function ReceiptModal({res,resTypes,user,onClose}){
           ["Date", new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"})],
           ["Time", fmt12(res.startTime)],
           ["Players", res.playerCount],
-          ["Status", <span style={{display:"flex",alignItems:"center",gap:".4rem"}}><span className={`badge ${res.status==="confirmed"?"b-ok":res.status==="completed"?"b-done":"b-cancel"}`}>{res.status}</span>{res.paid&&<span style={{fontSize:".68rem",background:"var(--okD)",color:"var(--okB)",padding:".1rem .45rem",borderRadius:20,fontWeight:700,letterSpacing:".06em"}}>PAID</span>}</span>],
+          ["Status", <span style={{display:"flex",alignItems:"center",gap:".4rem"}}><span className={`badge ${res.status==="confirmed"?"b-ok":res.status==="completed"?"b-done":res.status==="no-show"?"b-noshow":"b-cancel"}`}>{res.status}</span>{res.paid&&<span style={{fontSize:".68rem",background:"var(--okD)",color:"var(--okB)",padding:".1rem .45rem",borderRadius:20,fontWeight:700,letterSpacing:".06em"}}>PAID</span>}</span>],
         ].map(([lbl,val])=>(
           <div key={lbl} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:".45rem 0",borderBottom:"1px solid var(--bdr)",fontSize:".85rem"}}>
             <span style={{color:"var(--muted)"}}>{lbl}</span>
@@ -2057,7 +2058,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <button className="btn btn-p" onClick={()=>setShowBook(true)}>+ Book Mission</button>
       </div>
       {tab!=="payments"&&<div className="tw"><table><thead><tr><th>Type</th><th>Date & Time</th><th>Players</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-        <tbody>{(tab==="upcoming"?upcoming:past).map(r=>{const rt=resTypes.find(x=>x.id===r.typeId);const isUp=r.date>=today&&r.status!=="cancelled";return <tr key={r.id}><td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td style={{color:"var(--accB)"}}>{r.players.length}/{r.playerCount}</td><td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td><td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td><td><div style={{display:"flex",gap:".35rem",flexWrap:"wrap"}}>
+        <tbody>{(tab==="upcoming"?upcoming:past).map(r=>{const rt=resTypes.find(x=>x.id===r.typeId);const isUp=r.date>=today&&r.status!=="cancelled";return <tr key={r.id}><td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td style={{color:"var(--accB)"}}>{r.players.length}/{r.playerCount}</td><td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td><td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td><td><div style={{display:"flex",gap:".35rem",flexWrap:"wrap"}}>
               {isUp&&<><button className="btn btn-s btn-sm" onClick={()=>setEditResId(r.id)}>Manage Team</button>
               <button className="btn btn-s btn-sm" onClick={()=>setModifyRes({res:r,mode:"reschedule"})}>Reschedule</button>
               {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={()=>setModifyRes({res:r,mode:"upgrade"})}>⬆ Upgrade</button>}</>}
@@ -2485,7 +2486,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           return <div className="tw">
             <div className="th"><span className="ttl">Recent Bookings</span><span style={{marginLeft:"auto",fontSize:".75rem",color:"var(--muted)"}}>{recentSorted.length} in last 30 days</span></div>
             <table><thead><tr><th>Booked</th><th>Customer</th><th>Type</th><th>Session</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Status</th></tr></thead>
-              <tbody>{pageRows.map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{fmt(r.createdAt?.slice(0,10))}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td>{isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}<td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":"b-cancel"}`}>{r.status}</span></td></tr>;})}
+              <tbody>{pageRows.map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{fmt(r.createdAt?.slice(0,10))}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td>{isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}<td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td></tr>;})}
               </tbody>
             </table>
             {totalPages>1&&<div style={{display:"flex",gap:".5rem",justifyContent:"center",padding:".75rem 0",alignItems:"center"}}>

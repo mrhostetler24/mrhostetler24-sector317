@@ -192,10 +192,10 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     return players.findIndex(p=>p.id===pid)<6?1:2;
   };
   const setPlayerTeam=(laneIdx,pid,team)=>setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),[pid]:team}}}));
-  const swapAllTeam=(laneIdx,res,fromTeam)=>{
+  const swapAllTeams=(laneIdx,res)=>{
     const players=res.players||[];
     const batch={};
-    players.forEach(pl=>{if(getTeam(laneIdx,res,pl.id)===fromTeam)batch[pl.id]=fromTeam===1?2:1;});
+    players.forEach(pl=>{const t=getTeam(laneIdx,res,pl.id);batch[pl.id]=t===1?2:1;});
     setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),...batch}}}));
   };
 
@@ -445,8 +445,6 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem'}}>
           <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.05em'}}>Hunters</span>
           {huntersAvg&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>avg {huntersAvg}</span>}
-          <button style={{marginLeft:'auto',background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.72rem',padding:'.2rem .55rem'}}
-            onClick={()=>swapAllTeam(laneIdx,res,1)}>⇅ Swap All</button>
         </div>
         <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.25rem',display:'flex',gap:'.5rem',paddingBottom:'.25rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
           <span style={{flex:1}}>Player</span><span style={{minWidth:28}}>Runs</span><span style={{minWidth:28,textAlign:'right'}}>Avg</span><span style={{minWidth:30,textAlign:'right'}}>W-L</span><span style={{width:34}}/>
@@ -455,18 +453,18 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         {hunters.map(p=>pRow(p,1))}
       </div>
       {/* VS divider */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'.25rem 0'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'1rem',padding:'.25rem 0'}}>
         <img src="/vs.png" alt="VS" style={{width:52,height:52,filter:'drop-shadow(0 0 8px rgba(200,224,58,.6))',opacity:.9}}
           onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='block';}}/>
         <span style={{display:'none',fontWeight:900,fontSize:'1.8rem',color:'var(--acc)',letterSpacing:'.1em',fontStyle:'italic'}}>VS</span>
+        <button type="button" style={{background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.72rem',padding:'.2rem .55rem'}}
+          onClick={()=>swapAllTeams(laneIdx,res)}>⇅ Swap All</button>
       </div>
       {/* Coyotes */}
       <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
         <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem'}}>
           <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--warnL)',textTransform:'uppercase',letterSpacing:'.05em'}}>Coyotes</span>
           {coyotesAvg&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>avg {coyotesAvg}</span>}
-          <button style={{marginLeft:'auto',background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.72rem',padding:'.2rem .55rem'}}
-            onClick={()=>swapAllTeam(laneIdx,res,2)}>⇅ Swap All</button>
         </div>
         <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.25rem',display:'flex',gap:'.5rem',paddingBottom:'.25rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
           <span style={{flex:1}}>Player</span><span style={{minWidth:28}}>Runs</span><span style={{minWidth:28,textAlign:'right'}}>Avg</span><span style={{minWidth:30,textAlign:'right'}}>W-L</span><span style={{width:34}}/>
