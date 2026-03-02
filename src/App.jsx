@@ -2197,6 +2197,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
     :{bookings:true,players:true,avgCoopPriv:true,avgVsPriv:true,avgCoopOpen:true,avgVsOpen:true,leadTime:true});
   const toggleWidget=id=>setDashWidgets(p=>({...p,[id]:!p[id]}));
   const showToast=msg=>{setToastMsg(msg);setTimeout(()=>setToastMsg(null),3200);};
+  const [custSearch,setCustSearch]=useState("");
   const [mergeTarget,setMergeTarget]=useState(null);
   const handleMergeUsers=async(winnerId,loserId)=>{
     await mergeUsers(winnerId,loserId);
@@ -2516,7 +2517,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       </>}
 
       {tab==="reservations"&&<>
-        <div className="ph"><div className="ph-left"><div className="pt">Reservations</div></div><button className="btn btn-p" onClick={()=>setShowWI(true)}>+ Walk-In</button></div>
+        <div className="ph"><div className="ph-left"><div className="pt">Reservations</div></div></div>
         <div style={{display:"flex",gap:".65rem",flexWrap:"wrap",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".7rem 1.1rem",marginBottom:"1rem"}}>
           <button className={`btn btn-sm ${resHide?"btn-p":"btn-s"}`} onClick={()=>setResHide(true)}>Active</button>
           <button className={`btn btn-sm ${!resHide?"btn-p":"btn-s"}`} onClick={()=>setResHide(false)}>All</button>
@@ -2579,6 +2580,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
 
       {tab==="customers"&&isManager&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Customers</div><div className="ps">All customers — social auth and phone-only</div></div></div>
+        <div style={{display:"flex",gap:".6rem",alignItems:"center",marginBottom:"1rem"}}>
+          <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} placeholder="Search by name or phone…" style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".55rem .9rem",color:"var(--txt)",fontSize:".9rem",outline:"none"}}/>
+          {custSearch&&<button className="btn btn-s" style={{whiteSpace:"nowrap"}} onClick={()=>setCustSearch("")}>✕ Clear</button>}
+        </div>
         {/* Duplicate account alerts */}
         {dupAlerts.map(d=>(
           <div key={d.phoneOnlyUser.id} className="dup-alert">
@@ -2597,22 +2602,36 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           </div>
         ))}
         <div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Spent</th><th>Waiver</th><th></th></tr></thead>
-          <tbody>{users.filter(u=>u.access==="customer").map(c=>{
-            const cr=reservations.filter(r=>r.userId===c.id);
-            const valid=hasValidWaiver(c,activeWaiverDoc);
-            const wd=latestWaiverDate(c);
-            const isDup=dupAlerts.some(d=>d.phoneOnlyUser.id===c.id||d.authUser.id===c.id);
-            return <tr key={c.id} style={{background:isDup?"rgba(184,150,12,.04)":""}}>
-              <td><strong>{c.name}</strong>{isDup&&<span className="badge b-warn" style={{marginLeft:".4rem",fontSize:".6rem"}}>⚠ dup</span>}</td>
-              <td style={{fontFamily:"monospace",fontSize:".8rem",color:"var(--muted)"}}>{c.leaderboardName||genDefaultLeaderboardName(c.name,c.phone)}</td>
-              <td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(c.phone)}</td>
-              <td><AuthBadge provider={c.authProvider}/></td>
-              <td>{cr.length}</td>
-              <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(cr.reduce((s,r)=>s+r.amount,0))}</td>
-              <td>{valid?<span className="badge b-ok">Valid</span>:wd?<span className="badge b-warn">Exp.</span>:<span className="badge b-cancel">None</span>}</td>
-              <td><button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...c});setModal("user");}}>Edit</button><button className="btn btn-sm btn-warn" style={{marginLeft:".25rem"}} onClick={()=>setMergeTarget(c)}>Merge</button></td>
-            </tr>;
-          })}
+          <tbody>{(()=>{
+            const q=custSearch.trim().toLowerCase();
+            const digits=cleanPh(custSearch);
+            const filtered=users.filter(u=>u.access==="customer"&&(!q||(u.name||"").toLowerCase().includes(q)||(digits.length>=3&&(u.phone||"").includes(digits))));
+            if(filtered.length===0&&q) return <tr><td colSpan={8} style={{textAlign:"center",padding:"1.5rem",color:"var(--muted)"}}>
+              No customers found for <strong style={{color:"var(--txt)"}}>&ldquo;{custSearch}&rdquo;</strong>
+              <button className="btn btn-p btn-sm" style={{marginLeft:"1rem"}} onClick={()=>{
+                const isPhone=digits.length>=7;
+                setEditUser(null);
+                setNewUser({name:isPhone?"":custSearch,phone:isPhone?digits:"",access:"customer",role:"",active:true,waivers:[],needsRewaiverDocId:null});
+                setModal("user");
+              }}>+ Create Customer</button>
+            </td></tr>;
+            return filtered.map(c=>{
+              const cr=reservations.filter(r=>r.userId===c.id);
+              const valid=hasValidWaiver(c,activeWaiverDoc);
+              const wd=latestWaiverDate(c);
+              const isDup=dupAlerts.some(d=>d.phoneOnlyUser.id===c.id||d.authUser.id===c.id);
+              return <tr key={c.id} style={{background:isDup?"rgba(184,150,12,.04)":""}}>
+                <td><strong>{c.name}</strong>{isDup&&<span className="badge b-warn" style={{marginLeft:".4rem",fontSize:".6rem"}}>⚠ dup</span>}</td>
+                <td style={{fontFamily:"monospace",fontSize:".8rem",color:"var(--muted)"}}>{c.leaderboardName||genDefaultLeaderboardName(c.name,c.phone)}</td>
+                <td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(c.phone)}</td>
+                <td><AuthBadge provider={c.authProvider}/></td>
+                <td>{cr.length}</td>
+                <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(cr.reduce((s,r)=>s+r.amount,0))}</td>
+                <td>{valid?<span className="badge b-ok">Valid</span>:wd?<span className="badge b-warn">Exp.</span>:<span className="badge b-cancel">None</span>}</td>
+                <td><button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...c});setModal("user");}}>Edit</button><button className="btn btn-sm btn-warn" style={{marginLeft:".25rem"}} onClick={()=>setMergeTarget(c)}>Merge</button></td>
+              </tr>;
+            });
+          })()}
           </tbody></table></div>
       </>}
 
@@ -3039,6 +3058,11 @@ useEffect(() => {
   const handleAlert=msg=>{setToastAlert(msg);setTimeout(()=>setToastAlert(null),5000);};
   const liveUser=users.find(u=>u.id===currentUser?.id)||currentUser;
   const portal=!liveUser?null:liveUser.access==="customer"?"customer":liveUser.access==="staff"?"staff":"admin";
+  const [viewAs,setViewAs]=useState(null); // null | "manager" | "staff" | "customer"
+  const [viewAsOpen,setViewAsOpen]=useState(false);
+  const isAdminOrManager=liveUser&&(liveUser.access==="admin"||liveUser.access==="manager");
+  const effectivePortal=viewAs?(viewAs==="customer"?"customer":viewAs==="staff"?"staff":"admin"):portal;
+  const effectiveUser=viewAs?{...liveUser,access:viewAs}:liveUser;
   const [showNavAccount,setShowNavAccount]=useState(false);
   const [showBackTop,setShowBackTop]=useState(false);
   const contentRef=useRef(null);
@@ -3115,16 +3139,42 @@ useEffect(() => {
           <span style={{fontSize:".7rem",color:"var(--muted)",marginLeft:".4rem",alignSelf:"flex-end",paddingBottom:2}}>v{APP_VERSION}</span>
         </div>
         <div className="nav-right">
-          <span className="nav-user" onClick={()=>setShowNavAccount(true)} title="Edit account settings">{liveUser.name} ⚙</span>
-          {liveUser.authProvider&&<AuthBadge provider={liveUser.authProvider}/>}
-          <span className={`nbadge al-${liveUser.access}`}>{ACCESS_LEVELS[liveUser.access]?.label}</span>
+          {!viewAs&&<span className="nav-user" onClick={()=>setShowNavAccount(true)} title="Edit account settings">{liveUser.name} ⚙</span>}
+          {!viewAs&&liveUser.authProvider&&<AuthBadge provider={liveUser.authProvider}/>}
+          {viewAs?(
+            <span style={{display:"inline-flex",alignItems:"center",gap:".5rem",background:"rgba(200,224,58,.12)",border:"1px solid rgba(200,224,58,.35)",borderRadius:5,padding:".25rem .75rem",fontSize:".78rem",fontWeight:600,color:"var(--accB)"}}>
+              {ACCESS_LEVELS[liveUser.access]?.label} viewing as {ACCESS_LEVELS[viewAs]?.label}
+              <button className="nbtn" style={{padding:".1rem .55rem",fontSize:".72rem",border:"1px solid var(--bdr)",borderRadius:4,marginLeft:".25rem"}} onClick={()=>{setViewAs(null);setViewAsOpen(false);}}>Back</button>
+            </span>
+          ):(
+            <div style={{position:"relative"}}>
+              <span className={`nbadge al-${liveUser.access}`} style={isAdminOrManager?{cursor:"pointer",userSelect:"none"}:{}} onClick={()=>isAdminOrManager&&setViewAsOpen(p=>!p)} title={isAdminOrManager?"Preview as role":undefined}>
+                {ACCESS_LEVELS[liveUser.access]?.label}{isAdminOrManager?" ▾":""}
+              </span>
+              {viewAsOpen&&<div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:7,padding:".4rem",zIndex:500,minWidth:140,boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>
+                <div style={{fontSize:".65rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".08em",padding:".2rem .5rem .4rem",fontWeight:700}}>Preview As</div>
+                {(liveUser.access==="admin"?["manager","staff","customer"]:["staff","customer"]).map(role=>(
+                  <div key={role} style={{padding:".45rem .75rem",borderRadius:5,cursor:"pointer",fontSize:".85rem",color:"var(--txt)",fontWeight:500}} onClick={()=>{setViewAs(role);setViewAsOpen(false);}}
+                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                    {ACCESS_LEVELS[role]?.label}
+                  </div>
+                ))}
+                <div style={{borderTop:"1px solid var(--bdr)",marginTop:".3rem",paddingTop:".3rem"}}>
+                  <div style={{padding:".35rem .75rem",borderRadius:5,cursor:"pointer",fontSize:".82rem",color:"var(--muted)"}} onClick={()=>setViewAsOpen(false)}
+                    onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                    Cancel
+                  </div>
+                </div>
+              </div>}
+            </div>
+          )}
           <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);}}>Sign Out</button>
         </div>
       </nav>
       <div className="main">
-        {portal==="customer"&&<CustomerPortal user={liveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments}/>}
-        {portal==="staff"&&<StaffPortal user={liveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert}/>}
-        {portal==="admin"&&<AdminPortal user={liveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert}/>}
+        {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments}/>}
+        {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert}/>}
+        {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert}/>}
       </div>
     </div>
   </>);
