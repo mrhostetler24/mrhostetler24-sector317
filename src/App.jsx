@@ -270,20 +270,20 @@ td{padding:.8rem 1.1rem;border-bottom:1px solid rgba(70,71,62,.5);font-size:.85r
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:rgba(255,255,255,.02);}
 .badge{display:inline-block;padding:.16rem .6rem;border-radius:3px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
-.b-ok{background:rgba(90,138,58,.15);color:var(--okB);border:1px solid rgba(90,138,58,.3);}
-.b-done{background:var(--accD);color:var(--accB);border:1px solid rgba(138,154,53,.25);}
-.b-cancel{background:rgba(192,57,43,.12);color:var(--dangerL);border:1px solid rgba(192,57,43,.25);}
+.b-ok{background:rgba(58,125,255,.12);color:#60a5fa;border:1px solid rgba(58,125,255,.25);}
+.b-done{background:rgba(21,128,61,.12);color:#4ade80;border:1px solid rgba(21,128,61,.25);}
+.b-cancel{background:rgba(107,114,128,.12);color:#9ca3af;border:1px solid rgba(107,114,128,.25);}
 .b-warn{background:rgba(184,150,12,.12);color:var(--warnL);border:1px solid rgba(184,150,12,.25);}
-.b-coop{background:rgba(90,138,58,.15);color:var(--okB);}
-.b-versus{background:rgba(138,154,53,.2);color:var(--accB);}
-.b-open{background:rgba(107,124,46,.15);color:#b0c44a;}
-.b-private{background:rgba(200,169,110,.15);color:#c8a96e;}
-.al-customer{background:rgba(138,154,53,.1);color:#8a9a35;border:1px solid rgba(138,154,53,.2);}
-.al-staff{background:rgba(138,154,53,.18);color:#a8bc3e;border:1px solid rgba(138,154,53,.35);}
-.al-manager{background:rgba(184,168,50,.15);color:#c8b840;border:1px solid rgba(184,168,50,.3);}
-.al-admin{background:rgba(200,169,110,.15);color:#c8a96e;border:1px solid rgba(200,169,110,.3);}
+.b-coop{background:rgba(20,184,166,.12);color:#2dd4bf;}
+.b-versus{background:rgba(124,58,237,.12);color:#a78bfa;}
+.b-open{background:rgba(71,85,105,.15);color:#94a3b8;}
+.b-private{background:rgba(139,94,60,.15);color:#c4956a;}
+.al-customer{background:rgba(107,114,128,.1);color:#9ca3af;border:1px solid rgba(107,114,128,.2);}
+.al-staff{background:rgba(14,165,165,.12);color:#2dd4bf;border:1px solid rgba(14,165,165,.25);}
+.al-manager{background:rgba(109,40,217,.12);color:#a78bfa;border:1px solid rgba(109,40,217,.25);}
+.al-admin{background:rgba(217,119,6,.12);color:#fbbf24;border:1px solid rgba(217,119,6,.25);}
 .b-conflict{background:rgba(184,150,12,.12);color:var(--warnL);border:1px solid rgba(184,150,12,.3);}
-.b-available{background:rgba(90,138,58,.15);color:var(--okB);border:1px solid rgba(90,138,58,.3);}
+.b-available{background:rgba(58,125,255,.12);color:#60a5fa;border:1px solid rgba(58,125,255,.25);}
 .ph{margin-bottom:1.4rem;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;}
 .ph-left .pt{font-family:var(--fd);font-size:1.7rem;font-weight:800;color:var(--accB);letter-spacing:.08em;text-transform:uppercase;line-height:1;}
 .ph-left .ps{color:var(--muted);font-size:.82rem;margin-top:.2rem;}

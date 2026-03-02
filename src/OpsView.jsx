@@ -793,7 +793,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const historySlots=[...slotTimes.filter(slotIsHistoryForView)].reverse();
   const playerWaiverOk=player=>{if(!player.userId)return false;return hasValidWaiver(users.find(u=>u.id===player.userId),activeWaiverDoc);};
   const sBadge=status=>{
-    const map={confirmed:{bg:"rgba(90,138,58,.15)",color:"var(--okB)",bdr:"rgba(90,138,58,.3)"},ready:{bg:"rgba(40,200,100,.18)",color:"#2dc86e",bdr:"rgba(40,200,100,.4)"},arrived:{bg:"rgba(40,200,100,.18)",color:"#2dc86e",bdr:"rgba(40,200,100,.4)"},"no-show":{bg:"rgba(184,150,12,.12)",color:"var(--warnL)",bdr:"rgba(184,150,12,.25)"},sent:{bg:"rgba(100,130,240,.18)",color:"#8096f0",bdr:"rgba(100,130,240,.35)"},completed:{bg:"var(--accD)",color:"var(--accB)",bdr:"rgba(138,154,53,.25)"}};
+    const map={confirmed:{bg:"rgba(58,125,255,.12)",color:"#60a5fa",bdr:"rgba(58,125,255,.25)"},ready:{bg:"rgba(212,236,70,.12)",color:"#d4ec46",bdr:"rgba(212,236,70,.3)"},arrived:{bg:"rgba(212,236,70,.12)",color:"#d4ec46",bdr:"rgba(212,236,70,.3)"},"no-show":{bg:"rgba(220,38,38,.12)",color:"#f87171",bdr:"rgba(220,38,38,.25)"},sent:{bg:"rgba(100,130,240,.18)",color:"#8096f0",bdr:"rgba(100,130,240,.35)"},completed:{bg:"rgba(21,128,61,.12)",color:"#4ade80",bdr:"rgba(21,128,61,.25)"}};
     const label={confirmed:"Confirmed",ready:"Arrived",arrived:"Arrived","no-show":"No Show",sent:"Sent",completed:"Completed"};
     const s=map[status]||map.confirmed;
     return <span style={{display:"inline-block",padding:".25rem .65rem",borderRadius:4,background:s.bg,color:s.color,border:`1px solid ${s.bdr}`,fontWeight:600,fontSize:".8rem",whiteSpace:"nowrap"}}>{label[status]||status}</span>;
@@ -895,7 +895,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                 {canSend&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setSendConfirm(time);}}>Send {fmt12(time)}? →</button>}
                 {allSent&&!allCompleted&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(100,130,240,.18)",color:"#8096f0",border:"1px solid rgba(100,130,240,.35)",fontWeight:600,fontSize:".8rem"}}>SENT</span>}
                 {allSent&&!allCompleted&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();const scoringLanes=activeLanes.map(l=>({...l,reservations:l.reservations.filter(r=>r.status!=='no-show')})).filter(l=>l.reservations.length>0);setScoringSlot({time,lanes:scoringLanes});}}>🎯 Score</button>}
-                {allCompleted&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"var(--accD)",color:"var(--accB)",border:"1px solid rgba(138,154,53,.25)",fontWeight:600,fontSize:".8rem"}}>✓ COMPLETED</span>}
+                {allCompleted&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(21,128,61,.12)",color:"#4ade80",border:"1px solid rgba(21,128,61,.25)",fontWeight:600,fontSize:".8rem"}}>✓ COMPLETED</span>}
                 <span style={{color:"var(--muted)",fontSize:"1.1rem"}}>{isOpen?"▲":"▼"}</span>
               </div>
             </div>
@@ -923,11 +923,11 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                     {res.status!=="sent"&&res.status!=="completed"&&(
                       <div style={{display:"flex",gap:".6rem",flexWrap:"wrap",padding:".55rem 1rem .8rem",alignItems:"center"}}>
                         {(res.status==="arrived"||res.status==="ready")
-                          ?<span style={{color:"#2dc86e",fontWeight:700,fontSize:"1rem",letterSpacing:".03em"}}>✓ Arrived</span>
-                          :res.status!=="no-show"&&<button className="btn" style={{background:allWaiversOk||players.length===0?"rgba(40,200,100,.2)":"var(--surf)",color:allWaiversOk||players.length===0?"#2dc86e":"var(--muted)",border:`1px solid ${allWaiversOk||players.length===0?"rgba(40,200,100,.4)":"var(--bdr)"}`}} disabled={isBusy||(players.length>0&&!allWaiversOk)} title={players.length>0&&!allWaiversOk?"All waivers must be signed before marking arrived":undefined} onClick={()=>setResStatus(res.id,"ready")}>{isBusy?"…":"✓ Mark Arrived"}</button>}
+                          ?<span style={{color:"#d4ec46",fontWeight:700,fontSize:"1rem",letterSpacing:".03em"}}>✓ Arrived</span>
+                          :res.status!=="no-show"&&<button className="btn" style={{background:allWaiversOk||players.length===0?"rgba(212,236,70,.12)":"var(--surf)",color:allWaiversOk||players.length===0?"#d4ec46":"var(--muted)",border:`1px solid ${allWaiversOk||players.length===0?"rgba(212,236,70,.3)":"var(--bdr)"}`}} disabled={isBusy||(players.length>0&&!allWaiversOk)} title={players.length>0&&!allWaiversOk?"All waivers must be signed before marking arrived":undefined} onClick={()=>setResStatus(res.id,"ready")}>{isBusy?"…":"✓ Mark Arrived"}</button>}
                         {(res.status==="arrived"||res.status==="ready")&&<button className="btn btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
                         {res.status!=="no-show"&&res.status!=="arrived"&&res.status!=="ready"&&<button className="btn btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
-                        {res.status==="no-show"&&<><span style={{color:"var(--warnL)",fontWeight:700,fontSize:"1rem",letterSpacing:".03em"}}>✗ No Show</span><button className="btn btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button></>}
+                        {res.status==="no-show"&&<><span style={{color:"#f87171",fontWeight:700,fontSize:"1rem",letterSpacing:".03em"}}>✗ No Show</span><button className="btn btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button></>}
                       </div>
                     )}
                     {/* ── Players — always visible ── */}
