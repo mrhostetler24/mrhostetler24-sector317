@@ -53,6 +53,23 @@ function buildLanes(date,startTime,reservations,resTypes,templates) {
   }
   return {tmpl,lanes};
 }
+function applyLaneOverrides(lanes,overrides,resTypes){
+  if(!Object.keys(overrides).length)return lanes;
+  const result=lanes.map(l=>({...l,reservations:[...l.reservations],playerCount:l.playerCount}));
+  for(const [resId,targetLaneNum] of Object.entries(overrides)){
+    const src=result.find(l=>l.reservations.some(r=>r.id===resId));
+    const tgt=result.find(l=>l.laneNum===Number(targetLaneNum));
+    if(!src||!tgt||src.laneNum===tgt.laneNum)continue;
+    const res=src.reservations.find(r=>r.id===resId);
+    src.reservations=src.reservations.filter(r=>r.id!==resId);
+    src.playerCount-=(res.playerCount||1);
+    tgt.reservations.push(res);
+    tgt.playerCount+=(res.playerCount||1);
+    if(tgt.type===null){const rt=resTypes.find(x=>x.id===res.typeId);if(rt){tgt.type=rt.style;tgt.mode=rt.mode;}}
+    if(src.reservations.length===0){src.type=null;src.mode=null;}
+  }
+  return result;
+}
 function openPlayCapacity(mode,allLanes){
   const cap=laneCapacity(mode);
   const modeLanes=allLanes.filter(l=>l.type==="open"&&l.mode===mode);
@@ -774,6 +791,108 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   );
 }
 
+function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onSave,onClose}){
+  const [pending,setPending]=useState({...laneOverrides});
+  const [pendingTeams,setPendingTeams]=useState({...versusTeams});
+  const lanes=applyLaneOverrides(rawLanes,pending,resTypes);
+  const activeLanes=lanes.filter(l=>l.type!==null);
+  const allLanes=lanes;
+
+  const moveRes=(resId,toLaneNum)=>setPending(p=>({...p,[resId]:toLaneNum}));
+
+  const getTeam=(resId,pid,players)=>{
+    if(pendingTeams[resId]?.[pid]!==undefined)return pendingTeams[resId][pid];
+    const idx=(players||[]).findIndex(p=>p.id===pid);
+    return idx<6?1:2;
+  };
+  const toggleTeam=(resId,pid,players)=>{
+    const cur=getTeam(resId,pid,players);
+    setPendingTeams(p=>({...p,[resId]:{...(p[resId]||{}),[pid]:cur===1?2:1}}));
+  };
+  const setAllTeam=(resId,players,team)=>{
+    const batch={};(players||[]).forEach(pl=>{batch[pl.id]=team;});
+    setPendingTeams(p=>({...p,[resId]:{...(p[resId]||{}),...batch}}));
+  };
+
+  const fmt12=t=>{if(!t)return"";const[h,m]=t.split(":");const hr=+h;return`${hr>12?hr-12:hr===0?12:hr}:${m} ${hr>=12?"PM":"AM"}`;};
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.72)",zIndex:3000,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}} onClick={onClose}>
+      <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:12,width:"100%",maxWidth:900,maxHeight:"90vh",display:"flex",flexDirection:"column",overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"1rem 1.25rem",borderBottom:"1px solid var(--bdr)",flexShrink:0}}>
+          <div style={{fontWeight:700,fontSize:"1.05rem",color:"var(--txt)"}}>⇄ Arrange Lanes · {fmt12(time)}</div>
+          <button style={{background:"none",border:"none",color:"var(--muted)",fontSize:"1.4rem",cursor:"pointer",lineHeight:1,padding:".2rem .5rem"}} onClick={onClose}>×</button>
+        </div>
+        <div style={{overflowY:"auto",padding:"1rem 1.25rem",flex:1}}>
+          <div style={{display:"flex",gap:"1rem",alignItems:"flex-start"}}>
+            {allLanes.map(lane=>{
+              return(
+                <div key={lane.laneNum} style={{flex:1,minWidth:0,background:"var(--bg)",border:"1px solid var(--bdr)",borderRadius:8,padding:".75rem"}}>
+                  <div style={{fontWeight:700,fontSize:".75rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",marginBottom:".6rem",display:"flex",alignItems:"center",gap:".4rem"}}>
+                    Lane {lane.laneNum}
+                    {lane.mode&&<span className={`badge b-${lane.mode}`}>{lane.mode}</span>}
+                    {lane.type&&<span className={`badge b-${lane.type}`}>{lane.type}</span>}
+                  </div>
+                  {lane.reservations.length===0&&<div style={{fontSize:".8rem",color:"var(--muted)",fontStyle:"italic",padding:".3rem 0"}}>Empty</div>}
+                  {lane.reservations.map(res=>{
+                    const rt=resTypes.find(x=>x.id===res.typeId);
+                    const players=res.players||[];
+                    const isVs=rt?.mode==="versus";
+                    const resMoveTargets=activeLanes.filter(l=>l.laneNum!==lane.laneNum&&l.mode===rt?.mode).concat(allLanes.filter(l=>l.type===null&&l.laneNum!==lane.laneNum));
+                    return(
+                      <div key={res.id} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".55rem .65rem",marginBottom:".5rem"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:".4rem",marginBottom:".35rem",flexWrap:"wrap"}}>
+                          <span style={{fontWeight:700,fontSize:".88rem",color:"var(--txt)",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{res.customerName}</span>
+                          <span style={{fontSize:".75rem",color:"var(--muted)"}}>👥{res.playerCount}</span>
+                          {resMoveTargets.map(tgt=>(
+                            <button key={tgt.laneNum} className="btn btn-s" style={{fontSize:".7rem",padding:".18rem .5rem",whiteSpace:"nowrap"}} onClick={()=>moveRes(res.id,tgt.laneNum)}>→ L{tgt.laneNum}</button>
+                          ))}
+                        </div>
+                        {isVs&&players.length>0&&(()=>{
+                          const t1=players.filter(p=>getTeam(res.id,p.id,players)===1);
+                          const t2=players.filter(p=>getTeam(res.id,p.id,players)===2);
+                          return(
+                            <div style={{display:"flex",gap:".4rem"}}>
+                              {[{num:1,label:"Hunters",list:t1},{num:2,label:"Coyotes",list:t2}].map(({num,label,list})=>(
+                                <div key={num} style={{flex:1,background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:5,padding:".35rem .45rem"}}>
+                                  <div style={{display:"flex",alignItems:"center",gap:".3rem",marginBottom:".25rem"}}>
+                                    <span style={{fontWeight:700,fontSize:".68rem",color:"var(--muted)",textTransform:"uppercase",flex:1}}>{label}</span>
+                                    <button style={{fontSize:".65rem",padding:".1rem .35rem",border:"1px solid var(--bdr)",borderRadius:4,background:"none",color:"var(--muted)",cursor:"pointer"}} onClick={()=>setAllTeam(res.id,players,num)}>All</button>
+                                  </div>
+                                  {list.length===0&&<div style={{fontSize:".75rem",color:"var(--muted)"}}>—</div>}
+                                  {list.map(pl=>(
+                                    <div key={pl.id} style={{display:"flex",alignItems:"center",gap:".3rem",padding:".2rem 0"}}>
+                                      <span style={{flex:1,fontSize:".8rem",color:"var(--txt)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pl.name}</span>
+                                      <button style={{fontSize:".65rem",padding:".1rem .35rem",border:`1px solid ${num===1?"var(--acc)":"var(--warn)"}`,borderRadius:4,background:"none",color:num===1?"var(--accB)":"var(--warnL)",cursor:"pointer"}} onClick={()=>toggleTeam(res.id,pl.id,players)}>{num===1?"↓T2":"↑T1"}</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                        {!isVs&&players.length>0&&(
+                          <div style={{display:"flex",flexWrap:"wrap",gap:".25rem",marginTop:".2rem"}}>
+                            {players.map(pl=><span key={pl.id} style={{fontSize:".78rem",color:"var(--txt)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:".15rem .4rem"}}>{pl.name}</span>)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:".65rem",padding:".85rem 1.25rem",borderTop:"1px solid var(--bdr)",flexShrink:0}}>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-p" onClick={()=>onSave(pending,pendingTeams)}>Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,setUsers,activeWaiverDoc,currentUser}){
   const [expandedSlot,setExpandedSlot]=useState(null);
   const [expandedRes,setExpandedRes]=useState({});
@@ -782,6 +901,8 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [addingTo,setAddingTo]=useState(null);
   const [addingToTeam,setAddingToTeam]=useState(null);
   const [versusTeams,setVersusTeams]=useState({});
+  const [laneOverrides,setLaneOverrides]=useState({});
+  const [showLaneOverride,setShowLaneOverride]=useState(null);
   const [addInput,setAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
   const [wiStep,setWiStep]=useState("details");
   const [sendConfirm,setSendConfirm]=useState(null);
@@ -858,7 +979,8 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         const time=entry;const isHist=historySlots.includes(time);
         const slotResItems=todayRes.filter(r=>r.startTime===time);
         const tmpl=todayTmpls.find(t=>t.startTime===time);
-        const {lanes}=buildLanes(viewDate,time,reservations,resTypes,sessionTemplates);
+        const {lanes:rawLanes}=buildLanes(viewDate,time,reservations,resTypes,sessionTemplates);
+        const lanes=applyLaneOverrides(rawLanes,laneOverrides,resTypes);
         const activeLanes=lanes.filter(l=>l.type!==null);
         const laneReady=lane=>lane.reservations.length>0&&lane.reservations.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
         const allLanesReady=activeLanes.length>0?activeLanes.every(laneReady):slotResItems.length>0&&slotResItems.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
@@ -951,12 +1073,11 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                     {/* ── Players — always visible ── */}
                     <div style={{borderTop:"1px solid var(--bdr)",padding:".65rem 1rem"}}>
                       {rt?.mode==="versus"?(()=>{
-                        const isPrivVs=rt?.style==="private";
                         const getTeam=pid=>{if(versusTeams[res.id]?.[pid]!==undefined)return versusTeams[res.id][pid];const idx=players.findIndex(p=>p.id===pid);return idx<6?1:2;};
                         const t1=players.filter(p=>getTeam(p.id)===1);
                         const t2=players.filter(p=>getTeam(p.id)===2);
                         const switchT=pid=>setVersusTeams(prev=>({...prev,[res.id]:{...(prev[res.id]||{}),[pid]:getTeam(pid)===1?2:1}}));
-                        const pRow=(player,teamNum)=>{const wOk=playerWaiverOk(player);return(<div key={player.id} style={{display:"flex",alignItems:"center",gap:".35rem",padding:".4rem 0",borderBottom:"1px solid var(--bdr)"}}><span style={{flex:1,fontSize:".88rem",color:"var(--txt)",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{player.name||"—"}</span>{isPrivVs&&<button style={{background:"none",border:"1px solid var(--bdr)",borderRadius:5,color:"var(--txt)",cursor:"pointer",fontSize:".82rem",padding:".35rem .6rem",flexShrink:0}} onClick={()=>switchT(player.id)}>{teamNum===1?"↓T2":"↑T1"}</button>}{!player.userId&&<span style={{fontSize:".65rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .3rem",flexShrink:0}}>guest</span>}{player.userId?(wOk?<span style={{color:"var(--ok)",fontSize:".78rem",fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>✓W</span>:<button className="btn btn-warn" style={{whiteSpace:"nowrap",flexShrink:0}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign</button>):<span style={{fontSize:".68rem",color:"var(--muted)",flexShrink:0}}>—</span>}<button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.1rem",padding:".35rem .6rem",lineHeight:1,flexShrink:0,minWidth:40}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button></div>);};
+                        const pRow=(player,teamNum)=>{const wOk=playerWaiverOk(player);return(<div key={player.id} style={{display:"flex",alignItems:"center",gap:".35rem",padding:".4rem 0",borderBottom:"1px solid var(--bdr)"}}><span style={{flex:1,fontSize:".88rem",color:"var(--txt)",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{player.name||"—"}</span><button style={{background:"none",border:"1px solid var(--bdr)",borderRadius:5,color:"var(--txt)",cursor:"pointer",fontSize:".82rem",padding:".35rem .6rem",flexShrink:0}} onClick={()=>switchT(player.id)}>{teamNum===1?"↓T2":"↑T1"}</button>{!player.userId&&<span style={{fontSize:".65rem",color:"var(--muted)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:"1px .3rem",flexShrink:0}}>guest</span>}{player.userId?(wOk?<span style={{color:"var(--ok)",fontSize:".78rem",fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>✓W</span>:<button className="btn btn-warn" style={{whiteSpace:"nowrap",flexShrink:0}} onClick={()=>{setSigningFor({player,resId:res.id});setSignedName(player.name||"");}}>Sign</button>):<span style={{fontSize:".68rem",color:"var(--muted)",flexShrink:0}}>—</span>}<button style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",fontSize:"1.1rem",padding:".35rem .6rem",lineHeight:1,flexShrink:0,minWidth:40}} onClick={()=>doRemovePlayer(res.id,player.id)}>×</button></div>);};
                         const addPanel=teamNum=>{const isAddingThisTeam=addingTo===res.id&&addingToTeam===teamNum;const tPlayers=teamNum===1?t1:t2;const teamFull=tPlayers.length>=6;if(isAddingThisTeam){return(<div style={{marginTop:".4rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".5rem .65rem"}}><div style={{display:"flex",gap:".35rem",alignItems:"center",marginBottom:".3rem"}}><div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={addInput.phone} onChange={e=>setAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doAddLookup(res.id)} placeholder="Phone" autoFocus style={{fontSize:".85rem"}}/></div>{(addInput.lookupStatus==="idle"||addInput.lookupStatus==="searching")&&<button className="btn btn-s" disabled={cleanPh(addInput.phone).length<10||addInput.lookupStatus==="searching"} onClick={()=>doAddLookup(res.id)}>{addInput.lookupStatus==="searching"?"…":"→"}</button>}{addInput.lookupStatus!=="idle"&&addInput.lookupStatus!=="searching"&&<button className="btn btn-s" onClick={resetAddInput}>✕</button>}<button className="btn btn-s" onClick={()=>{setAddingTo(null);setAddingToTeam(null);resetAddInput();}}>×</button></div>{addInput.lookupStatus==="found"&&addInput.foundUserId&&(()=>{const u=users.find(x=>x.id===addInput.foundUserId);return<div style={{display:"flex",alignItems:"center",gap:".4rem",marginBottom:".3rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".82rem"}}>✓ {u?.name||addInput.name}</span>{u?.authProvider&&<span style={{fontSize:".68rem",color:"var(--muted)"}}>({u.authProvider})</span>}</div>;})()}{addInput.lookupStatus==="duplicate"&&<div style={{background:"rgba(220,60,60,.1)",border:"1px solid rgba(220,60,60,.4)",borderRadius:5,padding:".35rem .55rem",marginBottom:".3rem",fontSize:".79rem",color:"var(--danger)",fontWeight:600}}>{addInput.name} is already assigned to this time slot.</div>}{(addInput.lookupStatus==="notfound"||addInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".35rem",alignItems:"center"}}><input placeholder="Name" value={addInput.name} onChange={e=>setAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&addInput.name.trim()&&doAddPlayer(res.id)} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".35rem .5rem",color:"var(--txt)",fontSize:".85rem"}}/><button className="btn btn-p" disabled={!addInput.name.trim()} onClick={()=>doAddPlayer(res.id)}>Add</button></div>}{addInput.lookupStatus==="notfound"&&<div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".2rem"}}>No account — type name to add as guest.</div>}</div>);}if(!teamFull&&canAddMore){return<button className="btn btn-s" style={{width:"100%",marginTop:".5rem",fontSize:".9rem",padding:".6rem 0"}} onClick={()=>{setAddingTo(res.id);setAddingToTeam(teamNum);resetAddInput();}}>+ Add to Team {teamNum}</button>;}return null;};
                         return(<div><div style={{fontWeight:600,fontSize:".78rem",color:"var(--muted)",marginBottom:".5rem",textTransform:"uppercase",letterSpacing:".05em"}}>Players <span style={{textTransform:"none",fontWeight:400,color:players.length>=maxForRes?"var(--danger)":"var(--muted)"}}>{players.length}/{maxForRes}</span></div><div style={{display:"flex",flexDirection:"column",gap:".65rem"}}>{[1,2].map(tn=>{const tPlayers=tn===1?t1:t2;return(<div key={tn} style={{background:"var(--bg)",border:"1px solid var(--bdr)",borderRadius:6,padding:".5rem .6rem"}}><div style={{fontWeight:700,fontSize:".73rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".04em",marginBottom:".35rem"}}>Team {tn} <span style={{fontWeight:400}}>({tPlayers.length}/6)</span></div>{tPlayers.length===0&&<div style={{fontSize:".78rem",color:"var(--muted)",padding:".2rem 0"}}>—</div>}{tPlayers.map(p=>pRow(p,tn))}{addPanel(tn)}</div>);})}</div></div>);
                       })():(
@@ -996,8 +1117,10 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                   </div>
                 );
               };
+              const hasMatchingModes=activeLanes.some(l=>activeLanes.some(l2=>l2.laneNum!==l.laneNum&&l2.mode===l.mode));
               return(
                 <div style={{borderTop:"1px solid var(--bdr)",padding:"1rem 1.2rem"}}>
+                  {activeLanes.length>1&&hasMatchingModes&&<div style={{display:"flex",justifyContent:"flex-end",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>setShowLaneOverride({time,rawLanes})}>⇄ Arrange Lanes</button></div>}
                   {activeLanes.length>0?(
                     <div style={{display:"flex",gap:"1rem",alignItems:"flex-start"}}>
                     {activeLanes.map(lane=>(
@@ -1149,6 +1272,15 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
           <div className="ma"><button className="btn btn-p" onClick={()=>setShowMerch(false)}>Close</button></div>
         </div></div>
       )}
+      {showLaneOverride&&<LaneOverrideModal
+        time={showLaneOverride.time}
+        rawLanes={showLaneOverride.rawLanes}
+        laneOverrides={laneOverrides}
+        versusTeams={versusTeams}
+        resTypes={resTypes}
+        onClose={()=>setShowLaneOverride(null)}
+        onSave={(newOverrides,newTeams)=>{setLaneOverrides(newOverrides);setVersusTeams(newTeams);setShowLaneOverride(null);}}
+      />}
       {scoringSlot&&<ScoringModal
         lanes={scoringSlot.lanes}
         resTypes={resTypes}
