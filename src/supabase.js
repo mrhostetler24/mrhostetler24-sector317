@@ -243,7 +243,10 @@ export async function createGuestUser({ name, phone, createdByUserId }) {
       p_created_by_user_id: createdByUserId ?? null,
       p_leaderboard_name:   leaderboardName,
     })
-  if (!rpcErr && rpcData) return toUser(rpcData)
+  if (!rpcErr && rpcData) {
+    const row = Array.isArray(rpcData) ? rpcData[0] : rpcData
+    return toUser(row)
+  }
 
   // Fallback: old RPC signature (before migration adds p_leaderboard_name)
   const { data: rpcOld, error: rpcOldErr } = await supabase
@@ -253,7 +256,8 @@ export async function createGuestUser({ name, phone, createdByUserId }) {
       p_created_by_user_id: createdByUserId ?? null,
     })
   if (!rpcOldErr && rpcOld) {
-    const created = toUser(rpcOld)
+    const row = Array.isArray(rpcOld) ? rpcOld[0] : rpcOld
+    const created = toUser(row)
     // Best-effort patch of leaderboard name on the created row
     await supabase.from('users').update({ leaderboard_name: leaderboardName }).eq('id', created.id)
     return { ...created, leaderboardName }
