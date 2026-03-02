@@ -313,7 +313,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     </div>
   );
 
-  const EnvControls=({laneIdx})=>{
+  const renderEnvControls=(laneIdx)=>{
     const s=settings[run][laneIdx];
     const selVis=VISUAL_OPTIONS.find(v=>v.ui===s.uiVisual)||VISUAL_OPTIONS[0];
     const selAud=AUDIO_OPTIONS.find(a=>a.ui===s.uiAudio)||AUDIO_OPTIONS[1];
@@ -349,21 +349,21 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     </>);
   };
 
-  const ObjSelect=({laneIdx})=>{
+  const renderObjSelect=(laneIdx)=>{
     const s=settings[run][laneIdx];
     const selObj=objectives.find(o=>o.id===s.objectiveId);
-    return(<div>
-      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem',textAlign:'center'}}>Objective</div>
+    return(<div style={{textAlign:'center'}}>
+      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>Objective</div>
       <select value={s.objectiveId||''} onChange={e=>setSetting(laneIdx,'objectiveId',e.target.value||null)}
-        style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.5rem .75rem',color:'var(--txt)',fontSize:'.88rem'}}>
+        style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.5rem .75rem',color:'var(--txt)',fontSize:'.88rem',textAlign:'center'}}>
         <option value=''>— Select objective —</option>
         {objectives.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
       </select>
-      {selObj?.description&&<div style={{fontSize:'.78rem',color:'var(--muted)',marginTop:'.35rem',lineHeight:1.5,fontStyle:'italic'}}>{selObj.description}</div>}
+      {selObj?.description&&<div style={{fontSize:'.78rem',color:'var(--muted)',marginTop:'.35rem',lineHeight:1.5,fontStyle:'italic',textAlign:'center'}}>{selObj.description}</div>}
     </div>);
   };
 
-  const FinishPanel=({laneIdx})=>{
+  const renderFinishPanel=(laneIdx)=>{
     const ft=laneFinish[laneIdx];
     const isScored=isLaneScored(laneIdx,null)||isLaneScored(laneIdx,1);
     return(<div style={{textAlign:'center',marginBottom:'.75rem'}}>
@@ -473,10 +473,10 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         {coyotes.map(p=>pRow(p,2))}
       </div>
       {/* Objective */}
-      <ObjSelect laneIdx={laneIdx}/>
+      {renderObjSelect(laneIdx)}
       {/* Env Controls */}
       <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.6rem'}}>
-        <EnvControls laneIdx={laneIdx}/>
+        {renderEnvControls(laneIdx)}
       </div>
       {/* Winner + Obj completed */}
       <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.5rem'}}>
@@ -507,7 +507,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
               background:s.targetsEliminated?'var(--accD)':'var(--bg)',
               color:s.targetsEliminated?'var(--accB)':'var(--muted)',
               fontWeight:s.targetsEliminated?700:400}}>
-            {s.targetsEliminated?'✓ ':''}Targets Out
+            {s.targetsEliminated?'✓ ':''}Targets Elim
           </button>
         </div>
       </div>
@@ -593,10 +593,10 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         <div style={{fontSize:'.78rem',color:'var(--muted)',lineHeight:1.5,fontStyle:'italic',textAlign:'center'}}>{selDiff.desc}</div>
       </div>
       {/* Objective */}
-      <ObjSelect laneIdx={laneIdx}/>
+      {renderObjSelect(laneIdx)}
       {/* Env controls */}
       <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.6rem'}}>
-        <EnvControls laneIdx={laneIdx}/>
+        {renderEnvControls(laneIdx)}
       </div>
       {/* Outcome toggles */}
       <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
@@ -607,7 +607,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
               background:s.targetsEliminated?'var(--accD)':'var(--bg)',
               color:s.targetsEliminated?'var(--accB)':'var(--muted)',
               fontWeight:s.targetsEliminated?700:400}}>
-            {s.targetsEliminated?'✓ ':''}Targets Out
+            {s.targetsEliminated?'✓ ':''}Targets Elim
           </button>
           <button type="button" onClick={()=>setSetting(laneIdx,'objectiveComplete',!s.objectiveComplete)}
             style={{flex:1,padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
@@ -717,7 +717,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
             <div style={{display:'flex',gap:'1rem',alignItems:'flex-start'}}>
               {displayOrder.map((li,pos)=>(
                 <div key={li} style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:'.6rem'}}>
-                  <FinishPanel laneIdx={li}/>
+                  {renderFinishPanel(li)}
                   {renderLaneCard(li,pos===1)}
                 </div>
               ))}
