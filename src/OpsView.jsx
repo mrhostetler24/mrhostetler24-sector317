@@ -214,13 +214,13 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const lane=lanes[laneIdx];const s=settings[run][laneIdx];
     const res=lane.reservations[0];if(!res)return;
     const runNum=run;
-    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete});
+    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:s.objectiveComplete});
     const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!s.objectiveComplete});
     const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
     const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
     setSaving(laneIdx);
     try{
-      const r1=await createRun({...base,team:1,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,score:huntersScore});
+      const r1=await createRun({...base,team:1,targetsEliminated:false,objectiveComplete:s.objectiveComplete,score:huntersScore});
       const r2=await createRun({...base,team:2,targetsEliminated:false,objectiveComplete:!s.objectiveComplete,score:coyotesScore});
       setScored(p=>({...p,[laneKey(runNum,laneIdx,1)]:r1,[laneKey(runNum,laneIdx,2)]:r2}));
     }catch(e){alert("Score error: "+e.message);}
@@ -492,24 +492,14 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
               </button>);})}
           </div>
         </div>
-        <div style={{display:'flex',gap:'.5rem'}}>
-          <button type="button" onClick={()=>setSetting(laneIdx,'objectiveComplete',!s.objectiveComplete)}
-            style={{flex:1,padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
-              border:`2px solid ${s.objectiveComplete?'var(--acc)':'var(--bdr)'}`,
-              background:s.objectiveComplete?'var(--accD)':'var(--bg)',
-              color:s.objectiveComplete?'var(--accB)':'var(--muted)',
-              fontWeight:s.objectiveComplete?700:400}}>
-            {s.objectiveComplete?'✓ ':''}Obj Complete
-          </button>
-          <button type="button" onClick={()=>setSetting(laneIdx,'targetsEliminated',!s.targetsEliminated)}
-            style={{flex:1,padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
-              border:`2px solid ${s.targetsEliminated?'var(--acc)':'var(--bdr)'}`,
-              background:s.targetsEliminated?'var(--accD)':'var(--bg)',
-              color:s.targetsEliminated?'var(--accB)':'var(--muted)',
-              fontWeight:s.targetsEliminated?700:400}}>
-            {s.targetsEliminated?'✓ ':''}Targets Elim
-          </button>
-        </div>
+        <button type="button" onClick={()=>setSetting(laneIdx,'objectiveComplete',!s.objectiveComplete)}
+          style={{width:'100%',padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
+            border:`2px solid ${s.objectiveComplete?'var(--acc)':'var(--bdr)'}`,
+            background:s.objectiveComplete?'var(--accD)':'var(--bg)',
+            color:s.objectiveComplete?'var(--accB)':'var(--muted)',
+            fontWeight:s.objectiveComplete?700:400}}>
+          {s.objectiveComplete?'✓ ':''}Hunters Completed Objective
+        </button>
       </div>
       {/* Score row */}
       {!isScoredVs?(
