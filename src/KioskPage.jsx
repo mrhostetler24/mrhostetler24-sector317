@@ -140,12 +140,12 @@ export default function KioskPage() {
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
   const [kioskUserId, setKioskUserId] = useState(null)
   const [busyMsg, setBusyMsg] = useState(null)
-  const [settling, setSettling] = useState(false)
+  const [scopeAnim, setScopeAnim] = useState(null) // 'open' | 'close' | null
 
   // ── Refs ──
   const exitTaps = useRef([])
   const exitTimer = useRef(null)
-  const settlingTimer = useRef(null)
+  const scopeTimer = useRef(null)
   const inactivityRef = useRef(null)
   const warnRef = useRef(null)
   const warnIntervalRef = useRef(null)
@@ -488,8 +488,8 @@ export default function KioskPage() {
     <div style={{ ...S.page, cursor: 'pointer', userSelect: 'none', paddingBottom: '16rem' }}
       onPointerDown={() => {
         enterFullscreen(); setPhone('')
-        setSettling(true); clearTimeout(settlingTimer.current)
-        settlingTimer.current = setTimeout(() => setSettling(false), 550)
+        setScopeAnim('open'); clearTimeout(scopeTimer.current)
+        scopeTimer.current = setTimeout(() => setScopeAnim(null), 520)
         setPhase('phone')
       }}>
       <img src="/logo.png" alt="Sector 317" style={{ height: 120, opacity: .9, marginBottom: '2rem' }} />
@@ -516,31 +516,38 @@ export default function KioskPage() {
     <div style={S.page}>
       {inactivityWarn && <InactivityWarning />}
       <style>{`
-        @keyframes kTargetIn{0%{opacity:0;transform:scale(0.93);border-color:#c8e03a;box-shadow:0 0 32px rgba(200,224,58,.45)}40%{border-color:#c8e03a;box-shadow:0 0 18px rgba(200,224,58,.25)}100%{opacity:1;transform:scale(1);border-color:var(--bdr);box-shadow:none}}
-        @keyframes kXhFade{0%{opacity:1}70%{opacity:.5}100%{opacity:0}}
-        @keyframes kBracket{from{stroke-dashoffset:60}to{stroke-dashoffset:0}}
+        @keyframes kScopeOpen{0%{width:0px;height:0px}100%{width:6000px;height:6000px}}
+        @keyframes kScopeClose{0%{width:6000px;height:6000px}100%{width:0px;height:0px}}
+        @keyframes kRedIn{0%{opacity:1;transform:translate(-50%,-50%) scale(1.4)}100%{opacity:0;transform:translate(-50%,-50%) scale(0.6)}}
+        @keyframes kRedOut{0%{opacity:0;transform:translate(-50%,-50%) scale(0.6)}60%{opacity:1}100%{opacity:0.7;transform:translate(-50%,-50%) scale(1)}}
+        @keyframes kCardIn{from{opacity:0;transform:scale(0.94)}to{opacity:1;transform:scale(1)}}
       `}</style>
-      {/* Crosshair overlay — visible only while settling */}
-      {settling && (
-        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', zIndex: 50, animation: 'kXhFade 0.55s ease-out forwards' }}>
-          <svg width="380" height="380" viewBox="0 0 380 380" fill="none">
-            {/* crosshair lines */}
-            <line x1="0" y1="190" x2="150" y2="190" stroke="#c8e03a" strokeWidth="1" opacity=".6"/>
-            <line x1="230" y1="190" x2="380" y2="190" stroke="#c8e03a" strokeWidth="1" opacity=".6"/>
-            <line x1="190" y1="0" x2="190" y2="150" stroke="#c8e03a" strokeWidth="1" opacity=".6"/>
-            <line x1="190" y1="230" x2="190" y2="380" stroke="#c8e03a" strokeWidth="1" opacity=".6"/>
-            {/* center reticle */}
-            <circle cx="190" cy="190" r="22" stroke="#c8e03a" strokeWidth="1" opacity=".4"/>
-            <circle cx="190" cy="190" r="4" fill="#c8e03a" opacity=".9"/>
-            {/* corner brackets — animated draw */}
-            <path d="M90 50 L50 50 L50 90"   stroke="#c8e03a" strokeWidth="3" strokeLinecap="round" strokeDasharray="60" style={{animation:'kBracket .3s ease-out both'}}/>
-            <path d="M290 50 L330 50 L330 90"  stroke="#c8e03a" strokeWidth="3" strokeLinecap="round" strokeDasharray="60" style={{animation:'kBracket .3s ease-out both'}}/>
-            <path d="M90 330 L50 330 L50 290"  stroke="#c8e03a" strokeWidth="3" strokeLinecap="round" strokeDasharray="60" style={{animation:'kBracket .3s ease-out both'}}/>
-            <path d="M290 330 L330 330 L330 290" stroke="#c8e03a" strokeWidth="3" strokeLinecap="round" strokeDasharray="60" style={{animation:'kBracket .3s ease-out both'}}/>
-          </svg>
+
+      {/* Red dot sight overlay */}
+      {scopeAnim && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, pointerEvents: 'none', overflow: 'hidden' }}>
+          {/* Aperture circle — box-shadow creates the surrounding darkness */}
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%,-50%)',
+            borderRadius: '50%',
+            boxShadow: '0 0 0 3000px rgba(0,0,0,0.97), 0 0 0 3px rgba(60,60,60,0.8)',
+            animation: scopeAnim === 'open'
+              ? 'kScopeOpen 0.48s cubic-bezier(0.4,0,0.2,1) forwards'
+              : 'kScopeClose 0.42s cubic-bezier(0.6,0,1,0.6) forwards',
+          }} />
+          {/* Red dot */}
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            width: 10, height: 10, borderRadius: '50%',
+            background: '#ff2020',
+            boxShadow: '0 0 10px 5px rgba(255,28,28,0.7)',
+            animation: scopeAnim === 'open' ? 'kRedIn 0.48s ease-out forwards' : 'kRedOut 0.42s ease-in forwards',
+          }} />
         </div>
       )}
-      <div style={{ ...S.card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', animation: 'kTargetIn 0.45s cubic-bezier(0.22,1,0.36,1) both', pointerEvents: settling ? 'none' : 'auto' }}>
+
+      <div style={{ ...S.card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', animation: 'kCardIn 0.35s ease-out both', animationDelay: '0.1s', pointerEvents: scopeAnim === 'open' ? 'none' : 'auto' }}>
         <div style={S.title}>Find Your Reservation</div>
         <div style={{ ...S.h2, textAlign: 'center', marginBottom: 0 }}>Enter your phone number</div>
         <NumPad value={phone} onChange={setPhone} mode="phone" />
@@ -549,7 +556,13 @@ export default function KioskPage() {
           onClick={doSearch}>
           Search →
         </button>
-        <button style={{ ...S.btn, ...S.btnS, marginTop: '-.4rem' }} onClick={() => { setPhone(''); setPhase('idle') }}>Cancel</button>
+        <button style={{ ...S.btn, ...S.btnS, marginTop: '-.4rem' }}
+          onClick={() => {
+            setScopeAnim('close'); clearTimeout(scopeTimer.current)
+            scopeTimer.current = setTimeout(() => { setScopeAnim(null); setPhone(''); setPhase('idle') }, 430)
+          }}>
+          Cancel
+        </button>
       </div>
     </div>
   )
