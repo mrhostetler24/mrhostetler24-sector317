@@ -926,7 +926,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                           ?<span style={{color:"#d4ec46",fontWeight:700,fontSize:"1rem",letterSpacing:".03em"}}>✓ Arrived</span>
                           :res.status!=="no-show"&&<button className="btn" style={{background:allWaiversOk||players.length===0?"rgba(212,236,70,.12)":"var(--surf)",color:allWaiversOk||players.length===0?"#d4ec46":"var(--muted)",border:`1px solid ${allWaiversOk||players.length===0?"rgba(212,236,70,.3)":"var(--bdr)"}`}} disabled={isBusy||(players.length>0&&!allWaiversOk)} title={players.length>0&&!allWaiversOk?"All waivers must be signed before marking arrived":undefined} onClick={()=>setResStatus(res.id,"ready")}>{isBusy?"…":"✓ Mark Arrived"}</button>}
                         {(res.status==="arrived"||res.status==="ready")&&<button className="btn btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
-                        {res.status!=="no-show"&&res.status!=="arrived"&&res.status!=="ready"&&<button className="btn btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
+                        {res.status!=="no-show"&&res.status!=="arrived"&&res.status!=="ready"&&<button className="btn btn-d" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
                         {res.status==="no-show"&&<><span style={{color:"#f87171",fontWeight:700,fontSize:"1rem",letterSpacing:".03em"}}>✗ No Show</span><button className="btn btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button></>}
                       </div>
                     )}
