@@ -189,12 +189,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     return players.findIndex(p=>p.id===pid)<6?1:2;
   };
   const setPlayerTeam=(laneIdx,pid,team)=>setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),[pid]:team}}}));
-  const swapAllTeams=(laneIdx,res)=>{
-    const players=res.players||[];
-    const batch={};
-    players.forEach(pl=>{const t=getTeam(laneIdx,res,pl.id);batch[pl.id]=t===1?2:1;});
-    setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),...batch}}}));
-  };
+
 
   const laneKey=(r,li,team)=>`${r}-${li}${team!=null?'-t'+team:''}`;
   const isLaneScored=(laneIdx,team)=>scored[laneKey(run,laneIdx,team)]!=null;
@@ -397,33 +392,55 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
 
   const renderVersusCard=(laneIdx,mirror=false)=>{
     const lane=lanes[laneIdx];const s=settings[run][laneIdx];
-    const res=lane.reservations[0];if(!res)return<div style={{color:'var(--muted)',padding:'1rem',textAlign:'center',fontSize:'.9rem'}}>No reservation in this lane.</div>;
-    const players=res.players||[];
-    const hunters=players.filter(p=>getTeam(laneIdx,res,p.id)===1);
-    const coyotes=players.filter(p=>getTeam(laneIdx,res,p.id)===2);
+    const allRes=lane.reservations;
+    if(!allRes.length)return<div style={{color:'var(--muted)',padding:'1rem',textAlign:'center',fontSize:'.9rem'}}>No reservation in this lane.</div>;
+    const rt=resTypes.find(x=>x.id===allRes[0].typeId);
+    // Aggregate all players across all reservations in this lane
+    const allPlayers=allRes.flatMap(r=>r.players||[]);
+    // Lane-scoped team getter: default splits by overall position across all players
+    const getLaneTeam=pid=>{
+      const ov=runTeams[run]?.[laneIdx]?.[pid];if(ov!==undefined)return ov;
+      const idx=allPlayers.findIndex(p=>p.id===pid);return idx<6?1:2;
+    };
+    const hunters=allPlayers.filter(p=>getLaneTeam(p.id)===1);
+    const coyotes=allPlayers.filter(p=>getLaneTeam(p.id)===2);
     const huntersAvg=teamAvg(hunters);const coyotesAvg=teamAvg(coyotes);
-    const rt=resTypes.find(x=>x.id===res.typeId);
-    const bookerNames=[...new Set(lane.reservations.map(r=>r.customerName).filter(Boolean))].join(' · ');
-    const vsObjComplete=s.winnerTeam===1; // hunters win = obj complete, coyotes win = obj failed
+    const bookerNames=[...new Set(allRes.map(r=>r.customerName).filter(Boolean))].join(' · ');
+    const vsObjComplete=s.winnerTeam===1;
     const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:vsObjComplete});
     const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!vsObjComplete});
     const isScoredVs=isLaneScored(laneIdx,1)&&isLaneScored(laneIdx,2);
     const isSavingThis=saving===laneIdx;
     const canScore=s.winnerTeam!=null&&laneFinish[laneIdx]!=null&&!isScoredVs;
+    // Set all players in one reservation to a team
+    const setResAllTeam=(resObj,team)=>{
+      const batch={};(resObj.players||[]).forEach(p=>{batch[p.id]=team;});
+      setRunTeams(prev=>({...prev,[run]:{...prev[run],[laneIdx]:{...(prev[run][laneIdx]||{}),...batch}}}));
+    };
+    // Swap all players across entire lane
+    const swapAll=()=>{
+      const batch={};allPlayers.forEach(p=>{batch[p.id]=getLaneTeam(p.id)===1?2:1;});
+      setRunTeams(prev=>({...prev,[run]:{...prev[run],[laneIdx]:{...(prev[run][laneIdx]||{}),...batch}}}));
+    };
 
-    const pRow=(player,teamNum)=>{
+    const pRow=player=>{
       const st=playerStats[player.userId]||{};
+      const t=getLaneTeam(player.id);
       const wl=Number(st.total_runs)>0?`${st.versus_wins??0}-${st.versus_losses??0}`:'—';
       const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(0):'—';
       const runs=st.total_runs??0;
-      return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.35rem 0',borderBottom:'1px solid rgba(255,255,255,.05)',flexWrap:'wrap'}}>
-        <span style={{flex:1,minWidth:0,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
-        <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{runs>0?`${runs}r`:'new'}</span>
-        <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{avg}</span>
-        <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:30,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{wl}</span>
-        <button style={{background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.75rem',padding:'.2rem .5rem',flexShrink:0}}
-          onClick={()=>setPlayerTeam(laneIdx,player.id,teamNum===1?2:1)}>
-          {teamNum===1?'↓':'↑'}
+      return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+        <span style={{flex:1,minWidth:0,fontSize:'.88rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
+        <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{runs>0?`${runs}r`:'new'}</span>
+        <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:26,textAlign:'right'}}>{avg}</span>
+        <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{wl}</span>
+        <button type="button"
+          style={{minWidth:34,padding:'.2rem .4rem',borderRadius:4,fontSize:'.72rem',fontWeight:700,cursor:'pointer',flexShrink:0,
+            border:`1px solid ${t===1?'var(--acc)':'var(--warn)'}`,
+            background:t===1?'var(--accD)':'rgba(184,150,12,.15)',
+            color:t===1?'var(--accB)':'var(--warnL)'}}
+          onClick={()=>setPlayerTeam(laneIdx,player.id,t===1?2:1)}>
+          T{t}
         </button>
       </div>);
     };
@@ -437,37 +454,43 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
           <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{bookerNames}</span>
         </div>
       </div>
-      {/* Hunters */}
-      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
-        <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem'}}>
-          <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.05em'}}>Hunters</span>
-          {huntersAvg&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>avg {huntersAvg}</span>}
+      {/* Per-reservation assignment blocks */}
+      {allRes.map(resObj=>{
+        const resPlayers=resObj.players||[];
+        return(<div key={resObj.id} style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem',flexWrap:'wrap'}}>
+            <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--txt)',flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{resObj.customerName}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{resPlayers.length}/{resObj.playerCount}p</span>
+            <button type="button"
+              style={{padding:'.15rem .5rem',borderRadius:4,fontSize:'.72rem',fontWeight:700,cursor:'pointer',border:'1px solid var(--acc)',background:'var(--accD)',color:'var(--accB)'}}
+              onClick={()=>setResAllTeam(resObj,1)}>All T1</button>
+            <button type="button"
+              style={{padding:'.15rem .5rem',borderRadius:4,fontSize:'.72rem',fontWeight:700,cursor:'pointer',border:'1px solid var(--warn)',background:'rgba(184,150,12,.15)',color:'var(--warnL)'}}
+              onClick={()=>setResAllTeam(resObj,2)}>All T2</button>
+          </div>
+          {resPlayers.length===0&&<div style={{fontSize:'.8rem',color:'var(--muted)',padding:'.2rem 0'}}>No players added yet</div>}
+          {resPlayers.map(p=>pRow(p))}
+        </div>);
+      })}
+      {/* Combined team summary + VS divider */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.5rem .85rem'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
+          <div style={{flex:1,textAlign:'center'}}>
+            <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Hunters</div>
+            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{hunters.length}p{huntersAvg?` · avg ${huntersAvg}`:''}</div>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'.3rem'}}>
+            <img src="/vs.png" alt="VS" style={{width:44,height:44,filter:'drop-shadow(0 0 8px rgba(200,224,58,.6))',opacity:.9}}
+              onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='block';}}/>
+            <span style={{display:'none',fontWeight:900,fontSize:'1.4rem',color:'var(--acc)',letterSpacing:'.1em',fontStyle:'italic'}}>VS</span>
+            <button type="button" style={{background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.7rem',padding:'.15rem .45rem'}}
+              onClick={swapAll}>⇅ Swap All</button>
+          </div>
+          <div style={{flex:1,textAlign:'center'}}>
+            <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--warnL)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Coyotes</div>
+            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{coyotes.length}p{coyotesAvg?` · avg ${coyotesAvg}`:''}</div>
+          </div>
         </div>
-        <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.25rem',display:'flex',gap:'.5rem',paddingBottom:'.25rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-          <span style={{flex:1}}>Player</span><span style={{minWidth:28}}>Runs</span><span style={{minWidth:28,textAlign:'right'}}>Avg</span><span style={{minWidth:30,textAlign:'right'}}>W-L</span><span style={{width:34}}/>
-        </div>
-        {hunters.length===0&&<div style={{fontSize:'.82rem',color:'var(--muted)',padding:'.3rem 0'}}>No players on this team</div>}
-        {hunters.map(p=>pRow(p,1))}
-      </div>
-      {/* VS divider */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'1rem',padding:'.25rem 0'}}>
-        <img src="/vs.png" alt="VS" style={{width:52,height:52,filter:'drop-shadow(0 0 8px rgba(200,224,58,.6))',opacity:.9}}
-          onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='block';}}/>
-        <span style={{display:'none',fontWeight:900,fontSize:'1.8rem',color:'var(--acc)',letterSpacing:'.1em',fontStyle:'italic'}}>VS</span>
-        <button type="button" style={{background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.72rem',padding:'.2rem .55rem'}}
-          onClick={()=>swapAllTeams(laneIdx,res)}>⇅ Swap All</button>
-      </div>
-      {/* Coyotes */}
-      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
-        <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem'}}>
-          <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--warnL)',textTransform:'uppercase',letterSpacing:'.05em'}}>Coyotes</span>
-          {coyotesAvg&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>avg {coyotesAvg}</span>}
-        </div>
-        <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.25rem',display:'flex',gap:'.5rem',paddingBottom:'.25rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-          <span style={{flex:1}}>Player</span><span style={{minWidth:28}}>Runs</span><span style={{minWidth:28,textAlign:'right'}}>Avg</span><span style={{minWidth:30,textAlign:'right'}}>W-L</span><span style={{width:34}}/>
-        </div>
-        {coyotes.length===0&&<div style={{fontSize:'.82rem',color:'var(--muted)',padding:'.3rem 0'}}>No players on this team</div>}
-        {coyotes.map(p=>pRow(p,2))}
       </div>
       {/* Objective */}
       {renderObjSelect(laneIdx)}
