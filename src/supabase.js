@@ -695,9 +695,9 @@ export async function fetchRunsForReservations(reservationIds) {
   return data.map(toRun)
 }
 
-/** Create a new run record (timer started, no score yet) */
+/** Upsert a run record — inserts or updates on (reservation_id, run_number, team) */
 export async function createRun(run) {
-  const { data, error } = await supabase.from('session_runs').insert({
+  const { data, error } = await supabase.from('session_runs').upsert({
     reservation_id:     run.reservationId,
     run_number:         run.runNumber,
     structure:          run.structure ?? 'Alpha',
@@ -712,7 +712,8 @@ export async function createRun(run) {
     team:               run.team ?? null,
     live_op_difficulty: run.liveOpDifficulty ?? null,
     winning_team:       run.winningTeam ?? null,
-  }).select().single()
+  }, { onConflict: 'reservation_id,run_number,team', ignoreDuplicates: false })
+  .select().single()
   if (error) throw error
   return toRun(data)
 }

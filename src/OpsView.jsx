@@ -214,14 +214,15 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const lane=lanes[laneIdx];const s=settings[run][laneIdx];
     const res=lane.reservations[0];if(!res)return;
     const runNum=run;
-    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:s.objectiveComplete});
-    const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!s.objectiveComplete});
+    const objComplete=s.winnerTeam===1; // hunters win = they completed the objective
+    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:objComplete});
+    const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!objComplete});
     const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
     const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
     setSaving(laneIdx);
     try{
-      const r1=await createRun({...base,team:1,targetsEliminated:false,objectiveComplete:s.objectiveComplete,score:huntersScore});
-      const r2=await createRun({...base,team:2,targetsEliminated:false,objectiveComplete:!s.objectiveComplete,score:coyotesScore});
+      const r1=await createRun({...base,team:1,targetsEliminated:false,objectiveComplete:objComplete,score:huntersScore});
+      const r2=await createRun({...base,team:2,targetsEliminated:false,objectiveComplete:!objComplete,score:coyotesScore});
       setScored(p=>({...p,[laneKey(runNum,laneIdx,1)]:r1,[laneKey(runNum,laneIdx,2)]:r2}));
     }catch(e){alert("Score error: "+e.message);}
     setSaving(null);
@@ -406,8 +407,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const huntersAvg=teamAvg(hunters);const coyotesAvg=teamAvg(coyotes);
     const rt=resTypes.find(x=>x.id===res.typeId);
     const bookerNames=[...new Set(lane.reservations.map(r=>r.customerName).filter(Boolean))].join(' · ');
-    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete});
-    const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!s.objectiveComplete});
+    const vsObjComplete=s.winnerTeam===1; // hunters win = obj complete, coyotes win = obj failed
+    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:vsObjComplete});
+    const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!vsObjComplete});
     const isScoredVs=isLaneScored(laneIdx,1)&&isLaneScored(laneIdx,2);
     const isSavingThis=saving===laneIdx;
     const canScore=s.winnerTeam!=null&&laneFinish[laneIdx]!=null&&!isScoredVs;
@@ -492,14 +494,6 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
               </button>);})}
           </div>
         </div>
-        <button type="button" onClick={()=>setSetting(laneIdx,'objectiveComplete',!s.objectiveComplete)}
-          style={{width:'100%',padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
-            border:`2px solid ${s.objectiveComplete?'var(--acc)':'var(--bdr)'}`,
-            background:s.objectiveComplete?'var(--accD)':'var(--bg)',
-            color:s.objectiveComplete?'var(--accB)':'var(--muted)',
-            fontWeight:s.objectiveComplete?700:400}}>
-          {s.objectiveComplete?'✓ ':''}Hunters Completed Objective
-        </button>
       </div>
       {/* Score row */}
       {!isScoredVs?(
@@ -628,8 +622,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
 
   const renderLaneCard=(laneIdx,mirror=false)=>{
     const lane=lanes[laneIdx];if(!lane)return null;
-    const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
-    if(rt?.mode==='versus')return renderVersusCard(laneIdx,mirror);
+    if(lane.mode?.toLowerCase()==='versus')return renderVersusCard(laneIdx,mirror);
     return renderCoopCard(laneIdx,mirror);
   };
 
