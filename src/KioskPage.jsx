@@ -489,7 +489,7 @@ export default function KioskPage() {
       onPointerDown={() => {
         enterFullscreen(); setPhone('')
         setScopeAnim('open'); clearTimeout(scopeTimer.current)
-        scopeTimer.current = setTimeout(() => setScopeAnim(null), 520)
+        scopeTimer.current = setTimeout(() => setScopeAnim(null), 2100)
         setPhase('phone')
       }}>
       <img src="/logo.png" alt="Sector 317" style={{ height: 120, opacity: .9, marginBottom: '2rem' }} />
@@ -550,15 +550,15 @@ export default function KioskPage() {
             position: 'absolute', left: '50%',
             transform: 'translate(-50%, -50%)',
             animation: scopeAnim === 'open'
-              ? 'kSightUp 1.05s cubic-bezier(0.22,0.61,0.36,1) both'
-              : 'kSightDown 0.9s cubic-bezier(0.55,0,0.8,0.45) both',
+              ? 'kSightUp 2s cubic-bezier(0.22,0.61,0.36,1) both'
+              : 'kSightDown 1.4s cubic-bezier(0.55,0,0.8,0.45) both',
           }} />
           {/* Red crosshair reticle */}
           <svg style={{
             position: 'absolute', top: '50%', left: '50%',
             transform: 'translate(-50%,-50%)',
             filter: 'drop-shadow(0 0 5px rgba(255,30,30,0.85))',
-            animation: scopeAnim === 'open' ? 'kReticleFadeOut 1.05s ease-out forwards' : 'kReticleFadeIn 0.9s ease-in forwards',
+            animation: scopeAnim === 'open' ? 'kReticleFadeOut 2s ease-out forwards' : 'kReticleFadeIn 1.4s ease-in forwards',
           }} width="52" height="52" viewBox="0 0 52 52" fill="none">
             <line x1="0"  y1="26" x2="18" y2="26" stroke="#ff2222" strokeWidth="1.5"/>
             <line x1="34" y1="26" x2="52" y2="26" stroke="#ff2222" strokeWidth="1.5"/>
@@ -581,7 +581,7 @@ export default function KioskPage() {
         <button style={{ ...S.btn, ...S.btnS, marginTop: '-.4rem' }}
           onClick={() => {
             setScopeAnim('close'); clearTimeout(scopeTimer.current)
-            scopeTimer.current = setTimeout(() => { setScopeAnim(null); setPhone(''); setPhase('idle') }, 910)
+            scopeTimer.current = setTimeout(() => { setScopeAnim(null); setPhone(''); setPhase('idle') }, 1450)
           }}>
           Cancel
         </button>
