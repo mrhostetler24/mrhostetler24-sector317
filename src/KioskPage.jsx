@@ -238,7 +238,7 @@ export default function KioskPage() {
     document.documentElement.requestFullscreen?.().catch(() => {})
   }
 
-  // ── Exit tap pattern (TL ↔ BR alternating × 5) ──
+  // ── Exit tap pattern: document-level touchstart checks raw coordinates ──
   const recordTap = useCallback((corner) => {
     const taps = exitTaps.current
     const last = taps[taps.length - 1]
@@ -252,6 +252,20 @@ export default function KioskPage() {
     }
     exitTimer.current = setTimeout(() => { exitTaps.current = [] }, 8000)
   }, [])
+
+  useEffect(() => {
+    const ZONE = 140 // px from corner
+    const onTouch = (e) => {
+      const t = e.touches[0]
+      if (!t) return
+      const x = t.clientX, y = t.clientY
+      const w = window.innerWidth, h = window.innerHeight
+      if (x < ZONE && y < ZONE) recordTap('TL')
+      else if (x > w - ZONE && y > h - ZONE) recordTap('BR')
+    }
+    document.addEventListener('touchstart', onTouch, { passive: true })
+    return () => document.removeEventListener('touchstart', onTouch)
+  }, [recordTap])
 
   // ── Exit PIN ──
   const checkPin = useCallback(() => {
@@ -408,16 +422,6 @@ export default function KioskPage() {
     playerRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '.9rem 1rem', background: 'var(--bg)', borderRadius: 8, marginBottom: '.6rem', gap: '.5rem', flexWrap: 'wrap' },
   }
 
-  // ── Hidden exit corners ──
-  const ExitCorners = () => (
-    <>
-      <div style={{ position: 'fixed', top: 0, left: 0, width: 120, height: 120, zIndex: 9999, opacity: 0, touchAction: 'manipulation' }}
-        onPointerDown={e => { e.stopPropagation(); recordTap('TL') }} />
-      <div style={{ position: 'fixed', bottom: 0, right: 0, width: 120, height: 120, zIndex: 9999, opacity: 0, touchAction: 'manipulation' }}
-        onPointerDown={e => { e.stopPropagation(); recordTap('BR') }} />
-    </>
-  )
-
   // ── Exit PIN modal ──
   const ExitPinModal = () => (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
@@ -481,7 +485,6 @@ export default function KioskPage() {
   if (phase === 'idle') return (
     <div style={{ ...S.page, cursor: 'pointer', userSelect: 'none', paddingBottom: '16rem' }}
       onPointerDown={() => { enterFullscreen(); setPhone(''); setPhase('phone') }}>
-      <ExitCorners />
       <img src="/logo.png" alt="Sector 317" style={{ height: 120, opacity: .9, marginBottom: '2rem' }} />
       <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.2em', fontSize: '1.8rem', color: 'var(--acc)', textTransform: 'uppercase', marginBottom: '.7rem' }}>Self-Service Check-In</div>
       <div style={{ color: 'var(--muted)', fontSize: '1.05rem', marginBottom: '2.5rem', textAlign: 'center', maxWidth: 460 }}>Look up your reservation, manage your team, and sign your waiver.</div>
@@ -492,7 +495,7 @@ export default function KioskPage() {
         <div style={{ fontSize: '.8rem', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Scan to create or sign in</div>
       </div>
       {!isFullscreen && (
-        <button style={{ position: 'fixed', bottom: 16, right: 16, background: 'none', border: '1px solid var(--bdr)', color: 'var(--muted)', fontSize: '.8rem', padding: '.4rem .8rem', borderRadius: 6, cursor: 'pointer' }}
+        <button style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: 'none', border: '1px solid var(--bdr)', color: 'var(--muted)', fontSize: '.85rem', padding: '.5rem 1.2rem', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap' }}
           onPointerDown={e => { e.stopPropagation(); enterFullscreen() }}>
           ⛶ Full Screen
         </button>
@@ -504,7 +507,6 @@ export default function KioskPage() {
   // ── PHONE ENTRY ──
   if (phase === 'phone') return (
     <div style={S.page}>
-      <ExitCorners />
       {inactivityWarn && <InactivityWarning />}
       <div style={{ ...S.card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem' }}>
         <div style={S.title}>Find Your Reservation</div>
@@ -523,7 +525,6 @@ export default function KioskPage() {
   // ── SEARCHING ──
   if (phase === 'searching') return (
     <div style={S.page}>
-      <ExitCorners />
       <div style={{ width: 56, height: 56, border: '3px solid var(--bdr)', borderTop: '3px solid var(--acc)', borderRadius: '50%', animation: 'kspin .8s linear infinite', marginBottom: '1.5rem' }} />
       <div style={{ color: 'var(--muted)', fontSize: '1.05rem' }}>Looking up your reservation…</div>
       <style>{`@keyframes kspin{to{transform:rotate(360deg)}}`}</style>
@@ -533,7 +534,6 @@ export default function KioskPage() {
   // ── NOT FOUND ──
   if (phase === 'not-found') return (
     <div style={S.page}>
-      <ExitCorners />
       {inactivityWarn && <InactivityWarning />}
       <div style={{ ...S.card, textAlign: 'center' }}>
         <div style={{ fontSize: '2.5rem', marginBottom: '.8rem' }}>🔍</div>
@@ -551,7 +551,6 @@ export default function KioskPage() {
   // ── RESULTS ──
   if (phase === 'results') return (
     <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
-      <ExitCorners />
       {inactivityWarn && <InactivityWarning />}
       <div style={{ width: '100%', maxWidth: 560 }}>
         <button style={S.back} onClick={() => { setPhone(''); setPhase('phone') }}>← Back</button>
@@ -588,7 +587,6 @@ export default function KioskPage() {
     const atMax = maxP !== null && maxP > 0 && selectedRes.players.length >= maxP
     return (
       <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
-        <ExitCorners />
         {inactivityWarn && <InactivityWarning />}
         {confirmRemove && <ConfirmRemoveModal />}
         {busyMsg && (
@@ -655,7 +653,6 @@ export default function KioskPage() {
   // ── ADD PLAYER ──
   if (phase === 'add-player') return (
     <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
-      <ExitCorners />
       {inactivityWarn && <InactivityWarning />}
       <div style={{ width: '100%', maxWidth: 560 }}>
         <button style={S.back} onClick={() => { setAddPhone(''); setAddFound(null); setAddName(''); setAddError(null); setPhase('manage') }}>← Back</button>
@@ -707,7 +704,6 @@ export default function KioskPage() {
   // ── WAIVER READ ──
   if (phase === 'waiver-read') return (
     <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
-      <ExitCorners />
       {inactivityWarn && <InactivityWarning />}
       <div style={{ width: '100%', maxWidth: 560 }}>
         <button style={S.back} onClick={() => setPhase('manage')}>← Back</button>
@@ -739,7 +735,6 @@ export default function KioskPage() {
   // ── WAIVER SIGN ──
   if (phase === 'waiver-sign') return (
     <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
-      <ExitCorners />
       {inactivityWarn && <InactivityWarning />}
       <div style={{ width: '100%', maxWidth: 560 }}>
         <button style={S.back} onClick={() => setPhase('waiver-read')}>← Back to Waiver</button>
@@ -772,7 +767,6 @@ export default function KioskPage() {
   // ── DONE ──
   if (phase === 'done') return (
     <div style={S.page}>
-      <ExitCorners />
       <div style={{ ...S.card, textAlign: 'center' }}>
         <div style={{ fontSize: '3.5rem', marginBottom: '.8rem' }}>✅</div>
         <div style={{ ...S.h2 }}>Waiver Signed!</div>
