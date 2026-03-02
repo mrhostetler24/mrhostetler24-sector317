@@ -119,6 +119,10 @@ const toRun = r => r ? ({
   elapsedSeconds:     r.elapsed_seconds,
   score:              r.score,
   scoredBy:           r.scored_by,
+  objectiveId:        r.objective_id,
+  team:               r.team,
+  liveOpDifficulty:   r.live_op_difficulty,
+  winningTeam:        r.winning_team,
   createdAt:          r.created_at,
   updatedAt:          r.updated_at,
 }) : null
@@ -694,16 +698,20 @@ export async function fetchRunsForReservations(reservationIds) {
 /** Create a new run record (timer started, no score yet) */
 export async function createRun(run) {
   const { data, error } = await supabase.from('session_runs').insert({
-    reservation_id:    run.reservationId,
-    run_number:        run.runNumber,
-    structure:         run.structure ?? 'Alpha',
-    visual:            run.visual ?? 'V',
-    cranked:           run.cranked ?? false,
+    reservation_id:     run.reservationId,
+    run_number:         run.runNumber,
+    structure:          run.structure ?? 'Alpha',
+    visual:             run.visual ?? 'V',
+    cranked:            run.cranked ?? false,
     targets_eliminated: run.targetsEliminated ?? false,
     objective_complete: run.objectiveComplete ?? false,
-    elapsed_seconds:   run.elapsedSeconds ?? null,
-    score:             run.score ?? null,
-    scored_by:         run.scoredBy ?? null,
+    elapsed_seconds:    run.elapsedSeconds ?? null,
+    score:              run.score ?? null,
+    scored_by:          run.scoredBy ?? null,
+    objective_id:       run.objectiveId ?? null,
+    team:               run.team ?? null,
+    live_op_difficulty: run.liveOpDifficulty ?? null,
+    winning_team:       run.winningTeam ?? null,
   }).select().single()
   if (error) throw error
   return toRun(data)
@@ -720,6 +728,10 @@ export async function updateRun(id, changes) {
   if (changes.elapsedSeconds     !== undefined) row.elapsed_seconds     = changes.elapsedSeconds
   if (changes.score              !== undefined) row.score               = changes.score
   if (changes.scoredBy           !== undefined) row.scored_by           = changes.scoredBy
+  if (changes.objectiveId        !== undefined) row.objective_id        = changes.objectiveId
+  if (changes.team               !== undefined) row.team               = changes.team
+  if (changes.liveOpDifficulty   !== undefined) row.live_op_difficulty  = changes.liveOpDifficulty
+  if (changes.winningTeam        !== undefined) row.winning_team        = changes.winningTeam
   const { data, error } = await supabase
     .from('session_runs').update(row).eq('id', id).select().single()
   if (error) throw error
@@ -765,6 +777,27 @@ export async function upsertRun(run) {
   return toRun(data)
 }
 
+
+// ============================================================
+// OBJECTIVES
+// ============================================================
+
+export async function fetchObjectives() {
+  const { data, error } = await supabase.from('objectives').select('*').eq('active', true).order('name')
+  if (error) throw error
+  return data ?? []
+}
+
+// ============================================================
+// PLAYER SCORING STATS (for scoring modal player cards)
+// ============================================================
+
+export async function fetchPlayerScoringStats(userIds) {
+  if (!userIds.length) return {}
+  const { data, error } = await supabase.rpc('get_player_scoring_stats', { p_user_ids: userIds })
+  if (error) throw error
+  return Object.fromEntries((data ?? []).map(r => [r.user_id, r]))
+}
 
 // ============================================================
 // LEADERBOARD  (reads from DB views — safe for public use)

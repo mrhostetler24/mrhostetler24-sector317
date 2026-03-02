@@ -8,6 +8,10 @@ import {
   fetchUserByPhone,
   createGuestUser,
   signWaiver,
+  createRun,
+  fetchObjectives,
+  fetchPlayerScoringStats,
+  calculateRunScore,
 } from './supabase.js'
 
 // ── Shared utilities (mirrored from App.jsx) ─────────────────────────────────
@@ -107,6 +111,634 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
   );
 }
 
+// ── Scoring Modal constants ────────────────────────────────────────────────────
+const VISUAL_OPTIONS=[
+  {ui:'STD',  code:'V', label:'Standard',      desc:'Normal lighting'},
+  {ui:'COSMIC',code:'C',label:'Cosmic',         desc:'Black-light UV (+20%)'},
+  {ui:'STROBE',code:'S',label:'Strobe',         desc:'Flash pulse (+40%)'},
+  {ui:'DARK',  code:'B',label:'Dark',           desc:'Lights off (+80%)'},
+  {ui:'RAVE',  code:'C',label:'Rave',           desc:'UV + strobe (+20%)'},
+];
+const AUDIO_OPTIONS=[
+  {ui:'OFF',    cranked:false, label:'Off',     desc:'Silent'},
+  {ui:'TUNES',  cranked:false, label:'Tunes',   desc:'Background music'},
+  {ui:'CRANKED',cranked:true,  label:'Cranked', desc:'Distorted audio (+20%)'},
+];
+const DIFF_OPTIONS=[
+  {value:'NONE',    label:'None',    desc:'Role players will not engage or interfere.'},
+  {value:'HARMLESS',label:'Harmless',desc:'Light return fire with zero tactical skill.'},
+  {value:'EASY',    label:'Easy',    desc:'Light return fire with basic tactical skill.'},
+  {value:'MEDIUM',  label:'Medium',  desc:'Return fire with basic tactical skill.'},
+  {value:'HARD',    label:'Hard',    desc:'Return fire with high tactical skill.'},
+  {value:'EXPERT',  label:'Expert',  desc:'Give me your best shot!'},
+];
+const MAX_TENTHS=6000; // 10 minutes in tenths of a second
+const fmtTenths=t=>{const min=Math.floor(t/600),sec=Math.floor((t%600)/10),tenth=t%10;return`${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${tenth}`;};
+const dfltLane=()=>({uiVisual:'STD',visual:'V',uiAudio:'TUNES',cranked:false,targetsEliminated:false,objectiveComplete:false,objectiveId:null,difficulty:'NONE',winnerTeam:null});
+
+function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit}){
+  const [run,setRun]=useState(1);
+  const [masterTenths,setMasterTenths]=useState(0);
+  const [masterRunning,setMasterRunning]=useState(false);
+  const masterRef=useRef(null);
+  const [laneFinish,setLaneFinish]=useState({});
+  const [structOrder,setStructOrder]=useState(['Alpha','Bravo']);
+  const [settings,setSettings]=useState({1:{0:dfltLane(),1:dfltLane()},2:{0:dfltLane(),1:dfltLane()}});
+  const [runTeams,setRunTeams]=useState({1:{},2:{}});
+  const [playerStats,setPlayerStats]=useState({});
+  const [objectives,setObjectives]=useState([]);
+  const [scored,setScored]=useState({});
+  const [saving,setSaving]=useState(null);
+  const [showCommit,setShowCommit]=useState(false);
+  const [editFinish,setEditFinish]=useState(null);
+  const [showExitGuard,setShowExitGuard]=useState(false);
+
+  // Fetch objectives and player stats on mount
+  useEffect(()=>{
+    fetchObjectives().then(setObjectives).catch(()=>{});
+    const uids=[...new Set(lanes.flatMap(l=>l.reservations.flatMap(r=>(r.players||[]).map(p=>p.userId).filter(Boolean))))];
+    if(uids.length)fetchPlayerScoringStats(uids).then(setPlayerStats).catch(()=>{});
+  },[]);
+
+  // Master clock interval
+  useEffect(()=>{
+    if(!masterRunning){clearInterval(masterRef.current);return;}
+    masterRef.current=setInterval(()=>{
+      setMasterTenths(prev=>{
+        if(prev>=MAX_TENTHS){
+          setMasterRunning(false);
+          setLaneFinish(lf=>{const n={...lf};lanes.forEach((_,i)=>{if(n[i]==null)n[i]=MAX_TENTHS;});return n;});
+          return MAX_TENTHS;
+        }
+        return prev+1;
+      });
+    },100);
+    return()=>clearInterval(masterRef.current);
+  },[masterRunning]);
+
+  const tryClose=()=>{
+    const hasActivity=masterTenths>0||Object.keys(scored).length>0;
+    if(hasActivity)setShowExitGuard(true);else onClose();
+  };
+
+  const setSetting=(laneIdx,key,val)=>setSettings(p=>({...p,[run]:{...p[run],[laneIdx]:{...p[run][laneIdx],[key]:val}}}));
+
+  const getTeam=(laneIdx,res,pid)=>{
+    const rt=runTeams[run][laneIdx]||{};
+    if(rt[pid]!=null)return rt[pid];
+    const vt=versusTeams[res.id];
+    if(vt&&vt[pid]!=null)return vt[pid];
+    const players=res.players||[];
+    return players.findIndex(p=>p.id===pid)<6?1:2;
+  };
+  const setPlayerTeam=(laneIdx,pid,team)=>setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),[pid]:team}}}));
+  const swapAllTeam=(laneIdx,res,fromTeam)=>{
+    const players=res.players||[];
+    const batch={};
+    players.forEach(pl=>{if(getTeam(laneIdx,res,pl.id)===fromTeam)batch[pl.id]=fromTeam===1?2:1;});
+    setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),...batch}}}));
+  };
+
+  const laneKey=(r,li,team)=>`${r}-${li}${team!=null?'-t'+team:''}`;
+  const isLaneScored=(laneIdx,team)=>scored[laneKey(run,laneIdx,team)]!=null;
+  const bothLanesScored=(runNum)=>{
+    return lanes.every((_,li)=>{
+      const rt=resTypes.find(x=>x.id===(lanes[li].reservations[0]?.typeId));
+      if(rt?.mode==='versus')return scored[laneKey(runNum,li,1)]&&scored[laneKey(runNum,li,2)];
+      return scored[laneKey(runNum,li,null)];
+    });
+  };
+  const allRunsScored=bothLanesScored(1)&&bothLanesScored(2);
+
+  const doScoreVersus=async(laneIdx)=>{
+    const lane=lanes[laneIdx];const s=settings[run][laneIdx];
+    const res=lane.reservations[0];if(!res)return;
+    const runNum=run;
+    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete});
+    const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!s.objectiveComplete});
+    const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
+    const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
+    setSaving(laneIdx);
+    try{
+      const r1=await createRun({...base,team:1,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,score:huntersScore});
+      const r2=await createRun({...base,team:2,targetsEliminated:false,objectiveComplete:!s.objectiveComplete,score:coyotesScore});
+      setScored(p=>({...p,[laneKey(runNum,laneIdx,1)]:r1,[laneKey(runNum,laneIdx,2)]:r2}));
+    }catch(e){alert("Score error: "+e.message);}
+    setSaving(null);
+  };
+
+  const doScoreCoop=async(laneIdx)=>{
+    const lane=lanes[laneIdx];const s=settings[run][laneIdx];
+    const runNum=run;
+    const score=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete});
+    const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
+    setSaving(laneIdx);
+    try{
+      const runs=[];
+      for(const res of lane.reservations){
+        const r=await createRun({reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,elapsedSeconds:elapsedSec,score,objectiveId:s.objectiveId,liveOpDifficulty:s.difficulty,team:null,winningTeam:null,scoredBy:currentUser?.id??null});
+        runs.push(r);
+      }
+      setScored(p=>({...p,[laneKey(runNum,laneIdx,null)]:runs[0]}));
+    }catch(e){alert("Score error: "+e.message);}
+    setSaving(null);
+  };
+
+  const doLogRun=()=>{
+    // Copy run 1 settings to run 2 as defaults, swap structures and teams
+    const newSettings2={};
+    lanes.forEach((_,i)=>{newSettings2[i]={...settings[1][i]};});
+    setSettings(p=>({...p,2:newSettings2}));
+    // Swap structures
+    setStructOrder(p=>[p[1],p[0]]);
+    // Swap hunters/coyotes for versus
+    const newTeams2={};
+    lanes.forEach((lane,li)=>{
+      const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
+      if(rt?.mode==='versus'){
+        const res=lane.reservations[0];if(!res)return;
+        const batch={};
+        (res.players||[]).forEach(pl=>{const t=getTeam(li,res,pl.id);batch[pl.id]=t===1?2:1;});
+        newTeams2[li]=batch;
+      }
+    });
+    setRunTeams(p=>({...p,2:newTeams2}));
+    setMasterTenths(0);setMasterRunning(false);setLaneFinish({});
+    setRun(2);
+  };
+
+  const doCommit=async()=>{
+    const ids=[...new Set(lanes.flatMap(l=>l.reservations.map(r=>r.id)))];
+    setShowCommit(false);
+    await onCommit(ids);
+  };
+
+  // Helpers for commit summary
+  const getScoredTeamScore=(runNum,laneIdx,team)=>{
+    const rec=scored[laneKey(runNum,laneIdx,team)];
+    return rec?.score??null;
+  };
+  const getRunWinner=(runNum,laneIdx)=>settings[runNum]?.[laneIdx]?.winnerTeam;
+  const getSessionWinner=()=>{
+    // Only for versus: determine which team won the most runs
+    const vsLanes=lanes.map((_,i)=>i).filter(i=>{const rt=resTypes.find(x=>x.id===(lanes[i].reservations[0]?.typeId));return rt?.mode==='versus';});
+    if(!vsLanes.length)return null;
+    const li=vsLanes[0];
+    const r1w=getRunWinner(1,li),r2w=getRunWinner(2,li);
+    if(r1w===r2w)return r1w;
+    // Split — compare Hunter elapsed times (team 1 in run 1 is hunters, team 2 in run 2 is hunters after swap)
+    const r1t=laneFinish[0]??MAX_TENTHS,r2t=laneFinish[0]??MAX_TENTHS;
+    return r1t<=r2t?1:2;
+  };
+
+  // Render helpers
+  const teamLabel=(t)=>t===1?'Hunters':'Coyotes';
+  const teamAvg=(players)=>{
+    const w=players.filter(p=>p.userId&&Number(playerStats[p.userId]?.total_runs)>0);
+    if(!w.length)return null;
+    return(w.reduce((s,p)=>s+Number(playerStats[p.userId]?.avg_score||0),0)/w.length).toFixed(1);
+  };
+
+  const _PillBtn=({options,value,onChange,disabled})=>(
+    <div style={{display:'flex',flexWrap:'wrap',gap:'.35rem'}}>
+      {options.map(o=>{const sel=value===o.value||value===o.ui;return(
+        <button key={o.value||o.ui} type="button" disabled={disabled}
+          onClick={()=>onChange(o)}
+          style={{padding:'.45rem 1rem',borderRadius:20,fontSize:'.85rem',fontWeight:sel?700:500,
+            border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
+            color:sel?'var(--accB)':'var(--txt)',cursor:disabled?'default':'pointer',textTransform:'uppercase',letterSpacing:'.04em'}}>
+          {o.label}
+        </button>);
+      })}
+    </div>
+  );
+
+  const EnvControls=({laneIdx})=>{
+    const s=settings[run][laneIdx];
+    const selVis=VISUAL_OPTIONS.find(v=>v.ui===s.uiVisual)||VISUAL_OPTIONS[0];
+    const selAud=AUDIO_OPTIONS.find(a=>a.ui===s.uiAudio)||AUDIO_OPTIONS[1];
+    return(<>
+      <div style={{marginBottom:'.5rem'}}>
+        <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
+          Visual <span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}>{selVis.desc}</span>
+        </div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem'}}>
+          {VISUAL_OPTIONS.map(v=>{const sel=s.uiVisual===v.ui;return(
+            <button key={v.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiVisual',v.ui);setSetting(laneIdx,'visual',v.code);}}
+              style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
+                border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
+                color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
+              {v.ui}
+            </button>);})}
+        </div>
+      </div>
+      <div>
+        <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
+          Audio <span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}>{selAud.desc}</span>
+        </div>
+        <div style={{display:'flex',gap:'.3rem'}}>
+          {AUDIO_OPTIONS.map(a=>{const sel=s.uiAudio===a.ui;return(
+            <button key={a.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiAudio',a.ui);setSetting(laneIdx,'cranked',a.cranked);}}
+              style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
+                border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
+                color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
+              {a.ui}
+            </button>);})}
+        </div>
+      </div>
+    </>);
+  };
+
+  const ObjSelect=({laneIdx})=>{
+    const s=settings[run][laneIdx];
+    const selObj=objectives.find(o=>o.id===s.objectiveId);
+    return(<div>
+      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>Objective</div>
+      <select value={s.objectiveId||''} onChange={e=>setSetting(laneIdx,'objectiveId',e.target.value||null)}
+        style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.5rem .75rem',color:'var(--txt)',fontSize:'.88rem'}}>
+        <option value=''>— Select objective —</option>
+        {objectives.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
+      </select>
+      {selObj?.description&&<div style={{fontSize:'.78rem',color:'var(--muted)',marginTop:'.35rem',lineHeight:1.5,fontStyle:'italic'}}>{selObj.description}</div>}
+    </div>);
+  };
+
+  const FinishPanel=({laneIdx})=>{
+    const ft=laneFinish[laneIdx];
+    const isScored=isLaneScored(laneIdx,null)||isLaneScored(laneIdx,1);
+    return(<div style={{textAlign:'center',marginBottom:'.75rem'}}>
+      {ft==null?(
+        <button className="btn btn-warn" style={{fontSize:'1rem',padding:'.6rem 1.4rem',letterSpacing:'.04em'}}
+          onClick={()=>setLaneFinish(p=>({...p,[laneIdx]:masterTenths}))}>
+          FINISH
+        </button>
+      ):(
+        <div>
+          <div style={{fontSize:'1.1rem',fontWeight:800,color:'var(--acc)',fontVariantNumeric:'tabular-nums',letterSpacing:'.04em'}}>
+            {fmtTenths(ft)}
+          </div>
+          <div style={{display:'flex',gap:'.4rem',justifyContent:'center',marginTop:'.3rem'}}>
+            {editFinish===laneIdx?(
+              <input type="text" defaultValue={fmtTenths(ft)} placeholder="MM:SS.T"
+                style={{width:100,textAlign:'center',background:'var(--bg2)',border:'1px solid var(--acc)',borderRadius:5,padding:'.25rem .5rem',color:'var(--txt)',fontSize:'.88rem',fontVariantNumeric:'tabular-nums'}}
+                onBlur={e=>{
+                  const m=e.target.value.match(/^(\d+):(\d+)\.(\d)$/);
+                  if(m){const t=(+m[1])*600+(+m[2])*10+(+m[3]);setLaneFinish(p=>({...p,[laneIdx]:Math.min(MAX_TENTHS,t)}))}
+                  setEditFinish(null);
+                }}
+                autoFocus/>
+            ):(
+              <button className="btn btn-s" style={{fontSize:'.75rem',padding:'.2rem .6rem'}} onClick={()=>setEditFinish(laneIdx)}>Edit</button>
+            )}
+            {!isScored&&<button className="btn btn-s" style={{fontSize:'.75rem',padding:'.2rem .6rem'}} onClick={()=>{setLaneFinish(p=>{const n={...p};delete n[laneIdx];return n;});}}>Clear</button>}
+          </div>
+        </div>
+      )}
+    </div>);
+  };
+
+  const renderVersusCard=(laneIdx)=>{
+    const lane=lanes[laneIdx];const s=settings[run][laneIdx];
+    const res=lane.reservations[0];if(!res)return<div style={{color:'var(--muted)',padding:'1rem',textAlign:'center',fontSize:'.9rem'}}>No reservation in this lane.</div>;
+    const players=res.players||[];
+    const hunters=players.filter(p=>getTeam(laneIdx,res,p.id)===1);
+    const coyotes=players.filter(p=>getTeam(laneIdx,res,p.id)===2);
+    const huntersAvg=teamAvg(hunters);const coyotesAvg=teamAvg(coyotes);
+    const rt=resTypes.find(x=>x.id===res.typeId);
+    const bookerNames=[...new Set(lane.reservations.map(r=>r.customerName).filter(Boolean))].join(' · ');
+    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete});
+    const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!s.objectiveComplete});
+    const isScoredVs=isLaneScored(laneIdx,1)&&isLaneScored(laneIdx,2);
+    const isSavingThis=saving===laneIdx;
+    const canScore=s.winnerTeam!=null&&laneFinish[laneIdx]!=null&&!isScoredVs;
+
+    const pRow=(player,teamNum)=>{
+      const st=playerStats[player.userId]||{};
+      const wl=Number(st.total_runs)>0?`${st.versus_wins??0}-${st.versus_losses??0}`:'—';
+      const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(0):'—';
+      const runs=st.total_runs??0;
+      return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.35rem 0',borderBottom:'1px solid rgba(255,255,255,.05)',flexWrap:'wrap'}}>
+        <span style={{flex:1,minWidth:0,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
+        <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{runs>0?`${runs}r`:'new'}</span>
+        <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{avg}</span>
+        <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:30,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{wl}</span>
+        <button style={{background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.75rem',padding:'.2rem .5rem',flexShrink:0}}
+          onClick={()=>setPlayerTeam(laneIdx,player.id,teamNum===1?2:1)}>
+          {teamNum===1?'↓':'↑'}
+        </button>
+      </div>);
+    };
+
+    return(<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
+      {/* Structure header */}
+      <div style={{background:'var(--bg)',borderRadius:8,padding:'.6rem .85rem'}}>
+        <div style={{fontWeight:800,fontSize:'1.05rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.06em'}}>{structOrder[laneIdx]}</div>
+        <div style={{display:'flex',gap:'.4rem',marginTop:'.2rem',flexWrap:'wrap',alignItems:'center'}}>
+          {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
+          <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{bookerNames}</span>
+        </div>
+      </div>
+      {/* Hunters */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem'}}>
+          <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.05em'}}>Hunters</span>
+          {huntersAvg&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>avg {huntersAvg}</span>}
+          <button style={{marginLeft:'auto',background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.72rem',padding:'.2rem .55rem'}}
+            onClick={()=>swapAllTeam(laneIdx,res,1)}>⇅ Swap All</button>
+        </div>
+        <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.25rem',display:'flex',gap:'.5rem',paddingBottom:'.25rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+          <span style={{flex:1}}>Player</span><span style={{minWidth:28}}>Runs</span><span style={{minWidth:28,textAlign:'right'}}>Avg</span><span style={{minWidth:30,textAlign:'right'}}>W-L</span><span style={{width:34}}/>
+        </div>
+        {hunters.length===0&&<div style={{fontSize:'.82rem',color:'var(--muted)',padding:'.3rem 0'}}>No players on this team</div>}
+        {hunters.map(p=>pRow(p,1))}
+      </div>
+      {/* VS divider */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'.25rem 0'}}>
+        <img src="/vs.png" alt="VS" style={{width:52,height:52,filter:'drop-shadow(0 0 8px rgba(200,224,58,.6))',opacity:.9}}
+          onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='block';}}/>
+        <span style={{display:'none',fontWeight:900,fontSize:'1.8rem',color:'var(--acc)',letterSpacing:'.1em',fontStyle:'italic'}}>VS</span>
+      </div>
+      {/* Coyotes */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem'}}>
+          <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--warnL)',textTransform:'uppercase',letterSpacing:'.05em'}}>Coyotes</span>
+          {coyotesAvg&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>avg {coyotesAvg}</span>}
+          <button style={{marginLeft:'auto',background:'none',border:'1px solid var(--bdr)',borderRadius:4,color:'var(--muted)',cursor:'pointer',fontSize:'.72rem',padding:'.2rem .55rem'}}
+            onClick={()=>swapAllTeam(laneIdx,res,2)}>⇅ Swap All</button>
+        </div>
+        <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.25rem',display:'flex',gap:'.5rem',paddingBottom:'.25rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+          <span style={{flex:1}}>Player</span><span style={{minWidth:28}}>Runs</span><span style={{minWidth:28,textAlign:'right'}}>Avg</span><span style={{minWidth:30,textAlign:'right'}}>W-L</span><span style={{width:34}}/>
+        </div>
+        {coyotes.length===0&&<div style={{fontSize:'.82rem',color:'var(--muted)',padding:'.3rem 0'}}>No players on this team</div>}
+        {coyotes.map(p=>pRow(p,2))}
+      </div>
+      {/* Objective */}
+      <ObjSelect laneIdx={laneIdx}/>
+      {/* Env Controls */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.6rem'}}>
+        <EnvControls laneIdx={laneIdx}/>
+      </div>
+      {/* Winner + Obj completed */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.5rem'}}>
+        <div>
+          <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>Run Winner</div>
+          <div style={{display:'flex',gap:'.5rem'}}>
+            {[1,2].map(t=>{const sel=s.winnerTeam===t;return(
+              <button key={t} type="button" onClick={()=>setSetting(laneIdx,'winnerTeam',t)}
+                style={{flex:1,padding:'.5rem',borderRadius:8,fontWeight:sel?700:500,fontSize:'.88rem',
+                  border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg)',
+                  color:sel?'var(--accB)':'var(--txt)',cursor:'pointer'}}>
+                {teamLabel(t)}
+              </button>);})}
+          </div>
+        </div>
+        <label style={{display:'flex',alignItems:'center',gap:'.5rem',cursor:'pointer',fontSize:'.9rem',color:'var(--txt)'}}>
+          <input type="checkbox" checked={s.objectiveComplete} onChange={e=>setSetting(laneIdx,'objectiveComplete',e.target.checked)} style={{width:18,height:18,accentColor:'var(--acc)',cursor:'pointer'}}/>
+          Hunters completed objective
+        </label>
+        <label style={{display:'flex',alignItems:'center',gap:'.5rem',cursor:'pointer',fontSize:'.9rem',color:'var(--txt)'}}>
+          <input type="checkbox" checked={s.targetsEliminated} onChange={e=>setSetting(laneIdx,'targetsEliminated',e.target.checked)} style={{width:18,height:18,accentColor:'var(--acc)',cursor:'pointer'}}/>
+          All targets eliminated
+        </label>
+      </div>
+      {/* Score row */}
+      {!isScoredVs?(
+        <div style={{display:'flex',alignItems:'center',gap:'.75rem',padding:'.5rem 0'}}>
+          <div style={{textAlign:'center',flex:1}}>
+            <div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.2rem'}}>Hunters</div>
+            <div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--acc)',fontVariantNumeric:'tabular-nums'}}>{huntersScore}</div>
+          </div>
+          <button className="btn btn-p" disabled={!canScore||isSavingThis} style={{fontSize:'.9rem',padding:'.6rem 1.2rem',whiteSpace:'nowrap'}} onClick={()=>doScoreVersus(laneIdx)}>
+            {isSavingThis?'Saving…':'SCORE RUN'}
+          </button>
+          <div style={{textAlign:'center',flex:1}}>
+            <div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.2rem'}}>Coyotes</div>
+            <div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--warnL)',fontVariantNumeric:'tabular-nums'}}>{coyotesScore}</div>
+          </div>
+        </div>
+      ):(
+        <div style={{display:'flex',gap:'.75rem',alignItems:'center',padding:'.5rem 0'}}>
+          <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase'}}>Hunters</div><div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--acc)'}}>{getScoredTeamScore(run,laneIdx,1)}</div></div>
+          <div style={{textAlign:'center',padding:'.4rem .75rem',background:'var(--accD)',borderRadius:6,color:'var(--accB)',fontWeight:700,fontSize:'.82rem'}}>✓ Scored</div>
+          <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase'}}>Coyotes</div><div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--warnL)'}}>{getScoredTeamScore(run,laneIdx,2)}</div></div>
+        </div>
+      )}
+    </div>);
+  };
+
+  const renderCoopCard=(laneIdx)=>{
+    const lane=lanes[laneIdx];const s=settings[run][laneIdx];
+    const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
+    const bookerNames=[...new Set(lane.reservations.map(r=>r.customerName).filter(Boolean))].join(' · ');
+    const allPlayers=lane.reservations.flatMap(r=>r.players||[]);
+    const coopAvg=teamAvg(allPlayers);
+    const score=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete});
+    const isSc=isLaneScored(laneIdx,null);const isSavingThis=saving===laneIdx;
+    const canScore=laneFinish[laneIdx]!=null&&!isSc;
+    const selDiff=DIFF_OPTIONS.find(d=>d.value===s.difficulty)||DIFF_OPTIONS[0];
+
+    return(<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
+      {/* Structure header */}
+      <div style={{background:'var(--bg)',borderRadius:8,padding:'.6rem .85rem'}}>
+        <div style={{fontWeight:800,fontSize:'1.05rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.06em'}}>{structOrder[laneIdx]}</div>
+        <div style={{display:'flex',gap:'.4rem',marginTop:'.2rem',flexWrap:'wrap',alignItems:'center'}}>
+          {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
+          <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{bookerNames}</span>
+        </div>
+      </div>
+      {/* Hunters (all players) */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem'}}>
+          <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.05em'}}>Hunters</span>
+          {coopAvg&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>team avg {coopAvg}</span>}
+        </div>
+        <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.25rem',display:'flex',gap:'.5rem',paddingBottom:'.25rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+          <span style={{flex:1}}>Player</span><span>Runs</span><span>Avg</span><span>Coop%</span>
+        </div>
+        {allPlayers.map(player=>{
+          const st=playerStats[player.userId]||{};
+          const cr=Number(st.coop_runs)>0?Math.round(Number(st.coop_success)/Number(st.coop_runs)*100)+'%':'—';
+          const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(0):'—';
+          const runs=st.total_runs??0;
+          return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+            <span style={{flex:1,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{runs>0?`${runs}r`:'new'}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:28,textAlign:'right'}}>{avg}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:32,textAlign:'right'}}>{cr}</span>
+          </div>);})}
+      </div>
+      {/* Live Op Difficulty */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
+        <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.5rem'}}>Live Op Difficulty</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem',marginBottom:'.5rem'}}>
+          {DIFF_OPTIONS.map(d=>{const sel=s.difficulty===d.value;return(
+            <button key={d.value} type="button" onClick={()=>setSetting(laneIdx,'difficulty',d.value)}
+              style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
+                border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg)',
+                color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
+              {d.label}
+            </button>);})}
+        </div>
+        <div style={{fontSize:'.78rem',color:'var(--muted)',lineHeight:1.5,fontStyle:'italic'}}>{selDiff.desc}</div>
+      </div>
+      {/* Objective */}
+      <ObjSelect laneIdx={laneIdx}/>
+      {/* Env controls */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.6rem'}}>
+        <EnvControls laneIdx={laneIdx}/>
+      </div>
+      {/* Checkboxes */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.5rem'}}>
+        <label style={{display:'flex',alignItems:'center',gap:'.5rem',cursor:'pointer',fontSize:'.9rem',color:'var(--txt)'}}>
+          <input type="checkbox" checked={s.targetsEliminated} onChange={e=>setSetting(laneIdx,'targetsEliminated',e.target.checked)} style={{width:18,height:18,accentColor:'var(--acc)',cursor:'pointer'}}/>
+          All targets eliminated
+        </label>
+        <label style={{display:'flex',alignItems:'center',gap:'.5rem',cursor:'pointer',fontSize:'.9rem',color:'var(--txt)'}}>
+          <input type="checkbox" checked={s.objectiveComplete} onChange={e=>setSetting(laneIdx,'objectiveComplete',e.target.checked)} style={{width:18,height:18,accentColor:'var(--acc)',cursor:'pointer'}}/>
+          Objective completed
+        </label>
+      </div>
+      {/* Score button */}
+      {!isSc?(
+        <div style={{textAlign:'center',padding:'.5rem 0'}}>
+          <div style={{fontSize:'2rem',fontWeight:800,color:'var(--acc)',fontVariantNumeric:'tabular-nums',marginBottom:'.4rem'}}>{score}</div>
+          <button className="btn btn-p" disabled={!canScore||isSavingThis} style={{fontSize:'1rem',padding:'.65rem 2rem'}} onClick={()=>doScoreCoop(laneIdx)}>
+            {isSavingThis?'Saving…':'SCORE RUN'}
+          </button>
+        </div>
+      ):(
+        <div style={{textAlign:'center',padding:'.5rem 0'}}>
+          <div style={{fontSize:'2rem',fontWeight:800,color:'var(--acc)',fontVariantNumeric:'tabular-nums'}}>{getScoredTeamScore(run,laneIdx,null)}</div>
+          <div style={{fontSize:'.82rem',color:'var(--accB)',background:'var(--accD)',borderRadius:6,display:'inline-block',padding:'.3rem .75rem',marginTop:'.3rem',fontWeight:700}}>✓ Scored</div>
+        </div>
+      )}
+    </div>);
+  };
+
+  const renderLaneCard=(laneIdx)=>{
+    const lane=lanes[laneIdx];if(!lane)return null;
+    const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
+    if(rt?.mode==='versus')return renderVersusCard(laneIdx);
+    return renderCoopCard(laneIdx);
+  };
+
+  // Commit summary lines
+  const summaryLines=()=>{
+    const lines=[];
+    [1,2].forEach(runNum=>{
+      lanes.forEach((lane,li)=>{
+        const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
+        const sName=runNum===1?structOrder[li]:(structOrder[li]==='Alpha'?'Bravo':'Alpha');
+        if(rt?.mode==='versus'){
+          const hs=getScoredTeamScore(runNum,li,1),cs=getScoredTeamScore(runNum,li,2);
+          const wt=getRunWinner(runNum,li);
+          lines.push({runNum,struct:sName,mode:'versus',hs,cs,winner:wt?teamLabel(wt):null});
+        }else{
+          const sc=getScoredTeamScore(runNum,li,null);
+          lines.push({runNum,struct:sName,mode:'coop',sc});
+        }
+      });
+    });
+    return lines;
+  };
+
+  const sw=getSessionWinner();
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'var(--bg)',zIndex:10000,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      {/* Header bar */}
+      <div style={{background:'var(--surf)',borderBottom:'2px solid var(--bdr)',padding:'.75rem 1.2rem',display:'flex',alignItems:'center',gap:'1rem',flexShrink:0,flexWrap:'wrap'}}>
+        <div style={{fontWeight:800,fontSize:'1.2rem',color:'var(--acc)',letterSpacing:'.06em',textTransform:'uppercase'}}>Scoring Table</div>
+        <div style={{display:'flex',gap:'.4rem'}}>
+          {[1,2].map(r=>(
+            <button key={r} onClick={()=>setRun(r)}
+              style={{padding:'.4rem 1rem',borderRadius:20,fontWeight:run===r?800:500,fontSize:'.88rem',
+                border:`2px solid ${run===r?'var(--acc)':'var(--bdr)'}`,background:run===r?'var(--accD)':'var(--bg2)',
+                color:run===r?'var(--accB)':'var(--txt)',cursor:'pointer'}}>
+              Run {r}
+            </button>))}
+        </div>
+        {/* Master clock */}
+        <div style={{display:'flex',alignItems:'center',gap:'.6rem',marginLeft:'auto',flexWrap:'wrap',justifyContent:'flex-end'}}>
+          <div style={{fontFamily:'monospace',fontSize:'1.6rem',fontWeight:800,color:masterRunning?'var(--ok)':'var(--txt)',letterSpacing:'.04em',fontVariantNumeric:'tabular-nums',minWidth:110,textAlign:'right'}}>
+            {fmtTenths(masterTenths)}
+          </div>
+          <button className={masterRunning||masterTenths>0?'btn btn-warn':'btn btn-p'} style={{fontSize:'.9rem',padding:'.45rem 1rem'}}
+            onClick={()=>{
+              if(masterRunning||masterTenths>0){
+                if(masterRunning)setMasterRunning(false);
+                else{setMasterTenths(0);setLaneFinish({});}
+              }else setMasterRunning(true);
+            }}>
+            {masterRunning?'RESET':masterTenths>0?'RESET':'START'}
+          </button>
+          <button style={{background:'none',border:'1px solid var(--bdr)',borderRadius:6,color:'var(--muted)',cursor:'pointer',padding:'.4rem .75rem',fontSize:'1.1rem'}} onClick={tryClose}>✕</button>
+        </div>
+      </div>
+      {/* Swap structures */}
+      <div style={{padding:'.5rem 1.2rem',background:'var(--surf)',borderBottom:'1px solid var(--bdr)',display:'flex',alignItems:'center',gap:'1rem',flexShrink:0}}>
+        <button className="btn btn-s" style={{fontSize:'.82rem',padding:'.35rem .9rem'}} onClick={()=>setStructOrder(p=>[p[1],p[0]])}>⇄ Swap Structures</button>
+        <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{structOrder[0]} in Lane 1 · {structOrder[1]} in Lane 2</span>
+      </div>
+      {/* Lane cards */}
+      <div style={{flex:1,overflowY:'auto',padding:'1rem 1.2rem'}}>
+        <div style={{display:'flex',gap:'1rem',alignItems:'flex-start'}}>
+          {lanes.map((_,li)=>(
+            <div key={li} style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:'.6rem'}}>
+              <FinishPanel laneIdx={li}/>
+              {renderLaneCard(li)}
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Bottom actions */}
+      <div style={{background:'var(--surf)',borderTop:'2px solid var(--bdr)',padding:'.75rem 1.2rem',display:'flex',justifyContent:'center',gap:'1rem',flexShrink:0}}>
+        {run===1&&bothLanesScored(1)&&!bothLanesScored(2)&&(
+          <button className="btn btn-p" style={{fontSize:'1rem',padding:'.65rem 2rem'}} onClick={doLogRun}>Log Run 1 → Run 2</button>
+        )}
+        {allRunsScored&&(
+          <button className="btn btn-p" style={{fontSize:'1rem',padding:'.65rem 2rem'}} onClick={()=>setShowCommit(true)}>Commit Scores</button>
+        )}
+      </div>
+      {/* Exit guard */}
+      {showExitGuard&&(
+        <div className="mo"><div className="mc">
+          <div className="mt2">Leave Scoring?</div>
+          <p style={{color:'var(--muted)',lineHeight:1.6}}>Any scores already written to the database will be kept. Unscored runs will be lost.</p>
+          <div className="ma">
+            <button className="btn btn-s" onClick={()=>setShowExitGuard(false)}>Stay</button>
+            <button className="btn btn-warn" onClick={()=>{setShowExitGuard(false);onClose();}}>Leave Anyway</button>
+          </div>
+        </div></div>
+      )}
+      {/* Commit confirm */}
+      {showCommit&&(
+        <div className="mo"><div className="mc" style={{maxWidth:540}}>
+          <div className="mt2">Commit Scores?</div>
+          <div style={{marginBottom:'1rem'}}>
+            {summaryLines().map((line,i)=>(
+              <div key={i} style={{padding:'.4rem .75rem',marginBottom:'.3rem',background:'var(--bg2)',borderRadius:6,fontSize:'.88rem'}}>
+                <span style={{color:'var(--muted)',fontSize:'.75rem',textTransform:'uppercase',letterSpacing:'.04em'}}>Run {line.runNum} · {line.struct} · </span>
+                {line.mode==='versus'?(
+                  <span style={{color:'var(--txt)'}}>Hunters <strong style={{color:'var(--acc)'}}>{line.hs}</strong> · Coyotes <strong style={{color:'var(--warnL)'}}>{line.cs}</strong>{line.winner&&<span style={{color:'var(--ok)',marginLeft:'.5rem'}}>→ {line.winner} win</span>}</span>
+                ):(
+                  <span style={{color:'var(--txt)'}}>Score <strong style={{color:'var(--acc)'}}>{line.sc}</strong></span>
+                )}
+              </div>
+            ))}
+            {sw&&<div style={{marginTop:'.75rem',padding:'.5rem .75rem',background:'var(--accD)',borderRadius:6,color:'var(--accB)',fontWeight:700}}>Session Winner: {teamLabel(sw)}</div>}
+          </div>
+          <p style={{color:'var(--muted)',fontSize:'.85rem',marginBottom:'1rem'}}>This will mark all reservations in this slot as Completed and cannot be undone.</p>
+          <div className="ma">
+            <button className="btn btn-s" onClick={()=>setShowCommit(false)}>Cancel</button>
+            <button className="btn btn-p" onClick={doCommit}>Yes, Commit Scores</button>
+          </div>
+        </div></div>
+      )}
+    </div>
+  );
+}
+
 export default function OpsView({reservations,setReservations,resTypes,sessionTemplates,users,setUsers,activeWaiverDoc}){
   const [expandedSlot,setExpandedSlot]=useState(null);
   const [expandedRes,setExpandedRes]=useState({});
@@ -126,6 +758,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [toast,setToast]=useState(null);
   const [showMerch,setShowMerch]=useState(false);
   const [showHistory,setShowHistory]=useState(false);
+  const [scoringSlot,setScoringSlot]=useState(null);
   const [viewDate,setViewDate]=useState(todayStr());
   const dateInputRef=useRef(null);
   const activeWorkRef=useRef(false);
@@ -195,7 +828,8 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         const laneReady=lane=>lane.reservations.length>0&&lane.reservations.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
         const allLanesReady=activeLanes.length>0?activeLanes.every(laneReady):slotResItems.length>0&&slotResItems.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
         const allSent=slotResItems.length>0&&slotResItems.every(r=>r.status==="sent"||r.status==="no-show");
-        const canSend=allLanesReady&&!allSent;
+        const allCompleted=slotResItems.length>0&&slotResItems.every(r=>r.status==="completed"||r.status==="no-show");
+        const canSend=allLanesReady&&!allSent&&!allCompleted;
         const isOpen=expandedSlot===time;
         return(
           <div key={time} style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:12,marginBottom:"1rem",overflow:"hidden",opacity:isHist?.65:1,filter:isHist?"saturate(.45)":"none"}}>
@@ -242,7 +876,9 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
               </div>
               <div style={{padding:".75rem 1rem",display:"flex",alignItems:"center",gap:".5rem",flexShrink:0}}>
                 {canSend&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setSendConfirm(time);}}>Send {fmt12(time)}? →</button>}
-                {allSent&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(100,130,240,.18)",color:"#8096f0",border:"1px solid rgba(100,130,240,.35)",fontWeight:600,fontSize:".8rem"}}>SENT</span>}
+                {allSent&&!allCompleted&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(100,130,240,.18)",color:"#8096f0",border:"1px solid rgba(100,130,240,.35)",fontWeight:600,fontSize:".8rem"}}>SENT</span>}
+                {allSent&&!allCompleted&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setScoringSlot({time,lanes:activeLanes});}}>🎯 Score</button>}
+                {allCompleted&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"var(--accD)",color:"var(--accB)",border:"1px solid rgba(138,154,53,.25)",fontWeight:600,fontSize:".8rem"}}>✓ COMPLETED</span>}
                 <span style={{color:"var(--muted)",fontSize:"1.1rem"}}>{isOpen?"▲":"▼"}</span>
               </div>
             </div>
@@ -274,7 +910,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                           :res.status!=="no-show"&&<button className="btn" style={{background:allWaiversOk||players.length===0?"rgba(40,200,100,.2)":"var(--surf)",color:allWaiversOk||players.length===0?"#2dc86e":"var(--muted)",border:`1px solid ${allWaiversOk||players.length===0?"rgba(40,200,100,.4)":"var(--bdr)"}`}} disabled={isBusy||(players.length>0&&!allWaiversOk)} title={players.length>0&&!allWaiversOk?"All waivers must be signed before marking arrived":undefined} onClick={()=>setResStatus(res.id,"ready")}>{isBusy?"…":"✓ Mark Arrived"}</button>}
                         {(res.status==="arrived"||res.status==="ready")&&<button className="btn btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
                         {res.status!=="no-show"&&res.status!=="arrived"&&res.status!=="ready"&&<button className="btn btn-warn" disabled={isBusy} onClick={()=>setResStatus(res.id,"no-show")}>{isBusy?"…":"No Show"}</button>}
-                        {res.status==="no-show"&&<button className="btn btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button>}
+                        {res.status==="no-show"&&<><span style={{color:"var(--warnL)",fontWeight:700,fontSize:"1rem",letterSpacing:".03em"}}>✗ No Show</span><button className="btn btn-s" disabled={isBusy} onClick={()=>setResStatus(res.id,"confirmed")}>← Undo</button></>}
                       </div>
                     )}
                     {/* ── Players — always visible ── */}
@@ -473,6 +1109,23 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
           <div className="ma"><button className="btn btn-p" onClick={()=>setShowMerch(false)}>Close</button></div>
         </div></div>
       )}
+      {scoringSlot&&<ScoringModal
+        lanes={scoringSlot.lanes}
+        resTypes={resTypes}
+        versusTeams={versusTeams}
+        currentUser={currentUser}
+        onClose={async()=>{
+          setScoringSlot(null);
+          try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}
+        }}
+        onCommit={async ids=>{
+          try{for(const id of ids)await updateReservation(id,{status:'completed'});}catch(e){showMsg("Error completing: "+e.message);return;}
+          setReservations(p=>p.map(r=>ids.includes(r.id)?{...r,status:'completed'}:r));
+          setScoringSlot(null);
+          showMsg("Session scored and completed!");
+          try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}
+        }}
+      />}
     </div>
   );
 }
