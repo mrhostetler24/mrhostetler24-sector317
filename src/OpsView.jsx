@@ -322,7 +322,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
           Visual <span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}>{selVis.desc}</span>
         </div>
-        <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem'}}>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem',justifyContent:'center'}}>
           {VISUAL_OPTIONS.map(v=>{const sel=s.uiVisual===v.ui;return(
             <button key={v.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiVisual',v.ui);setSetting(laneIdx,'visual',v.code);}}
               style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
@@ -336,7 +336,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
           Audio <span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}>{selAud.desc}</span>
         </div>
-        <div style={{display:'flex',gap:'.3rem'}}>
+        <div style={{display:'flex',gap:'.3rem',justifyContent:'center'}}>
           {AUDIO_OPTIONS.map(a=>{const sel=s.uiAudio===a.ui;return(
             <button key={a.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiAudio',a.ui);setSetting(laneIdx,'cranked',a.cranked);}}
               style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
@@ -353,7 +353,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const s=settings[run][laneIdx];
     const selObj=objectives.find(o=>o.id===s.objectiveId);
     return(<div>
-      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>Objective</div>
+      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem',textAlign:'center'}}>Objective</div>
       <select value={s.objectiveId||''} onChange={e=>setSetting(laneIdx,'objectiveId',e.target.value||null)}
         style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.5rem .75rem',color:'var(--txt)',fontSize:'.88rem'}}>
         <option value=''>— Select objective —</option>
@@ -397,7 +397,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     </div>);
   };
 
-  const renderVersusCard=(laneIdx)=>{
+  const renderVersusCard=(laneIdx,mirror=false)=>{
     const lane=lanes[laneIdx];const s=settings[run][laneIdx];
     const res=lane.reservations[0];if(!res)return<div style={{color:'var(--muted)',padding:'1rem',textAlign:'center',fontSize:'.9rem'}}>No reservation in this lane.</div>;
     const players=res.players||[];
@@ -431,9 +431,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
 
     return(<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
       {/* Structure header */}
-      <div style={{background:'var(--bg)',borderRadius:8,padding:'.6rem .85rem'}}>
+      <div style={{background:'var(--bg)',borderRadius:8,padding:'.6rem .85rem',textAlign:mirror?'right':'left'}}>
         <div style={{fontWeight:800,fontSize:'1.05rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.06em'}}>{structOrder[laneIdx]}</div>
-        <div style={{display:'flex',gap:'.4rem',marginTop:'.2rem',flexWrap:'wrap',alignItems:'center'}}>
+        <div style={{display:'flex',gap:'.4rem',marginTop:'.2rem',flexWrap:'wrap',alignItems:'center',flexDirection:mirror?'row-reverse':'row'}}>
           {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
           <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{bookerNames}</span>
         </div>
@@ -492,14 +492,24 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
               </button>);})}
           </div>
         </div>
-        <label style={{display:'flex',alignItems:'center',gap:'.5rem',cursor:'pointer',fontSize:'.9rem',color:'var(--txt)'}}>
-          <input type="checkbox" checked={s.objectiveComplete} onChange={e=>setSetting(laneIdx,'objectiveComplete',e.target.checked)} style={{width:18,height:18,accentColor:'var(--acc)',cursor:'pointer'}}/>
-          Hunters completed objective
-        </label>
-        <label style={{display:'flex',alignItems:'center',gap:'.5rem',cursor:'pointer',fontSize:'.9rem',color:'var(--txt)'}}>
-          <input type="checkbox" checked={s.targetsEliminated} onChange={e=>setSetting(laneIdx,'targetsEliminated',e.target.checked)} style={{width:18,height:18,accentColor:'var(--acc)',cursor:'pointer'}}/>
-          All targets eliminated
-        </label>
+        <div style={{display:'flex',gap:'.5rem'}}>
+          <button type="button" onClick={()=>setSetting(laneIdx,'objectiveComplete',!s.objectiveComplete)}
+            style={{flex:1,padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
+              border:`2px solid ${s.objectiveComplete?'var(--acc)':'var(--bdr)'}`,
+              background:s.objectiveComplete?'var(--accD)':'var(--bg)',
+              color:s.objectiveComplete?'var(--accB)':'var(--muted)',
+              fontWeight:s.objectiveComplete?700:400}}>
+            {s.objectiveComplete?'✓ ':''}Obj Complete
+          </button>
+          <button type="button" onClick={()=>setSetting(laneIdx,'targetsEliminated',!s.targetsEliminated)}
+            style={{flex:1,padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
+              border:`2px solid ${s.targetsEliminated?'var(--acc)':'var(--bdr)'}`,
+              background:s.targetsEliminated?'var(--accD)':'var(--bg)',
+              color:s.targetsEliminated?'var(--accB)':'var(--muted)',
+              fontWeight:s.targetsEliminated?700:400}}>
+            {s.targetsEliminated?'✓ ':''}Targets Out
+          </button>
+        </div>
       </div>
       {/* Score row */}
       {!isScoredVs?(
@@ -526,7 +536,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     </div>);
   };
 
-  const renderCoopCard=(laneIdx)=>{
+  const renderCoopCard=(laneIdx,mirror=false)=>{
     const lane=lanes[laneIdx];const s=settings[run][laneIdx];
     const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
     const bookerNames=[...new Set(lane.reservations.map(r=>r.customerName).filter(Boolean))].join(' · ');
@@ -539,9 +549,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
 
     return(<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
       {/* Structure header */}
-      <div style={{background:'var(--bg)',borderRadius:8,padding:'.6rem .85rem'}}>
+      <div style={{background:'var(--bg)',borderRadius:8,padding:'.6rem .85rem',textAlign:mirror?'right':'left'}}>
         <div style={{fontWeight:800,fontSize:'1.05rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.06em'}}>{structOrder[laneIdx]}</div>
-        <div style={{display:'flex',gap:'.4rem',marginTop:'.2rem',flexWrap:'wrap',alignItems:'center'}}>
+        <div style={{display:'flex',gap:'.4rem',marginTop:'.2rem',flexWrap:'wrap',alignItems:'center',flexDirection:mirror?'row-reverse':'row'}}>
           {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
           <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{bookerNames}</span>
         </div>
@@ -569,17 +579,18 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       </div>
       {/* Live Op Difficulty */}
       <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
-        <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.5rem'}}>Live Op Difficulty</div>
-        <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem',marginBottom:'.5rem'}}>
-          {DIFF_OPTIONS.map(d=>{const sel=s.difficulty===d.value;return(
-            <button key={d.value} type="button" onClick={()=>setSetting(laneIdx,'difficulty',d.value)}
-              style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
-                border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg)',
-                color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
-              {d.label}
-            </button>);})}
+        <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.3rem',textAlign:'center'}}>Live Op Difficulty</div>
+        <div style={{textAlign:'center',marginBottom:'.25rem'}}>
+          <span style={{fontWeight:800,fontSize:'1rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.05em'}}>{selDiff.label}</span>
         </div>
-        <div style={{fontSize:'.78rem',color:'var(--muted)',lineHeight:1.5,fontStyle:'italic'}}>{selDiff.desc}</div>
+        <input type="range" min={0} max={DIFF_OPTIONS.length-1}
+          value={DIFF_OPTIONS.findIndex(d=>d.value===s.difficulty)}
+          onChange={e=>setSetting(laneIdx,'difficulty',DIFF_OPTIONS[+e.target.value].value)}
+          style={{width:'100%',accentColor:'var(--acc)',cursor:'pointer',margin:'.1rem 0'}}/>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.62rem',color:'var(--muted)',marginBottom:'.35rem'}}>
+          {DIFF_OPTIONS.map(d=><span key={d.value}>{d.label}</span>)}
+        </div>
+        <div style={{fontSize:'.78rem',color:'var(--muted)',lineHeight:1.5,fontStyle:'italic',textAlign:'center'}}>{selDiff.desc}</div>
       </div>
       {/* Objective */}
       <ObjSelect laneIdx={laneIdx}/>
@@ -587,16 +598,26 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.6rem'}}>
         <EnvControls laneIdx={laneIdx}/>
       </div>
-      {/* Checkboxes */}
-      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem',display:'flex',flexDirection:'column',gap:'.5rem'}}>
-        <label style={{display:'flex',alignItems:'center',gap:'.5rem',cursor:'pointer',fontSize:'.9rem',color:'var(--txt)'}}>
-          <input type="checkbox" checked={s.targetsEliminated} onChange={e=>setSetting(laneIdx,'targetsEliminated',e.target.checked)} style={{width:18,height:18,accentColor:'var(--acc)',cursor:'pointer'}}/>
-          All targets eliminated
-        </label>
-        <label style={{display:'flex',alignItems:'center',gap:'.5rem',cursor:'pointer',fontSize:'.9rem',color:'var(--txt)'}}>
-          <input type="checkbox" checked={s.objectiveComplete} onChange={e=>setSetting(laneIdx,'objectiveComplete',e.target.checked)} style={{width:18,height:18,accentColor:'var(--acc)',cursor:'pointer'}}/>
-          Objective completed
-        </label>
+      {/* Outcome toggles */}
+      <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
+        <div style={{display:'flex',gap:'.5rem'}}>
+          <button type="button" onClick={()=>setSetting(laneIdx,'targetsEliminated',!s.targetsEliminated)}
+            style={{flex:1,padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
+              border:`2px solid ${s.targetsEliminated?'var(--acc)':'var(--bdr)'}`,
+              background:s.targetsEliminated?'var(--accD)':'var(--bg)',
+              color:s.targetsEliminated?'var(--accB)':'var(--muted)',
+              fontWeight:s.targetsEliminated?700:400}}>
+            {s.targetsEliminated?'✓ ':''}Targets Out
+          </button>
+          <button type="button" onClick={()=>setSetting(laneIdx,'objectiveComplete',!s.objectiveComplete)}
+            style={{flex:1,padding:'.5rem .4rem',borderRadius:8,fontSize:'.82rem',textAlign:'center',lineHeight:1.3,cursor:'pointer',
+              border:`2px solid ${s.objectiveComplete?'var(--acc)':'var(--bdr)'}`,
+              background:s.objectiveComplete?'var(--accD)':'var(--bg)',
+              color:s.objectiveComplete?'var(--accB)':'var(--muted)',
+              fontWeight:s.objectiveComplete?700:400}}>
+            {s.objectiveComplete?'✓ ':''}Obj Complete
+          </button>
+        </div>
       </div>
       {/* Score button */}
       {!isSc?(
@@ -615,11 +636,11 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     </div>);
   };
 
-  const renderLaneCard=(laneIdx)=>{
+  const renderLaneCard=(laneIdx,mirror=false)=>{
     const lane=lanes[laneIdx];if(!lane)return null;
     const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
-    if(rt?.mode==='versus')return renderVersusCard(laneIdx);
-    return renderCoopCard(laneIdx);
+    if(rt?.mode==='versus')return renderVersusCard(laneIdx,mirror);
+    return renderCoopCard(laneIdx,mirror);
   };
 
   // Commit summary lines
@@ -647,20 +668,23 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   return(
     <div style={{position:'fixed',inset:0,background:'var(--bg)',zIndex:10000,display:'flex',flexDirection:'column',overflow:'hidden'}}>
       {/* Header bar */}
-      <div style={{background:'var(--surf)',borderBottom:'2px solid var(--bdr)',padding:'.75rem 1.2rem',display:'flex',alignItems:'center',gap:'1rem',flexShrink:0,flexWrap:'wrap'}}>
-        <div style={{fontWeight:800,fontSize:'1.2rem',color:'var(--acc)',letterSpacing:'.06em',textTransform:'uppercase'}}>Scoring Table</div>
-        <div style={{display:'flex',gap:'.4rem'}}>
-          {[1,2].map(r=>(
-            <button key={r} onClick={()=>setRun(r)}
-              style={{padding:'.4rem 1rem',borderRadius:20,fontWeight:run===r?800:500,fontSize:'.88rem',
-                border:`2px solid ${run===r?'var(--acc)':'var(--bdr)'}`,background:run===r?'var(--accD)':'var(--bg2)',
-                color:run===r?'var(--accB)':'var(--txt)',cursor:'pointer'}}>
-              Run {r}
-            </button>))}
+      <div style={{background:'var(--surf)',borderBottom:'2px solid var(--bdr)',padding:'.75rem 1.2rem',display:'grid',gridTemplateColumns:'1fr auto 1fr',alignItems:'center',gap:'1rem',flexShrink:0}}>
+        {/* Left: title + run tabs */}
+        <div style={{display:'flex',alignItems:'center',gap:'.75rem',flexWrap:'wrap'}}>
+          <div style={{fontWeight:800,fontSize:'1.2rem',color:'var(--acc)',letterSpacing:'.06em',textTransform:'uppercase'}}>Scoring Table</div>
+          <div style={{display:'flex',gap:'.4rem'}}>
+            {[1,2].map(r=>(
+              <button key={r} onClick={()=>setRun(r)}
+                style={{padding:'.4rem 1rem',borderRadius:20,fontWeight:run===r?800:500,fontSize:'.88rem',
+                  border:`2px solid ${run===r?'var(--acc)':'var(--bdr)'}`,background:run===r?'var(--accD)':'var(--bg2)',
+                  color:run===r?'var(--accB)':'var(--txt)',cursor:'pointer'}}>
+                Run {r}
+              </button>))}
+          </div>
         </div>
-        {/* Master clock */}
-        <div style={{display:'flex',alignItems:'center',gap:'.6rem',marginLeft:'auto',flexWrap:'wrap',justifyContent:'flex-end'}}>
-          <div style={{fontFamily:'monospace',fontSize:'1.6rem',fontWeight:800,color:masterRunning?'var(--ok)':'var(--txt)',letterSpacing:'.04em',fontVariantNumeric:'tabular-nums',minWidth:110,textAlign:'right'}}>
+        {/* Center: master clock */}
+        <div style={{display:'flex',alignItems:'center',gap:'.6rem',justifyContent:'center'}}>
+          <div style={{fontFamily:'monospace',fontSize:'1.6rem',fontWeight:800,color:masterRunning?'var(--ok)':'var(--txt)',letterSpacing:'.04em',fontVariantNumeric:'tabular-nums'}}>
             {fmtTenths(masterTenths)}
           </div>
           <button className={masterRunning||masterTenths>0?'btn btn-warn':'btn btn-p'} style={{fontSize:'.9rem',padding:'.45rem 1rem'}}
@@ -672,24 +696,34 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
             }}>
             {masterRunning?'RESET':masterTenths>0?'RESET':'START'}
           </button>
+        </div>
+        {/* Right: close */}
+        <div style={{display:'flex',justifyContent:'flex-end'}}>
           <button style={{background:'none',border:'1px solid var(--bdr)',borderRadius:6,color:'var(--muted)',cursor:'pointer',padding:'.4rem .75rem',fontSize:'1.1rem'}} onClick={tryClose}>✕</button>
         </div>
       </div>
       {/* Swap structures */}
-      <div style={{padding:'.5rem 1.2rem',background:'var(--surf)',borderBottom:'1px solid var(--bdr)',display:'flex',alignItems:'center',gap:'1rem',flexShrink:0}}>
+      <div style={{padding:'.5rem 1.2rem',background:'var(--surf)',borderBottom:'1px solid var(--bdr)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
         <button className="btn btn-s" style={{fontSize:'.82rem',padding:'.35rem .9rem'}} onClick={()=>setStructOrder(p=>[p[1],p[0]])}>⇄ Swap Structures</button>
-        <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{structOrder[0]} in Lane 1 · {structOrder[1]} in Lane 2</span>
       </div>
-      {/* Lane cards */}
+      {/* Lane cards — Alpha always left, Bravo always right */}
       <div style={{flex:1,overflowY:'auto',padding:'1rem 1.2rem'}}>
-        <div style={{display:'flex',gap:'1rem',alignItems:'flex-start'}}>
-          {lanes.map((_,li)=>(
-            <div key={li} style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:'.6rem'}}>
-              <FinishPanel laneIdx={li}/>
-              {renderLaneCard(li)}
+        {(()=>{
+          const aIdx=structOrder.indexOf('Alpha');
+          const bIdx=structOrder.indexOf('Bravo');
+          const displayOrder=[aIdx,bIdx].filter(i=>i>=0&&i<lanes.length);
+          lanes.forEach((_,i)=>{if(!displayOrder.includes(i))displayOrder.push(i);});
+          return(
+            <div style={{display:'flex',gap:'1rem',alignItems:'flex-start'}}>
+              {displayOrder.map((li,pos)=>(
+                <div key={li} style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:'.6rem'}}>
+                  <FinishPanel laneIdx={li}/>
+                  {renderLaneCard(li,pos===1)}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })()}
       </div>
       {/* Bottom actions */}
       <div style={{background:'var(--surf)',borderTop:'2px solid var(--bdr)',padding:'.75rem 1.2rem',display:'flex',justifyContent:'center',gap:'1rem',flexShrink:0}}>
