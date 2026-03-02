@@ -3079,7 +3079,7 @@ useEffect(() => {
             <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();window.close();}}>Sign Out</button>
           </div>
         </nav>
-        <div className="main">
+        <div className="content">
           <OpsView reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} activeWaiverDoc={activeWaiver}/>
         </div>
       </div>
