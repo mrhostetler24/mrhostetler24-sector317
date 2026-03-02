@@ -479,18 +479,25 @@ export default function KioskPage() {
 
   // ── IDLE ──
   if (phase === 'idle') return (
-    <div style={{ ...S.page, cursor: 'pointer', userSelect: 'none' }}
+    <div style={{ ...S.page, cursor: 'pointer', userSelect: 'none', justifyContent: 'space-between', paddingTop: '2.5rem', paddingBottom: '2rem' }}
       onPointerDown={() => { enterFullscreen(); setPhase('phone') }}>
       <ExitCorners />
-      <img src="/logo.png" alt="Sector 317" style={{ height: 200, opacity: .9, marginBottom: '3rem' }} />
-      <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.2em', fontSize: '2.4rem', color: 'var(--acc)', textTransform: 'uppercase', marginBottom: '1rem' }}>Self-Service Check-In</div>
-      <div style={{ color: 'var(--muted)', fontSize: '1.5rem', marginBottom: '4rem' }}>Look up your reservation, manage your team, and sign your waiver.</div>
-      <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.15em', fontSize: '2rem', color: 'var(--txt)', opacity: .6, animation: 'kpulse 2s ease-in-out infinite' }}>TOUCH TO BEGIN</div>
-      <div style={{ position: 'fixed', bottom: 64, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.6rem' }}
-        onPointerDown={e => e.stopPropagation()}>
-        <QRCodeSVG value={KIOSK_QR_URL} size={220} fgColor="#c8e03a" bgColor="#25261f" level="M" style={{ borderRadius: 8, opacity: .75 }} />
-        <div style={{ fontSize: '1rem', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase' }}>Scan to create / sign in</div>
+
+      {/* Top section: logo + text */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.9rem' }}>
+        <img src="/logo.png" alt="Sector 317" style={{ height: 140, opacity: .9 }} />
+        <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.2em', fontSize: '1.9rem', color: 'var(--acc)', textTransform: 'uppercase' }}>Self-Service Check-In</div>
+        <div style={{ color: 'var(--muted)', fontSize: '1.1rem', textAlign: 'center', maxWidth: 480 }}>Look up your reservation, manage your team, and sign your waiver.</div>
+        <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.15em', fontSize: '1.5rem', color: 'var(--txt)', opacity: .6, animation: 'kpulse 2s ease-in-out infinite', marginTop: '.5rem' }}>TOUCH TO BEGIN</div>
       </div>
+
+      {/* Bottom section: QR code */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.5rem' }}
+        onPointerDown={e => e.stopPropagation()}>
+        <QRCodeSVG value={KIOSK_QR_URL} size={180} fgColor="#c8e03a" bgColor="#25261f" level="M" style={{ borderRadius: 8, opacity: .75 }} />
+        <div style={{ fontSize: '.85rem', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase' }}>Scan to create or sign in</div>
+      </div>
+
       {!isFullscreen && (
         <button style={{ position: 'fixed', bottom: 16, right: 16, background: 'none', border: '1px solid var(--bdr)', color: 'var(--muted)', fontSize: '.8rem', padding: '.4rem .8rem', borderRadius: 6, cursor: 'pointer' }}
           onPointerDown={e => { e.stopPropagation(); enterFullscreen() }}>
