@@ -586,8 +586,9 @@ export async function addPlayerToReservation(resId, player) {
       p_name:           player.name,
     })
   // rpcData is a single row object — check explicitly for id presence
+  // Fall back to player.userId if the RPC doesn't echo user_id back
   if (!rpcErr && rpcData && rpcData.id) {
-    return { id: rpcData.id, userId: rpcData.user_id ?? null, name: rpcData.name }
+    return { id: rpcData.id, userId: rpcData.user_id ?? player.userId ?? null, name: rpcData.name }
   }
 
   // Fallback: direct insert (works for staff/admin whose RLS allows it)
@@ -599,7 +600,7 @@ export async function addPlayerToReservation(resId, player) {
   if (error) throw new Error(
     `Could not add player — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${error.message}`
   )
-  return { id: data.id, userId: data.user_id ?? null, name: data.name }
+  return { id: data.id, userId: data.user_id ?? player.userId ?? null, name: data.name }
 }
 
 /** Fetch all players for a reservation from the normalized table */
