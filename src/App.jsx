@@ -1851,6 +1851,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [tab,setTab]=useState("upcoming");
   const [showBook,setShowBook]=useState(false);
   useEffect(()=>{if(autoBook){setShowBook(true);onAutoBookDone?.();}},[]);// eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{if(showBook)fetchReservations().then(setReservations).catch(()=>{});},[showBook]);// eslint-disable-line react-hooks/exhaustive-deps
   const [wOpen,setWOpen]=useState(false);
   const [wViewOpen,setWViewOpen]=useState(false);
   const [showAccount,setShowAccount]=useState(false);
