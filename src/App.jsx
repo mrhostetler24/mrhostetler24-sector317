@@ -2734,7 +2734,7 @@ function LoginScreen({onLogin}){
 }
 
 export default function App(){
-  const [showLanding,setShowLanding]=useState(true);
+  const [showLanding,setShowLanding]=useState(!new URLSearchParams(window.location.search).has('login'));
   const [bookOnLogin,setBookOnLogin]=useState(false);
   const [currentUser,setCurrentUser]=useState(null);
   const [pendingUser,setPendingUser]=useState(null); // user who logged in but needs phone

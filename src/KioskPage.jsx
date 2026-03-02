@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import {
   supabase,
   fetchKioskReservations, fetchResTypes, fetchWaiverDocs,
@@ -6,6 +7,33 @@ import {
   addPlayerToReservation, removePlayerFromReservation,
   kioskSignWaiver, fetchPlayerWaiverStatus,
 } from './supabase.js'
+
+const KIOSK_QR_URL = 'https://www.sector317.com/?login=1'
+
+function AccountQR() {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.6rem',
+      background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 10,
+      padding: '1.2rem 1.5rem', marginTop: '1rem',
+    }}>
+      <div style={{ fontSize: '.75rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc)', textTransform: 'uppercase', marginBottom: '.2rem' }}>
+        Create or Finish Setting Up Your Account
+      </div>
+      <QRCodeSVG
+        value={KIOSK_QR_URL}
+        size={130}
+        fgColor="#c8e03a"
+        bgColor="#2e2f27"
+        level="M"
+        style={{ borderRadius: 6 }}
+      />
+      <div style={{ fontSize: '.78rem', color: 'var(--muted)', textAlign: 'center', maxWidth: 220 }}>
+        Scan with your phone to sign in or create an account at Sector 317
+      </div>
+    </div>
+  )
+}
 
 // ── Helpers ──────────────────────────────────────────────────
 const cleanPh = v => (v || '').replace(/\D/g, '')
@@ -383,9 +411,9 @@ export default function KioskPage() {
   // ── Hidden exit corners ──
   const ExitCorners = () => (
     <>
-      <div style={{ position: 'fixed', top: 0, left: 0, width: 60, height: 60, zIndex: 9999, opacity: 0, touchAction: 'manipulation' }}
+      <div style={{ position: 'fixed', top: 0, left: 0, width: 120, height: 120, zIndex: 9999, opacity: 0, touchAction: 'manipulation' }}
         onPointerDown={e => { e.stopPropagation(); recordTap('TL') }} />
-      <div style={{ position: 'fixed', bottom: 0, right: 0, width: 60, height: 60, zIndex: 9999, opacity: 0, touchAction: 'manipulation' }}
+      <div style={{ position: 'fixed', bottom: 0, right: 0, width: 120, height: 120, zIndex: 9999, opacity: 0, touchAction: 'manipulation' }}
         onPointerDown={e => { e.stopPropagation(); recordTap('BR') }} />
     </>
   )
@@ -458,6 +486,11 @@ export default function KioskPage() {
       <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.2em', fontSize: '1.4rem', color: 'var(--acc)', textTransform: 'uppercase', marginBottom: '.8rem' }}>Self-Service Check-In</div>
       <div style={{ color: 'var(--muted)', fontSize: '1.05rem', marginBottom: '3.5rem' }}>Look up your reservation, manage your team, and sign your waiver.</div>
       <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.15em', fontSize: '1.1rem', color: 'var(--txt)', opacity: .6, animation: 'kpulse 2s ease-in-out infinite' }}>TOUCH TO BEGIN</div>
+      <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.4rem' }}
+        onPointerDown={e => e.stopPropagation()}>
+        <QRCodeSVG value={KIOSK_QR_URL} size={80} fgColor="#c8e03a" bgColor="#25261f" level="M" style={{ borderRadius: 4, opacity: .7 }} />
+        <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase' }}>Scan to create / sign in</div>
+      </div>
       {!isFullscreen && (
         <button style={{ position: 'fixed', bottom: 16, right: 16, background: 'none', border: '1px solid var(--bdr)', color: 'var(--muted)', fontSize: '.8rem', padding: '.4rem .8rem', borderRadius: 6, cursor: 'pointer' }}
           onPointerDown={e => { e.stopPropagation(); enterFullscreen() }}>
@@ -548,8 +581,11 @@ export default function KioskPage() {
   // ── MANAGE ──
   if (phase === 'manage' && selectedRes) {
     const rt = resTypes.find(t => t.id === selectedRes.typeId)
-    const maxP = rt?.maxPlayers ?? selectedRes.playerCount
-    const atMax = maxP && selectedRes.players.length >= maxP
+    // open play: cap = playerCount (booked seats); private: cap = rt.maxPlayers
+    const maxP = rt?.style === 'open'
+      ? (selectedRes.playerCount || 0)
+      : (rt?.maxPlayers ?? null)
+    const atMax = maxP !== null && maxP > 0 && selectedRes.players.length >= maxP
     return (
       <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
         <ExitCorners />
@@ -605,11 +641,12 @@ export default function KioskPage() {
               + Add Team Member
             </button>
           )}
-          {atMax && <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', marginBottom: '.75rem' }}>Team is full ({maxP} players maximum)</div>}
+          {atMax && <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', marginBottom: '.75rem' }}>Team is full ({maxP} player{maxP !== 1 ? 's' : ''} maximum)</div>}
 
           <button style={{ ...S.btn, ...S.btnP }} onClick={() => { setSelectedRes(null); setPlayerWaivers({}); setPhase('idle') }}>
             Done — Return Home
           </button>
+          <AccountQR />
         </div>
       </div>
     )
