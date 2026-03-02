@@ -2355,7 +2355,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
         {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
-        <button style={{marginLeft:"auto",background:tab==="ops"?"#2d6a2d":"rgba(40,200,100,.15)",color:tab==="ops"?"#fff":"#2dc86e",border:"1px solid rgba(40,200,100,.4)",borderRadius:6,padding:".35rem .9rem",fontWeight:700,fontSize:".85rem",cursor:"pointer"}} onClick={()=>setTab("ops")}>Operations</button>
+        <button style={{marginLeft:"auto",background:"rgba(40,200,100,.15)",color:"#2dc86e",border:"1px solid rgba(40,200,100,.4)",borderRadius:6,padding:".35rem .9rem",fontWeight:700,fontSize:".85rem",cursor:"pointer"}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
 
       {tab==="dashboard"&&<>
@@ -2599,7 +2599,6 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           </tbody></table></div>
       </>}
 
-      {tab==="ops"&&<OpsView reservations={reservations} setReservations={setReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={setUsers} activeWaiverDoc={activeWaiverDoc}/>}
     </div>
   );
 }
@@ -3064,6 +3063,28 @@ useEffect(() => {
   if(showLanding&&!currentUser&&!pendingUser)return <LandingPage onEnterApp={()=>setShowLanding(false)} onBookNow={()=>{setBookOnLogin(true);setShowLanding(false);}}/>;
   if(pendingUser)return <><style>{CSS}</style><CompleteProfile user={pendingUser} onComplete={handleCompleteProfile} onSignOut={()=>{setPendingUser(null);setShowLanding(true);}}/></>;
   if(!liveUser)return <><style>{CSS}</style><LoginScreen onLogin={handleLogin}/></>;
+
+  // ── Standalone Ops window (opened via Operations ↗ button) ───────────────
+  const isOpsWindow = new URLSearchParams(window.location.search).has('ops')
+  if(isOpsWindow && portal !== 'customer'){
+    return(<>
+      <style>{CSS}</style>
+      <div className="app">
+        <nav className="nav">
+          <div className="nav-brand"><img src={LOGO_URI} className="nav-logo" alt="Sector 317"/></div>
+          <div className="nav-right">
+            <span className="nav-user">{liveUser.name}</span>
+            {liveUser.authProvider&&<AuthBadge provider={liveUser.authProvider}/>}
+            <span className={`nbadge al-${liveUser.access}`}>{ACCESS_LEVELS[liveUser.access]?.label}</span>
+            <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();window.close();}}>Sign Out</button>
+          </div>
+        </nav>
+        <div className="main">
+          <OpsView reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} activeWaiverDoc={activeWaiver}/>
+        </div>
+      </div>
+    </>);
+  }
 
   return(<>
     <style>{CSS}</style>
