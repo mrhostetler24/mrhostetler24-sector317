@@ -516,38 +516,60 @@ export default function KioskPage() {
     <div style={S.page}>
       {inactivityWarn && <InactivityWarning />}
       <style>{`
-        @keyframes kScopeOpen{0%{width:0px;height:0px}100%{width:6000px;height:6000px}}
-        @keyframes kScopeClose{0%{width:6000px;height:6000px}100%{width:0px;height:0px}}
-        @keyframes kRedIn{0%{opacity:1;transform:translate(-50%,-50%) scale(1.4)}100%{opacity:0;transform:translate(-50%,-50%) scale(0.6)}}
-        @keyframes kRedOut{0%{opacity:0;transform:translate(-50%,-50%) scale(0.6)}60%{opacity:1}100%{opacity:0.7;transform:translate(-50%,-50%) scale(1)}}
-        @keyframes kCardIn{from{opacity:0;transform:scale(0.94)}to{opacity:1;transform:scale(1)}}
+        @keyframes kSightUp {
+          0%   { top:68%; width:200px; height:134px; border-radius:10px;
+                 box-shadow:0 0 0 3000px rgba(0,0,0,0.98), 0 0 0 20px rgba(38,38,38,1), 0 0 0 22px rgba(90,90,90,0.55); }
+          28%  { top:57%; width:280px; height:188px; border-radius:10px; }
+          58%  { top:51%; width:680px; height:456px; border-radius:7px;
+                 box-shadow:0 0 0 3000px rgba(0,0,0,0.96), 0 0 0 20px rgba(38,38,38,0.7), 0 0 0 22px rgba(90,90,90,0.2); }
+          85%  { top:50%; width:2400px; height:2400px; border-radius:2px;
+                 box-shadow:0 0 0 3000px rgba(0,0,0,0.5), 0 0 0 0px rgba(0,0,0,0); }
+          100% { top:50%; width:8000px; height:8000px; border-radius:0;
+                 box-shadow:0 0 0 0px rgba(0,0,0,0); }
+        }
+        @keyframes kSightDown {
+          0%   { top:50%; width:8000px; height:8000px; border-radius:0;
+                 box-shadow:0 0 0 3000px rgba(0,0,0,0.0); }
+          18%  { top:50%; width:1800px; height:1800px; border-radius:3px;
+                 box-shadow:0 0 0 3000px rgba(0,0,0,0.82), 0 0 0 20px rgba(38,38,38,0.4); }
+          55%  { top:53%; width:500px; height:335px; border-radius:8px;
+                 box-shadow:0 0 0 3000px rgba(0,0,0,0.97), 0 0 0 20px rgba(38,38,38,0.95); }
+          80%  { top:62%; width:230px; height:154px; border-radius:10px; }
+          100% { top:70%; width:180px; height:120px; border-radius:10px;
+                 box-shadow:0 0 0 3000px rgba(0,0,0,0.98), 0 0 0 20px rgba(38,38,38,1), 0 0 0 22px rgba(90,90,90,0.55); }
+        }
+        @keyframes kReticleFadeOut { 0%{opacity:1} 65%{opacity:0.6} 100%{opacity:0} }
+        @keyframes kReticleFadeIn  { 0%{opacity:0} 35%{opacity:0.7} 100%{opacity:1} }
       `}</style>
 
-      {/* Red dot sight overlay */}
+      {/* Holographic sight overlay */}
       {scopeAnim && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 300, pointerEvents: 'none', overflow: 'hidden' }}>
-          {/* Aperture circle — box-shadow creates the surrounding darkness */}
+          {/* Rectangular aperture — box-shadow IS the surrounding darkness */}
           <div style={{
+            position: 'absolute', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            animation: scopeAnim === 'open'
+              ? 'kSightUp 1.05s cubic-bezier(0.22,0.61,0.36,1) both'
+              : 'kSightDown 0.9s cubic-bezier(0.55,0,0.8,0.45) both',
+          }} />
+          {/* Red crosshair reticle */}
+          <svg style={{
             position: 'absolute', top: '50%', left: '50%',
             transform: 'translate(-50%,-50%)',
-            borderRadius: '50%',
-            boxShadow: '0 0 0 3000px rgba(0,0,0,0.97), 0 0 0 3px rgba(60,60,60,0.8)',
-            animation: scopeAnim === 'open'
-              ? 'kScopeOpen 0.48s cubic-bezier(0.4,0,0.2,1) forwards'
-              : 'kScopeClose 0.42s cubic-bezier(0.6,0,1,0.6) forwards',
-          }} />
-          {/* Red dot */}
-          <div style={{
-            position: 'absolute', top: '50%', left: '50%',
-            width: 10, height: 10, borderRadius: '50%',
-            background: '#ff2020',
-            boxShadow: '0 0 10px 5px rgba(255,28,28,0.7)',
-            animation: scopeAnim === 'open' ? 'kRedIn 0.48s ease-out forwards' : 'kRedOut 0.42s ease-in forwards',
-          }} />
+            filter: 'drop-shadow(0 0 5px rgba(255,30,30,0.85))',
+            animation: scopeAnim === 'open' ? 'kReticleFadeOut 1.05s ease-out forwards' : 'kReticleFadeIn 0.9s ease-in forwards',
+          }} width="52" height="52" viewBox="0 0 52 52" fill="none">
+            <line x1="0"  y1="26" x2="18" y2="26" stroke="#ff2222" strokeWidth="1.5"/>
+            <line x1="34" y1="26" x2="52" y2="26" stroke="#ff2222" strokeWidth="1.5"/>
+            <line x1="26" y1="0"  x2="26" y2="18" stroke="#ff2222" strokeWidth="1.5"/>
+            <line x1="26" y1="34" x2="26" y2="52" stroke="#ff2222" strokeWidth="1.5"/>
+            <circle cx="26" cy="26" r="2.5" fill="#ff2222"/>
+          </svg>
         </div>
       )}
 
-      <div style={{ ...S.card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', animation: 'kCardIn 0.35s ease-out both', animationDelay: '0.1s', pointerEvents: scopeAnim === 'open' ? 'none' : 'auto' }}>
+      <div style={{ ...S.card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', pointerEvents: scopeAnim === 'open' ? 'none' : 'auto' }}>
         <div style={S.title}>Find Your Reservation</div>
         <div style={{ ...S.h2, textAlign: 'center', marginBottom: 0 }}>Enter your phone number</div>
         <NumPad value={phone} onChange={setPhone} mode="phone" />
@@ -559,7 +581,7 @@ export default function KioskPage() {
         <button style={{ ...S.btn, ...S.btnS, marginTop: '-.4rem' }}
           onClick={() => {
             setScopeAnim('close'); clearTimeout(scopeTimer.current)
-            scopeTimer.current = setTimeout(() => { setScopeAnim(null); setPhone(''); setPhase('idle') }, 430)
+            scopeTimer.current = setTimeout(() => { setScopeAnim(null); setPhone(''); setPhase('idle') }, 910)
           }}>
           Cancel
         </button>
