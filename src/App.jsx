@@ -2215,7 +2215,18 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [editST,setEditST]=useState(null);
   const [newST,setNewST]=useState({dayOfWeek:"Monday",startTime:"18:00",maxSessions:2,active:true});
   const [editUser,setEditUser]=useState(null);
+  const [userSaving,setUserSaving]=useState(false);
   const [newUser,setNewUser]=useState({name:"",phone:"",access:"staff",role:"Game Master",active:true,waivers:[],needsRewaiverDocId:null});
+  const doSaveUser=async()=>{
+    if(!editUser)return;
+    setUserSaving(true);
+    try{
+      const updated=await updateUser(editUser.id,{name:editUser.name,phone:editUser.phone,access:editUser.access,role:editUser.role,active:editUser.active});
+      setUsers(p=>p.map(u=>u.id===updated.id?updated:u));
+      setModal(null);setEditUser(null);showToast("Saved");
+    }catch(e){showToast("Error: "+e.message);}
+    finally{setUserSaving(false);}
+  };
   const [newShift,setNewShift]=useState({staffId:"",date:"",start:"10:00",end:"18:00"});
   const [editWaiver,setEditWaiver]=useState(null);
   const [newWaiver,setNewWaiver]=useState({name:"",version:"1.0",body:"",active:false});
@@ -2328,7 +2339,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <div className="f"><label>Mobile</label><div className="phone-wrap"><span className="phone-prefix">+1</span><input type="tel" value={editUser?.phone||newUser.phone} onChange={e=>{const v=cleanPh(e.target.value);editUser?setEditUser(p=>({...p,phone:v})):setNewUser(p=>({...p,phone:v}));}} maxLength={10}/></div></div>
         <div className="g2"><div className="f"><label>Access</label><select value={editUser?.access||newUser.access} onChange={e=>editUser?setEditUser(p=>({...p,access:e.target.value})):setNewUser(p=>({...p,access:e.target.value}))}><option value="customer">Customer</option><option value="staff">Staff</option><option value="manager">Manager</option>{isAdmin&&<option value="admin">Admin</option>}</select></div><div className="f"><label>Role</label><select value={editUser?.role||newUser.role||""} onChange={e=>editUser?setEditUser(p=>({...p,role:e.target.value})):setNewUser(p=>({...p,role:e.target.value}))}><option value="">— None —</option>{STAFF_ROLES.map(r=><option key={r}>{r}</option>)}</select></div></div>
         {editUser&&<div className="f"><label>Status</label><select value={editUser.active?"active":"inactive"} onChange={e=>setEditUser(p=>({...p,active:e.target.value==="active"}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>}
-        <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditUser(null);}}>Cancel</button><button className="btn btn-p" onClick={()=>{if(editUser)setUsers(p=>p.map(u=>u.id===editUser.id?editUser:u));else setUsers(p=>[...p,{...newUser,id:Date.now()}]);setModal(null);setEditUser(null);showToast("Saved");}}>Save</button></div>
+        <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditUser(null);}}>Cancel</button><button className="btn btn-p" disabled={userSaving} onClick={()=>{if(editUser)doSaveUser();else{setUsers(p=>[...p,{...newUser,id:Date.now()}]);setModal(null);setEditUser(null);showToast("Saved");}}}>{userSaving?"Saving…":"Save"}</button></div>
       </div></div>}
       {modal==="shift"&&<div className="mo"><div className="mc"><div className="mt2">Schedule Shift</div>
         <div className="f"><label>Staff Member</label><select value={newShift.staffId} onChange={e=>setNewShift(p=>({...p,staffId:e.target.value}))}><option value="">Select…</option>{users.filter(u=>u.access!=="customer"&&u.active).map(s=><option key={s.id} value={s.id}>{s.name} — {s.role}</option>)}</select></div>
@@ -2599,7 +2610,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               <td>{cr.length}</td>
               <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(cr.reduce((s,r)=>s+r.amount,0))}</td>
               <td>{valid?<span className="badge b-ok">Valid</span>:wd?<span className="badge b-warn">Exp.</span>:<span className="badge b-cancel">None</span>}</td>
-              <td><button className="btn btn-sm btn-s" onClick={()=>setShowAccountFor(c)}>Edit</button><button className="btn btn-sm btn-warn" style={{marginLeft:".25rem"}} onClick={()=>setMergeTarget(c)}>Merge</button></td>
+              <td><button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...c});setModal("user");}}>Edit</button><button className="btn btn-sm btn-warn" style={{marginLeft:".25rem"}} onClick={()=>setMergeTarget(c)}>Merge</button></td>
             </tr>;
           })}
           </tbody></table></div>
