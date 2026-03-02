@@ -51,6 +51,8 @@ This waiver is valid for twelve (12) months from the date of my signature. A new
 
 By providing my digital signature below, I confirm I have read this waiver in its entirety, understand all terms, and agree to be bound by them.`;
 
+const APP_VERSION = __GIT_HASH__;
+
 const DEFAULT_WAIVERS = [
   { id:"waiver-1", name:"General Liability Waiver", version:"1.0", active:true, createdAt:"2024-01-01T00:00:00Z", body:WAIVER_BODY }
 ];
@@ -3072,7 +3074,7 @@ useEffect(() => {
       <style>{CSS}</style>
       <div className="app">
         <nav className="nav">
-          <div className="nav-brand"><img src={LOGO_URI} className="nav-logo" alt="Sector 317"/></div>
+          <div className="nav-brand"><img src={LOGO_URI} className="nav-logo" alt="Sector 317"/><span style={{fontSize:".7rem",color:"var(--muted)",marginLeft:".4rem",alignSelf:"flex-end",paddingBottom:2}}>v{APP_VERSION}</span></div>
           <div className="nav-right">
             <span className="nav-user">{liveUser.name}</span>
             {liveUser.authProvider&&<AuthBadge provider={liveUser.authProvider}/>}
@@ -3096,6 +3098,7 @@ useEffect(() => {
       <nav className="nav">
         <div className="nav-brand" onClick={()=>setCurrentUser(null)}>
           <img src={LOGO_URI} className="nav-logo" alt="Sector 317"/>
+          <span style={{fontSize:".7rem",color:"var(--muted)",marginLeft:".4rem",alignSelf:"flex-end",paddingBottom:2}}>v{APP_VERSION}</span>
         </div>
         <div className="nav-right">
           <span className="nav-user" onClick={()=>setShowNavAccount(true)} title="Edit account settings">{liveUser.name} ⚙</span>
