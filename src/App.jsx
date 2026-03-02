@@ -71,7 +71,7 @@ const DEFAULT_SESSION_TEMPLATES = [
   { id:11, dayOfWeek:"Sunday", startTime:"16:00", maxSessions:2, active:true },
 ];
 
-const makeDate = n => { const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().split("T")[0]; };
+const makeDate = n => { const d=new Date(); d.setDate(d.getDate()+n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 
 // authProvider: "google"|"microsoft"|"apple"|null (null = phone-only, no social connected)
 const INITIAL_USERS = [

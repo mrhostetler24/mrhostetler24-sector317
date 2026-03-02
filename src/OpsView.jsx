@@ -1120,7 +1120,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
               const hasMatchingModes=activeLanes.some(l=>activeLanes.some(l2=>l2.laneNum!==l.laneNum&&l2.mode===l.mode));
               return(
                 <div style={{borderTop:"1px solid var(--bdr)",padding:"1rem 1.2rem"}}>
-                  {activeLanes.length>1&&hasMatchingModes&&<div style={{display:"flex",justifyContent:"flex-end",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>setShowLaneOverride({time,rawLanes})}>⇄ Arrange Lanes</button></div>}
+                  {activeLanes.length>1&&hasMatchingModes&&<div style={{display:"flex",justifyContent:"center",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>setShowLaneOverride({time,rawLanes})}>⇄ Arrange Lanes</button></div>}
                   {activeLanes.length>0?(
                     <div style={{display:"flex",gap:"1rem",alignItems:"flex-start"}}>
                     {activeLanes.map(lane=>(
