@@ -492,6 +492,15 @@ const rpcRowsToReservations = rows =>
     players: (row.players ?? []).map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name })),
   }))
 
+export async function fetchAvailabilityReservations() {
+  const { data, error } = await supabase.rpc('get_availability_reservations')
+  if (error) throw error
+  return (data ?? []).map(r => ({
+    id: r.id, date: r.date, startTime: r.start_time,
+    typeId: r.type_id, playerCount: r.player_count, status: r.status, players: [],
+  }))
+}
+
 export async function fetchReservations() {
   // Try SECURITY DEFINER RPC — bypasses RLS on reservation_players
   const { data: rpcData, error: rpcErr } = await supabase

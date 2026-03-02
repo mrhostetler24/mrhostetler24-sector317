@@ -7,7 +7,7 @@ import {
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   fetchResTypes, upsertResType, deleteResType,
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
-  fetchReservations, createReservation, updateReservation, addPlayerToReservation, removePlayerFromReservation, syncReservationPlayers,
+  fetchReservations, fetchAvailabilityReservations, createReservation, updateReservation, addPlayerToReservation, removePlayerFromReservation, syncReservationPlayers,
   fetchShifts, createShift, updateShift, deleteShift,
   createPayment, fetchPayments, mergeUsers, linkAuthToGuest,
 } from "./supabase.js";
@@ -873,7 +873,8 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   return null;
 }
 
-function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users,activeWaiverDoc,onBook,onClose}){
+function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,currentUser,users,activeWaiverDoc,onBook,onClose}){
+  const _allRes=allReservations??reservations;
   const [step,setStep]=useState(1);
   const [selMode,setSelMode]=useState(null);
   const [selStyle,setSelStyle]=useState(null);
@@ -894,9 +895,9 @@ function BookingWizard({resTypes,sessionTemplates,reservations,currentUser,users
   const bookable=resTypes.filter(rt=>rt.active&&rt.availableForBooking);
   const selType=bookable.find(rt=>rt.mode===selMode&&rt.style===selStyle);
   const allDates=get60Dates(sessionTemplates);
-  const availMap=useMemo(()=>{if(!selType)return{};const m={};allDates.forEach(d=>{m[d]=dateHasAvailability(d,selType.id,reservations,resTypes,sessionTemplates);});return m;},[selType,reservations,resTypes,sessionTemplates]);
+  const availMap=useMemo(()=>{if(!selType)return{};const m={};allDates.forEach(d=>{m[d]=dateHasAvailability(d,selType.id,_allRes,resTypes,sessionTemplates);});return m;},[selType,_allRes,resTypes,sessionTemplates]);
   const slotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
-  const slotStatuses=slotsForDate.map(t=>({tmpl:t,status:selType?getSlotStatus(selDate,t.startTime,selType.id,reservations,resTypes,sessionTemplates):{available:false},added:selSlots.some(s=>s.startTime===t.startTime)}));
+  const slotStatuses=slotsForDate.map(t=>({tmpl:t,status:selType?getSlotStatus(selDate,t.startTime,selType.id,_allRes,resTypes,sessionTemplates):{available:false},added:selSlots.some(s=>s.startTime===t.startTime)}));
   const isPrivate=selStyle==="private";
   const isVersusOpen=selMode==="versus"&&selStyle==="open";
   // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
@@ -1851,7 +1852,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [tab,setTab]=useState("upcoming");
   const [showBook,setShowBook]=useState(false);
   useEffect(()=>{if(autoBook){setShowBook(true);onAutoBookDone?.();}},[]);// eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(()=>{if(showBook)fetchReservations().then(setReservations).catch(()=>{});},[showBook]);// eslint-disable-line react-hooks/exhaustive-deps
+  const [availRes,setAvailRes]=useState([]);
+  useEffect(()=>{if(showBook)fetchAvailabilityReservations().then(setAvailRes).catch(()=>{});},[showBook]);// eslint-disable-line react-hooks/exhaustive-deps
   const [wOpen,setWOpen]=useState(false);
   const [wViewOpen,setWViewOpen]=useState(false);
   const [showAccount,setShowAccount]=useState(false);
@@ -1977,7 +1979,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           setModifyRes(null);
         }}
       />}
-      {showBook&&<BookingWizard resTypes={resTypes} sessionTemplates={sessionTemplates} reservations={reservations} currentUser={user} users={users} activeWaiverDoc={activeWaiverDoc} onBook={b=>{onBook(b);setShowBook(false);}} onClose={()=>setShowBook(false)}/>}
+      {showBook&&<BookingWizard resTypes={resTypes} sessionTemplates={sessionTemplates} reservations={reservations} allReservations={availRes.length?availRes:reservations} currentUser={user} users={users} activeWaiverDoc={activeWaiverDoc} onBook={b=>{onBook(b);setShowBook(false);}} onClose={()=>setShowBook(false)}/>}
       {receiptRes&&<ReceiptModal res={receiptRes} resTypes={resTypes} user={user} onClose={()=>setReceiptRes(null)}/>}
       {viewPayment&&<PaymentReceiptModal payment={viewPayment} onClose={()=>setViewPayment(null)}/>}
       {waiverAlert&&<div className="mo"><div className="mc" style={{maxWidth:480}}>
