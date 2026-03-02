@@ -140,12 +140,10 @@ export default function KioskPage() {
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement)
   const [kioskUserId, setKioskUserId] = useState(null)
   const [busyMsg, setBusyMsg] = useState(null)
-  const [scopeAnim, setScopeAnim] = useState(null) // 'open' | 'close' | null
 
   // ── Refs ──
   const exitTaps = useRef([])
   const exitTimer = useRef(null)
-  const scopeTimer = useRef(null)
   const inactivityRef = useRef(null)
   const warnRef = useRef(null)
   const warnIntervalRef = useRef(null)
@@ -486,12 +484,7 @@ export default function KioskPage() {
   // ── IDLE ──
   if (phase === 'idle') return (
     <div style={{ ...S.page, cursor: 'pointer', userSelect: 'none', paddingBottom: '16rem' }}
-      onPointerDown={() => {
-        enterFullscreen(); setPhone('')
-        setScopeAnim('open'); clearTimeout(scopeTimer.current)
-        scopeTimer.current = setTimeout(() => setScopeAnim(null), 2100)
-        setPhase('phone')
-      }}>
+      onPointerDown={() => { enterFullscreen(); setPhone(''); setPhase('phone') }}>
       <img src="/logo.png" alt="Sector 317" style={{ height: 120, opacity: .9, marginBottom: '2rem' }} />
       <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.2em', fontSize: '1.8rem', color: 'var(--acc)', textTransform: 'uppercase', marginBottom: '.7rem' }}>Self-Service Check-In</div>
       <div style={{ color: 'var(--muted)', fontSize: '1.05rem', marginBottom: '2.5rem', textAlign: 'center', maxWidth: 460 }}>Look up your reservation, manage your team, and sign your waiver.</div>
@@ -515,61 +508,8 @@ export default function KioskPage() {
   if (phase === 'phone') return (
     <div style={S.page}>
       {inactivityWarn && <InactivityWarning />}
-      <style>{`
-        @keyframes kSightUp {
-          0%   { top:68%; width:200px; height:134px; border-radius:10px;
-                 box-shadow:0 0 0 3000px rgba(0,0,0,0.98), 0 0 0 20px rgba(38,38,38,1), 0 0 0 22px rgba(90,90,90,0.55); }
-          28%  { top:57%; width:280px; height:188px; border-radius:10px; }
-          58%  { top:51%; width:680px; height:456px; border-radius:7px;
-                 box-shadow:0 0 0 3000px rgba(0,0,0,0.96), 0 0 0 20px rgba(38,38,38,0.7), 0 0 0 22px rgba(90,90,90,0.2); }
-          85%  { top:50%; width:2400px; height:2400px; border-radius:2px;
-                 box-shadow:0 0 0 3000px rgba(0,0,0,0.5), 0 0 0 0px rgba(0,0,0,0); }
-          100% { top:50%; width:8000px; height:8000px; border-radius:0;
-                 box-shadow:0 0 0 0px rgba(0,0,0,0); }
-        }
-        @keyframes kSightDown {
-          0%   { top:50%; width:8000px; height:8000px; border-radius:0;
-                 box-shadow:0 0 0 3000px rgba(0,0,0,0.0); }
-          18%  { top:50%; width:1800px; height:1800px; border-radius:3px;
-                 box-shadow:0 0 0 3000px rgba(0,0,0,0.82), 0 0 0 20px rgba(38,38,38,0.4); }
-          55%  { top:53%; width:500px; height:335px; border-radius:8px;
-                 box-shadow:0 0 0 3000px rgba(0,0,0,0.97), 0 0 0 20px rgba(38,38,38,0.95); }
-          80%  { top:62%; width:230px; height:154px; border-radius:10px; }
-          100% { top:70%; width:180px; height:120px; border-radius:10px;
-                 box-shadow:0 0 0 3000px rgba(0,0,0,0.98), 0 0 0 20px rgba(38,38,38,1), 0 0 0 22px rgba(90,90,90,0.55); }
-        }
-        @keyframes kReticleFadeOut { 0%{opacity:1} 65%{opacity:0.6} 100%{opacity:0} }
-        @keyframes kReticleFadeIn  { 0%{opacity:0} 35%{opacity:0.7} 100%{opacity:1} }
-      `}</style>
-
-      {/* Holographic sight overlay */}
-      {scopeAnim && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 300, pointerEvents: 'none', overflow: 'hidden' }}>
-          {/* Rectangular aperture — box-shadow IS the surrounding darkness */}
-          <div style={{
-            position: 'absolute', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            animation: scopeAnim === 'open'
-              ? 'kSightUp 2s cubic-bezier(0.22,0.61,0.36,1) both'
-              : 'kSightDown 1.4s cubic-bezier(0.55,0,0.8,0.45) both',
-          }} />
-          {/* Red crosshair reticle */}
-          <svg style={{
-            position: 'absolute', top: '50%', left: '50%',
-            transform: 'translate(-50%,-50%)',
-            filter: 'drop-shadow(0 0 5px rgba(255,30,30,0.85))',
-            animation: scopeAnim === 'open' ? 'kReticleFadeOut 2s ease-out forwards' : 'kReticleFadeIn 1.4s ease-in forwards',
-          }} width="52" height="52" viewBox="0 0 52 52" fill="none">
-            <line x1="0"  y1="26" x2="18" y2="26" stroke="#ff2222" strokeWidth="1.5"/>
-            <line x1="34" y1="26" x2="52" y2="26" stroke="#ff2222" strokeWidth="1.5"/>
-            <line x1="26" y1="0"  x2="26" y2="18" stroke="#ff2222" strokeWidth="1.5"/>
-            <line x1="26" y1="34" x2="26" y2="52" stroke="#ff2222" strokeWidth="1.5"/>
-            <circle cx="26" cy="26" r="2.5" fill="#ff2222"/>
-          </svg>
-        </div>
-      )}
-
-      <div style={{ ...S.card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', pointerEvents: scopeAnim === 'open' ? 'none' : 'auto' }}>
+      <style>{`@keyframes kZoomIn { from { transform: scale(1.08); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
+      <div style={{ ...S.card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', animation: 'kZoomIn 0.5s cubic-bezier(0.22,0.61,0.36,1) both' }}>
         <div style={S.title}>Find Your Reservation</div>
         <div style={{ ...S.h2, textAlign: 'center', marginBottom: 0 }}>Enter your phone number</div>
         <NumPad value={phone} onChange={setPhone} mode="phone" />
@@ -579,10 +519,7 @@ export default function KioskPage() {
           Search →
         </button>
         <button style={{ ...S.btn, ...S.btnS, marginTop: '-.4rem' }}
-          onClick={() => {
-            setScopeAnim('close'); clearTimeout(scopeTimer.current)
-            scopeTimer.current = setTimeout(() => { setScopeAnim(null); setPhone(''); setPhase('idle') }, 1450)
-          }}>
+          onClick={() => { setPhone(''); setPhase('idle') }}>
           Cancel
         </button>
       </div>
