@@ -911,7 +911,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
               <div style={{padding:".75rem 1rem",display:"flex",alignItems:"center",gap:".5rem",flexShrink:0}}>
                 {canSend&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setSendConfirm(time);}}>Send {fmt12(time)}? →</button>}
                 {allSent&&!allCompleted&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"rgba(100,130,240,.18)",color:"#8096f0",border:"1px solid rgba(100,130,240,.35)",fontWeight:600,fontSize:".8rem"}}>SENT</span>}
-                {allSent&&!allCompleted&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();setScoringSlot({time,lanes:activeLanes});}}>🎯 Score</button>}
+                {allSent&&!allCompleted&&<button className="btn btn-p" style={{fontSize:".85rem",padding:".45rem 1rem",whiteSpace:"nowrap"}} onClick={e=>{e.stopPropagation();const scoringLanes=activeLanes.map(l=>({...l,reservations:l.reservations.filter(r=>r.status!=='no-show')})).filter(l=>l.reservations.length>0);setScoringSlot({time,lanes:scoringLanes});}}>🎯 Score</button>}
                 {allCompleted&&<span style={{display:"inline-block",padding:".3rem .8rem",borderRadius:4,background:"var(--accD)",color:"var(--accB)",border:"1px solid rgba(138,154,53,.25)",fontWeight:600,fontSize:".8rem"}}>✓ COMPLETED</span>}
                 <span style={{color:"var(--muted)",fontSize:"1.1rem"}}>{isOpen?"▲":"▼"}</span>
               </div>
