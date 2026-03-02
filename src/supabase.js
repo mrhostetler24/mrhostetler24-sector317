@@ -968,3 +968,35 @@ export async function deleteShift(id) {
   const { error } = await supabase.from('shifts').delete().eq('id', id)
   if (error) throw error
 }
+
+// ============================================================
+// KIOSK
+// ============================================================
+
+export async function fetchKioskReservations(phone) {
+  const { data, error } = await supabase.rpc('kiosk_lookup_reservations', { p_phone: phone })
+  if (error) throw error
+  return (data ?? []).map(r => ({
+    id: r.id, typeId: r.type_id, userId: r.user_id,
+    customerName: r.customer_name, date: r.date, startTime: r.start_time,
+    playerCount: r.player_count, amount: Number(r.amount),
+    status: r.status, paid: r.paid, createdAt: r.created_at,
+    players: (r.players ?? []).map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name })),
+  }))
+}
+
+export async function kioskSignWaiver(userId, signedName, waiverDocId) {
+  const { error } = await supabase.rpc('kiosk_sign_waiver', {
+    p_user_id: userId, p_signed_name: signedName, p_waiver_doc_id: waiverDocId,
+  })
+  if (error) throw error
+}
+
+export async function fetchPlayerWaiverStatus(userIds) {
+  if (!userIds.length) return {}
+  const { data, error } = await supabase.rpc('kiosk_get_player_waivers', { p_user_ids: userIds })
+  if (error) throw error
+  return Object.fromEntries((data ?? []).map(r => [r.id, {
+    waivers: r.waivers ?? [], needsRewaiverDocId: r.needs_rewaiver_doc_id,
+  }]))
+}

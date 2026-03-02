@@ -15,6 +15,7 @@
   ],
   "rewrites": [
     { "source": "/leaderboard.html", "destination": "/leaderboard.html" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

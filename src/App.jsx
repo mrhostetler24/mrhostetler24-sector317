@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import LandingPage from "./LandingPage.jsx";
 import OpsView from "./OpsView.jsx";
+import KioskPage from "./KioskPage.jsx";
 import {
   supabase,
   fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, deleteUser, signWaiver,
@@ -3062,6 +3063,7 @@ useEffect(() => {
   const [viewAs,setViewAs]=useState(null); // null | "manager" | "staff" | "customer"
   const [viewAsOpen,setViewAsOpen]=useState(false);
   const isAdminOrManager=liveUser&&(liveUser.access==="admin"||liveUser.access==="manager");
+  const canViewAs=liveUser&&(isAdminOrManager||liveUser.access==="staff");
   const effectivePortal=viewAs?(viewAs==="customer"?"customer":viewAs==="staff"?"staff":"admin"):portal;
   const effectiveUser=viewAs?{...liveUser,access:viewAs}:liveUser;
   const [showNavAccount,setShowNavAccount]=useState(false);
@@ -3076,6 +3078,8 @@ useEffect(() => {
     el?.addEventListener('scroll',handler,{passive:true});
     return()=>el?.removeEventListener('scroll',handler);
   },[liveUser]);
+
+  if(window.location.pathname==='/kiosk')return <><style>{CSS}</style><KioskPage/></>;
 
   if(loading)return(
     <><style>{CSS}</style>
@@ -3149,12 +3153,12 @@ useEffect(() => {
             </span>
           ):(
             <div style={{position:"relative"}}>
-              <span className={`nbadge al-${liveUser.access}`} style={isAdminOrManager?{cursor:"pointer",userSelect:"none"}:{}} onClick={()=>isAdminOrManager&&setViewAsOpen(p=>!p)} title={isAdminOrManager?"Preview as role":undefined}>
-                {ACCESS_LEVELS[liveUser.access]?.label}{isAdminOrManager?" ▾":""}
+              <span className={`nbadge al-${liveUser.access}`} style={canViewAs?{cursor:"pointer",userSelect:"none"}:{}} onClick={()=>canViewAs&&setViewAsOpen(p=>!p)} title={canViewAs?"Preview as role":undefined}>
+                {ACCESS_LEVELS[liveUser.access]?.label}{canViewAs?" ▾":""}
               </span>
               {viewAsOpen&&<div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:7,padding:".4rem",zIndex:500,minWidth:140,boxShadow:"0 4px 20px rgba(0,0,0,.4)"}}>
                 <div style={{fontSize:".65rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".08em",padding:".2rem .5rem .4rem",fontWeight:700}}>Preview As</div>
-                {(liveUser.access==="admin"?["manager","staff","customer"]:["staff","customer"]).map(role=>(
+                {(liveUser.access==="admin"?["manager","staff","customer"]:liveUser.access==="manager"?["staff","customer"]:["customer"]).map(role=>(
                   <div key={role} style={{padding:".45rem .75rem",borderRadius:5,cursor:"pointer",fontSize:".85rem",color:"var(--txt)",fontWeight:500}} onClick={()=>{setViewAs(role);setViewAsOpen(false);}}
                     onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"} onMouseLeave={e=>e.currentTarget.style.background=""}>
                     {ACCESS_LEVELS[role]?.label}
