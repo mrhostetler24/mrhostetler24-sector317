@@ -30,7 +30,7 @@
 
     /* ── Sidebar ─────────────────────────────────────────────────── */
     .sidebar {
-      width:290px; flex-shrink:0; height:100vh;
+      width:400px; flex-shrink:0; height:100vh;
       background:var(--bg2);
       border-right:1px solid var(--bdr);
       display:flex; flex-direction:column;
@@ -39,63 +39,64 @@
 
     .sidebar-brand {
       text-align:center;
-      padding:1.75rem 1.25rem 1.5rem;
+      padding:2.25rem 1.75rem 2rem;
       border-bottom:1px solid rgba(200,224,58,.1);
-      background:linear-gradient(180deg, rgba(200,224,58,.04) 0%, transparent 100%);
+      background:linear-gradient(180deg, rgba(200,224,58,.05) 0%, transparent 100%);
     }
-    .sidebar-brand .logo { height:60px; width:auto; margin-bottom:.75rem; }
+    .sidebar-brand .logo { height:100px; width:auto; margin-bottom:1.1rem; }
     .sidebar-brand .lb-title {
-      font-family:var(--fd); font-size:1.75rem; color:var(--accB);
+      font-family:var(--fd); font-size:2.6rem; color:var(--accB);
       letter-spacing:.1em; text-transform:uppercase; line-height:1;
-      text-shadow:0 0 40px rgba(200,224,58,.3);
+      text-shadow:0 0 60px rgba(200,224,58,.4);
     }
     .sidebar-brand .lb-sub {
-      font-family:var(--fc); font-size:.62rem; color:var(--muted);
-      letter-spacing:.2em; text-transform:uppercase; margin-top:.45rem;
+      font-family:var(--fc); font-size:.75rem; color:var(--muted);
+      letter-spacing:.18em; text-transform:uppercase; margin-top:.65rem;
     }
 
-    .sidebar-section { padding:1.1rem 1.25rem .85rem; border-bottom:1px solid rgba(200,224,58,.06); }
+    .sidebar-section { padding:1.25rem 1.75rem 1.1rem; border-bottom:1px solid rgba(200,224,58,.06); }
 
     .s-label {
-      font-family:var(--fc); font-size:.55rem; letter-spacing:.4em;
-      text-transform:uppercase; color:var(--muted); margin-bottom:.6rem;
+      font-family:var(--fc); font-size:.6rem; letter-spacing:.4em;
+      text-transform:uppercase; color:var(--muted); margin-bottom:.75rem;
       opacity:.7;
     }
 
     .mode-toggle { display:flex; background:var(--surf2); border:1px solid var(--bdr); border-radius:4px; overflow:hidden; }
     .mode-btn {
-      flex:1; background:none; border:none; padding:.55rem .4rem;
-      font-family:var(--fc); font-size:.75rem; font-weight:700;
+      flex:1; background:none; border:none; padding:.7rem .5rem;
+      font-family:var(--fc); font-size:.9rem; font-weight:700;
       letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
       cursor:pointer; transition:all .2s; text-align:center;
     }
     .mode-btn.active { background:var(--acc); color:var(--bg2); }
     .mode-btn:hover:not(.active) { color:var(--accB); }
 
-    .tabs-list { display:flex; flex-direction:column; gap:.2rem; }
+    .tabs-list { display:flex; flex-direction:column; gap:.28rem; }
     .tab {
       background:none; border:1px solid transparent; border-radius:4px;
-      color:var(--muted); padding:.55rem .75rem; text-align:left; cursor:pointer;
-      font-family:var(--fc); font-size:.9rem; font-weight:700;
+      color:var(--muted); padding:.7rem .9rem; text-align:left; cursor:pointer;
+      font-family:var(--fc); font-size:1.05rem; font-weight:700;
       text-transform:uppercase; letter-spacing:.1em; transition:all .2s; width:100%;
     }
     .tab:hover { color:var(--txt); background:rgba(200,224,58,.04); border-color:rgba(200,224,58,.1); }
     .tab.active { color:var(--accB); background:var(--accD); border-color:rgba(200,224,58,.2); }
 
     .mode-explain {
-      padding:1rem 1.25rem; font-size:.72rem; color:var(--muted);
-      font-family:var(--fc); letter-spacing:.03em; line-height:1.55;
+      padding:1.1rem 1.75rem; font-size:.8rem; color:var(--muted);
+      font-family:var(--fc); letter-spacing:.03em; line-height:1.6;
       border-bottom:1px solid rgba(200,224,58,.06);
     }
     .mode-explain strong { color:var(--acc2); }
 
     .sidebar-footer {
-      padding:1rem 1.25rem; margin-top:auto;
+      padding:1.1rem 1.75rem; margin-top:auto;
       border-top:1px solid rgba(200,224,58,.06);
+      display:flex; flex-direction:column; align-items:center; gap:.1rem;
     }
     .refresh-bar {
-      display:flex; align-items:center; gap:.5rem;
-      font-size:.68rem; color:var(--muted); font-family:var(--fc);
+      display:flex; align-items:center; justify-content:center; gap:.5rem;
+      font-size:.74rem; color:var(--muted); font-family:var(--fc);
       letter-spacing:.08em; text-transform:uppercase;
     }
     .refresh-dot { width:7px; height:7px; background:var(--acc2); border-radius:50%; animation:pulse 2s infinite; flex-shrink:0; }
@@ -103,9 +104,9 @@
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
     .kiosk-badge {
-      display:none; margin-top:.75rem; background:rgba(200,224,58,.08);
+      display:none; margin-top:.8rem; background:rgba(200,224,58,.08);
       border:1px solid rgba(200,224,58,.22); border-radius:4px;
-      padding:.35rem .75rem; font-family:var(--fc); font-size:.65rem;
+      padding:.4rem .9rem; font-family:var(--fc); font-size:.72rem;
       letter-spacing:.12em; text-transform:uppercase; color:var(--acc2);
       text-align:center; animation:kioskPulse 2.5s ease infinite;
     }
@@ -113,7 +114,7 @@
     @keyframes kioskPulse{0%,100%{opacity:.7;}50%{opacity:1;}}
 
     .sidebar-link {
-      display:block; margin-top:.65rem; font-family:var(--fc); font-size:.65rem;
+      display:block; margin-top:.7rem; font-family:var(--fc); font-size:.7rem;
       color:var(--muted); letter-spacing:.08em; text-transform:uppercase; text-decoration:none; text-align:center;
     }
     .sidebar-link:hover { color:var(--acc2); }
@@ -124,7 +125,6 @@
       display:flex; flex-direction:column;
       height:100vh; overflow:hidden;
       background:var(--bg);
-      /* Accent line at top */
       border-top:3px solid transparent;
       border-image:linear-gradient(90deg,transparent,var(--acc2),var(--accB),var(--acc2),transparent) 1;
     }
@@ -137,13 +137,13 @@
       border-bottom:1px solid var(--bdr);
     }
     .board-head-left { display:flex; align-items:center; gap:.75rem; }
-    .board-head-title { font-family:var(--fd); font-size:1rem; color:var(--accB); letter-spacing:.1em; text-transform:uppercase; }
-    .mode-badge { font-size:.63rem; font-family:var(--fc); font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:.2rem .6rem; border-radius:3px; }
+    .board-head-title { font-family:var(--fd); font-size:1.05rem; color:var(--accB); letter-spacing:.1em; text-transform:uppercase; }
+    .mode-badge { font-size:.65rem; font-family:var(--fc); font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:.2rem .6rem; border-radius:3px; }
     .badge-avg { background:var(--accD); color:var(--accB); border:1px solid rgba(200,224,58,.25); }
     .badge-cum { background:rgba(90,138,58,.15); color:#74a84a; border:1px solid rgba(90,138,58,.3); }
-    .board-count { font-size:.72rem; color:var(--muted); font-family:var(--fc); letter-spacing:.08em; }
+    .board-count { font-size:.75rem; color:var(--muted); font-family:var(--fc); letter-spacing:.08em; }
 
-    /* Content area — fades on tab switch */
+    /* Content area — fades on tab/mode switch */
     .board-content {
       flex:1; min-height:0;
       display:flex; flex-direction:column;
@@ -155,7 +155,6 @@
     .board-fixed {
       flex-shrink:0;
       background:var(--surf);
-      /* Shadow to visually separate from scrollable area */
       box-shadow:0 4px 20px rgba(0,0,0,.5);
       position:relative; z-index:2;
     }
@@ -165,28 +164,27 @@
       flex:1; overflow-y:auto; min-height:0;
       background:var(--bg);
     }
-    /* Subtle scrollbar styling */
     .board-scroll::-webkit-scrollbar { width:4px; }
     .board-scroll::-webkit-scrollbar-track { background:transparent; }
     .board-scroll::-webkit-scrollbar-thumb { background:var(--bdr); border-radius:2px; }
 
     /* ── Tables ──────────────────────────────────────────────────── */
     .board-table { width:100%; border-collapse:collapse; table-layout:fixed; }
-    .col-rank  { width:60px; }
-    .col-score { width:130px; }
-    .col-best  { width:120px; }
+    .col-rank  { width:82px; }
+    .col-score { width:145px; }
+    .col-best  { width:135px; }
 
     thead tr { background:var(--surf2); }
     th {
-      text-align:left; padding:.5rem 1rem;
-      font-size:.6rem; text-transform:uppercase; letter-spacing:.12em;
+      text-align:left; padding:.55rem 1rem;
+      font-size:.62rem; text-transform:uppercase; letter-spacing:.12em;
       color:var(--muted); font-family:var(--fc); font-weight:700;
       border-bottom:1px solid var(--bdr);
     }
     th.r, td.r { text-align:right; }
 
     td {
-      padding:.82rem 1rem; border-bottom:1px solid rgba(58,59,51,.55);
+      padding:1rem 1rem; border-bottom:1px solid rgba(58,59,51,.55);
       font-size:.88rem; vertical-align:middle;
       overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
@@ -202,26 +200,47 @@
     #podiumBody tr:nth-child(3) td { background:rgba(205,127,50,.025); }
     #podiumBody tr:hover td { background:rgba(200,224,58,.04) !important; }
 
-    .rank-cell { font-family:var(--fd); font-size:1.05rem; text-align:center; }
+    .rank-cell { font-family:var(--fd); font-size:1.1rem; text-align:center; }
     .rank-1{color:var(--gold);}  .rank-2{color:var(--silver);}  .rank-3{color:var(--bronze);}
-    .rank-n{color:var(--muted);font-size:.9rem;}
-    .medal { font-size:1.2rem; }
+    .rank-n{color:var(--muted);font-size:.95rem;}
+    .medal { font-size:1.3rem; }
 
-    .player-name { font-family:var(--fc); font-weight:700; font-size:1rem; letter-spacing:.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .player-meta { font-size:.68rem; color:var(--muted); margin-top:.12rem; display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
-    .time-note  { color:var(--acc2); font-family:var(--fc); font-weight:600; }
-    .time-best  { color:var(--muted); }
-    .score-main { font-family:var(--fd); font-size:1.15rem; color:var(--accB); }
+    /* Player cell */
+    .player-name-row { display:flex; align-items:center; gap:.55rem; }
+    .player-name { font-family:var(--fc); font-weight:700; font-size:1.05rem; letter-spacing:.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .player-meta { font-size:.72rem; color:var(--muted); margin-top:.16rem; font-family:var(--fc); letter-spacing:.02em; }
+    .time-note { color:var(--acc2); font-weight:600; }
+
+    /* Tier badges */
+    .tier {
+      font-family:var(--fc); font-size:.58rem; font-weight:800;
+      letter-spacing:.1em; padding:.12rem .48rem; border-radius:2px;
+      white-space:nowrap; flex-shrink:0; line-height:1.4;
+    }
+    .t-elite { background:rgba(245,200,66,.12); color:var(--gold);   border:1px solid rgba(245,200,66,.25); }
+    .t-vet   { background:rgba(200,224,58,.1);  color:var(--acc2);   border:1px solid rgba(200,224,58,.22); }
+    .t-ops   { background:rgba(90,138,58,.12);  color:#74a84a;       border:1px solid rgba(90,138,58,.22); }
+    .t-rec   { background:rgba(120,140,170,.1); color:var(--silver); border:1px solid rgba(120,140,170,.22); }
+
+    /* Score bar */
+    .score-bar-wrap { height:2px; background:rgba(200,224,58,.07); border-radius:1px; margin-top:.4rem; }
+    .score-bar-fill { height:100%; background:linear-gradient(90deg,var(--acc2),var(--accB)); border-radius:1px; }
+
+    /* Score cell */
+    .score-main { font-family:var(--fd); font-size:1.2rem; color:var(--accB); }
     .score-sub  { font-size:.65rem; color:var(--muted); margin-top:.1rem; font-family:var(--fc); }
 
-    /* State messages (loading, error, empty) */
+    /* Best score cell */
+    .best-val  { color:var(--txt); font-family:var(--fc); font-weight:700; font-size:.95rem; }
+
+    /* State messages */
     .state-cell { text-align:center; padding:3.5rem 2rem !important; color:var(--muted); font-family:var(--fc); font-size:.95rem; letter-spacing:.1em; text-transform:uppercase; white-space:normal !important; }
     .state-icon { font-size:2rem; margin-bottom:.6rem; display:block; }
     .spinner { width:32px; height:32px; border:3px solid var(--bdr); border-top-color:var(--acc); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto .75rem; }
     @keyframes spin{to{transform:rotate(360deg);}}
 
-    @media(max-width:700px){
-      .sidebar { width:200px; }
+    @media(max-width:800px){
+      .sidebar { width:220px; }
       .col-best { display:none; }
       td.col-hide,th.col-hide { display:none; }
     }
@@ -300,7 +319,7 @@
             <tr>
               <th style="text-align:center">Rank</th>
               <th>Operative</th>
-              <th class="r col-hide">Best Run</th>
+              <th class="r col-hide">Best Score</th>
               <th class="r">Score</th>
             </tr>
           </thead>
@@ -356,6 +375,15 @@ function rankDisp(r){ if(r===1)return'<span class="medal">🥇</span>'; if(r===2
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 function delay(ms){ return new Promise(r=>setTimeout(r,ms)) }
 
+function tierBadge(runs){
+  const n = runs ?? 0
+  if(n >= 100) return '<span class="tier t-elite">ELITE</span>'
+  if(n >= 50)  return '<span class="tier t-vet">VETERAN</span>'
+  if(n >= 20)  return '<span class="tier t-ops">OPERATOR</span>'
+  if(n >= 5)   return '<span class="tier t-rec">RECRUIT</span>'
+  return ''
+}
+
 // ── Fetch ────────────────────────────────────────────────────────
 async function fetchBoard(period, mode){
   const {view} = VIEW_MAP[mode][period]
@@ -375,24 +403,35 @@ async function fetchBoard(period, mode){
 }
 
 // ── Build row HTML ───────────────────────────────────────────────
-function buildRowsHtml(rows, period, mode){
+function buildRowsHtml(rows, period, mode, maxScore){
   const {rankCol} = VIEW_MAP[mode][period]
+  const max = maxScore ?? Number(rows[0]?.leaderboard_score ?? 1)
   return rows.map(r=>{
-    const rank   = r[rankCol] ?? '?'
-    const rc     = rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n'
-    const avgT   = fmtS(r.avg_seconds)
-    const bestT  = fmtS(r.best_seconds)
-    const runsLbl = mode==='avg' ? `${r.runs_in_avg??'?'} runs averaged` : `${r.total_runs??r.total_runs_played??'?'} total runs`
-    const timeNote = avgT ? `<span class="time-note">⏱ avg ${avgT}</span>${bestT?`<span class="time-best"> · best ${bestT}</span>`:''}` : ''
-    const scoreVal = Number(r.leaderboard_score??0).toFixed(mode==='avg'?1:0)
-    const bestLbl  = r.best_run!=null ? `best: ${r.best_run}` : ''
+    const rank     = r[rankCol] ?? '?'
+    const rc       = rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n'
+    const avgT     = fmtS(r.avg_seconds)
+    const bestT    = fmtS(r.best_seconds)
+    const runCount = mode==='avg'
+      ? (r.runs_in_avg ?? r.total_runs ?? 0)
+      : (r.total_runs ?? r.total_runs_played ?? 0)
+    const runsLbl  = mode==='avg'
+      ? `${runCount} run${runCount!==1?'s':''} avg'd`
+      : `${runCount} run${runCount!==1?'s':''}`
+    const timeParts = [avgT?`avg ${avgT}`:null, bestT?`best ${bestT}`:null].filter(Boolean)
+    const timeStr   = timeParts.length ? `<span class="time-note">⏱ ${timeParts.join(' · ')}</span>` : ''
+    const score     = Number(r.leaderboard_score ?? 0)
+    const pct       = Math.max(2, Math.round(score / max * 100))
+    const scoreVal  = score.toFixed(mode==='avg'?1:0)
+    const bestScore = r.best_run != null ? r.best_run : null
+    const tier      = tierBadge(runCount)
     return `<tr>
       <td class="rank-cell ${rc}">${rankDisp(rank)}</td>
       <td>
-        <div class="player-name">${esc(r.player_name??'Unknown')}</div>
-        <div class="player-meta"><span>${runsLbl}</span>${timeNote}</div>
+        <div class="player-name-row"><span class="player-name">${esc(r.player_name??'Unknown')}</span>${tier?' '+tier:''}</div>
+        <div class="player-meta">${runsLbl}${timeStr?' &nbsp;·&nbsp; '+timeStr:''}</div>
+        <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${pct}%"></div></div>
       </td>
-      <td class="r col-hide" style="color:var(--muted);font-family:var(--fc);font-size:.82rem">${bestLbl}</td>
+      <td class="r col-hide">${bestScore!=null?`<div class="best-val">${bestScore}</div><div class="score-sub">best score</div>`:''}</td>
       <td class="r">
         <div class="score-main">${scoreVal}</div>
         <div class="score-sub">${mode==='avg'?'avg score':'total score'}</div>
@@ -416,11 +455,12 @@ function renderBoard(rows, period, mode){
     return
   }
 
-  const podium = rows.slice(0, 3)
-  const rest   = rows.slice(3)
+  const maxScore = Number(rows[0]?.leaderboard_score ?? 1)
+  const podium   = rows.slice(0, 3)
+  const rest     = rows.slice(3)
 
-  document.getElementById('podiumBody').innerHTML = buildRowsHtml(podium, period, mode)
-  document.getElementById('boardBody').innerHTML  = rest.length ? buildRowsHtml(rest, period, mode) : ''
+  document.getElementById('podiumBody').innerHTML = buildRowsHtml(podium, period, mode, maxScore)
+  document.getElementById('boardBody').innerHTML  = rest.length ? buildRowsHtml(rest, period, mode, maxScore) : ''
 }
 
 function showLoading(){
@@ -496,7 +536,18 @@ function startRefreshCycle(){
 }
 
 // ── TV Kiosk Auto-scroll ─────────────────────────────────────────
-const KIOSK_TABS       = ['alltime','yearly','monthly','weekly']
+// Full cycle: all 4 periods in Avg mode, then all 4 in Cumulative, repeat
+const KIOSK_CYCLE = [
+  {mode:'avg', period:'alltime'},
+  {mode:'avg', period:'yearly'},
+  {mode:'avg', period:'monthly'},
+  {mode:'avg', period:'weekly'},
+  {mode:'cum', period:'alltime'},
+  {mode:'cum', period:'yearly'},
+  {mode:'cum', period:'monthly'},
+  {mode:'cum', period:'weekly'},
+]
+
 const IDLE_ACTIVATE_MS = 30000   // 30s idle → activate kiosk
 const PAUSE_TOP_FIRST  = 5000    // pause on first activation
 const PAUSE_TOP        = 2000    // pause at top between tabs
@@ -504,7 +555,7 @@ const PAUSE_BOTTOM     = 5000    // pause at bottom before advancing
 const SCROLL_PX_SEC    = 60      // scroll speed — pixels per second
 
 let kioskActive     = false
-let kioskTabIdx     = 0
+let kioskCycleIdx   = 0
 let kioskScrollRAF  = null
 let kioskPauseTimer = null
 let kioskScrollTs   = null
@@ -531,7 +582,9 @@ document.addEventListener('click',      resetIdle, {passive:true})
 
 function activateKiosk(){
   kioskActive = true
-  kioskTabIdx = Math.max(0, KIOSK_TABS.indexOf(currentPeriod))
+  // Start from the current position in the cycle
+  const idx = KIOSK_CYCLE.findIndex(c=>c.period===currentPeriod && c.mode===currentMode)
+  kioskCycleIdx = idx >= 0 ? idx : 0
   document.getElementById('kioskBadge').classList.add('visible')
   kioskPauseTop(PAUSE_TOP_FIRST)
 }
@@ -557,7 +610,7 @@ function kioskScrollStep(ts){
 
   if(atBottom){
     kioskScrollRAF = null
-    // Hold at bottom for 5s, then advance tab
+    // Hold at bottom for 5s, then advance to next step in cycle
     kioskPauseTimer = setTimeout(()=>{ if(kioskActive) kioskAdvanceTab() }, PAUSE_BOTTOM)
     return
   }
@@ -569,11 +622,19 @@ function kioskScrollStep(ts){
 async function kioskAdvanceTab(){
   if(!kioskActive) return
 
-  kioskTabIdx = (kioskTabIdx + 1) % KIOSK_TABS.length
-  const period = KIOSK_TABS[kioskTabIdx]
+  kioskCycleIdx = (kioskCycleIdx + 1) % KIOSK_CYCLE.length
+  const {mode, period} = KIOSK_CYCLE[kioskCycleIdx]
 
-  // Update tab highlight
+  // Update sidebar highlights
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.period===period))
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode))
+
+  // Update mode explain text when mode changes
+  if(mode !== currentMode){
+    document.getElementById('modeExplain').innerHTML = mode==='avg'
+      ? '<strong>Average Mode:</strong> Each player\'s average score across their top 50 individual runs. Ties broken by fastest average completion time.'
+      : '<strong>Cumulative Mode:</strong> Total of every run score ever recorded. Average completion time shown as a fun note. Ties broken by fastest average time.'
+  }
 
   // Fade out → load → scroll to top → fade in
   const bc = document.getElementById('boardContent')
@@ -582,7 +643,7 @@ async function kioskAdvanceTab(){
 
   if(!kioskActive){ bc.classList.remove('fading'); return }
 
-  await loadBoard(period, currentMode, false)
+  await loadBoard(period, mode, false)
   document.getElementById('boardScroll').scrollTop = 0
 
   bc.classList.remove('fading')
