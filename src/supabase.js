@@ -9,14 +9,15 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
 // SCORE CALCULATION
 // Formula: GREATEST(0, ROUND((100 - X) × multiplier - T))
 //   X          = 80 if objective failed, else 0
-//   multiplier = 1.0 + visual_add + cranked_add
-//     C  → +0.2,  S  → +0.4,  CS → +0.4,  B → +0.8
-//     cranked → +0.2
+//   multiplier = 1.0 + visual_add + audio_add
+//     V → +0.0, C → +0.2, R → +0.2, S → +0.4, CS → +0.4, B → +0.8
+//     audio: cranked (C) → +0.2, Off (O) / Tunes (T) → +0.0
 //   T = 15 if targets NOT eliminated, else 0
 // ============================================================
-export function calculateRunScore({ visual, cranked, targetsEliminated, objectiveComplete }) {
-  const visualAdd = { V: 0.0, C: 0.2, S: 0.4, CS: 0.4, B: 0.8 }[visual] ?? 0.0
-  const multiplier = 1.0 + visualAdd + (cranked ? 0.2 : 0.0)
+export function calculateRunScore({ visual, cranked, audio, targetsEliminated, objectiveComplete }) {
+  const visualAdd = { V: 0.0, C: 0.2, R: 0.2, S: 0.4, CS: 0.4, B: 0.8 }[visual] ?? 0.0
+  const audioCranked = audio ? audio === 'C' : !!cranked // new audio code or legacy boolean
+  const multiplier = 1.0 + visualAdd + (audioCranked ? 0.2 : 0.0)
   const X = objectiveComplete ? 0 : 80
   const T = targetsEliminated ? 0 : 15
   return Math.max(0, Math.round((100 - X) * multiplier - T))
@@ -42,6 +43,7 @@ const toUser = r => r ? ({
   leaderboardName:    r.leaderboard_name ?? null,
   isReal:             r.is_real ?? true,
   createdByUserId:    r.created_by_user_id ?? null,
+  createdAt:          r.created_at ?? null,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -85,6 +87,7 @@ const toReservation = r => r ? ({
   amount:       Number(r.amount),
   status:       r.status,
   paid:         r.paid ?? false,
+  rescheduled:  r.rescheduled ?? false,
   players:      r.players ?? [],
   createdAt:    r.created_at ?? null,
 }) : null
@@ -114,6 +117,7 @@ const toRun = r => r ? ({
   structure:          r.structure,
   visual:             r.visual,
   cranked:            r.cranked,
+  audio:              r.audio ?? null,
   targetsEliminated:  r.targets_eliminated,
   objectiveComplete:  r.objective_complete,
   elapsedSeconds:     r.elapsed_seconds,
@@ -599,6 +603,7 @@ export async function updateReservation(id, changes) {
   if (changes.date        !== undefined) row.date         = changes.date
   if (changes.startTime   !== undefined) row.start_time   = changes.startTime
   if (changes.typeId      !== undefined) row.type_id      = changes.typeId
+  if (changes.rescheduled !== undefined) row.rescheduled  = changes.rescheduled
   const { data, error } = await supabase
     .from('reservations').update(row).eq('id', id).select().single()
   if (error) throw error
@@ -732,6 +737,7 @@ export async function createRun(run) {
     structure:          run.structure ?? 'Alpha',
     visual:             run.visual ?? 'V',
     cranked:            run.cranked ?? false,
+    audio:              run.audio ?? null,
     targets_eliminated: run.targetsEliminated ?? false,
     objective_complete: run.objectiveComplete ?? false,
     elapsed_seconds:    run.elapsedSeconds ?? null,
@@ -753,6 +759,7 @@ export async function updateRun(id, changes) {
   if (changes.structure          !== undefined) row.structure           = changes.structure
   if (changes.visual             !== undefined) row.visual              = changes.visual
   if (changes.cranked            !== undefined) row.cranked             = changes.cranked
+  if (changes.audio              !== undefined) row.audio               = changes.audio
   if (changes.targetsEliminated  !== undefined) row.targets_eliminated  = changes.targetsEliminated
   if (changes.objectiveComplete  !== undefined) row.objective_complete  = changes.objectiveComplete
   if (changes.elapsedSeconds     !== undefined) row.elapsed_seconds     = changes.elapsedSeconds
@@ -793,6 +800,7 @@ export async function upsertRun(run) {
     structure:          run.structure ?? 'Alpha',
     visual:             run.visual ?? 'V',
     cranked:            run.cranked ?? false,
+    audio:              run.audio ?? null,
     targets_eliminated: run.targetsEliminated ?? false,
     objective_complete: run.objectiveComplete ?? false,
     elapsed_seconds:    run.elapsedSeconds ?? null,
@@ -805,6 +813,19 @@ export async function upsertRun(run) {
     .select().single()
   if (error) throw error
   return toRun(data)
+}
+
+/** Fetch auth account creation dates for all users with a linked auth account.
+ *  Requires SQL: CREATE OR REPLACE FUNCTION public.get_user_auth_dates()
+ *  RETURNS TABLE(user_id uuid, auth_created_at timestamptz) LANGUAGE sql SECURITY DEFINER AS $$
+ *    SELECT u.id, au.created_at FROM public.users u
+ *    JOIN auth.users au ON au.id::text = u.auth_id WHERE u.auth_id IS NOT NULL;
+ *  $$; GRANT EXECUTE ON FUNCTION public.get_user_auth_dates() TO authenticated;
+ */
+export async function fetchUserAuthDates() {
+  const { data, error } = await supabase.rpc('get_user_auth_dates')
+  if (error) throw error
+  return (data ?? []).map(r => ({ userId: r.user_id, authCreatedAt: r.auth_created_at }))
 }
 
 

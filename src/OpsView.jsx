@@ -130,16 +130,16 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
 
 // ── Scoring Modal constants ────────────────────────────────────────────────────
 const VISUAL_OPTIONS=[
-  {ui:'STD',  code:'V', label:'Standard',      desc:'Normal lighting'},
-  {ui:'COSMIC',code:'C',label:'Cosmic',         desc:'Black-light UV (+20%)'},
-  {ui:'STROBE',code:'S',label:'Strobe',         desc:'Flash pulse (+40%)'},
-  {ui:'DARK',  code:'B',label:'Dark',           desc:'Lights off (+80%)'},
-  {ui:'RAVE',  code:'C',label:'Rave',           desc:'UV + strobe (+20%)'},
+  {ui:'STD',   code:'V', label:'Standard', desc:'Normal lighting'},
+  {ui:'COSMIC',code:'C', label:'Cosmic',   desc:'Black-light UV (+20%)'},
+  {ui:'STROBE',code:'S', label:'Strobe',   desc:'Flash pulse (+40%)'},
+  {ui:'DARK',  code:'B', label:'Dark',     desc:'Lights off (+80%)'},
+  {ui:'RAVE',  code:'R', label:'Rave',     desc:'UV + strobe (+20%)'},
 ];
 const AUDIO_OPTIONS=[
-  {ui:'OFF',    cranked:false, label:'Off',     desc:'Silent'},
-  {ui:'TUNES',  cranked:false, label:'Tunes',   desc:'Background music'},
-  {ui:'CRANKED',cranked:true,  label:'Cranked', desc:'Distorted audio (+20%)'},
+  {ui:'OFF',    code:'O', cranked:false, label:'Off',     desc:'Silent'},
+  {ui:'TUNES',  code:'T', cranked:false, label:'Tunes',   desc:'Background music'},
+  {ui:'CRANKED',code:'C', cranked:true,  label:'Cranked', desc:'Distorted audio (+20%)'},
 ];
 const DIFF_OPTIONS=[
   {value:'NONE',    label:'No Return Fire', desc:'Role players will not engage or interfere.'},
@@ -151,7 +151,7 @@ const DIFF_OPTIONS=[
 ];
 const MAX_TENTHS=6000; // 10 minutes in tenths of a second
 const fmtTenths=t=>{const min=Math.floor(t/600),sec=Math.floor((t%600)/10),tenth=t%10;return`${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${tenth}`;};
-const dfltLane=()=>({uiVisual:'STD',visual:'V',uiAudio:'TUNES',cranked:false,targetsEliminated:false,objectiveComplete:false,objectiveId:null,difficulty:'NONE',winnerTeam:null});
+const dfltLane=()=>({uiVisual:'STD',visual:'V',uiAudio:'TUNES',audio:'T',cranked:false,targetsEliminated:false,objectiveComplete:false,objectiveId:null,difficulty:'NONE',winnerTeam:null});
 
 function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit}){
   const [run,setRun]=useState(1);
@@ -227,7 +227,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:objComplete});
     const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!objComplete});
     const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
-    const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
+    const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,audio:s.audio??null,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
     setSaving(laneIdx);
     try{
       const r1=await createRun({...base,team:1,targetsEliminated:false,objectiveComplete:objComplete,score:huntersScore});
@@ -246,7 +246,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     try{
       const runs=[];
       for(const res of lane.reservations){
-        const r=await createRun({reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,elapsedSeconds:elapsedSec,score,objectiveId:s.objectiveId,liveOpDifficulty:s.difficulty,team:null,winningTeam:null,scoredBy:currentUser?.id??null});
+        const r=await createRun({reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,audio:s.audio??null,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,elapsedSeconds:elapsedSec,score,objectiveId:s.objectiveId,liveOpDifficulty:s.difficulty,team:null,winningTeam:null,scoredBy:currentUser?.id??null});
         runs.push(r);
       }
       setScored(p=>({...p,[laneKey(runNum,laneIdx,null)]:runs[0]}));
@@ -348,7 +348,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         </div>
         <div style={{display:'flex',gap:'.3rem',justifyContent:'center'}}>
           {AUDIO_OPTIONS.map(a=>{const sel=s.uiAudio===a.ui;return(
-            <button key={a.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiAudio',a.ui);setSetting(laneIdx,'cranked',a.cranked);}}
+            <button key={a.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiAudio',a.ui);setSetting(laneIdx,'audio',a.code);setSetting(laneIdx,'cranked',a.cranked);}}
               style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
                 border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
                 color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
