@@ -30,7 +30,7 @@
 
     /* ── Sidebar ─────────────────────────────────────────────────── */
     .sidebar {
-      width:400px; flex-shrink:0; height:100vh;
+      width:450px; flex-shrink:0; height:100vh;
       background:var(--bg2);
       border-right:1px solid var(--bdr);
       display:flex; flex-direction:column;
@@ -39,7 +39,7 @@
 
     .sidebar-brand {
       text-align:center;
-      padding:2.25rem 1.75rem 2rem;
+      padding:2.25rem 2.5rem 2rem;
       border-bottom:1px solid rgba(200,224,58,.1);
       background:linear-gradient(180deg, rgba(200,224,58,.05) 0%, transparent 100%);
     }
@@ -54,7 +54,7 @@
       letter-spacing:.18em; text-transform:uppercase; margin-top:.65rem;
     }
 
-    .sidebar-section { padding:1.25rem 1.75rem 1.1rem; border-bottom:1px solid rgba(200,224,58,.06); }
+    .sidebar-section { padding:1.25rem 2.25rem 1.1rem; border-bottom:1px solid rgba(200,224,58,.06); }
 
     .s-label {
       font-family:var(--fc); font-size:.6rem; letter-spacing:.4em;
@@ -83,14 +83,14 @@
     .tab.active { color:var(--accB); background:var(--accD); border-color:rgba(200,224,58,.2); }
 
     .mode-explain {
-      padding:1.1rem 1.75rem; font-size:.8rem; color:var(--muted);
+      padding:1.1rem 2.25rem; font-size:.8rem; color:var(--muted);
       font-family:var(--fc); letter-spacing:.03em; line-height:1.6;
       border-bottom:1px solid rgba(200,224,58,.06);
     }
     .mode-explain strong { color:var(--acc2); }
 
     .sidebar-footer {
-      padding:1.1rem 1.75rem; margin-top:auto;
+      padding:1.1rem 2.25rem; margin-top:auto;
       border-top:1px solid rgba(200,224,58,.06);
       display:flex; flex-direction:column; align-items:center; gap:.1rem;
     }
@@ -217,10 +217,40 @@
       letter-spacing:.1em; padding:.12rem .48rem; border-radius:2px;
       white-space:nowrap; flex-shrink:0; line-height:1.4;
     }
-    .t-elite { background:rgba(245,200,66,.12); color:var(--gold);   border:1px solid rgba(245,200,66,.25); }
-    .t-vet   { background:rgba(200,224,58,.1);  color:var(--acc2);   border:1px solid rgba(200,224,58,.22); }
-    .t-ops   { background:rgba(90,138,58,.12);  color:#74a84a;       border:1px solid rgba(90,138,58,.22); }
-    .t-rec   { background:rgba(120,140,170,.1); color:var(--silver); border:1px solid rgba(120,140,170,.22); }
+    /* 1. Recruit — Carbon Gray */
+    .t-recruit  { background:rgba(107,114,128,.1);  color:#9ca3af;       border:1px solid rgba(107,114,128,.22); }
+    /* 2. Initiate — Slate Blue */
+    .t-initiate { background:rgba(102,117,185,.1);  color:#8b95c9;       border:1px solid rgba(102,117,185,.25); }
+    /* 3. Operator — Deep Teal */
+    .t-operator { background:rgba(45,125,130,.12);  color:#4db6ac;       border:1px solid rgba(45,125,130,.28); }
+    /* 4. Striker — Tactical Green */
+    .t-striker  { background:rgba(90,140,74,.12);   color:#85b07a;       border:1px solid rgba(90,140,74,.28); }
+    /* 5. Vanguard — Forest Green */
+    .t-vanguard { background:rgba(46,107,62,.14);   color:#5a9a6a;       border:1px solid rgba(46,107,62,.3); }
+    /* 6. Sentinel — Steel Blue */
+    .t-sentinel { background:rgba(63,114,175,.12);  color:#6b9dcf;       border:1px solid rgba(63,114,175,.28); }
+    /* 7. Enforcer — Deep Crimson */
+    .t-enforcer { background:rgba(155,35,53,.15);   color:#c94a5a;       border:1px solid rgba(155,35,53,.32); }
+    /* 8. Apex — Bronze */
+    .t-apex     { background:rgba(205,127,50,.12);  color:var(--bronze); border:1px solid rgba(205,127,50,.3); }
+    /* 9. Elite — Silver */
+    .t-elite    { background:rgba(184,191,199,.08); color:var(--silver); border:1px solid rgba(184,191,199,.25); }
+    /* 10. Legend — Black & Gold */
+    .t-legend   { background:rgba(245,200,66,.1);   color:var(--gold);   border:1px solid rgba(245,200,66,.35); box-shadow:0 0 10px rgba(245,200,66,.12); }
+
+    /* Rank icons (before player name) */
+    .tier-icon { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; opacity:.9; }
+    .tier-icon svg { display:block; }
+    .ti-recruit  { color:#9ca3af; }
+    .ti-initiate { color:#8b95c9; }
+    .ti-operator { color:#4db6ac; }
+    .ti-striker  { color:#85b07a; }
+    .ti-vanguard { color:#5a9a6a; }
+    .ti-sentinel { color:#6b9dcf; }
+    .ti-enforcer { color:#c94a5a; }
+    .ti-apex     { color:var(--bronze); }
+    .ti-elite    { color:var(--silver); }
+    .ti-legend   { color:var(--gold); filter:drop-shadow(0 0 5px rgba(245,200,66,.35)); }
 
     /* Score bar */
     .score-bar-wrap { height:2px; background:rgba(200,224,58,.07); border-radius:1px; margin-top:.4rem; }
@@ -239,8 +269,8 @@
     .spinner { width:32px; height:32px; border:3px solid var(--bdr); border-top-color:var(--acc); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto .75rem; }
     @keyframes spin{to{transform:rotate(360deg);}}
 
-    @media(max-width:800px){
-      .sidebar { width:220px; }
+    @media(max-width:900px){
+      .sidebar { width:240px; }
       .col-best { display:none; }
       td.col-hide,th.col-hide { display:none; }
     }
@@ -375,13 +405,55 @@ function rankDisp(r){ if(r===1)return'<span class="medal">🥇</span>'; if(r===2
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 function delay(ms){ return new Promise(r=>setTimeout(r,ms)) }
 
-function tierBadge(runs){
+// ── Tier rank icons ───────────────────────────────────────────────
+const TIER_SVGS = (()=>{
+  // Normalized 5-point star path (outer r=1, top at 12-o'clock)
+  const SP = 'M0,-1 .23,-.32 .95,-.31 .36,.12 .59,.81 0,.38 -.59,.81 -.36,.12 -.95,-.31 -.23,-.32Z'
+  const star = (cx,cy,sz) => `<path d="${SP}" fill="currentColor" transform="translate(${cx},${cy}) scale(${sz})"/>`
+  const CA = 'stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" fill="none"'
+  const chev = (y,ht,sw=2.4) => `<polyline points="1,${y+ht} 10,${y} 19,${y+ht}" ${CA} stroke-width="${sw}"/>`
+  const s = (w,h,vw,vh,c) => `<svg width="${w}" height="${h}" viewBox="0 0 ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg">${c}</svg>`
+  return {
+    // 1. Single chevron up
+    recruit:  s(16,12,20,16, chev(3,10,2.6)),
+    // 2. Two chevrons up
+    initiate: s(16,16,20,20, chev(2,7,2.3)+chev(11,7,2.3)),
+    // 3. Two chevrons + star below (matches reference image)
+    operator: s(16,20,20,24, chev(2,5.5,2.2)+chev(10,5.5,2.2)+star(10,21,3)),
+    // 4. Single vertical bar
+    striker:  s(10,20,12,24, '<rect x="4" y="1" width="4" height="22" rx="2" fill="currentColor"/>'),
+    // 5. Two vertical bars
+    vanguard: s(16,20,20,24, '<rect x="1" y="1" width="5" height="22" rx="2.5" fill="currentColor"/><rect x="14" y="1" width="5" height="22" rx="2.5" fill="currentColor"/>'),
+    // 6. Shield
+    sentinel: s(16,20,20,24, '<path d="M10,2 L18,5 L18,12 Q18,21 10,23 Q2,21 2,12 L2,5 Z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/>'),
+    // 7. Eagle wings
+    enforcer: s(22,14,28,18, '<path d="M14,9 C11,6 6,5 0,7 C3,10 9,10 14,10Z" fill="currentColor"/><path d="M14,9 C17,6 22,5 28,7 C25,10 19,10 14,10Z" fill="currentColor"/><ellipse cx="14" cy="12" rx="2.5" ry="3.5" fill="currentColor"/>'),
+    // 8. Single star
+    apex:     s(16,16,20,20, star(10,10,8.5)),
+    // 9. Two stars side by side
+    elite:    s(22,14,28,18, star(7,9,5.5)+star(21,9,5.5)),
+    // 10. Crown
+    legend:   s(18,16,22,19, '<path d="M1,18 L1,10 L5.5,5 L9,9 L11,3 L13,9 L16.5,5 L21,10 L21,18 Z" fill="currentColor"/><rect x="1" y="16" width="20" height="2.5" rx="1.2" fill="currentColor"/>'),
+  }
+})()
+
+function getTierHtml(runs){
   const n = runs ?? 0
-  if(n >= 100) return '<span class="tier t-elite">ELITE</span>'
-  if(n >= 50)  return '<span class="tier t-vet">VETERAN</span>'
-  if(n >= 20)  return '<span class="tier t-ops">OPERATOR</span>'
-  if(n >= 5)   return '<span class="tier t-rec">RECRUIT</span>'
-  return ''
+  let cls, name
+  if(n >= 100)     { cls='legend';   name='LEGEND'   }
+  else if(n >= 86) { cls='elite';    name='ELITE'    }
+  else if(n >= 71) { cls='apex';     name='APEX'     }
+  else if(n >= 56) { cls='enforcer'; name='ENFORCER' }
+  else if(n >= 40) { cls='sentinel'; name='SENTINEL' }
+  else if(n >= 28) { cls='vanguard'; name='VANGUARD' }
+  else if(n >= 18) { cls='striker';  name='STRIKER'  }
+  else if(n >= 10) { cls='operator'; name='OPERATOR' }
+  else if(n >= 4)  { cls='initiate'; name='INITIATE' }
+  else             { cls='recruit';  name='RECRUIT'  }
+  return {
+    badge: `<span class="tier t-${cls}">${name}</span>`,
+    icon:  `<span class="tier-icon ti-${cls}">${TIER_SVGS[cls]}</span>`,
+  }
 }
 
 // ── Fetch ────────────────────────────────────────────────────────
@@ -423,11 +495,11 @@ function buildRowsHtml(rows, period, mode, maxScore){
     const pct       = Math.max(2, Math.round(score / max * 100))
     const scoreVal  = score.toFixed(mode==='avg'?1:0)
     const bestScore = r.best_run != null ? r.best_run : null
-    const tier      = tierBadge(runCount)
+    const {badge, icon} = getTierHtml(runCount)
     return `<tr>
       <td class="rank-cell ${rc}">${rankDisp(rank)}</td>
       <td>
-        <div class="player-name-row"><span class="player-name">${esc(r.player_name??'Unknown')}</span>${tier?' '+tier:''}</div>
+        <div class="player-name-row">${icon}<span class="player-name">${esc(r.player_name??'Unknown')}</span> ${badge}</div>
         <div class="player-meta">${runsLbl}${timeStr?' &nbsp;·&nbsp; '+timeStr:''}</div>
         <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${pct}%"></div></div>
       </td>
