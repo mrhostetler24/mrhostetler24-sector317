@@ -1350,7 +1350,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   );
 }
 
-function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,isAdmin=false,currentUser=null,onAddPlayer,onSignWaiver,onCancel}){
+function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,isAdmin=false,currentUser=null,onAddPlayer,onSignWaiver,onCancel,onRemovePlayer,onReschedule}){
   const [open,setOpen]=useState(false);
   const [addPhone,setAddPhone]=useState("");
   const [addName,setAddName]=useState("");
@@ -1358,6 +1358,10 @@ function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage
   const [addUserId,setAddUserId]=useState(null);
   const [addHasAccount,setAddHasAccount]=useState(true);
   const [wTarget,setWTarget]=useState(null);
+  const [removeConfirm,setRemoveConfirm]=useState(null);
+  const [showReschedule,setShowReschedule]=useState(false);
+  const [reschedDate,setReschedDate]=useState(res.date);
+  const [reschedTime,setReschedTime]=useState(res.startTime);
   const nameRef=useRef(null);
   const rt=resTypes.find(x=>x.id===res.typeId);
   const isUp=res.date>=todayStr();
@@ -1468,6 +1472,10 @@ See you on the field — SECTOR 317`
               }}>{wSigned?"✓ Waiver":"⚠ No Waiver"}</span>
               <div style={{flex:2}}><WaiverTooltip user={u} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} readOnly={false} onResign={()=>setWTarget({...p})}/></div>
               {!wSigned&&isUp&&<button className="btn btn-warn btn-sm" onClick={()=>setWTarget({...p})}>Sign</button>}
+              {canManage&&isUp&&onRemovePlayer&&p.id&&(removeConfirm===p.id
+                ?<span style={{display:"flex",gap:".3rem",alignItems:"center"}}><span style={{fontSize:".73rem",color:"var(--warnL)"}}>Remove?</span><button className="btn btn-d btn-sm" onClick={()=>{onRemovePlayer(res.id,p.id);setRemoveConfirm(null);}}>Yes</button><button className="btn btn-s btn-sm" onClick={()=>setRemoveConfirm(null)}>No</button></span>
+                :<button className="btn btn-d btn-sm" onClick={()=>setRemoveConfirm(p.id)}>× Remove</button>
+              )}
             </div>
           );
         })}
@@ -1532,16 +1540,24 @@ See you on the field — SECTOR 317`
           )}
           {/* Action buttons */}
           {doAddErr&&<div style={{fontSize:".76rem",color:"var(--dangerL)",background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:4,padding:".4rem .7rem",marginBottom:".4rem"}}>⚠ {doAddErr}</div>}
-          <div style={{paddingBottom:".9rem",display:"flex",gap:".5rem",alignItems:"center",flexWrap:"wrap"}}>
-            {(addStatus==="found"||(( addStatus==="notfound"||addStatus==="named")&&addName.trim()))&&(
+          <div style={{paddingBottom:showReschedule?".4rem":".9rem",display:"flex",gap:".5rem",alignItems:"center",flexWrap:"wrap"}}>
+            {(addStatus==="found"||((addStatus==="notfound"||addStatus==="named")&&addName.trim()))&&(
               <button
                 className="btn btn-p btn-sm"
                 disabled={doAddBusy}
                 onClick={doAdd}
               >{doAddBusy?"Adding…":"+ Add Player"}</button>
             )}
+            {onReschedule&&!showReschedule&&<button className="btn btn-s btn-sm" onClick={()=>{setShowReschedule(true);setReschedDate(res.date);setReschedTime(res.startTime);}}>📅 Reschedule</button>}
             {onCancel&&res.status==="confirmed"&&<button className="btn btn-d btn-sm" onClick={()=>onCancel(res.id)}>Cancel Res.</button>}
           </div>
+          {showReschedule&&<div style={{display:"flex",gap:".5rem",alignItems:"center",flexWrap:"wrap",paddingBottom:".9rem"}}>
+            <span style={{fontSize:".78rem",color:"var(--muted)",fontWeight:600}}>New date/time:</span>
+            <input type="date" value={reschedDate} min={todayStr()} onChange={e=>setReschedDate(e.target.value)} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,color:"var(--txt)",padding:".3rem .6rem",fontSize:".85rem"}}/>
+            <input type="time" value={reschedTime} onChange={e=>setReschedTime(e.target.value)} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,color:"var(--txt)",padding:".3rem .6rem",fontSize:".85rem"}}/>
+            <button className="btn btn-p btn-sm" disabled={!reschedDate||!reschedTime} onClick={()=>{onReschedule(res.id,reschedDate,reschedTime);setShowReschedule(false);}}>Confirm</button>
+            <button className="btn btn-s btn-sm" onClick={()=>setShowReschedule(false)}>✕</button>
+          </div>}
         </div>}
       </div></td></tr>}
     </>
@@ -2274,8 +2290,8 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,waiverDoc
       {(tab==="today"||tab==="upcoming")&&<>
         {!(tab==="today"?todayRes:upcoming).length&&<div className="empty"><div className="ei">{tab==="today"?"🎯":"📅"}</div><p>No {tab==="today"?"sessions today":"upcoming sessions"}.</p></div>}
         {!!(tab==="today"?todayRes:upcoming).length&&<div className="tw"><div className="th"><span className="ttl">{tab==="today"?"Today's Sessions":"Upcoming"}</span><span style={{fontSize:".74rem",color:"var(--muted)"}}>Click row to expand</span></div>
-          <table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th><th>Amount</th></tr></thead>
-            <tbody>{(tab==="today"?todayRes:upcoming).map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} currentUser={user} onAddPlayer={onAddPlayer} onSignWaiver={(uid,name)=>onSignWaiver(uid,name)} onCancel={id=>setReservations(p=>p.map(r=>r.id===id?{...r,status:"cancelled"}:r))}/>)}</tbody>
+          <table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th></tr></thead>
+            <tbody>{(tab==="today"?todayRes:upcoming).map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} currentUser={user} onAddPlayer={onAddPlayer} onSignWaiver={(uid,name)=>onSignWaiver(uid,name)} onRemovePlayer={async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(p=>p.map(r=>r.id===resId?{...r,players:r.players.filter(x=>x.id!==playerId)}:r));}catch(e){onAlert("Error removing player: "+e.message);}}} onReschedule={async(resId,date,startTime)=>{try{const updated=await updateReservation(resId,{date,startTime,rescheduled:true});setReservations(p=>p.map(r=>r.id===resId?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true}:r));}catch(e){onAlert("Error rescheduling: "+e.message);}}}/>)}</tbody>
           </table></div>}
       </>}
       {tab==="schedule"&&<SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={false} onAlert={onAlert}/>}
@@ -2397,7 +2413,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [newShift,setNewShift]=useState({staffId:"",date:"",start:"10:00",end:"18:00"});
   const [editWaiver,setEditWaiver]=useState(null);
   const [newWaiver,setNewWaiver]=useState({name:"",version:"1.0",body:"",active:false});
-  const [resHide,setResHide]=useState(true);const [resSort,setResSort]=useState("asc");
+  const [resSubTab,setResSubTab]=useState("upcoming");
   const [showWI,setShowWI]=useState(false);
   const [wi,setWi]=useState({customerName:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});
   const sortTmpl=fn=>setSessionTemplates(p=>sortTemplates(typeof fn==="function"?fn(p):fn));
@@ -2447,7 +2463,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   };
   const signWaiver=(uid,name)=>{const ts=new Date().toISOString();if(uid)setUsers(p=>p.map(u=>u.id===uid?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:name,waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));showToast(`Waiver signed by ${name}`);};
   const cancelRes=id=>{setReservations(p=>p.map(r=>r.id===id?{...r,status:"cancelled"}:r));showToast("Cancelled");};
-  const filtered=[...reservations].filter(r=>resHide?r.status!=="completed":true).sort((a,b)=>{const c=a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime);return resSort==="asc"?c:-c;});
+  const removePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(p=>p.map(r=>r.id===resId?{...r,players:r.players.filter(x=>x.id!==playerId)}:r));showToast("Player removed");}catch(e){showToast("Error: "+e.message);}};
+  const rescheduleRes=async(resId,date,startTime)=>{try{const updated=await updateReservation(resId,{date,startTime,rescheduled:true});setReservations(p=>p.map(r=>r.id===resId?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true}:r));showToast("Rescheduled");}catch(e){showToast("Error: "+e.message);}};
+  const upcomingRes=[...reservations].filter(r=>r.date>=today).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
+  const pastRes=[...reservations].filter(r=>r.date<today).sort((a,b)=>b.date.localeCompare(a.date)||b.startTime.localeCompare(a.startTime));
   const wiSlots=wi.date?getSessionsForDate(wi.date,sessionTemplates):[];
   const selWIType=resTypes.find(rt=>rt.active&&rt.id===wi.typeId);
   const calcWI=(tid,pc)=>{const rt=resTypes.find(x=>x.id===tid&&x.active);if(!rt)return 0;return rt.pricingMode==="flat"?rt.price:rt.price*pc;};
@@ -2533,9 +2552,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       <div className="tabs">
         <button className={`tab${tab==="dashboard"?" on":""}`} onClick={()=>setTab("dashboard")}>Dashboard</button>
         <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
-        <button className={`tab${tab==="types"?" on":""}`} onClick={()=>setTab("types")}>Res. Types</button>
-        <button className={`tab${tab==="sessions"?" on":""}`} onClick={()=>setTab("sessions")}>Sessions</button>
-        <button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>
+        {isAdmin&&<button className={`tab${tab==="types"?" on":""}`} onClick={()=>setTab("types")}>Res. Types</button>}
+        {isAdmin&&<button className={`tab${tab==="sessions"?" on":""}`} onClick={()=>setTab("sessions")}>Sessions</button>}
+        {isAdmin&&<button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>}
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
         {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
@@ -2787,17 +2806,16 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
 
       {tab==="reservations"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Reservations</div></div></div>
-        <div style={{display:"flex",gap:".65rem",flexWrap:"wrap",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".7rem 1.1rem",marginBottom:"1rem"}}>
-          <button className={`btn btn-sm ${resHide?"btn-p":"btn-s"}`} onClick={()=>setResHide(true)}>Active</button>
-          <button className={`btn btn-sm ${!resHide?"btn-p":"btn-s"}`} onClick={()=>setResHide(false)}>All</button>
-          <div style={{width:1,height:18,background:"var(--bdr)",margin:"0 .3rem"}}/>
-          <button className={`btn btn-sm ${resSort==="asc"?"btn-p":"btn-s"}`} onClick={()=>setResSort("asc")}>↑ Soonest</button>
-          <button className={`btn btn-sm ${resSort==="desc"?"btn-p":"btn-s"}`} onClick={()=>setResSort("desc")}>↓ Latest</button>
-          <span style={{marginLeft:"auto",fontSize:".75rem",color:"var(--muted)"}}>{filtered.length}/{reservations.length}</span>
+        <div className="tabs" style={{marginBottom:"1rem"}}>
+          <button className={`tab${resSubTab==="upcoming"?" on":""}`} onClick={()=>setResSubTab("upcoming")}>Upcoming ({upcomingRes.length})</button>
+          <button className={`tab${resSubTab==="past"?" on":""}`} onClick={()=>setResSubTab("past")}>Past ({pastRes.length})</button>
         </div>
-        <div className="tw"><table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th>{isAdmin&&<th>Amount</th>}</tr></thead>
-          <tbody>{!filtered.length&&<tr><td colSpan={isAdmin?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No reservations.</td></tr>}{filtered.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} currentUser={user} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes}/>)}</tbody>
-        </table></div>
+        {(()=>{const rows=resSubTab==="upcoming"?upcomingRes:pastRes;return(
+          <div className="tw"><div className="th"><span className="ttl">{resSubTab==="upcoming"?"Upcoming Sessions":"Past Sessions"}</span><span style={{fontSize:".74rem",color:"var(--muted)"}}>Click row to expand</span></div>
+          <table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th>{isAdmin&&<th>Amount</th>}</tr></thead>
+            <tbody>{!rows.length&&<tr><td colSpan={isAdmin?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No {resSubTab} reservations.</td></tr>}{rows.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} currentUser={user} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes} onRemovePlayer={removePlayer} onReschedule={rescheduleRes}/>)}</tbody>
+          </table></div>
+        );})()}
       </>}
 
       {tab==="types"&&<>
@@ -2813,7 +2831,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
 
       {tab==="sessions"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Session Slots</div></div>{isManager&&<button className="btn btn-p" onClick={()=>{setEditST(null);setNewST({dayOfWeek:"Monday",startTime:"18:00",maxSessions:2,active:true});setModal("st");}}>+ Add</button>}</div>
-        {DAYS_OF_WEEK.map(day=>{const ds=sortTemplates(sessionTemplates.filter(s=>s.dayOfWeek===day));if(!ds.length)return null;return <div key={day} className="tw" style={{marginBottom:"1rem"}}><div className="th"><span className="ttl">{day}</span></div>{ds.map(st=><div key={st.id} className="st-row" style={{opacity:st.active?1:.45}}><span style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,color:"var(--accB)",width:90}}>{fmt12(st.startTime)}</span><span style={{fontSize:".85rem",flex:1}}>{st.maxSessions} concurrent open-play</span><span className={`badge ${st.active?"b-ok":"b-cancel"}`} style={{marginRight:".5rem"}}>{st.active?"Active":"Off"}</span>{isManager&&<div style={{display:"flex",gap:".4rem"}}><button className="btn btn-sm btn-s" onClick={()=>{setEditST({...st});setModal("st");}}>Edit</button><button className="btn btn-sm btn-s" onClick={()=>{sortTmpl(p=>p.map(s=>s.id===st.id?{...s,active:!s.active}:s));showToast("Updated");}}>{st.active?"Disable":"Enable"}</button>{isAdmin&&<button className="btn btn-sm btn-d" onClick={()=>{sortTmpl(p=>p.filter(s=>s.id!==st.id));showToast("Removed");}}>Remove</button>}</div>}</div>)}</div>;})}
+        {DAYS_OF_WEEK.map(day=>{const ds=sortTemplates(sessionTemplates.filter(s=>s.dayOfWeek===day));if(!ds.length)return null;return <div key={day} className="tw" style={{marginBottom:"1rem"}}><div className="th"><span className="ttl">{day}</span></div>{ds.map(st=><div key={st.id} className="st-row" style={{opacity:st.active?1:.45}}><span style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,color:"var(--accB)",width:90}}>{fmt12(st.startTime)}</span><span style={{fontSize:".85rem",flex:1}}>{st.maxSessions} available lane{st.maxSessions!==1?"s":""}</span><span className={`badge ${st.active?"b-ok":"b-cancel"}`} style={{marginRight:".5rem"}}>{st.active?"Active":"Off"}</span>{isManager&&<div style={{display:"flex",gap:".4rem"}}><button className="btn btn-sm btn-s" onClick={()=>{setEditST({...st});setModal("st");}}>Edit</button><button className="btn btn-sm btn-s" onClick={()=>{sortTmpl(p=>p.map(s=>s.id===st.id?{...s,active:!s.active}:s));showToast("Updated");}}>{st.active?"Disable":"Enable"}</button>{isAdmin&&<button className="btn btn-sm btn-d" onClick={()=>{sortTmpl(p=>p.filter(s=>s.id!==st.id));showToast("Removed");}}>Remove</button>}</div>}</div>)}</div>;})}
       </>}
 
       {tab==="waivers"&&<>
