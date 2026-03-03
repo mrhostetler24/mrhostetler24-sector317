@@ -4,7 +4,7 @@ import OpsView from "./OpsView.jsx";
 import KioskPage from "./KioskPage.jsx";
 import {
   supabase,
-  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, linkOAuthUser, deleteUser, signWaiver,
+  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver,
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   fetchResTypes, upsertResType, deleteResType,
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
@@ -2388,7 +2388,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
     if(!editUser)return;
     setUserSaving(true);
     try{
-      const updated=await updateUser(editUser.id,{name:editUser.name,phone:editUser.phone,access:editUser.access,role:editUser.role,active:editUser.active});
+      const updated=await updateUserAdmin(editUser.id,{name:editUser.name,phone:editUser.phone,access:editUser.access,role:editUser.role,active:editUser.active});
       setUsers(p=>p.map(u=>u.id===updated.id?updated:u));
       setModal(null);setEditUser(null);showToast("Saved");
     }catch(e){showToast("Error: "+e.message);}

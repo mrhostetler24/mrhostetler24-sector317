@@ -36,9 +36,11 @@
     .tabs{display:flex;gap:.25rem;border-bottom:2px solid var(--bdr);margin-bottom:1.5rem;flex-wrap:wrap;}
     .tab{background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);padding:.6rem 1.25rem;cursor:pointer;font-family:var(--fc);font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;transition:all .2s;margin-bottom:-2px;}
     .tab:hover{color:var(--txt);}.tab.active{color:var(--accB);border-bottom-color:var(--acc);}
-    .board-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;overflow:hidden;}
+    /* overflow:clip allows sticky children, unlike overflow:hidden */
+    .board-wrap{background:var(--surf);border:1px solid var(--bdr);border-radius:8px;overflow:clip;}
     .board-wrap::before{content:'';display:block;height:3px;background:linear-gradient(90deg,transparent,var(--acc2),var(--accB),var(--acc2),transparent);}
-    .board-head{background:var(--surf2);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bdr);}
+    .board-head{background:var(--surf2);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bdr);
+      position:sticky;top:0;z-index:12;}
     .board-head-left{display:flex;align-items:center;gap:.75rem;}
     .board-head-title{font-family:var(--fd);font-size:1rem;color:var(--accB);letter-spacing:.1em;text-transform:uppercase;}
     .mode-badge{font-size:.65rem;font-family:var(--fc);font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.2rem .6rem;border-radius:3px;}
@@ -46,7 +48,7 @@
     .badge-cum{background:rgba(90,138,58,.15);color:#74a84a;border:1px solid rgba(90,138,58,.3);}
     .board-count{font-size:.72rem;color:var(--muted);font-family:var(--fc);letter-spacing:.08em;}
     table{width:100%;border-collapse:collapse;}
-    thead tr{background:var(--surf2);}
+    thead tr{background:var(--surf2);position:sticky;z-index:11;}
     th{text-align:left;padding:.55rem 1rem;font-size:.63rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-family:var(--fc);font-weight:700;border-bottom:1px solid var(--bdr);}
     th.r,td.r{text-align:right;}
     td{padding:.85rem 1rem;border-bottom:1px solid rgba(58,59,51,.6);font-size:.88rem;vertical-align:middle;}
@@ -67,8 +69,13 @@
     @keyframes spin{to{transform:rotate(360deg);}}
     .mode-explain{background:var(--surf2);border:1px solid var(--bdr);border-left:3px solid var(--acc2);border-radius:5px;padding:.65rem 1rem;margin-bottom:1.25rem;font-size:.78rem;color:var(--muted);font-family:var(--fc);letter-spacing:.04em;}
     .mode-explain strong{color:var(--accB);}
+    /* Podium separator — shown below rank 3 row */
+    .podium-sep td{box-shadow:inset 0 -2px 0 rgba(200,224,58,.3);}
     .footer{text-align:center;margin-top:3rem;font-size:.72rem;color:var(--muted);font-family:var(--fc);letter-spacing:.1em;text-transform:uppercase;line-height:2;}
     .footer a{color:var(--acc2);text-decoration:none;}.footer a:hover{color:var(--accB);}
+    /* Kiosk indicator */
+    .kiosk-badge{display:none;position:fixed;bottom:1rem;right:1rem;background:rgba(200,224,58,.12);border:1px solid rgba(200,224,58,.3);border-radius:4px;padding:.3rem .75rem;font-family:var(--fc);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--acc2);z-index:100;}
+    .kiosk-badge.visible{display:block;}
     @media(max-width:600px){.col-hide{display:none;}td.col-hide{display:none;}}
   </style>
 </head>
@@ -113,11 +120,12 @@
     <div><a href="/">Book your session at sector317.com</a></div>
   </footer>
 </div>
+<div class="kiosk-badge" id="kioskBadge">⟳ Auto-scroll</div>
 <script>
 const SUPABASE_URL  = 'https://nvidauvtylloquflklsm.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im52aWRhdXZ0eWxsb3F1ZmxrbHNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NjE2MzUsImV4cCI6MjA4NzAzNzYzNX0.pbL-ClM5qEh5Ggm25R3C_NhE-BqliD1tFocSPkOYdnY'
 
-let currentPeriod='alltime',currentMode='avg',refreshTimer=null,countdown=300
+let currentPeriod='alltime', currentMode='avg', refreshTimer=null, countdown=300
 
 const VIEW_MAP={
   avg:{
@@ -143,54 +151,104 @@ function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 async function fetchBoard(period,mode){
   const { view } = VIEW_MAP[mode][period]
 
-  if(!SUPABASE_URL || SUPABASE_URL.includes('REPLACE') || !SUPABASE_ANON || SUPABASE_ANON.includes('REPLACE')){
+  if(!SUPABASE_URL||SUPABASE_URL.includes('REPLACE')||!SUPABASE_ANON||SUPABASE_ANON.includes('REPLACE')){
     throw new Error('Credentials not set — open leaderboard.html and replace SUPABASE_URL and SUPABASE_ANON with your project values')
   }
 
   const url = `${SUPABASE_URL}/rest/v1/${view}?select=*&limit=100&order=leaderboard_score.desc`
 
-  const res = await fetch(url, {
-    headers: {
-      apikey: SUPABASE_ANON,
-      Authorization: `Bearer ${SUPABASE_ANON}`,
-      Accept: 'application/json'
-    }
+  const res = await fetch(url,{
+    headers:{apikey:SUPABASE_ANON,Authorization:`Bearer ${SUPABASE_ANON}`,Accept:'application/json'}
   })
 
-  // Read body ONCE (prevents double-read / bad json parsing)
-  const ct = (res.headers.get('content-type') || '').toLowerCase()
+  const ct  = (res.headers.get('content-type')||'').toLowerCase()
   const raw = await res.text()
 
-  // If not OK, try to surface JSON error from Supabase; otherwise show body preview
-  if (!res.ok) {
-    if (ct.includes('application/json')) {
-      try {
-        const err = JSON.parse(raw)
-        throw new Error(err.message || err.error_description || `HTTP ${res.status} ${res.statusText}`)
-      } catch (_) {
-        throw new Error(`HTTP ${res.status} ${res.statusText} (invalid JSON error body)`)
-      }
+  if(!res.ok){
+    if(ct.includes('application/json')){
+      try{ const err=JSON.parse(raw); throw new Error(err.message||err.error_description||`HTTP ${res.status} ${res.statusText}`) }
+      catch(_){ throw new Error(`HTTP ${res.status} ${res.statusText} (invalid JSON error body)`) }
     }
-    throw new Error(`HTTP ${res.status} ${res.statusText}. Body: ${raw.slice(0, 200)}`)
+    throw new Error(`HTTP ${res.status} ${res.statusText}. Body: ${raw.slice(0,200)}`)
   }
 
-  // OK but not JSON => you're getting HTML (rewrite/404), show preview
-  if (!ct.includes('application/json')) {
-    throw new Error(`Expected JSON but got "${ct || 'unknown'}". Body: ${raw.slice(0, 200)}`)
+  if(!ct.includes('application/json')){
+    throw new Error(`Expected JSON but got "${ct||'unknown'}". Body: ${raw.slice(0,200)}`)
   }
 
-  // Parse JSON safely
-  try {
-    return JSON.parse(raw)
-  } catch (e) {
-    throw new Error(`Could not parse JSON. Body: ${raw.slice(0, 200)}`)
+  try{ return JSON.parse(raw) }
+  catch(e){ throw new Error(`Could not parse JSON. Body: ${raw.slice(0,200)}`) }
+}
+
+// ── Sticky header + podium positioning ──────────────────────────
+function updateStickyPositions(){
+  const boardHead = document.querySelector('.board-head')
+  const theadRow  = document.querySelector('#boardBody thead tr')
+  const tbody     = document.querySelector('#boardBody tbody')
+  if(!boardHead) return
+
+  const headH  = boardHead.offsetHeight
+  const theadH = theadRow ? theadRow.offsetHeight : 0
+
+  // Position thead sticky just below board-head
+  if(theadRow){
+    theadRow.style.top = headH + 'px'
+  }
+
+  // Top 3 podium rows — sticky below thead
+  if(!tbody) return
+  let top = headH + theadH
+  const rows = tbody.querySelectorAll('tr')
+  for(let i=0; i<Math.min(3,rows.length); i++){
+    const row = rows[i]
+    row.style.position = 'sticky'
+    row.style.top      = top + 'px'
+    row.style.zIndex   = String(10 - i)
+    // Solid background so scrolling rows don't bleed through
+    row.querySelectorAll('td').forEach(td => { td.style.background = 'var(--surf)' })
+    if(i===2) row.classList.add('podium-sep')
+    top += row.offsetHeight
   }
 }
 
-function renderBoard(rows,period,mode){
+// ── Render ───────────────────────────────────────────────────────
+function buildRowsHtml(rows, period, mode){
   const { rankCol } = VIEW_MAP[mode][period]
-  document.getElementById('boardTitle').textContent = PERIOD_LABELS[period]
-  document.getElementById('boardCount').textContent = rows.length ? `${rows.length} operative${rows.length!==1?'s':''}` : ''
+  return rows.map(r=>{
+    const rank  = r[rankCol] ?? '?'
+    const rc    = rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n'
+    const avgT  = fmtS(r.avg_seconds), bestT = fmtS(r.best_seconds)
+
+    const runsLbl = mode==='avg'
+      ? `${r.runs_in_avg??'?'} runs averaged`
+      : `${r.total_runs??r.total_runs_played??'?'} total runs`
+
+    const timeNote = avgT
+      ? `<span class="time-note">⏱ avg ${avgT}</span>${bestT?`<span class="time-best"> · best ${bestT}</span>`:''}`
+      : ''
+
+    const scoreVal = Number(r.leaderboard_score??0).toFixed(mode==='avg'?1:0)
+    const scoreLbl = mode==='avg'?'avg score':'total score'
+    const bestLbl  = r.best_run!=null?`best: ${r.best_run}`:''
+
+    return `<tr>
+      <td class="rank-cell ${rc}">${rankDisp(rank)}</td>
+      <td>
+        <div class="player-name">${esc(r.player_name??'Unknown')}</div>
+        <div class="player-meta"><span>${runsLbl}</span>${timeNote}</div>
+      </td>
+      <td class="col-hide r" style="color:var(--muted);font-family:var(--fc);font-size:.82rem">${bestLbl}</td>
+      <td class="r">
+        <div class="score-main">${scoreVal}</div>
+        <div class="score-sub">${scoreLbl}</div>
+      </td>
+    </tr>`
+  }).join('')
+}
+
+function renderBoard(rows, period, mode, updateOnly=false){
+  document.getElementById('boardTitle').textContent  = PERIOD_LABELS[period]
+  document.getElementById('boardCount').textContent  = rows.length?`${rows.length} operative${rows.length!==1?'s':''}`:''
 
   const badge = document.getElementById('modeBadge')
   if(mode==='avg'){badge.textContent='Avg · Top 50 Runs';badge.className='mode-badge badge-avg'}
@@ -201,41 +259,28 @@ function renderBoard(rows,period,mode){
     return
   }
 
-  const html = rows.map(r=>{
-    const rank = r[rankCol] ?? '?'
-    const rc = rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-n'
-    const avgT = fmtS(r.avg_seconds), bestT = fmtS(r.best_seconds)
+  const rowsHtml = buildRowsHtml(rows, period, mode)
 
-    const runsLbl = mode==='avg'
-      ? `${r.runs_in_avg ?? '?'} runs averaged`
-      : `${r.total_runs ?? r.total_runs_played ?? '?'} total runs`
+  if(updateOnly){
+    // Only replace tbody — preserves scroll position and sticky structure
+    const existingTbody = document.querySelector('#boardBody tbody')
+    if(existingTbody){
+      existingTbody.innerHTML = rowsHtml
+      requestAnimationFrame(updateStickyPositions)
+      return
+    }
+  }
 
-    const timeNote = avgT
-      ? `<span class="time-note">⏱ avg ${avgT}</span>${bestT?`<span class="time-best"> · best ${bestT}</span>`:''}`
-      : ''
+  // Full table render
+  document.getElementById('boardBody').innerHTML = `<table>
+    <thead><tr>
+      <th style="text-align:center">Rank</th><th>Operative</th>
+      <th class="col-hide r">Best Run</th><th class="r">Score</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`
 
-    const scoreVal = Number(r.leaderboard_score ?? 0).toFixed(mode==='avg'?1:0)
-    const scoreLbl = mode==='avg' ? 'avg score' : 'total score'
-    const bestLbl  = r.best_run!=null ? `best: ${r.best_run}` : ''
-
-    return `<tr>
-      <td class="rank-cell ${rc}">${rankDisp(rank)}</td>
-      <td>
-        <div class="player-name">${esc(r.player_name ?? 'Unknown')}</div>
-        <div class="player-meta"><span>${runsLbl}</span>${timeNote}</div>
-      </td>
-      <td class="col-hide r" style="color:var(--muted);font-family:var(--fc);font-size:.82rem">${bestLbl}</td>
-      <td class="r">
-        <div class="score-main">${scoreVal}</div>
-        <div class="score-sub">${scoreLbl}</div>
-      </td>
-    </tr>`
-  }).join('')
-
-  document.getElementById('boardBody').innerHTML = `<table><thead><tr>
-    <th style="text-align:center">Rank</th><th>Operative</th>
-    <th class="col-hide r">Best Run</th><th class="r">Score</th>
-  </tr></thead><tbody>${html}</tbody></table>`
+  requestAnimationFrame(updateStickyPositions)
 }
 
 function showLoading(){
@@ -247,12 +292,12 @@ function showError(m){
   document.getElementById('refreshDot').classList.remove('loading')
 }
 
-async function loadBoard(period,mode,spinner=true){
+async function loadBoard(period, mode, spinner=true){
   currentPeriod=period; currentMode=mode
   if(spinner) showLoading()
   try{
-    const rows = await fetchBoard(period,mode)
-    renderBoard(rows,period,mode)
+    const rows = await fetchBoard(period, mode)
+    renderBoard(rows, period, mode, !spinner)
     document.getElementById('refreshDot').classList.remove('loading')
   }catch(e){
     showError('Could not load: ' + e.message)
@@ -266,7 +311,8 @@ function setMode(mode){
   ex.innerHTML=mode==='avg'
     ?'<strong>Average Mode:</strong> Each player\'s average score across their top 50 individual runs. Ties broken by fastest average completion time.'
     :'<strong>Cumulative Mode:</strong> Total of every run score ever recorded. Average completion time shown as a fun note. Ties broken by fastest average time.'
-  loadBoard(currentPeriod,mode); startRefreshCycle()
+  loadBoard(currentPeriod,mode)
+  startRefreshCycle()
 }
 
 function startRefreshCycle(){
@@ -274,7 +320,7 @@ function startRefreshCycle(){
   refreshTimer=setInterval(()=>{
     countdown--
     const m=Math.floor(countdown/60), s=countdown%60
-    document.getElementById('refreshLabel').textContent = countdown>0 ? `Refreshes in ${m}:${String(s).padStart(2,'0')}` : 'Refreshing…'
+    document.getElementById('refreshLabel').textContent=countdown>0?`Refreshes in ${m}:${String(s).padStart(2,'0')}`:'Refreshing…'
     if(countdown<=0){ loadBoard(currentPeriod,currentMode,false); countdown=300 }
   },1000)
 }
@@ -286,6 +332,93 @@ document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>
   startRefreshCycle()
 }))
 
+// ── TV Kiosk Auto-scroll ─────────────────────────────────────────
+// Sequence: idle 30s → activate → pause 5s at top → scroll at 60px/s
+// → at bottom: next tab → pause 2s → scroll → repeat → wrap around
+
+const KIOSK_TABS        = ['alltime','yearly','monthly','weekly']
+const IDLE_ACTIVATE_MS  = 30000   // 30s no movement → start kiosk
+const PAUSE_FIRST_MS    = 5000    // pause on kiosk start
+const PAUSE_BETWEEN_MS  = 2000    // pause between tabs
+const SCROLL_PX_SEC     = 60      // pixels per second
+
+let kioskActive     = false
+let kioskTabIdx     = 0
+let kioskScrollRAF  = null
+let kioskPauseTimer = null
+let kioskScrollTs   = null
+let idleTimer       = null
+
+function resetIdle(){
+  if(kioskActive){
+    // Pause kiosk on user interaction
+    kioskActive = false
+    if(kioskScrollRAF){ cancelAnimationFrame(kioskScrollRAF); kioskScrollRAF=null }
+    if(kioskPauseTimer){ clearTimeout(kioskPauseTimer); kioskPauseTimer=null }
+    kioskScrollTs = null
+    document.getElementById('kioskBadge').classList.remove('visible')
+  }
+  clearTimeout(idleTimer)
+  idleTimer = setTimeout(activateKiosk, IDLE_ACTIVATE_MS)
+}
+
+document.addEventListener('mousemove',  resetIdle, {passive:true})
+document.addEventListener('touchstart', resetIdle, {passive:true})
+document.addEventListener('keydown',    resetIdle, {passive:true})
+document.addEventListener('click',      resetIdle, {passive:true})
+
+function activateKiosk(){
+  kioskActive = true
+  kioskTabIdx = KIOSK_TABS.indexOf(currentPeriod)
+  if(kioskTabIdx < 0) kioskTabIdx = 0
+  document.getElementById('kioskBadge').classList.add('visible')
+  kioskPauseTop(PAUSE_FIRST_MS)
+}
+
+function kioskPauseTop(ms){
+  if(!kioskActive) return
+  window.scrollTo(0, 0)
+  kioskPauseTimer = setTimeout(()=>{
+    if(!kioskActive) return
+    kioskScrollTs = null
+    kioskScrollRAF = requestAnimationFrame(kioskScrollStep)
+  }, ms)
+}
+
+function kioskScrollStep(ts){
+  if(!kioskActive) return
+  if(kioskScrollTs === null) kioskScrollTs = ts
+  const dt = Math.min(ts - kioskScrollTs, 100) // cap so tab-switch delay doesn't cause jump
+  kioskScrollTs = ts
+
+  const atBottom = window.scrollY + window.innerHeight >= document.body.scrollHeight - 10
+  if(atBottom){
+    kioskScrollRAF = null
+    kioskAdvanceTab()
+    return
+  }
+
+  window.scrollBy(0, SCROLL_PX_SEC * dt / 1000)
+  kioskScrollRAF = requestAnimationFrame(kioskScrollStep)
+}
+
+function kioskAdvanceTab(){
+  kioskTabIdx = (kioskTabIdx + 1) % KIOSK_TABS.length
+  const period = KIOSK_TABS[kioskTabIdx]
+
+  // Update tab UI
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.period===period))
+
+  // Load board silently (no spinner — preserves DOM), then pause at top
+  loadBoard(period, currentMode, false).then(()=>{
+    if(kioskActive) kioskPauseTop(PAUSE_BETWEEN_MS)
+  })
+}
+
+// Start idle timer immediately on page load
+idleTimer = setTimeout(activateKiosk, IDLE_ACTIVATE_MS)
+
+// ─────────────────────────────────────────────────────────────────
 loadBoard('alltime','avg')
 startRefreshCycle()
 </script>

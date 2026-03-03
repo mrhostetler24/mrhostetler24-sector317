@@ -287,6 +287,21 @@ export async function createGuestUser({ name, phone, createdByUserId }) {
   return toUser(data)
 }
 
+// Admin-only update via SECURITY DEFINER RPC (bypasses RLS for manager/admin editing other users)
+export async function updateUserAdmin(id, { name, phone, access, role, active }) {
+  const { data, error } = await supabase.rpc('admin_update_user', {
+    p_user_id: id,
+    p_name:    name    ?? null,
+    p_phone:   phone   ?? null,
+    p_access:  access  ?? null,
+    p_role:    role    ?? null,
+    p_active:  active  ?? null,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  return toUser(row)
+}
+
 export async function updateUser(id, changes) {
   const row = {}
   if (changes.name               !== undefined) row.name                  = changes.name
