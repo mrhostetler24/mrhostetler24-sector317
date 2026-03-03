@@ -4,7 +4,7 @@ import OpsView from "./OpsView.jsx";
 import KioskPage from "./KioskPage.jsx";
 import {
   supabase,
-  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, deleteUser, signWaiver,
+  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, linkOAuthUser, deleteUser, signWaiver,
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   fetchResTypes, upsertResType, deleteResType,
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
@@ -2884,7 +2884,8 @@ useEffect(() => {
       if (found.authProvider !== provider) updates.authProvider = provider;
 
       if (Object.keys(updates).length) {
-        found = await updateUser(found.id, updates);
+        // Use SECURITY DEFINER RPC — bypasses RLS for the case where auth_id is not yet set
+        found = await linkOAuthUser(found.id, updates.authId ?? found.authId, updates.email ?? found.email, updates.authProvider ?? found.authProvider);
         setUsers((prev) => prev.map((u) => (u.id === found.id ? found : u)));
       }
 

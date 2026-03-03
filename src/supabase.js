@@ -301,6 +301,19 @@ export async function updateUser(id, changes) {
   return toUser(data)
 }
 
+// Links an OAuth identity to an existing user row via SECURITY DEFINER RPC,
+// bypassing RLS for the case where auth_id is not yet set on the row.
+export async function linkOAuthUser(id, authId, email, authProvider) {
+  const { data, error } = await supabase.rpc('link_oauth_user', {
+    p_user_id:       id,
+    p_auth_id:       authId ?? null,
+    p_email:         email ?? null,
+    p_auth_provider: authProvider ?? null,
+  })
+  if (error) throw error
+  return toUser(data)
+}
+
 export async function deleteUser(id) {
   const { error } = await supabase.from('users').delete().eq('id', id)
   if (error) throw error
