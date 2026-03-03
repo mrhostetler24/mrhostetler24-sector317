@@ -342,7 +342,7 @@ export default function KioskPage() {
       } else {
         const nm = addName.trim()
         if (!nm) { setAddError('Please enter the player\'s name.'); setAddAdding(false); return }
-        const guest = await createGuestUser({ name: nm, phone: cleanPh(addPhone), createdByUserId: kioskUserId })
+        const guest = await createGuestUser({ name: nm, phone: cleanPh(addPhone), createdByUserId: null })
         player = { userId: guest.id, name: guest.name }
       }
       const newPlayer = await addPlayerToReservation(selectedRes.id, player)
