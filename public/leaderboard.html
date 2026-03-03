@@ -428,8 +428,8 @@ const TIER_SVGS = (()=>{
     apex:     s(16,16,20,20, star(10,10,8.5)),
     // 9. Two stars side by side
     elite:    s(22,14,28,18, star(7,9,5.5)+star(21,9,5.5)),
-    // 10. Crown (5-peak regal design)
-    legend:   s(20,17,24,21, '<path d="M0,21 L0,12 L3,8 L6,14 L9,5 L11,14 L12,1 L13,14 L15,5 L18,14 L21,8 L24,12 L24,21 Z" fill="currentColor"/><rect x="0" y="17" width="24" height="4" fill="currentColor"/><line x1="0" y1="17" x2="24" y2="17" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>'),
+    // 10. Crown — sharp polygon body with 3 stars (large center, 2 smaller sides)
+    legend:   s(28,22,56,44, '<path d="M 0,40 L 0,28 L 12,16 L 22,30 L 28,10 L 34,30 L 44,16 L 56,28 L 56,40 Z" fill="currentColor"/>'+star(12,12,5)+star(28,6,6)+star(44,12,5)),
   }
 })()
 
