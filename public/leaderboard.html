@@ -491,7 +491,7 @@ function buildRowsHtml(rows, period, mode, maxScore){
     const pct       = Math.max(2, Math.round(score / max * 100))
     const scoreVal  = score.toFixed(mode==='avg'?1:0)
     const bestScore = r.best_run != null ? r.best_run : null
-    const {badge, icon} = getTierHtml(runCount)
+    const {badge, icon} = getTierHtml(r.total_runs_played ?? runCount)
     return `<tr>
       <td class="rank-cell ${rc}">${rankDisp(rank)}</td>
       <td>
