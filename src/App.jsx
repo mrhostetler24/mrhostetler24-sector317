@@ -2652,8 +2652,15 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const audioCode=r=>r.audio??(r.cranked?'C':'T');
             const vizPct=(arr,code)=>arr.length?Math.round(arr.filter(r=>r.visual===code).length/arr.length*100):null;
             const audPct=(arr,code)=>arr.length?Math.round(arr.filter(r=>audioCode(r)===code).length/arr.length*100):null;
-            const vizLine=arr=>arr.length?`STD ${vizPct(arr,'V')}% · Cos ${vizPct(arr,'C')}% · Rave ${vizPct(arr,'R')}% · Strobe ${vizPct(arr,'S')}% · Dark ${vizPct(arr,'B')}%`:"—";
-            const audLine=arr=>arr.length?`Off ${audPct(arr,'O')}% · Tunes ${audPct(arr,'T')}% · Cranked ${audPct(arr,'C')}%`:"—";
+            // Env — only show non-zero entries, find dominant
+            const vizNames={V:"STD",C:"Cosmic",R:"Rave",S:"Strobe",B:"Dark"};
+            const audNames={O:"Off",T:"Tunes",C:"Cranked"};
+            const vizLine=arr=>{if(!arr.length)return"—";return Object.entries(vizNames).map(([k,n])=>{const p=vizPct(arr,k);return p>0?`${n} ${p}%`:null;}).filter(Boolean).join(" · ")||"—";};
+            const audLine=arr=>{if(!arr.length)return"—";return Object.entries(audNames).map(([k,n])=>{const p=audPct(arr,k);return p>0?`${n} ${p}%`:null;}).filter(Boolean).join(" · ")||"—";};
+            const topViz=arr=>{if(!arr.length)return null;const cnts={};arr.forEach(r=>{cnts[r.visual]=(cnts[r.visual]||0)+1;});const [k,c]=Object.entries(cnts).sort((a,b)=>b[1]-a[1])[0]??[];return k?{code:k,name:vizNames[k]??k,pct:Math.round(c/arr.length*100)}:null;};
+            const topAud=arr=>{if(!arr.length)return null;const cnts={};arr.forEach(r=>{const k=r.audio??(r.cranked?'C':'T');cnts[k]=(cnts[k]||0)+1;});const [k,c]=Object.entries(cnts).sort((a,b)=>b[1]-a[1])[0]??[];return k?{code:k,name:audNames[k]??k,pct:Math.round(c/arr.length*100)}:null;};
+            const vizColor={V:"var(--muted)",C:"#a78bfa",R:"#f472b6",S:"#60a5fa",B:"#374151"};
+            const audColor={O:"var(--muted)",T:"var(--accB)",C:"#f97316"};
             // Avg run time
             const fmtSec=s=>s===null?"—":`${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
             const avgSec=arr=>arr.length?arr.reduce((s,r)=>s+r.elapsedSeconds,0)/arr.length:null;
@@ -2665,14 +2672,14 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const revStr=fmtMoney(revenue);
             const revSzCls=revStr.length>10?" stat-val-xs":revStr.length>7?" stat-val-sm":"";
             return <>
-              {isAdmin&&w.revenue&&<div className="stat-card"><div className="stat-lbl">Revenue</div><div className={`stat-val${revSzCls}`}>{revStr}</div></div>}
+              {isAdmin&&w.revenue&&(()=>{const coopRev=coopRes.reduce((s,r)=>s+r.amount,0);const vsRev=vsRes.reduce((s,r)=>s+r.amount,0);return<div className="stat-card"><div className="stat-lbl">Revenue</div><div className={`stat-val${revSzCls}`} style={{color:"var(--accB)"}}>{revStr}</div><div className="stat-sub">Co-Op {fmtMoney(coopRev)} · Versus {fmtMoney(vsRev)}</div></div>;})()}
               {w.bookings&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} vs</div></div>}
               {w.players&&<div className="stat-card"><div className="stat-lbl">Avg / Lane</div><div className="stat-val">{fmt2(avgPerLane)}</div><div className="stat-sub">Priv Co-Op {fmt2(arrAvg(coopPrivLanes))} · Priv Vs {fmt2(arrAvg(vsPrivLanes))}</div><div className="stat-sub">Open Co-Op {fmt2(arrAvg(coopOpenLanes))} · Open Vs {fmt2(arrAvg(vsOpenLanes))}</div></div>}
               {isAdmin&&w.utilization&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions</div></div>}
               {isAdmin&&w.newUsers&&<div className="stat-card"><div className="stat-lbl">New Accounts</div><div className="stat-val">{newUsersInPeriod.length}</div><div className="stat-sub">{authedInPeriod.length} set up auth</div></div>}
               {w.leadTime&&<div className="stat-card"><div className="stat-lbl">Lead Time</div><div className="stat-val">{fmtLT(leadHours(active))}</div><div className="stat-sub">CP {fmtLT(leadHours(activeCoopPriv))} · VP {fmtLT(leadHours(activeVsPriv))}</div><div className="stat-sub">CO {fmtLT(leadHours(activeCoopOpen))} · VO {fmtLT(leadHours(activeVsOpen))}</div></div>}
-              {w.envCoop&&<div className="stat-card"><div className="stat-lbl">Env — Co-Op <span style={{fontWeight:400,opacity:.6}}>({coopRuns.length} runs)</span></div><div className="stat-sub" style={{marginBottom:'.2rem'}}>{vizLine(coopRuns)}</div><div className="stat-sub">{audLine(coopRuns)}</div></div>}
-              {w.envVs&&<div className="stat-card"><div className="stat-lbl">Env — Versus <span style={{fontWeight:400,opacity:.6}}>({vsRuns.length} runs)</span></div><div className="stat-sub" style={{marginBottom:'.2rem'}}>{vizLine(vsRuns)}</div><div className="stat-sub">{audLine(vsRuns)}</div></div>}
+              {w.envCoop&&(()=>{const tv=topViz(coopRuns);const ta=topAud(coopRuns);return<div className="stat-card"><div className="stat-lbl">Env — Co-Op <span style={{fontWeight:400,opacity:.6}}>({coopRuns.length} runs)</span></div>{tv?<div className="stat-val stat-val-sm" style={{color:vizColor[tv.code]??'var(--accB)'}}>{tv.name}</div>:<div className="stat-val stat-val-sm" style={{color:"var(--muted)"}}>—</div>}<div className="stat-sub">Visual: {vizLine(coopRuns)}</div><div className="stat-sub">Audio: {audLine(coopRuns)}</div></div>;})()}
+              {w.envVs&&(()=>{const tv=topViz(vsRuns);const ta=topAud(vsRuns);return<div className="stat-card"><div className="stat-lbl">Env — Versus <span style={{fontWeight:400,opacity:.6}}>({vsRuns.length} runs)</span></div>{tv?<div className="stat-val stat-val-sm" style={{color:vizColor[tv.code]??'var(--accB)'}}>{tv.name}</div>:<div className="stat-val stat-val-sm" style={{color:"var(--muted)"}}>—</div>}<div className="stat-sub">Visual: {vizLine(vsRuns)}</div><div className="stat-sub">Audio: {audLine(vsRuns)}</div></div>;})()}
               {w.avgRunTime&&<div className="stat-card"><div className="stat-lbl">Avg Run Time</div><div className="stat-val">{fmtSec(avgSec(dashRuns))}</div><div className="stat-sub">Co-Op {fmtSec(avgSec(coopRuns))} · Versus {fmtSec(avgSec(vsRuns))}</div><div className="stat-sub">Full timer: Co-Op {fullTimerPct(coopRuns)??'—'}% · Versus {fullTimerPct(vsRuns)??'—'}%</div></div>}
             </>;
           })()}
