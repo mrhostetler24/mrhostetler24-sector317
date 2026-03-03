@@ -2707,13 +2707,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const cancelledRows=reservations.filter(r=>r.status==="cancelled"&&r.date>=t90).map(r=>({...r,_flag:"cancelled"}));
           const noshowRows=reservations.filter(r=>r.status==="no-show"&&r.date>=t90).map(r=>({...r,_flag:"no-show"}));
           const rescheduledRows=reservations.filter(r=>r.rescheduled===true&&r.date>=t90).map(r=>({...r,_flag:"rescheduled"}));
-          // Unpaid: soonest session first (most urgent). Others: newest session first.
-          const flagRows=[
-            ...[...unpaidRows].sort((a,b)=>a.date.localeCompare(b.date)),
-            ...[...rescheduledRows].sort((a,b)=>b.date.localeCompare(a.date)),
-            ...[...noshowRows].sort((a,b)=>b.date.localeCompare(a.date)),
-            ...[...cancelledRows].sort((a,b)=>b.date.localeCompare(a.date)),
-          ];
+          const flagRows=[...unpaidRows,...rescheduledRows,...noshowRows,...cancelledRows].sort((a,b)=>b.date.localeCompare(a.date)||b.startTime.localeCompare(a.startTime));
           const flagBadge=flag=>flag==="unpaid"?{bg:"rgba(192,57,43,.15)",color:"#e07060",label:"Unpaid"}:flag==="rescheduled"?{bg:"rgba(58,130,200,.15)",color:"var(--accB)",label:"Rescheduled"}:flag==="no-show"?{bg:"rgba(180,120,0,.15)",color:"var(--warnL)",label:"No-Show"}:{bg:"var(--surf2)",color:"var(--muted)",label:"Cancelled"};
           const tabBtnStyle=active=>({padding:".35rem .9rem",borderRadius:20,fontSize:".78rem",fontWeight:active?700:500,cursor:"pointer",border:`1px solid ${active?"var(--acc)":"var(--bdr)"}`,background:active?"var(--accD)":"var(--surf)",color:active?"var(--accB)":"var(--muted)"});
           return <div className="tw">
