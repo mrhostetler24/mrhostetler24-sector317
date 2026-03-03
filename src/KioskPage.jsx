@@ -586,40 +586,35 @@ export default function KioskPage() {
       {inactivityWarn && <InactivityWarning />}
       <div style={{ ...S.card, textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
-          <svg width="180" height="100" viewBox="0 0 180 100" fill="none">
+          <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
             <defs>
               <clipPath id="radarClip">
-                <circle cx="90" cy="50" r="34"/>
+                <circle cx="50" cy="50" r="38"/>
               </clipPath>
             </defs>
-            {/* Corner brackets — app accent */}
-            <path d="M2 24 L2 2 L24 2" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.65"/>
-            <path d="M156 2 L178 2 L178 24" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.65"/>
-            <path d="M2 76 L2 98 L24 98" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.65"/>
-            <path d="M156 98 L178 98 L178 76" stroke="#c8e03a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.65"/>
             {/* Radar rings */}
-            <circle cx="90" cy="50" r="34" stroke="#1d4d25" strokeWidth="1" fill="none"/>
-            <circle cx="90" cy="50" r="23" stroke="#1d4d25" strokeWidth="0.6" fill="none"/>
-            <circle cx="90" cy="50" r="11" stroke="#1d4d25" strokeWidth="0.6" fill="none"/>
+            <circle cx="50" cy="50" r="38" stroke="#1d4d25" strokeWidth="1" fill="none"/>
+            <circle cx="50" cy="50" r="26" stroke="#1d4d25" strokeWidth="0.6" fill="none"/>
+            <circle cx="50" cy="50" r="13" stroke="#1d4d25" strokeWidth="0.6" fill="none"/>
             {/* Crosshairs */}
-            <line x1="56" y1="50" x2="124" y2="50" stroke="#1d4d25" strokeWidth="0.6"/>
-            <line x1="90" y1="16" x2="90" y2="84" stroke="#1d4d25" strokeWidth="0.6"/>
+            <line x1="12" y1="50" x2="88" y2="50" stroke="#1d4d25" strokeWidth="0.6"/>
+            <line x1="50" y1="12" x2="50" y2="88" stroke="#1d4d25" strokeWidth="0.6"/>
             {/* Center dot */}
-            <circle cx="90" cy="50" r="1.5" fill="#4aff6a" opacity="0.5"/>
+            <circle cx="50" cy="50" r="1.5" fill="#4aff6a" opacity="0.5"/>
             {/* Rotating sweep */}
-            <g clipPath="url(#radarClip)" style={{animation:'radarSweep 2.8s linear infinite',transformOrigin:'90px 50px'}}>
+            <g clipPath="url(#radarClip)" style={{animation:'radarSweep 2.8s linear infinite',transformOrigin:'50px 50px'}}>
               {/* Fading trail — widest */}
-              <path d="M 90,50 L 90,16 A 34,34 0 0,0 61,33 Z" fill="#4aff6a" opacity="0.06"/>
+              <path d="M 50,50 L 50,12 A 38,38 0 0,0 17,31 Z" fill="#4aff6a" opacity="0.06"/>
               {/* Mid trail */}
-              <path d="M 90,50 L 90,16 A 34,34 0 0,0 73,17 Z" fill="#4aff6a" opacity="0.11"/>
+              <path d="M 50,50 L 50,12 A 38,38 0 0,0 31,17 Z" fill="#4aff6a" opacity="0.11"/>
               {/* Tight trail */}
-              <path d="M 90,50 L 90,16 A 34,34 0 0,0 82,16.4 Z" fill="#4aff6a" opacity="0.2"/>
+              <path d="M 50,50 L 50,12 A 38,38 0 0,0 40,13 Z" fill="#4aff6a" opacity="0.2"/>
               {/* Glow halo behind arm */}
-              <line x1="90" y1="50" x2="90" y2="16" stroke="#4aff6a" strokeWidth="4" opacity="0.1"/>
+              <line x1="50" y1="50" x2="50" y2="12" stroke="#4aff6a" strokeWidth="4" opacity="0.1"/>
               {/* Main sweep arm */}
-              <line x1="90" y1="50" x2="90" y2="16" stroke="#4aff6a" strokeWidth="1.4" opacity="0.95"/>
+              <line x1="50" y1="50" x2="50" y2="12" stroke="#4aff6a" strokeWidth="1.4" opacity="0.95"/>
               {/* Edge blip */}
-              <circle cx="90" cy="16" r="2.5" fill="#4aff6a" opacity="0.9"/>
+              <circle cx="50" cy="12" r="2.5" fill="#4aff6a" opacity="0.9"/>
             </g>
           </svg>
           <style>{`@keyframes radarSweep { to { transform: rotate(360deg); } }`}</style>
