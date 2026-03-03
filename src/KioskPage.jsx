@@ -112,7 +112,10 @@ function WaiverBadge({ valid }) {
 
 // ── Main KioskPage ────────────────────────────────────────────
 export default function KioskPage() {
-  const [phase, setPhase] = useState('boot')
+  const [phase, setPhase] = useState('unlock')
+  const [unlockPin, setUnlockPin] = useState('')
+  const [unlockShake, setUnlockShake] = useState(false)
+  const [unlockError, setUnlockError] = useState(null)
   const [bootError, setBootError] = useState(null)
   const [phone, setPhone] = useState('')
   const [reservations, setReservations] = useState([])
@@ -151,12 +154,26 @@ export default function KioskPage() {
   const phaseRef = useRef(phase)
   useEffect(() => { phaseRef.current = phase }, [phase])
 
-  // ── Boot: sign in as kiosk ──
-  useEffect(() => {
-    async function boot() {
+  // ── Unlock: send PIN to server — PIN value never lives in the bundle ──
+  const checkUnlock = useCallback(() => {
+    setPhase('boot')
+    setBootError(null)
+    setUnlockError(null)
+    ;(async () => {
       try {
-        const resp = await fetch('/api/kiosk-auth', { method: 'POST' })
+        const resp = await fetch('/api/kiosk-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: unlockPin }),
+        })
         const json = await resp.json()
+        if (resp.status === 401 || resp.status === 429) {
+          setPhase('unlock')
+          setUnlockError(json.error ?? 'Incorrect PIN.')
+          setUnlockShake(true)
+          setTimeout(() => { setUnlockShake(false); setUnlockPin('') }, 600)
+          return
+        }
         if (!resp.ok || json.error) { setBootError(json.error || 'Kiosk auth failed.'); return }
         const { error: sessErr } = await supabase.auth.setSession({
           access_token: json.session.access_token,
@@ -168,16 +185,18 @@ export default function KioskPage() {
         setBootError('Could not reach authentication server. ' + e.message)
         return
       }
-      // preload res types + waiver doc
       try {
         const [types, docs] = await Promise.all([fetchResTypes(), fetchWaiverDocs()])
         setResTypes(types)
         setWaiverDoc(docs.find(d => d.active) ?? null)
       } catch (_) {}
       setPhase('idle')
-    }
-    boot()
-  }, [])
+    })()
+  }, [unlockPin])
+
+  useEffect(() => {
+    if (unlockPin.length === 6) checkUnlock()
+  }, [unlockPin, checkUnlock])
 
   // ── Inactivity reset ──
   const resetAll = useCallback(() => {
@@ -267,15 +286,26 @@ export default function KioskPage() {
     return () => document.removeEventListener('touchstart', onTouch)
   }, [recordTap])
 
-  // ── Exit PIN ──
+  // ── Exit PIN — validated server-side so the value is never in the bundle ──
   const checkPin = useCallback(() => {
-    const correct = import.meta.env.VITE_KIOSK_EXIT_PIN ?? '131824'
-    if (exitPin === correct) {
-      supabase.auth.signOut().finally(() => { window.location.href = '/' })
-    } else {
-      setExitShake(true)
-      setTimeout(() => { setExitShake(false); setExitPin('') }, 600)
-    }
+    ;(async () => {
+      try {
+        const resp = await fetch('/api/kiosk-exit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: exitPin }),
+        })
+        if (resp.ok) {
+          supabase.auth.signOut().finally(() => { window.location.href = '/' })
+        } else {
+          setExitShake(true)
+          setTimeout(() => { setExitShake(false); setExitPin('') }, 600)
+        }
+      } catch (_) {
+        setExitShake(true)
+        setTimeout(() => { setExitShake(false); setExitPin('') }, 600)
+      }
+    })()
   }, [exitPin])
 
   useEffect(() => {
@@ -466,6 +496,21 @@ export default function KioskPage() {
     </div>
   )
 
+  // ── UNLOCK ──
+  if (phase === 'unlock') return (
+    <div style={S.page}>
+      <img src="/logo.png" alt="Sector 317" style={{ height: 80, opacity: .8, marginBottom: '1.5rem' }} />
+      <div style={{ fontFamily: 'var(--fd)', letterSpacing: '.12em', color: 'var(--acc)', fontSize: '.85rem', textTransform: 'uppercase', marginBottom: '1.5rem' }}>Staff Unlock</div>
+      <div style={{ width: '100%', maxWidth: 340, animation: unlockShake ? 'kiosk-shake .5s' : 'none' }}>
+        <NumPad value={unlockPin} onChange={setUnlockPin} mode="pin" maxLen={6} />
+      </div>
+      {unlockError && (
+        <div style={{ color: '#e07060', fontSize: '.85rem', textAlign: 'center', marginTop: '1rem', maxWidth: 300 }}>{unlockError}</div>
+      )}
+      <style>{`@keyframes kiosk-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}`}</style>
+    </div>
+  )
+
   // ── BOOT ──
   if (phase === 'boot') return (
     <div style={S.page}>
@@ -473,7 +518,7 @@ export default function KioskPage() {
       {bootError
         ? <>
           <div style={{ color: '#e07060', textAlign: 'center', maxWidth: 380, fontSize: '1rem', marginBottom: '1.5rem' }}>{bootError}</div>
-          <button style={{ ...S.btn, ...S.btnP, maxWidth: 260 }} onClick={() => { setBootError(null); setPhase('boot') }}>Retry</button>
+          <button style={{ ...S.btn, ...S.btnP, maxWidth: 260 }} onClick={() => { setBootError(null); setUnlockPin(''); setPhase('unlock') }}>Try Again</button>
         </>
         : <div style={{ width: 48, height: 48, border: '3px solid var(--bdr)', borderTop: '3px solid var(--acc)', borderRadius: '50%', animation: 'kspin .8s linear infinite' }} />
       }
