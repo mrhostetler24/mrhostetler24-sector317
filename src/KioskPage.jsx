@@ -18,7 +18,7 @@ function AccountQR() {
       padding: '1.2rem 1.5rem', marginTop: '1rem',
     }}>
       <div style={{ fontSize: '.75rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc)', textTransform: 'uppercase', marginBottom: '.2rem' }}>
-        Create or Finish Setting Up Your Account
+        Scan the code to authenticate your account
       </div>
       <QRCodeSVG
         value={KIOSK_QR_URL}
@@ -28,8 +28,8 @@ function AccountQR() {
         level="M"
         style={{ borderRadius: 6 }}
       />
-      <div style={{ fontSize: '.78rem', color: 'var(--muted)', textAlign: 'center', maxWidth: 220 }}>
-        Scan with your phone to sign in or create an account at Sector 317
+      <div style={{ fontSize: '.78rem', color: 'var(--muted)', textAlign: 'center', maxWidth: 280 }}>
+        Link your Google or Microsoft account to unlock additional online features like booking future missions, customized leaderboard name, and access our social platform.
       </div>
     </div>
   )
@@ -537,7 +537,7 @@ export default function KioskPage() {
       <div style={{ position: 'fixed', bottom: 48, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.5rem' }}
         onPointerDown={e => e.stopPropagation()}>
         <QRCodeSVG value={KIOSK_QR_URL} size={160} fgColor="#c8e03a" bgColor="#25261f" level="M" style={{ borderRadius: 8, opacity: .75 }} />
-        <div style={{ fontSize: '.8rem', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Scan to create or sign in</div>
+        <div style={{ fontSize: '.8rem', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Scan to authenticate your account</div>
       </div>
       {!isFullscreen && (
         <button style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: 'none', border: '1px solid var(--bdr)', color: 'var(--muted)', fontSize: '.85rem', padding: '.5rem 1.2rem', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap' }}
