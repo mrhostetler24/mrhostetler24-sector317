@@ -180,7 +180,12 @@ export default function KioskPage() {
           refresh_token: json.session.refresh_token,
         })
         if (sessErr) { setBootError(sessErr.message); return }
-        setKioskUserId(json.session.user?.id ?? null)
+        // Resolve public.users UUID for the kiosk account (needed for createdByUserId)
+        const authId = json.session.user?.id ?? null
+        if (authId) {
+          const { data: kioskRow } = await supabase.from('users').select('id').eq('auth_id', authId).maybeSingle()
+          setKioskUserId(kioskRow?.id ?? null)
+        }
       } catch (e) {
         setBootError('Could not reach authentication server. ' + e.message)
         return
@@ -372,7 +377,7 @@ export default function KioskPage() {
       } else {
         const nm = addName.trim()
         if (!nm) { setAddError('Please enter the player\'s name.'); setAddAdding(false); return }
-        const guest = await createGuestUser({ name: nm, phone: cleanPh(addPhone), createdByUserId: null })
+        const guest = await createGuestUser({ name: nm, phone: cleanPh(addPhone), createdByUserId: kioskUserId })
         player = { userId: guest.id, name: guest.name }
       }
       const newPlayer = await addPlayerToReservation(selectedRes.id, player)
