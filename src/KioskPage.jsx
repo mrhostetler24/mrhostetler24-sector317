@@ -585,11 +585,20 @@ export default function KioskPage() {
     <div style={S.page}>
       {inactivityWarn && <InactivityWarning />}
       <div style={{ ...S.card, textAlign: 'center' }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: '.8rem' }}>🔍</div>
-        <div style={{ ...S.h2 }}>No reservations found</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <svg width="72" height="52" viewBox="0 0 72 52" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.45 }}>
+            <path d="M2 14 L2 2 L14 2" stroke="#b0c4d8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M58 2 L70 2 L70 14" stroke="#b0c4d8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M2 38 L2 50 L14 50" stroke="#b0c4d8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M58 50 L70 50 L70 38" stroke="#b0c4d8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <line x1="36" y1="20" x2="36" y2="32" stroke="#b0c4d8" strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+            <line x1="30" y1="26" x2="42" y2="26" stroke="#b0c4d8" strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+          </svg>
+        </div>
+        <div style={{ ...S.h2 }}>Sector clear. No targets found.</div>
         <div style={{ color: 'var(--muted)', marginBottom: '1.8rem', fontSize: '1rem' }}>
-          No upcoming reservations were found for {fmtPh(phone)}.<br /><br />
-          If you believe this is an error, please see a staff member.
+          We couldn't find any upcoming reservations for {fmtPh(phone)}.<br /><br />
+          Try entering the number of the person who booked the reservation (they probably just forgot to add you). If you still have trouble, see a staff member.
         </div>
         <button style={{ ...S.btn, ...S.btnP, marginBottom: '.75rem' }} onClick={() => { setPhone(''); setPhase('phone') }}>Try a Different Number</button>
         <button style={{ ...S.btn, ...S.btnS }} onClick={() => { setPhone(''); setPhase('idle') }}>Return to Home</button>
