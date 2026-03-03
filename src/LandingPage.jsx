@@ -258,7 +258,10 @@ const CSS = `
   .lp-ey.left::after,.lp-ey.right::before{display:none;}
   .lp-h,.lp-h.right{text-align:center;}
   .lp-s2hdr{text-align:center;}
-  .lp-step{text-align:center;}
+  .lp-card{text-align:center;}
+  .lp-icon{margin:0 auto 1.25rem;}
+  .lp-meta{justify-content:center;}
+  .lp-step{text-align:center;border-left:none;border-top:2px solid rgba(200,224,58,.18);padding:.75rem 1rem 1.5rem;}
   .lp-loc{text-align:center;}
   .lp-loc-addr,.lp-loc-lbl,.lp-loc-name{text-align:center;}
   .lp-badge{display:flex;justify-content:center;}
