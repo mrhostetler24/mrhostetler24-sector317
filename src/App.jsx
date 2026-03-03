@@ -2877,6 +2877,12 @@ useEffect(() => {
     }
 
     if (found) {
+      // Kiosk session leaked into main app — sign out silently and bail
+      if (found.access === 'kiosk') {
+        await supabase.auth.signOut();
+        return;
+      }
+
       // Existing user — store auth_id and email for faster future lookups, then log in
       const updates = {};
       if (!found.authId && authUser.id) updates.authId = authUser.id;
