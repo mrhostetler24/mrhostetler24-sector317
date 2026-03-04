@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "rea
 import LandingPage from "./LandingPage.jsx";
 import OpsView from "./OpsView.jsx";
 import KioskPage from "./KioskPage.jsx";
+import StaffingScheduler from "./StaffingScheduler.jsx";
 import {
   supabase,
   fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateOwnProfile, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver,
@@ -3054,6 +3055,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       {tab==="schedule"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Schedule</div></div><button className="btn btn-p" onClick={()=>setModal("shift")}>+ Add Shift</button></div>
         <SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)}/>
+        {isManager&&<StaffingScheduler currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)}/>}
       </>}
 
       {tab==="customers"&&isManager&&<>
