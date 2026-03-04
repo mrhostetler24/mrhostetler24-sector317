@@ -1837,6 +1837,9 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   const opens=shifts.filter(s=>s.open&&!s.staffId);
   const dayShifts=[...shifts].filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const dayOpens=opens.filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
+  const isAdmin=currentUser?.access==='admin';
+  const adminUserIds=new Set(users.filter(u=>u.access==='admin').map(u=>u.id));
+  const visShifts=hideAdminShifts&&isAdmin?dayShifts.filter(s=>!adminUserIds.has(s.staffId)):dayShifts;
   const getU=id=>users.find(u=>u.id===id);
   return(
     <div>
@@ -1937,9 +1940,8 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
             {hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}
           </button>
         </div>}
-        {(()=>{const adminIds=new Set(users.filter(u=>u.access==='admin').map(u=>u.id));const vis=hideAdminShifts&&currentUser?.access==='admin'?dayShifts.filter(s=>!adminIds.has(s.staffId)):dayShifts;return(<>
-        {!vis.length&&<div className="empty"><div className="ei">📅</div><p>No shifts on this date.</p></div>}
-        {vis.map(s=>{
+        {!visShifts.length&&<div className="empty"><div className="ei">📅</div><p>No shifts on this date.</p></div>}
+        {visShifts.map(s=>{
           const m=getU(s.staffId);
           const unassigned=!s.staffId||s.open;
           return <div key={s.id} className="shift-card" style={{padding:'.5rem 1rem',flexWrap:'nowrap',borderLeft:unassigned?'3px solid var(--warn)':'',background:unassigned?'rgba(255,160,0,.07)':''}}>
