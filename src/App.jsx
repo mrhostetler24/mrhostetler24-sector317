@@ -17,7 +17,7 @@ const LOGO_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhQAAAFuCAYAAADZ
 
 const DAYS_OF_WEEK = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const ACCESS_LEVELS = { customer:{label:"Customer"}, staff:{label:"Staff"}, manager:{label:"Manager"}, admin:{label:"Admin"} };
-const STAFF_ROLES = ["Game Master","Front Desk","Manager","Technician","Admin"];
+const STAFF_ROLES = ["Referee","Armorer","Instructor","Manager","Admin"];
 
 const DEFAULT_RES_TYPES = [
   { id:"coop-open", name:"Co-Op Open Play", mode:"coop", style:"open", pricingMode:"per_person", price:55, maxPlayers:null, description:"Join forces in a shared Co-Op session. Price per player.", active:true, availableForBooking:true },
@@ -78,8 +78,8 @@ const makeDate = n => { const d=new Date(); d.setDate(d.getDate()+n); return `${
 // authProvider: "google"|"microsoft"|"apple"|null (null = phone-only, no social connected)
 const INITIAL_USERS = [
   { id:1, name:"Alex Morgan",   phone:"3175550101", access:"customer", role:null,         active:true, authProvider:"google",    waivers:[], needsRewaiverDocId:null },
-  { id:2, name:"Jordan Lee",    phone:"3175550201", access:"staff",    role:"Game Master", active:true, authProvider:"google",    waivers:[{signedAt:new Date(Date.now()-200*864e5).toISOString(),signedName:"Jordan Lee",waiverDocId:"waiver-1"}], needsRewaiverDocId:null },
-  { id:3, name:"Mia Chen",      phone:"3175550202", access:"staff",    role:"Game Master", active:true, authProvider:"apple",     waivers:[], needsRewaiverDocId:null },
+  { id:2, name:"Jordan Lee",    phone:"3175550201", access:"staff",    role:"Referee", active:true, authProvider:"google",    waivers:[{signedAt:new Date(Date.now()-200*864e5).toISOString(),signedName:"Jordan Lee",waiverDocId:"waiver-1"}], needsRewaiverDocId:null },
+  { id:3, name:"Mia Chen",      phone:"3175550202", access:"staff",    role:"Referee", active:true, authProvider:"apple",     waivers:[], needsRewaiverDocId:null },
   { id:4, name:"Tyler Brooks",  phone:"3175550203", access:"staff",    role:"Front Desk",  active:true, authProvider:"microsoft", waivers:[{signedAt:new Date(Date.now()-400*864e5).toISOString(),signedName:"Tyler Brooks",waiverDocId:"waiver-1"}], needsRewaiverDocId:null },
   { id:5, name:"Priya Nair",    phone:"3175550204", access:"manager",  role:"Manager",     active:true, authProvider:"google",    waivers:[], needsRewaiverDocId:null },
   { id:6, name:"Owner",         phone:"3175550001", access:"admin",    role:"Admin",       active:true, authProvider:"google",    waivers:[], needsRewaiverDocId:null },
@@ -2475,7 +2475,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [newST,setNewST]=useState({dayOfWeek:"Monday",startTime:"18:00",maxSessions:2,active:true});
   const [editUser,setEditUser]=useState(null);
   const [userSaving,setUserSaving]=useState(false);
-  const [newUser,setNewUser]=useState({name:"",phone:"",access:"staff",role:"Game Master",active:true,waivers:[],needsRewaiverDocId:null});
+  const [newUser,setNewUser]=useState({name:"",phone:"",access:"staff",role:"Referee",active:true,waivers:[],needsRewaiverDocId:null});
   const doSaveUser=async()=>{
     if(!editUser)return;
     setUserSaving(true);
@@ -2916,7 +2916,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       </>}
 
       {tab==="staff"&&<>
-        <div className="ph"><div className="ph-left"><div className="pt">Staff Management</div><div className="ps">{isAdmin?"Full access":"Managers can manage staff"}</div></div><button className="btn btn-p" onClick={()=>{setEditUser(null);setNewUser({name:"",phone:"",access:"staff",role:"Game Master",active:true,waivers:[],needsRewaiverDocId:null});setModal("user");}}>+ Add Staff</button></div>
+        <div className="ph"><div className="ph-left"><div className="pt">Staff Management</div><div className="ps">{isAdmin?"Full access":"Managers can manage staff"}</div></div><button className="btn btn-p" onClick={()=>{setEditUser(null);setNewUser({name:"",phone:"",access:"staff",role:"Referee",active:true,waivers:[],needsRewaiverDocId:null});setModal("user");}}>+ Add Staff</button></div>
         <div className="tw"><table><thead><tr><th>Name</th><th>Mobile</th><th>Role</th><th>Access</th><th>Auth</th><th>Waiver</th><th>Status</th><th></th></tr></thead>
           <tbody>{users.filter(u=>u.access!=="customer"&&canManageUser(u)).map(u=><tr key={u.id}>
             <td><strong>{u.name}</strong></td><td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(u.phone)}</td><td>{u.role||"—"}</td>
