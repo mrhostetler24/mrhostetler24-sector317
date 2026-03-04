@@ -2527,7 +2527,7 @@ function MergeAccountsModal({users,targetUser,reservations,onMerge,onClose}){
   );
 }
 
-function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,sessionTemplates,setSessionTemplates,waiverDocs,setWaiverDocs,activeWaiverDoc,users,setUsers,shifts,setShifts,payments,setPayments,onAlert,userAuthDates=[],runs=[]}){
+function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,sessionTemplates,setSessionTemplates,waiverDocs,setWaiverDocs,activeWaiverDoc,users,setUsers,shifts,setShifts,payments,setPayments,onAlert,userAuthDates=[],runs=[],staffRoles=[]}){
   const [tab,setTab]=useState("dashboard");
   const [toastMsg,setToastMsg]=useState(null);
   const [modal,setModal]=useState(null);
@@ -3673,7 +3673,7 @@ useEffect(() => {
       <div className="main">
         {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} runs={runs}/>}
         {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert}/>}
-        {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs}/>}
+        {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs} staffRoles={staffRoles}/>}
       </div>
     </div>
   </>);
