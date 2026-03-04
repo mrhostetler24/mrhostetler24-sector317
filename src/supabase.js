@@ -94,14 +94,16 @@ const toReservation = r => r ? ({
 }) : null
 
 const toShift = r => r ? ({
-  id:           r.id,
-  staffId:      r.staff_id,
-  date:         r.date,
-  start:        r.start_time,
-  end:          r.end_time,
-  open:         r.open ?? false,
-  conflicted:   r.conflicted ?? false,
-  conflictNote: r.conflict_note,
+  id:             r.id,
+  staffId:        r.staff_id,
+  date:           r.date,
+  start:          r.start_time,
+  end:            r.end_time,
+  open:           r.open ?? false,
+  conflicted:     r.conflicted ?? false,
+  conflictNote:   r.conflict_note,
+  templateSlotId: r.template_slot_id ?? null,
+  role:           r.role ?? null,
 }) : null
 
 const toReservationPlayer = r => r ? ({
@@ -1006,26 +1008,48 @@ export async function fetchShifts() {
 
 export async function createShift(shift) {
   const { data, error } = await supabase.from('shifts').insert({
-    staff_id:      shift.staffId ?? null,
-    date:          shift.date,
-    start_time:    shift.start,
-    end_time:      shift.end,
-    open:          shift.open ?? false,
-    conflicted:    shift.conflicted ?? false,
-    conflict_note: shift.conflictNote ?? null,
+    staff_id:         shift.staffId ?? null,
+    date:             shift.date,
+    start_time:       shift.start,
+    end_time:         shift.end,
+    open:             shift.open ?? false,
+    conflicted:       shift.conflicted ?? false,
+    conflict_note:    shift.conflictNote ?? null,
+    template_slot_id: shift.templateSlotId ?? null,
+    role:             shift.role ?? null,
   }).select().single()
   if (error) throw error
   return toShift(data)
 }
 
+export async function createShiftBatch(shiftsArray) {
+  if (!shiftsArray.length) return []
+  const rows = shiftsArray.map(shift => ({
+    staff_id:         shift.staffId ?? null,
+    date:             shift.date,
+    start_time:       shift.start,
+    end_time:         shift.end,
+    open:             shift.open ?? true,
+    conflicted:       shift.conflicted ?? false,
+    conflict_note:    shift.conflictNote ?? null,
+    template_slot_id: shift.templateSlotId ?? null,
+    role:             shift.role ?? null,
+  }))
+  const { data, error } = await supabase.from('shifts').insert(rows).select()
+  if (error) throw error
+  return data.map(toShift)
+}
+
 export async function updateShift(id, changes) {
   const row = {}
-  if (changes.staffId      !== undefined) row.staff_id      = changes.staffId
-  if (changes.start        !== undefined) row.start_time    = changes.start
-  if (changes.end          !== undefined) row.end_time      = changes.end
-  if (changes.open         !== undefined) row.open          = changes.open
-  if (changes.conflicted   !== undefined) row.conflicted    = changes.conflicted
-  if (changes.conflictNote !== undefined) row.conflict_note = changes.conflictNote
+  if (changes.staffId        !== undefined) row.staff_id         = changes.staffId
+  if (changes.start          !== undefined) row.start_time       = changes.start
+  if (changes.end            !== undefined) row.end_time         = changes.end
+  if (changes.open           !== undefined) row.open             = changes.open
+  if (changes.conflicted     !== undefined) row.conflicted       = changes.conflicted
+  if (changes.conflictNote   !== undefined) row.conflict_note    = changes.conflictNote
+  if (changes.templateSlotId !== undefined) row.template_slot_id = changes.templateSlotId
+  if (changes.role           !== undefined) row.role             = changes.role
   const { data, error } = await supabase
     .from('shifts').update(row).eq('id', id).select().single()
   if (error) throw error
@@ -1067,4 +1091,152 @@ export async function fetchPlayerWaiverStatus(userIds) {
   return Object.fromEntries((data ?? []).map(r => [r.id, {
     waivers: r.waivers ?? [], needsRewaiverDocId: r.needs_rewaiver_doc_id,
   }]))
+}
+
+
+// ============================================================
+// SHIFT TEMPLATES
+// ============================================================
+
+const toShiftTemplate = r => r ? ({
+  id:        r.id,
+  name:      r.name,
+  active:    r.active ?? false,
+  createdAt: r.created_at,
+}) : null
+
+const toTemplateSlot = r => r ? ({
+  id:         r.id,
+  templateId: r.template_id,
+  dayOfWeek:  r.day_of_week,
+  startTime:  r.start_time,
+  endTime:    r.end_time,
+  role:       r.role ?? null,
+  label:      r.label ?? null,
+}) : null
+
+const toScheduleBlock = r => r ? ({
+  id:         r.id,
+  label:      r.label ?? null,
+  date:       r.date,
+  isFullDay:  r.is_full_day ?? true,
+  startTime:  r.start_time ?? null,
+  endTime:    r.end_time ?? null,
+  isHoliday:  r.is_holiday ?? false,
+  createdBy:  r.created_by ?? null,
+  createdAt:  r.created_at,
+}) : null
+
+const toUserRole = r => r ? ({
+  id:     r.id,
+  userId: r.user_id,
+  role:   r.role,
+}) : null
+
+export async function fetchShiftTemplates() {
+  const { data, error } = await supabase
+    .from('shift_templates').select('*').order('created_at')
+  if (error) throw error
+  return data.map(toShiftTemplate)
+}
+
+export async function upsertShiftTemplate(tmpl) {
+  const row = { name: tmpl.name, active: tmpl.active ?? false }
+  if (tmpl.id) row.id = tmpl.id
+  const { data, error } = await supabase
+    .from('shift_templates').upsert(row).select().single()
+  if (error) throw error
+  return toShiftTemplate(data)
+}
+
+export async function deleteShiftTemplate(id) {
+  const { error } = await supabase.from('shift_templates').delete().eq('id', id)
+  if (error) throw error
+}
+
+/** Deactivate all templates then activate the chosen one. Pass null to deactivate all. */
+export async function setActiveShiftTemplate(id) {
+  await supabase.from('shift_templates').update({ active: false }).neq('id', id ?? '00000000-0000-0000-0000-000000000000')
+  if (!id) return null
+  const { data, error } = await supabase
+    .from('shift_templates').update({ active: true }).eq('id', id).select().single()
+  if (error) throw error
+  return toShiftTemplate(data)
+}
+
+export async function fetchTemplateSlots(templateId) {
+  const { data, error } = await supabase
+    .from('shift_template_slots')
+    .select('*')
+    .eq('template_id', templateId)
+    .order('day_of_week').order('start_time')
+  if (error) throw error
+  return data.map(toTemplateSlot)
+}
+
+export async function upsertTemplateSlot(slot) {
+  const row = {
+    template_id: slot.templateId,
+    day_of_week: slot.dayOfWeek,
+    start_time:  slot.startTime,
+    end_time:    slot.endTime,
+    role:        slot.role ?? null,
+    label:       slot.label ?? null,
+  }
+  if (slot.id) row.id = slot.id
+  const { data, error } = await supabase
+    .from('shift_template_slots').upsert(row).select().single()
+  if (error) throw error
+  return toTemplateSlot(data)
+}
+
+export async function deleteTemplateSlot(id) {
+  const { error } = await supabase.from('shift_template_slots').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function fetchScheduleBlocks(fromDate, toDate) {
+  let q = supabase.from('schedule_blocks').select('*').order('date').order('start_time')
+  if (fromDate) q = q.gte('date', fromDate)
+  if (toDate)   q = q.lte('date', toDate)
+  const { data, error } = await q
+  if (error) throw error
+  return data.map(toScheduleBlock)
+}
+
+export async function createScheduleBlock(block) {
+  const { data, error } = await supabase.from('schedule_blocks').insert({
+    label:       block.label     ?? null,
+    date:        block.date,
+    is_full_day: block.isFullDay ?? true,
+    start_time:  block.startTime ?? null,
+    end_time:    block.endTime   ?? null,
+    is_holiday:  block.isHoliday ?? false,
+    created_by:  block.createdBy ?? null,
+  }).select().single()
+  if (error) throw error
+  return toScheduleBlock(data)
+}
+
+export async function deleteScheduleBlock(id) {
+  const { error } = await supabase.from('schedule_blocks').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function fetchUserRoles() {
+  const { data, error } = await supabase.from('user_roles').select('*')
+  if (error) throw error
+  return data.map(toUserRole)
+}
+
+export async function addUserRole(userId, role) {
+  const { data, error } = await supabase
+    .from('user_roles').insert({ user_id: userId, role }).select().single()
+  if (error) throw error
+  return toUserRole(data)
+}
+
+export async function removeUserRole(id) {
+  const { error } = await supabase.from('user_roles').delete().eq('id', id)
+  if (error) throw error
 }

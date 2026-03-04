@@ -1597,7 +1597,6 @@ See you on the field — SECTOR 317`
                 color:wSigned?"var(--okB)":"var(--dangerL)",
                 border:`1px solid ${wSigned?"var(--ok)":"var(--danger)"}`,
               }}>{wSigned?"✓ Waiver":"⚠ No Waiver"}</span>
-              <div style={{flex:2}}><WaiverTooltip user={u} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} readOnly={false} onResign={()=>setWTarget({...p})}/></div>
               {!wSigned&&isUp&&<button className="btn btn-warn btn-sm" onClick={()=>setWTarget({...p})}>Sign</button>}
               {canManage&&isUp&&onRemovePlayer&&p.id&&(removeConfirm===p.id
                 ?<span style={{display:"flex",gap:".3rem",alignItems:"center"}}><span style={{fontSize:".73rem",color:"var(--warnL)"}}>Remove?</span><button className="btn btn-d btn-sm" onClick={()=>{onRemovePlayer(res.id,p.id);setRemoveConfirm(null);}}>Yes</button><button className="btn btn-s btn-sm" onClick={()=>setRemoveConfirm(null)}>No</button></span>
