@@ -17,6 +17,15 @@ import {
 const DAY_NAMES      = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DAY_NAMES_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+// 15-minute interval options for time selects (00:00 … 23:45)
+const TIME_OPTIONS = (() => {
+  const opts = []
+  for (let h = 0; h < 24; h++)
+    for (const m of [0, 15, 30, 45])
+      opts.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`)
+  return opts
+})()
+
 // ── Pure helpers ───────────────────────────────────────────────────────────
 
 function todayISO() {
@@ -185,7 +194,8 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   const [newTmplName,  setNewTmplName]  = useState('')
   const [tmplSaving,   setTmplSaving]   = useState(false)
   const [addingSlot,   setAddingSlot]   = useState(false)
-  const [slotDraft,    setSlotDraft]    = useState({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', label: '' })
+  const [slotDraft,    setSlotDraft]    = useState({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', qty: 1, forAllRoles: false })
+  const [editingSlotId, setEditingSlotId] = useState(null)  // id of slot being inline-edited
 
   // ── Block builder UI ──────────────────────────────────────────────────────
   const [addingBlock, setAddingBlock] = useState(false)
@@ -193,8 +203,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   const [blockSaving, setBlockSaving] = useState(false)
 
   // ── Staff roles UI ────────────────────────────────────────────────────────
-  const [roleInputs,  setRoleInputs]  = useState({})  // userId → text input value
-  const [roleSaving,  setRoleSaving]  = useState(null) // userId currently saving
+  const [roleSaving,  setRoleSaving]  = useState(new Set())  // Set of "userId_role" saving keys
 
   // ── Templates sub-tabs ─────────────────────────────────────────────────────
   const [tmplView, setTmplView] = useState('builder')
@@ -325,28 +334,65 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
 
   // ── Slot CRUD ──────────────────────────────────────────────────────────────
 
-  async function handleAddSlot() {
+  async function handleSaveSlot() {
     if (!editingTmplId) return
     setTmplSaving(true)
     try {
-      const saved = await upsertTemplateSlot({
+      const base = {
         templateId: editingTmplId,
         dayOfWeek:  Number(slotDraft.dayOfWeek),
         startTime:  slotDraft.startTime,
         endTime:    slotDraft.endTime,
-        role:       slotDraft.role.trim() || null,
-        label:      slotDraft.label.trim() || null,
-      })
-      setEditingSlots(prev => [...prev, saved].sort((a, b) =>
-        a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)
-      ))
-      setSlotDraft({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', label: '' })
+        role:       slotDraft.role || null,
+      }
+
+      if (editingSlotId) {
+        // Editing existing slot — just update it (qty ignored)
+        const saved = await upsertTemplateSlot({ ...base, id: editingSlotId })
+        setEditingSlots(prev => {
+          const without = prev.filter(s => s.id !== saved.id)
+          return [...without, saved].sort((a, b) =>
+            a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)
+          )
+        })
+      } else {
+        // New slot — create copies (qty per role, or qty copies of single role)
+        const qty = Math.max(1, Math.min(20, Number(slotDraft.qty) || 1))
+        const roles = slotDraft.forAllRoles && allRoles.length > 0
+          ? allRoles
+          : [slotDraft.role || null]
+        const saved = await Promise.all(
+          roles.flatMap(r =>
+            Array.from({ length: qty }, () => upsertTemplateSlot({ ...base, role: r }))
+          )
+        )
+        setEditingSlots(prev =>
+          [...prev, ...saved].sort((a, b) =>
+            a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)
+          )
+        )
+      }
+
+      setSlotDraft({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', qty: 1, forAllRoles: false })
       setAddingSlot(false)
+      setEditingSlotId(null)
     } catch (e) {
-      onAlert('Error adding slot: ' + e.message)
+      onAlert('Error saving slot: ' + e.message)
     } finally {
       setTmplSaving(false)
     }
+  }
+
+  function startEditSlot(slot) {
+    setSlotDraft({
+      dayOfWeek: slot.dayOfWeek,
+      startTime: slot.startTime.slice(0, 5),  // trim seconds if present
+      endTime:   slot.endTime.slice(0, 5),
+      role:      slot.role ?? '',
+      qty:       1,
+    })
+    setEditingSlotId(slot.id)
+    setAddingSlot(true)
   }
 
   async function handleDeleteSlot(id) {
@@ -427,28 +473,35 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
 
   // ── User role CRUD ─────────────────────────────────────────────────────────
 
-  async function handleAddUserRole(userId) {
-    const role = (roleInputs[userId] ?? '').trim()
-    if (!role) return
-    setRoleSaving(userId)
-    try {
-      const saved = await addUserRole(userId, role)
-      setUserRoles(prev => [...prev, saved])
-      setRoleInputs(prev => ({ ...prev, [userId]: '' }))
-    } catch (e) {
-      onAlert('Error adding role: ' + e.message)
-    } finally {
-      setRoleSaving(null)
-    }
-  }
+  // Toggle a cross-training role on/off for a staff member (checkbox click)
+  async function handleToggleUserRole(userId, role, currentEntry) {
+    const key = `${userId}_${role}`
+    if (roleSaving.has(key)) return
+    setRoleSaving(prev => new Set([...prev, key]))
 
-  async function handleRemoveUserRole(id) {
-    try {
-      await removeUserRole(id)
-      setUserRoles(prev => prev.filter(r => r.id !== id))
-    } catch (e) {
-      onAlert('Error removing role: ' + e.message)
+    if (currentEntry) {
+      // optimistic remove
+      setUserRoles(prev => prev.filter(r => r.id !== currentEntry.id))
+      try {
+        await removeUserRole(currentEntry.id)
+      } catch (e) {
+        setUserRoles(prev => [...prev, currentEntry])  // revert
+        onAlert('Error removing role: ' + e.message)
+      }
+    } else {
+      // optimistic add (temp id until DB responds)
+      const tempId = `temp_${userId}_${role}`
+      setUserRoles(prev => [...prev, { id: tempId, userId, role }])
+      try {
+        const saved = await addUserRole(userId, role)
+        setUserRoles(prev => prev.map(r => r.id === tempId ? saved : r))
+      } catch (e) {
+        setUserRoles(prev => prev.filter(r => r.id !== tempId))  // revert
+        onAlert('Error adding role: ' + e.message)
+      }
     }
+
+    setRoleSaving(prev => { const s = new Set(prev); s.delete(key); return s })
   }
 
   // ── Computed slices ────────────────────────────────────────────────────────
@@ -494,6 +547,14 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     if (hasOpen) rows.push({ id: null, name: 'Unassigned', role: '—' })
     return rows
   }, [weekShifts, users]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Unique sorted role list (primary roles from users + secondary from user_roles)
+  const allRoles = useMemo(() => {
+    const set = new Set()
+    for (const u of staffUsers) if (u.role) set.add(u.role)
+    for (const ur of userRoles) set.add(ur.role)
+    return [...set].sort()
+  }, [staffUsers, userRoles])
 
   // Roles by user map (for Roles tab)
   const rolesByUser = useMemo(() => {
@@ -894,14 +955,14 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ background: 'var(--surf2)', borderBottom: '1px solid var(--bdr)' }}>
-                                {['Day', 'Start', 'End', 'Role', 'Label', ''].map(h => (
+                                {['Day', 'Start', 'End', 'Role', ''].map(h => (
                                   <th key={h} style={{ padding: '.45rem .75rem', textAlign: 'left', fontSize: '.72rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>{h}</th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
                               {editingSlots.map((slot, i) => (
-                                <tr key={slot.id} style={{ borderBottom: i < editingSlots.length - 1 ? '1px solid var(--bdr)' : 'none' }}>
+                                <tr key={slot.id} style={{ borderBottom: i < editingSlots.length - 1 ? '1px solid var(--bdr)' : 'none', background: editingSlotId === slot.id ? 'rgba(90,138,58,.06)' : undefined }}>
                                   <td style={{ padding: '.45rem .75rem', fontSize: '.85rem', fontWeight: 500 }}>
                                     {DAY_NAMES_FULL[slot.dayOfWeek]}
                                   </td>
@@ -910,9 +971,11 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                                   <td style={{ padding: '.45rem .75rem', fontSize: '.83rem', color: slot.role ? 'var(--txt)' : 'var(--muted)' }}>
                                     {slot.role ?? <span style={{ fontStyle: 'italic' }}>Any</span>}
                                   </td>
-                                  <td style={{ padding: '.45rem .75rem', fontSize: '.8rem', color: 'var(--muted)' }}>{slot.label ?? '—'}</td>
                                   <td style={{ padding: '.45rem .75rem' }}>
-                                    <button className="btn btn-d btn-sm" onClick={() => handleDeleteSlot(slot.id)}>✕</button>
+                                    <div style={{ display: 'flex', gap: '.35rem' }}>
+                                      <button className="btn btn-s btn-sm" onClick={() => startEditSlot(slot)}>Edit</button>
+                                      <button className="btn btn-d btn-sm" onClick={() => handleDeleteSlot(slot.id)}>✕</button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
@@ -921,11 +984,14 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                         </div>
                       )}
 
-                      {/* Add slot form */}
+                      {/* Add / edit slot form */}
                       {addingSlot ? (
                         <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '1rem', marginBottom: '1rem' }}>
-                          <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.75rem' }}>New Slot</div>
+                          <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.75rem' }}>
+                            {editingSlotId ? 'Edit Slot' : 'New Slot'}
+                          </div>
                           <div style={{ display: 'flex', gap: '.65rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                            {/* Day */}
                             <div className="f" style={{ margin: 0 }}>
                               <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Day</label>
                               <select
@@ -936,32 +1002,75 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                                 {DAY_NAMES_FULL.map((name, i) => <option key={i} value={i}>{name}</option>)}
                               </select>
                             </div>
+                            {/* Start time */}
                             <div className="f" style={{ margin: 0 }}>
                               <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Start</label>
-                              <input type="time" value={slotDraft.startTime} onChange={e => setSlotDraft(d => ({ ...d, startTime: e.target.value }))}
-                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }} />
+                              <select
+                                value={slotDraft.startTime}
+                                onChange={e => setSlotDraft(d => ({ ...d, startTime: e.target.value }))}
+                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }}
+                              >
+                                {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmtTime(t)}</option>)}
+                              </select>
                             </div>
+                            {/* End time */}
                             <div className="f" style={{ margin: 0 }}>
                               <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>End</label>
-                              <input type="time" value={slotDraft.endTime} onChange={e => setSlotDraft(d => ({ ...d, endTime: e.target.value }))}
-                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }} />
+                              <select
+                                value={slotDraft.endTime}
+                                onChange={e => setSlotDraft(d => ({ ...d, endTime: e.target.value }))}
+                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }}
+                              >
+                                {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmtTime(t)}</option>)}
+                              </select>
                             </div>
+                            {/* Role */}
+                            {!editingSlotId && (
+                              <div className="f" style={{ margin: 0, justifyContent: 'flex-end' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '.3rem', fontSize: '.78rem', color: 'var(--muted)', cursor: 'pointer', marginTop: 'auto', paddingBottom: '.1rem' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={slotDraft.forAllRoles}
+                                    onChange={e => setSlotDraft(d => ({ ...d, forAllRoles: e.target.checked }))}
+                                  />
+                                  ALL
+                                </label>
+                              </div>
+                            )}
                             <div className="f" style={{ margin: 0 }}>
-                              <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Role (optional)</label>
-                              <input type="text" placeholder="e.g. Game Master" value={slotDraft.role} onChange={e => setSlotDraft(d => ({ ...d, role: e.target.value }))}
-                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', width: 130 }} />
+                              <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Role</label>
+                              <select
+                                value={slotDraft.role}
+                                onChange={e => setSlotDraft(d => ({ ...d, role: e.target.value }))}
+                                disabled={!editingSlotId && slotDraft.forAllRoles}
+                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', minWidth: 140, opacity: (!editingSlotId && slotDraft.forAllRoles) ? 0.4 : 1 }}
+                              >
+                                <option value="">— Any role —</option>
+                                {allRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
                             </div>
-                            <div className="f" style={{ margin: 0 }}>
-                              <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Label (optional)</label>
-                              <input type="text" placeholder="e.g. Peak Day" value={slotDraft.label} onChange={e => setSlotDraft(d => ({ ...d, label: e.target.value }))}
-                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', width: 110 }} />
-                            </div>
-                            <button className="btn btn-ok btn-sm" disabled={tmplSaving} onClick={handleAddSlot}>Save Slot</button>
-                            <button className="btn btn-s btn-sm" onClick={() => setAddingSlot(false)}>Cancel</button>
+                            {!editingSlotId && (
+                              <div className="f" style={{ margin: 0 }}>
+                                <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Qty</label>
+                                <input
+                                  type="number"
+                                  min={1} max={20}
+                                  value={slotDraft.qty}
+                                  onChange={e => setSlotDraft(d => ({ ...d, qty: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))}
+                                  style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', width: 60 }}
+                                />
+                              </div>
+                            )}
+                            <button className="btn btn-ok btn-sm" disabled={tmplSaving} onClick={handleSaveSlot}>
+                              {editingSlotId ? 'Update Slot' : 'Add Slot'}
+                            </button>
+                            <button className="btn btn-s btn-sm" onClick={() => { setAddingSlot(false); setEditingSlotId(null); setSlotDraft({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', qty: 1, forAllRoles: false }) }}>
+                              Cancel
+                            </button>
                           </div>
                         </div>
                       ) : (
-                        <button className="btn btn-s btn-sm" style={{ marginBottom: '1rem' }} onClick={() => setAddingSlot(true)}>+ Add Slot</button>
+                        <button className="btn btn-s btn-sm" style={{ marginBottom: '1rem' }} onClick={() => { setAddingSlot(true); setEditingSlotId(null) }}>+ Add Slot</button>
                       )}
 
                       {/* Stamp section */}
@@ -1038,27 +1147,28 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
 
                   {/* Add block form */}
                   {addingBlock && (
-                    <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '1rem', marginBottom: '1.25rem' }}>
-                      <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.75rem' }}>New Block / Holiday</div>
-                      <div style={{ display: 'flex', gap: '.65rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                        <div className="f" style={{ margin: 0 }}>
-                          <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Date</label>
+                    <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.75rem 1rem', marginBottom: '1.25rem' }}>
+                      <div style={{ fontSize: '.72rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.65rem' }}>New Block / Holiday</div>
+                      {/* Row 1: always-visible fields */}
+                      <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '.25rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '.2rem', flexShrink: 0 }}>
+                          <span style={{ fontSize: '.68rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>DATE</span>
                           <input type="date" value={blockDraft.date} onChange={e => setBlockDraft(d => ({ ...d, date: e.target.value }))}
-                            style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }} />
+                            style={{ fontSize: '.83rem', padding: '.28rem .4rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4 }} />
                         </div>
-                        <div className="f" style={{ margin: 0 }}>
-                          <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Label (optional)</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '.2rem', flexShrink: 0 }}>
+                          <span style={{ fontSize: '.68rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>LABEL (OPTIONAL)</span>
                           <input type="text" placeholder="e.g. Christmas, HVAC Maintenance" value={blockDraft.label} onChange={e => setBlockDraft(d => ({ ...d, label: e.target.value }))}
-                            style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', width: 200 }} />
+                            style={{ fontSize: '.83rem', padding: '.28rem .4rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, width: 190 }} />
                         </div>
-                        <div className="f" style={{ margin: 0 }}>
-                          <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Type</label>
-                          <div style={{ display: 'flex', gap: '.75rem', marginTop: '.35rem' }}>
-                            <label style={{ display: 'flex', gap: '.3rem', alignItems: 'center', fontSize: '.85rem', cursor: 'pointer' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '.2rem', flexShrink: 0 }}>
+                          <span style={{ fontSize: '.68rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>TYPE</span>
+                          <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', height: 28 }}>
+                            <label style={{ display: 'flex', gap: '.25rem', alignItems: 'center', fontSize: '.83rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               <input type="radio" checked={blockDraft.isFullDay} onChange={() => setBlockDraft(d => ({ ...d, isFullDay: true }))} />
                               Full Day
                             </label>
-                            <label style={{ display: 'flex', gap: '.3rem', alignItems: 'center', fontSize: '.85rem', cursor: 'pointer' }}>
+                            <label style={{ display: 'flex', gap: '.25rem', alignItems: 'center', fontSize: '.83rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               <input type="radio" checked={!blockDraft.isFullDay} onChange={() => setBlockDraft(d => ({ ...d, isFullDay: false }))} />
                               Partial
                             </label>
@@ -1066,21 +1176,26 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                         </div>
                         {!blockDraft.isFullDay && (
                           <>
-                            <div className="f" style={{ margin: 0 }}>
-                              <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Block Start</label>
-                              <input type="time" value={blockDraft.startTime} onChange={e => setBlockDraft(d => ({ ...d, startTime: e.target.value }))}
-                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '.2rem', flexShrink: 0 }}>
+                              <span style={{ fontSize: '.68rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>FROM</span>
+                              <select value={blockDraft.startTime} onChange={e => setBlockDraft(d => ({ ...d, startTime: e.target.value }))}
+                                style={{ fontSize: '.83rem', padding: '.28rem .4rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4 }}>
+                                {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmtTime(t)}</option>)}
+                              </select>
                             </div>
-                            <div className="f" style={{ margin: 0 }}>
-                              <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Block End</label>
-                              <input type="time" value={blockDraft.endTime} onChange={e => setBlockDraft(d => ({ ...d, endTime: e.target.value }))}
-                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '.2rem', flexShrink: 0 }}>
+                              <span style={{ fontSize: '.68rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>TO</span>
+                              <select value={blockDraft.endTime} onChange={e => setBlockDraft(d => ({ ...d, endTime: e.target.value }))}
+                                style={{ fontSize: '.83rem', padding: '.28rem .4rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4 }}>
+                                {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmtTime(t)}</option>)}
+                              </select>
                             </div>
                           </>
                         )}
-                        <div className="f" style={{ margin: 0 }}>
-                          <label style={{ display: 'flex', gap: '.35rem', alignItems: 'center', fontSize: '.85rem', cursor: 'pointer', marginTop: '.9rem' }}>
-                            <input type="checkbox" checked={blockDraft.isHoliday} onChange={e => setBlockDraft(d => ({ ...d, isHoliday: e.target.checked })) } />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '.2rem', flexShrink: 0 }}>
+                          <span style={{ fontSize: '.68rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>&nbsp;</span>
+                          <label style={{ display: 'flex', gap: '.3rem', alignItems: 'center', fontSize: '.83rem', cursor: 'pointer', height: 28, whiteSpace: 'nowrap' }}>
+                            <input type="checkbox" checked={blockDraft.isHoliday} onChange={e => setBlockDraft(d => ({ ...d, isHoliday: e.target.checked }))} />
                             Holiday
                           </label>
                         </div>
@@ -1135,67 +1250,53 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
               {tmplView === 'roles' && (
                 <div>
                   <div style={{ fontSize: '.84rem', color: 'var(--muted)', marginBottom: '1rem', lineHeight: 1.55 }}>
-                    Cross-training roles allow staff to be assigned shifts outside their primary role. Primary roles are set in Staff Management.
+                    Check additional roles a staff member is cross-trained for. Primary roles are set in Staff Management and cannot be unchecked here.
                   </div>
 
                   {staffUsers.length === 0 ? (
                     <div className="empty">No active staff members found.</div>
+                  ) : allRoles.length === 0 ? (
+                    <div className="empty">No roles defined yet. Assign primary roles to staff first in Staff Management, then return here to set cross-training.</div>
                   ) : (
-                    <div className="tw">
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
                         <thead>
                           <tr style={{ background: 'var(--surf2)', borderBottom: '1px solid var(--bdr)' }}>
-                            {['Staff', 'Primary Role', 'Additional Roles'].map(h => (
-                              <th key={h} style={{ padding: '.5rem .85rem', textAlign: 'left', fontSize: '.72rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>{h}</th>
+                            <th style={{ padding: '.5rem .85rem', textAlign: 'left', fontSize: '.72rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Staff</th>
+                            {allRoles.map(role => (
+                              <th key={role} style={{ padding: '.5rem .75rem', textAlign: 'center', fontSize: '.72rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                {role}
+                              </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {staffUsers.map((u, i) => {
-                            const extras = rolesByUser[u.id] ?? []
-                            const inputVal = roleInputs[u.id] ?? ''
-                            return (
-                              <tr key={u.id} style={{ borderBottom: i < staffUsers.length - 1 ? '1px solid var(--bdr)' : 'none', verticalAlign: 'middle' }}>
-                                <td style={{ padding: '.55rem .85rem', fontSize: '.88rem', fontWeight: 500 }}>{u.name}</td>
-                                <td style={{ padding: '.55rem .85rem', fontSize: '.84rem', color: u.role ? 'var(--txt)' : 'var(--muted)', fontStyle: u.role ? undefined : 'italic' }}>
-                                  {u.role ?? 'None'}
-                                </td>
-                                <td style={{ padding: '.55rem .85rem' }}>
-                                  <div style={{ display: 'flex', gap: '.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                    {extras.map(er => (
-                                      <span key={er.id} style={{
-                                        display: 'inline-flex', alignItems: 'center', gap: '.3rem',
-                                        fontSize: '.75rem', padding: '.15rem .5rem', borderRadius: 3,
-                                        background: 'rgba(90,138,58,.12)', color: 'var(--okB)',
-                                        border: '1px solid var(--ok)',
-                                      }}>
-                                        {er.role}
-                                        <button
-                                          onClick={() => handleRemoveUserRole(er.id)}
-                                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dangerL)', fontSize: '.7rem', padding: '0 .1rem', lineHeight: 1 }}
-                                        >✕</button>
-                                      </span>
-                                    ))}
+                          {staffUsers.map((u, i) => (
+                            <tr key={u.id} style={{ borderBottom: i < staffUsers.length - 1 ? '1px solid var(--bdr)' : 'none' }}>
+                              <td style={{ padding: '.5rem .85rem', whiteSpace: 'nowrap' }}>
+                                <div style={{ fontSize: '.88rem', fontWeight: 500 }}>{u.name}</div>
+                                {u.role && <div style={{ fontSize: '.72rem', color: 'var(--muted)' }}>{u.role}</div>}
+                              </td>
+                              {allRoles.map(role => {
+                                const isPrimary = u.role === role
+                                const extraEntry = (rolesByUser[u.id] ?? []).find(r => r.role === role)
+                                const isChecked  = isPrimary || !!extraEntry
+                                const key        = `${u.id}_${role}`
+                                return (
+                                  <td key={role} style={{ padding: '.5rem .75rem', textAlign: 'center' }}>
                                     <input
-                                      type="text"
-                                      placeholder="Add role…"
-                                      value={inputVal}
-                                      onChange={e => setRoleInputs(prev => ({ ...prev, [u.id]: e.target.value }))}
-                                      onKeyDown={e => { if (e.key === 'Enter') handleAddUserRole(u.id) }}
-                                      style={{ fontSize: '.78rem', padding: '.2rem .45rem', background: 'var(--surf2)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, width: 110 }}
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={isPrimary || roleSaving.has(key)}
+                                      onChange={() => handleToggleUserRole(u.id, role, extraEntry ?? null)}
+                                      style={{ width: 16, height: 16, cursor: isPrimary ? 'default' : 'pointer', accentColor: 'var(--acc)' }}
+                                      title={isPrimary ? 'Primary role — change in Staff Management' : isChecked ? `Remove ${role}` : `Add ${role}`}
                                     />
-                                    <button
-                                      className="btn btn-s btn-sm"
-                                      disabled={!inputVal.trim() || roleSaving === u.id}
-                                      onClick={() => handleAddUserRole(u.id)}
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
