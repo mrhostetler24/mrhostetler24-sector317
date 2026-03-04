@@ -7,6 +7,7 @@ import {
   supabase,
   fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateOwnProfile, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver,
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
+  fetchStaffRoles,
   fetchResTypes, upsertResType, deleteResType,
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
   fetchReservations, fetchAvailabilityReservations, createReservation, updateReservation, addPlayerToReservation, removePlayerFromReservation, syncReservationPlayers,
@@ -18,7 +19,7 @@ const LOGO_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhQAAAFuCAYAAADZ
 
 const DAYS_OF_WEEK = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const ACCESS_LEVELS = { customer:{label:"Customer"}, staff:{label:"Staff"}, manager:{label:"Manager"}, admin:{label:"Admin"} };
-const STAFF_ROLES = ["Referee","Armorer","Bartender","Instructor","Manager","Admin"];
+// Staff roles loaded from DB (staff_roles table)
 
 const DEFAULT_RES_TYPES = [
   { id:"coop-open", name:"Co-Op Open Play", mode:"coop", style:"open", pricingMode:"per_person", price:55, maxPlayers:null, description:"Join forces in a shared Co-Op session. Price per player.", active:true, availableForBooking:true },
@@ -2565,7 +2566,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [newST,setNewST]=useState({dayOfWeek:"Monday",startTime:"18:00",maxSessions:2,active:true});
   const [editUser,setEditUser]=useState(null);
   const [userSaving,setUserSaving]=useState(false);
-  const [newUser,setNewUser]=useState({name:"",phone:"",access:"staff",role:"Referee",active:true,waivers:[],needsRewaiverDocId:null});
+  const [newUser,setNewUser]=useState({name:"",phone:"",access:"staff",role:null,active:true,waivers:[],needsRewaiverDocId:null});
   const doSaveUser=async()=>{
     if(!editUser)return;
     setUserSaving(true);
@@ -2695,7 +2696,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       {modal==="user"&&<div className="mo"><div className="mc"><div className="mt2">{editUser?"Edit":"Add"} User</div>
         <div className="f"><label>Full Name</label><input value={editUser?.name||newUser.name} onChange={e=>editUser?setEditUser(p=>({...p,name:e.target.value})):setNewUser(p=>({...p,name:e.target.value}))}/></div>
         <div className="f"><label>Mobile</label><div className="phone-wrap"><span className="phone-prefix">+1</span><input type="tel" value={editUser?.phone||newUser.phone} onChange={e=>{const v=cleanPh(e.target.value);editUser?setEditUser(p=>({...p,phone:v})):setNewUser(p=>({...p,phone:v}));}} maxLength={10}/></div></div>
-        {(()=>{const curAccess=editUser?.access||newUser.access;return <div className="g2"><div className="f"><label>Access</label><select value={curAccess} onChange={e=>{const acc=e.target.value;const role=acc==="customer"?null:"Referee";editUser?setEditUser(p=>({...p,access:acc,role})):setNewUser(p=>({...p,access:acc,role}));}}><option value="customer">Customer</option><option value="staff">Staff</option><option value="manager">Manager</option>{isAdmin&&<option value="admin">Admin</option>}</select></div>{curAccess!=="customer"&&<div className="f"><label>Role</label><select value={editUser?.role||newUser.role||""} onChange={e=>editUser?setEditUser(p=>({...p,role:e.target.value})):setNewUser(p=>({...p,role:e.target.value}))}><option value="">— None —</option>{STAFF_ROLES.map(r=><option key={r}>{r}</option>)}</select></div>}</div>;})()}
+        {(()=>{const curAccess=editUser?.access||newUser.access;return <div className="g2"><div className="f"><label>Access</label><select value={curAccess} onChange={e=>{const acc=e.target.value;const role=acc==="customer"?null:(staffRoles[0]??null);editUser?setEditUser(p=>({...p,access:acc,role})):setNewUser(p=>({...p,access:acc,role}));}}><option value="customer">Customer</option><option value="staff">Staff</option><option value="manager">Manager</option>{isAdmin&&<option value="admin">Admin</option>}</select></div>{curAccess!=="customer"&&<div className="f"><label>Role</label><select value={editUser?.role||newUser.role||""} onChange={e=>editUser?setEditUser(p=>({...p,role:e.target.value})):setNewUser(p=>({...p,role:e.target.value}))}><option value="">— None —</option>{staffRoles.map(r=><option key={r}>{r}</option>)}</select></div>}</div>;})()}
         {editUser&&<div className="f"><label>Status</label><select value={editUser.active?"active":"inactive"} onChange={e=>setEditUser(p=>({...p,active:e.target.value==="active"}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>}
         {editUser?.access==="customer"&&(()=>{
           const authEntry=userAuthDates.find(d=>d.userId===editUser.id);
@@ -3031,7 +3032,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       </>}
 
       {tab==="staff"&&<>
-        <div className="ph"><div className="ph-left"><div className="pt">Staff Management</div><div className="ps">{isAdmin?"Full access":"Managers can manage staff"}</div></div><button className="btn btn-p" onClick={()=>{setEditUser(null);setNewUser({name:"",phone:"",access:"staff",role:"Referee",active:true,waivers:[],needsRewaiverDocId:null});setModal("user");}}>+ Add Staff</button></div>
+        <div className="ph"><div className="ph-left"><div className="pt">Staff Management</div><div className="ps">{isAdmin?"Full access":"Managers can manage staff"}</div></div><button className="btn btn-p" onClick={()=>{setEditUser(null);setNewUser({name:"",phone:"",access:"staff",role:null,active:true,waivers:[],needsRewaiverDocId:null});setModal("user");}}>+ Add Staff</button></div>
         <div className="tw"><table><thead><tr><th>Name</th><th>Mobile</th><th>Role</th><th>Access</th><th>Auth</th><th>Waiver</th><th>Status</th><th></th></tr></thead>
           <tbody>{users.filter(u=>u.access!=="customer"&&canManageUser(u)).map(u=><tr key={u.id}>
             <td><strong>{u.name}</strong></td><td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(u.phone)}</td><td>{u.role||"—"}</td>
@@ -3216,6 +3217,7 @@ export default function App(){
   const [bookOnLogin,setBookOnLogin]=useState(false);
   const [currentUser,setCurrentUser]=useState(null);
   const [pendingUser,setPendingUser]=useState(null); // user who logged in but needs phone
+  const [staffRoles,setStaffRoles]=useState([]);
   const [resTypes,setResTypes]=useState([]);
   const [sessionTemplates,setSessionTemplates]=useState([]);
   const [reservations,setReservations]=useState([]);
@@ -3236,15 +3238,17 @@ export default function App(){
 useEffect(() => {
   (async () => {
     try {
-      const [w, rt, st] = await Promise.all([
+      const [w, rt, st, sr] = await Promise.all([
         fetchWaiverDocs(),
         fetchResTypes(),
         fetchSessionTemplates(),
+        fetchStaffRoles(),
       ]);
 
       setWaiverDocs(w);
       setResTypes(rt);
       setSessionTemplates(sortTemplates(st));
+      setStaffRoles(sr);
       setLoading(false);
     } catch (err) {
       console.error("DB load error:", err);

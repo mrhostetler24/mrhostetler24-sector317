@@ -10,6 +10,7 @@ import {
   fetchTemplateSlots, upsertTemplateSlot, deleteTemplateSlot,
   fetchScheduleBlocks, createScheduleBlock, deleteScheduleBlock,
   fetchUserRoles, addUserRole, removeUserRole,
+  fetchStaffRoles,
 } from './supabase.js'
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -230,14 +231,16 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   async function loadTemplateData() {
     setTmplLoading(true)
     try {
-      const [tmplList, blockList, roleList] = await Promise.all([
+      const [tmplList, blockList, roleList, canonicalRoles] = await Promise.all([
         fetchShiftTemplates(),
         fetchScheduleBlocks(todayISO(), addDays(todayISO(), 180)),
         fetchUserRoles(),
+        fetchStaffRoles(),
       ])
       setTemplates(tmplList)
       setScheduleBlocks(blockList)
       setUserRoles(roleList)
+      setAllRoles(canonicalRoles)
       const first = tmplList.find(t => t.active) ?? tmplList[0] ?? null
       setEditingTmplId(first?.id ?? null)
       setTemplatesLoaded(true)
@@ -548,13 +551,8 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     return rows
   }, [weekShifts, users]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Unique sorted role list (primary roles from users + secondary from user_roles)
-  const allRoles = useMemo(() => {
-    const set = new Set()
-    for (const u of staffUsers) if (u.role) set.add(u.role)
-    for (const ur of userRoles) set.add(ur.role)
-    return [...set].sort()
-  }, [staffUsers, userRoles])
+  // Canonical role list from staff_roles table
+  const [allRoles, setAllRoles] = useState([])
 
   // Roles by user map (for Roles tab)
   const rolesByUser = useMemo(() => {

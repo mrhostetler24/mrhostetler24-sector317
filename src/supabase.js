@@ -416,6 +416,29 @@ export async function deleteWaiverDoc(id) {
 
 
 // ============================================================
+// STAFF ROLES (canonical role list)
+// ============================================================
+
+export async function fetchStaffRoles() {
+  const { data, error } = await supabase
+    .from('staff_roles').select('name').order('sort_order')
+  if (error) throw error
+  return (data ?? []).map(r => r.name)
+}
+
+export async function upsertStaffRole(name, sortOrder) {
+  const { error } = await supabase
+    .from('staff_roles')
+    .upsert({ name, sort_order: sortOrder }, { onConflict: 'name' })
+  if (error) throw error
+}
+
+export async function deleteStaffRole(name) {
+  const { error } = await supabase.from('staff_roles').delete().eq('name', name)
+  if (error) throw error
+}
+
+// ============================================================
 // RESERVATION TYPES
 // ============================================================
 
