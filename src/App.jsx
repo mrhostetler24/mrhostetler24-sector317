@@ -1830,17 +1830,31 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
       </div>
       {tab==="mine"&&<>
         {!mine.length&&<div className="empty"><div className="ei">📅</div><p>No shifts scheduled.</p></div>}
-        {mine.map(s=><div key={s.id} className={`shift-card mine${s.conflicted?" conflict":""}`}>
-          <div style={{flex:1}}><div style={{fontFamily:"var(--fd)",fontSize:"1.05rem",fontWeight:700,color:s.conflicted?"var(--warnL)":"var(--accB)"}}>{fmt(s.date)}</div><div style={{fontSize:".82rem",color:"var(--muted)"}}>{fmt12(s.start)} – {fmt12(s.end)}{fmtDur(s.start,s.end)?' · '+fmtDur(s.start,s.end):''}</div>{s.role&&<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".1rem"}}>Role: {s.role}</div>}{s.conflicted&&<><div style={{fontSize:".75rem",color:"var(--warnL)",marginTop:".15rem"}}>{s.conflictNote&&`"${s.conflictNote}"`}</div><span className="badge b-conflict" style={{marginTop:".3rem",display:"inline-block"}}>Awaiting Manager</span></>}</div>
-          {!s.conflicted&&s.date>=today&&<button className="btn btn-warn btn-sm" onClick={()=>{setCNote("");setConflictModal(s);}}>Flag Conflict</button>}
+        {mine.map(s=><div key={s.id} className={`shift-card mine${s.conflicted?" conflict":""}`} style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,minWidth:108,flexShrink:0,whiteSpace:'nowrap',color:s.conflicted?"var(--warnL)":"var(--accB)"}}>{fmt(s.date)}</div>
+          <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
+            <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
+            {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
+            {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
+            {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.7rem',flexShrink:0}}>Awaiting Manager</span>}
+            {s.conflicted&&s.conflictNote&&<span style={{fontSize:".78rem",color:"var(--warnL)",fontStyle:'italic',whiteSpace:'nowrap'}}>"{s.conflictNote}"</span>}
+          </div>
+          {!s.conflicted&&s.date>=today&&<button className="btn btn-warn btn-sm" style={{flexShrink:0}} onClick={()=>{setCNote("");setConflictModal(s);}}>Flag Conflict</button>}
         </div>)}
         {!isManager&&<StaffStandardSchedule userId={currentUser.id}/>}
       </>}
       {tab==="conflict"&&<>
         {!conflicts.length&&<div className="empty"><div className="ei">✅</div><p>No conflicted shifts.</p></div>}
-        {conflicts.map(s=>{const orig=getU(s.staffId);return <div key={s.id} className="shift-card conflict">
-          <div style={{flex:1}}><div style={{fontFamily:"var(--fd)",fontSize:"1.05rem",fontWeight:700,color:"var(--warnL)"}}>{fmt(s.date)}</div><div style={{fontSize:".82rem",color:"var(--muted)"}}>{fmt12(s.start)} – {fmt12(s.end)}{fmtDur(s.start,s.end)?' · '+fmtDur(s.start,s.end):''}</div>{s.role&&<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".1rem"}}>Role: {s.role}</div>}<div style={{fontSize:".78rem",color:"var(--muted)"}}>Originally: {orig?.name}</div>{s.conflictNote&&<div style={{fontSize:".75rem",color:"var(--warnL)",marginTop:".15rem"}}>"{s.conflictNote}"</div>}</div>
-          <div style={{display:"flex",flexDirection:"column",gap:".4rem",alignItems:"flex-end"}}>
+        {conflicts.map(s=>{const orig=getU(s.staffId);return <div key={s.id} className="shift-card conflict" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--warnL)",minWidth:108,flexShrink:0,whiteSpace:'nowrap'}}>{fmt(s.date)}</div>
+          <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
+            <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
+            {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
+            {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
+            {orig&&<span style={{fontSize:".78rem",color:"var(--muted)",whiteSpace:'nowrap'}}>Originally: <strong style={{color:"var(--txt)"}}>{orig.name}</strong></span>}
+            {s.conflictNote&&<span style={{fontSize:".78rem",color:"var(--warnL)",fontStyle:'italic',whiteSpace:'nowrap'}}>"{s.conflictNote}"</span>}
+          </div>
+          <div style={{display:"flex",gap:".4rem",flexShrink:0}}>
             <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{staffId:currentUser.id,conflicted:false,conflictNote:null});setShifts(p=>p.map(x=>x.id===s.id?{...x,staffId:currentUser.id,conflicted:false,conflictNote:null}:x));onAlert(currentUser.name+' claimed conflict shift on '+fmt(s.date));}catch(e){onAlert('Error picking up shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Pick Up</button>
             {isManager&&<button className="btn btn-s btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{conflicted:false,conflictNote:null});setShifts(p=>p.map(x=>x.id===s.id?{...x,conflicted:false,conflictNote:null}:x));}catch(e){onAlert('Error resolving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>Resolve</button>}
           </div>
@@ -1848,9 +1862,14 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
       </>}
       {tab==="open"&&<>
         {!opens.length&&<div className="empty"><div className="ei">📋</div><p>No open shifts.</p></div>}
-        {opens.map(s=><div key={s.id} className="shift-card available">
-          <div style={{flex:1}}><div style={{fontFamily:"var(--fd)",fontSize:"1.05rem",fontWeight:700,color:"var(--okB)"}}>{fmt(s.date)}</div><div style={{fontSize:".82rem",color:"var(--muted)"}}>{fmt12(s.start)} – {fmt12(s.end)}{fmtDur(s.start,s.end)?' · '+fmtDur(s.start,s.end):''}</div>{s.role&&<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".1rem"}}>Role: {s.role}</div>}</div>
-          <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{staffId:currentUser.id,open:false});setShifts(p=>p.map(x=>x.id===s.id?{...x,staffId:currentUser.id,open:false}:x));onAlert(currentUser.name+' picked up open shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
+        {opens.map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--okB)",minWidth:108,flexShrink:0,whiteSpace:'nowrap'}}>{fmt(s.date)}</div>
+          <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
+            <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
+            {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
+            {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
+          </div>
+          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{staffId:currentUser.id,open:false});setShifts(p=>p.map(x=>x.id===s.id?{...x,staffId:currentUser.id,open:false}:x));onAlert(currentUser.name+' picked up open shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
         </div>)}
         {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>{const d=prompt("Date (YYYY-MM-DD):");const st=prompt("Start (HH:MM):");const en=prompt("End (HH:MM):");if(d&&st&&en)setShifts(p=>[...p,{id:Date.now(),staffId:null,date:d,start:st,end:en,open:true}]);}}>+ Post Open Shift</button>}
       </>}
