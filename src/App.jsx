@@ -1784,6 +1784,8 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   const [shiftOpBusy,setShiftOpBusy]=useState(false);
   const [selectedDay,setSelectedDay]=useState(todayStr());
   const [hideAdminShifts,setHideAdminShifts]=useState(true);
+  const [allStaffSub,setAllStaffSub]=useState('roster');
+  const [weekStart,setWeekStart]=useState(todayStr());
   const today=todayStr();
   function timeToMin(t){if(!t)return 0;const p=(t+'').split(':').map(Number);return p[0]*60+(p[1]||0);}
   function fmtDur(s,e){const m=timeToMin(e)-timeToMin(s);if(m<=0)return '';return Math.floor(m/60)+' hr'+(m%60?' '+m%60+' min':'');}
@@ -1833,15 +1835,19 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
     catch(e){onAlert('Error deleting block: '+e.message);}
   }
   const mine=[...shifts].filter(s=>s.staffId===currentUser.id).sort((a,b)=>a.date.localeCompare(b.date));
-  const conflicts=shifts.filter(s=>s.conflicted&&s.staffId!==currentUser.id);
+  const conflicts=isManager?shifts.filter(s=>s.conflicted):shifts.filter(s=>s.conflicted&&s.staffId!==currentUser.id);
   const opens=shifts.filter(s=>s.open&&!s.staffId);
   const dayShifts=[...shifts].filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const dayOpens=opens.filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const isAdmin=currentUser?.access==='admin';
   const adminUserIds=new Set(users.filter(u=>u.access==='admin').map(u=>u.id));
-  const visShifts=hideAdminShifts&&isAdmin?dayShifts.filter(s=>s.role):dayShifts;
+  const visShifts=hideAdminShifts&&isAdmin?dayShifts.filter(s=>s.role!=='Admin'):dayShifts;
   const visMine=hideAdminShifts&&isAdmin?mine.filter(s=>s.role!=='Admin'):mine;
   const getU=id=>users.find(u=>u.id===id);
+  const maxWeekStartFn=()=>addDaysStr(today,84);
+  const weekDays2=Array.from({length:7},(_,i)=>addDaysStr(weekStart,i));
+  const weekShifts2=shifts.filter(s=>s.date>=weekStart&&s.date<=weekDays2[6]);
+  const weekRows2=(()=>{const ids=new Set(weekShifts2.map(s=>s.staffId).filter(Boolean));const hasOpen=weekShifts2.some(s=>!s.staffId);const rows=[];for(const id of ids){const u=users.find(x=>x.id===id);rows.push({id,name:u?.name??'Unknown',role:u?.role??u?.access??'—'});}rows.sort((a,b)=>a.name.localeCompare(b.name));if(hasOpen)rows.push({id:null,name:'Unassigned',role:'—'});return rows;})();
   return(
     <div>
       {conflictModal&&<div className="mo"><div className="mc" style={{maxWidth:420}}>
@@ -1855,6 +1861,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
         <button className={`tab${tab==="conflict"?" on":""}`} onClick={()=>setTab("conflict")}>Conflicts {conflicts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".62rem",marginLeft:".25rem"}}>{conflicts.length}</span>}</button>
         <button className={`tab${tab==="open"?" on":""}`} onClick={()=>setTab("open")}>Open ({opens.length})</button>
         {isManager&&<button className={`tab${tab==="all"?" on":""}`} onClick={()=>setTab("all")}>All Staff</button>}
+        {isManager&&<button className={`tab${tab==="templates"?" on":""}`} onClick={()=>setTab("templates")}>Templates</button>}
         {!isManager&&<button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending').length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending').length}</span>}</button>}
       </div>
       {tab==="mine"&&<>
@@ -1938,32 +1945,82 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
         })}
       </div>}
       {tab==="all"&&isManager&&<div>
-        <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap',marginBottom:'.25rem'}}>
-          <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
+        <div className="tabs" style={{marginBottom:'1rem'}}>
+          <button className={`tab${allStaffSub==='roster'?' on':''}`} onClick={()=>setAllStaffSub('roster')}>Daily Roster</button>
+          <button className={`tab${allStaffSub==='week'?' on':''}`} onClick={()=>setAllStaffSub('week')}>Week View</button>
         </div>
-        {currentUser?.access==='admin'&&<div style={{marginBottom:'.5rem'}}>
-          <button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>
-            {hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}
-          </button>
-        </div>}
-        {!visShifts.length&&<div className="empty"><div className="ei">📅</div><p>No shifts on this date.</p></div>}
-        {visShifts.map(s=>{
-          const m=getU(s.staffId);
-          const unassigned=!s.staffId||s.open;
-          return <div key={s.id} className="shift-card" style={{padding:'.5rem 1rem',flexWrap:'nowrap',borderLeft:unassigned?'3px solid var(--warn)':'',background:unassigned?'rgba(255,160,0,.07)':''}}>
-            <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
-              <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap',fontWeight:600}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
-              {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
-              {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
-              {unassigned
-                ?<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>⚠️ Unassigned</span>
-                :<span style={{fontSize:".85rem",color:"var(--txt)"}}>{m?.name}</span>}
-              {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.7rem'}}>Conflict</span>}
-            </div>
-            <button className="btn btn-d btn-sm" style={{flexShrink:0}} onClick={()=>setShifts(p=>p.filter(x=>x.id!==s.id))}>Remove</button>
-          </div>;
-        })}
+        {allStaffSub==='roster'&&<>
+          <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap',marginBottom:'.25rem'}}>
+            <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
+          </div>
+          {isAdmin&&<div style={{marginBottom:'.5rem'}}>
+            <button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>
+              {hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}
+            </button>
+          </div>}
+          {!visShifts.length&&<div className="empty"><div className="ei">📅</div><p>No shifts on this date.</p></div>}
+          {visShifts.map(s=>{
+            const m=getU(s.staffId);
+            const unassigned=!s.staffId||s.open;
+            return <div key={s.id} className="shift-card" style={{padding:'.5rem 1rem',flexWrap:'nowrap',borderLeft:unassigned?'3px solid var(--warn)':'',background:unassigned?'rgba(255,160,0,.07)':''}}>
+              <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
+                <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap',fontWeight:600}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
+                {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
+                {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
+                {unassigned
+                  ?<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>⚠️ Unassigned</span>
+                  :<span style={{fontSize:".85rem",color:"var(--txt)"}}>{m?.name}</span>}
+                {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.7rem'}}>Conflict</span>}
+              </div>
+              <button className="btn btn-d btn-sm" style={{flexShrink:0}} onClick={()=>setShifts(p=>p.filter(x=>x.id!==s.id))}>Remove</button>
+            </div>;
+          })}
+        </>}
+        {allStaffSub==='week'&&<>
+          <div style={{display:'flex',alignItems:'center',gap:'.65rem',marginBottom:'1rem',flexWrap:'wrap'}}>
+            <button className="btn btn-s btn-sm" disabled={weekStart<=today} onClick={()=>setWeekStart(p=>addDaysStr(p,-7))}>← Prev</button>
+            <span style={{fontSize:'.88rem',fontFamily:'var(--fd)',minWidth:210,textAlign:'center'}}>{fmt(weekStart)} – {fmt(weekDays2[6])}</span>
+            <button className="btn btn-s btn-sm" disabled={weekStart>=maxWeekStartFn()} onClick={()=>setWeekStart(p=>{const n=addDaysStr(p,7);return n>maxWeekStartFn()?maxWeekStartFn():n;})}>Next →</button>
+            <button className="btn btn-s btn-sm" onClick={()=>setWeekStart(today)}>Today</button>
+          </div>
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:'.8rem'}}>
+              <thead>
+                <tr style={{background:'var(--surf2)'}}>
+                  <th style={{padding:'.45rem .75rem',textAlign:'left',borderBottom:'1px solid var(--bdr)',color:'var(--muted)',minWidth:110,fontWeight:600,fontSize:'.72rem',letterSpacing:'.04em',textTransform:'uppercase'}}>Staff / Role</th>
+                  {weekDays2.map(d=><th key={d} style={{padding:'.45rem .55rem',textAlign:'center',borderBottom:'1px solid var(--bdr)',color:d===today?'var(--acc)':'var(--txt)',minWidth:88,fontWeight:d===today?700:500,fontSize:'.72rem'}}>
+                    {getDayName(d).slice(0,3)+' '+new Date(d+'T00:00:00').getDate()}
+                  </th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {weekRows2.length===0
+                  ?<tr><td colSpan={8} style={{padding:'1.5rem',textAlign:'center',color:'var(--muted)',fontStyle:'italic'}}>No shifts scheduled for this week.</td></tr>
+                  :weekRows2.map((row,ri)=><tr key={row.id??'__open'} style={{borderBottom:ri<weekRows2.length-1?'1px solid var(--bdr)':'none'}}>
+                    <td style={{padding:'.45rem .75rem',verticalAlign:'middle'}}>
+                      <div style={{fontSize:'.84rem',fontWeight:500}}>{row.name}</div>
+                      <div style={{fontSize:'.72rem',color:'var(--muted)'}}>{row.role}</div>
+                    </td>
+                    {weekDays2.map(d=>{
+                      const dayS=weekShifts2.filter(s=>s.date===d&&(row.id?s.staffId===row.id:!s.staffId));
+                      return <td key={d} style={{padding:'.35rem .4rem',textAlign:'center',verticalAlign:'top',background:d===today?'rgba(90,138,58,.04)':undefined}}>
+                        {dayS.map(s=>{
+                          const st=s.conflicted?'conflict':s.open?'open':'ok';
+                          return <div key={s.id} style={{background:st==='conflict'?'rgba(184,150,12,.15)':st==='open'?'rgba(90,138,58,.1)':'var(--surf2)',borderRadius:4,padding:'.2rem .3rem',marginBottom:'.2rem',lineHeight:1.35}}>
+                            <div style={{fontSize:'.73rem',fontFamily:'var(--fd)'}}>{fmt12(s.start)}–{fmt12(s.end)}</div>
+                            {st!=='ok'&&<div style={{fontSize:'.65rem',color:st==='conflict'?'var(--warnL)':'var(--okB)',marginTop:'.1rem'}}>{st}</div>}
+                          </div>;
+                        })}
+                      </td>;
+                    })}
+                  </tr>)
+                }
+              </tbody>
+            </table>
+          </div>
+        </>}
       </div>}
+      {tab==="templates"&&isManager&&<StaffingScheduler currentUser={currentUser} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={onAlert} initialView="templates" embedded={true}/>}
     </div>
   );
 }

@@ -238,11 +238,11 @@ function computeStampShifts(slots, existingShifts, blocks, assignments, cycleSta
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export default function StaffingScheduler({ currentUser, shifts, setShifts, users, isManager, onAlert }) {
+export default function StaffingScheduler({ currentUser, shifts, setShifts, users, isManager, onAlert, initialView = 'roster', embedded = false }) {
   const today = todayISO()
 
   // ── View tabs ──────────────────────────────────────────────────────────────
-  const [view, setView] = useState('roster')
+  const [view, setView] = useState(initialView)
 
   // ── Daily roster ───────────────────────────────────────────────────────────
   const [selectedDate, setSelectedDate] = useState(today)
@@ -803,15 +803,15 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ marginTop: '2rem', borderTop: '1px solid var(--bdr)', paddingTop: '1.75rem' }}>
+    <div style={embedded ? {} : { marginTop: '2rem', borderTop: '1px solid var(--bdr)', paddingTop: '1.75rem' }}>
 
-      {/* Section header */}
-      <div className="ph" style={{ marginBottom: '1.1rem' }}>
+      {/* Section header — hidden when embedded inside another panel */}
+      {!embedded && <div className="ph" style={{ marginBottom: '1.1rem' }}>
         <div className="ph-left">
           <div className="pt">Staffing Scheduler</div>
           <div className="ps">Daily roster · Conflict resolution · Weekly view &nbsp;·&nbsp; <span style={{ fontStyle: 'italic' }}>Schedules editable up to 2 weeks out.</span></div>
         </div>
-      </div>
+      </div>}
 
       {/* Main tabs */}
       <div className="tabs" style={{ marginBottom: '1.25rem' }}>
