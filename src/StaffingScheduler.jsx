@@ -165,8 +165,7 @@ function computeStampShifts(slots, existingShifts, blocks, assignments, cycleSta
     if (dayBlocks.some(b => b.isFullDay || b.isHoliday)) continue // full-day or holiday → skip
 
     for (const slot of slots.filter(s => s.dayOfWeek === dow)) {
-      // Already stamped for this date?
-      if (existingShifts.some(s => s.date === date && s.templateSlotId === slot.id)) continue
+      const existing = existingShifts.find(s => s.date === date && s.templateSlotId === slot.id)
 
       let s0 = timeToMinutes(slot.startTime)
       let e0 = timeToMinutes(slot.endTime)
@@ -198,6 +197,26 @@ function computeStampShifts(slots, existingShifts, blocks, assignments, cycleSta
           staffBlocks
         )
         if (blocked) { finalStaffId = null; isOpen = true }
+      }
+
+      if (existing) {
+        // Already stamped — skip if manually altered (conflicted, has note, or open shift was claimed)
+        const claimedOpen = existing.open === false && existing.staffId && isOpen
+        if (existing.conflicted || existing.conflictNote || claimedOpen) continue
+        // Unaltered — include as an update so template changes are reflected
+        result.push({
+          _existingId: existing.id,
+          date,
+          start:          minutesToTime(s0),
+          end:            minutesToTime(e0),
+          templateSlotId: slot.id,
+          role:           slot.role ?? null,
+          open:           isOpen,
+          staffId:        finalStaffId,
+          conflicted:     false,
+          conflictNote:   null,
+        })
+        continue
       }
 
       result.push({
@@ -549,9 +568,26 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     if (!stampPreview?.shifts?.length) return
     setStamping(true)
     try {
-      const created = await createShiftBatch(stampPreview.shifts)
-      setShifts(prev => [...prev, ...created])
-      onAlert(`Stamped ${created.length} new shift${created.length !== 1 ? 's' : ''}.`)
+      const toCreate  = stampPreview.shifts.filter(s => !s._existingId)
+      const toUpdate  = stampPreview.shifts.filter(s =>  s._existingId)
+      const created = toCreate.length ? await createShiftBatch(toCreate) : []
+      const updated = []
+      for (const s of toUpdate) {
+        const { _existingId, ...fields } = s
+        const u = await updateShift(_existingId, fields)
+        updated.push(u)
+      }
+      setShifts(prev => {
+        const withUpdates = prev.map(s => {
+          const u = updated.find(u => u.id === s.id)
+          return u ?? s
+        })
+        return [...withUpdates, ...created]
+      })
+      const parts = []
+      if (created.length) parts.push(`${created.length} new shift${created.length !== 1 ? 's' : ''} created`)
+      if (updated.length) parts.push(`${updated.length} existing shift${updated.length !== 1 ? 's' : ''} updated`)
+      onAlert('Stamped: ' + parts.join(', ') + '.')
       setStampPreview(null)
     } catch (e) {
       onAlert('Error applying stamp: ' + e.message)
@@ -1358,7 +1394,14 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                                   <div style={{ fontSize: '.88rem' }}>
                                     {stampPreview.shifts.length === 0
                                       ? <span style={{ color: 'var(--okB)' }}>✓ All 91 days already covered — nothing to stamp.</span>
-                                      : <span><strong style={{ color: 'var(--acc)' }}>{stampPreview.shifts.length}</strong> new shift{stampPreview.shifts.length !== 1 ? 's' : ''} would be created across {new Set(stampPreview.shifts.map(s => s.date)).size} day{new Set(stampPreview.shifts.map(s => s.date)).size !== 1 ? 's' : ''}.</span>
+                                      : (() => {
+                                          const newCount = stampPreview.shifts.filter(s => !s._existingId).length
+                                          const updCount = stampPreview.shifts.filter(s =>  s._existingId).length
+                                          const parts = []
+                                          if (newCount) parts.push(<span key="n"><strong style={{ color: 'var(--acc)' }}>{newCount}</strong> new</span>)
+                                          if (updCount) parts.push(<span key="u"><strong style={{ color: 'var(--acc)' }}>{updCount}</strong> updated</span>)
+                                          return <span>{parts.reduce((a, b) => [a, ', ', b])} shift{stampPreview.shifts.length !== 1 ? 's' : ''} across {new Set(stampPreview.shifts.map(s => s.date)).size} day{new Set(stampPreview.shifts.map(s => s.date)).size !== 1 ? 's' : ''}.</span>
+                                        })()
                                     }
                                   </div>
                                   {stampPreview.shifts.length > 0 && (
