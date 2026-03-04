@@ -1241,6 +1241,19 @@ export async function createScheduleBlock(block) {
   return toScheduleBlock(data)
 }
 
+export async function updateScheduleBlock(id, block) {
+  const { data, error } = await supabase.from('schedule_blocks').update({
+    label:       block.label     ?? null,
+    date:        block.date,
+    is_full_day: block.isFullDay ?? true,
+    start_time:  block.startTime ?? null,
+    end_time:    block.endTime   ?? null,
+    is_holiday:  block.isHoliday ?? false,
+  }).eq('id', id).select().single()
+  if (error) throw error
+  return toScheduleBlock(data)
+}
+
 export async function deleteScheduleBlock(id) {
   const { error } = await supabase.from('schedule_blocks').delete().eq('id', id)
   if (error) throw error

@@ -8,7 +8,7 @@ import {
   updateShift, createShiftBatch,
   fetchShiftTemplates, upsertShiftTemplate, deleteShiftTemplate, setActiveShiftTemplate,
   fetchTemplateSlots, upsertTemplateSlot, deleteTemplateSlot,
-  fetchScheduleBlocks, createScheduleBlock, deleteScheduleBlock,
+  fetchScheduleBlocks, createScheduleBlock, updateScheduleBlock, deleteScheduleBlock,
   fetchUserRoles, addUserRole, removeUserRole,
   fetchStaffRoles,
 } from './supabase.js'
@@ -118,7 +118,7 @@ function computeStampShifts(slots, existingShifts, blocks) {
     const dow       = new Date(date + 'T00:00:00').getDay()
     const dayBlocks = blocks.filter(b => b.date === date)
 
-    if (dayBlocks.some(b => b.isFullDay)) continue // full-day block → skip
+    if (dayBlocks.some(b => b.isFullDay || b.isHoliday)) continue // full-day or holiday → skip
 
     for (const slot of slots.filter(s => s.dayOfWeek === dow)) {
       // Already stamped for this date?
@@ -199,9 +199,11 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   const [editingSlotId, setEditingSlotId] = useState(null)  // id of slot being inline-edited
 
   // ── Block builder UI ──────────────────────────────────────────────────────
-  const [addingBlock, setAddingBlock] = useState(false)
-  const [blockDraft,  setBlockDraft]  = useState({ date: today, label: '', isFullDay: true, startTime: '09:00', endTime: '17:00', isHoliday: false })
-  const [blockSaving, setBlockSaving] = useState(false)
+  const [addingBlock,    setAddingBlock]    = useState(false)
+  const [editingBlockId, setEditingBlockId] = useState(null)
+  const [blockDraft,     setBlockDraft]     = useState({ date: today, label: '', isFullDay: true, startTime: '09:00', endTime: '17:00', isHoliday: false })
+  const [blockSaving,    setBlockSaving]    = useState(false)
+  const [blockTab,       setBlockTab]       = useState('future') // 'future' | 'past'
 
   // ── Staff roles UI ────────────────────────────────────────────────────────
   const [roleSaving,  setRoleSaving]  = useState(new Set())  // Set of "userId_role" saving keys
@@ -457,21 +459,46 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
 
   // ── Block CRUD ─────────────────────────────────────────────────────────────
 
-  async function handleAddBlock() {
+  const resetBlockForm = () => {
+    setBlockDraft({ date: todayISO(), label: '', isFullDay: true, startTime: '09:00', endTime: '17:00', isHoliday: false })
+    setAddingBlock(false)
+    setEditingBlockId(null)
+  }
+
+  function startEditBlock(blk) {
+    setBlockDraft({
+      date:      blk.date,
+      label:     blk.label ?? '',
+      isFullDay: blk.isFullDay,
+      startTime: blk.startTime ? blk.startTime.slice(0, 5) : '09:00',
+      endTime:   blk.endTime   ? blk.endTime.slice(0, 5)   : '17:00',
+      isHoliday: blk.isHoliday,
+    })
+    setEditingBlockId(blk.id)
+    setAddingBlock(true)
+  }
+
+  async function handleSaveBlock() {
     setBlockSaving(true)
+    const payload = {
+      ...blockDraft,
+      startTime: blockDraft.isFullDay ? null : blockDraft.startTime,
+      endTime:   blockDraft.isFullDay ? null : blockDraft.endTime,
+    }
     try {
-      const saved = await createScheduleBlock({
-        ...blockDraft,
-        startTime: blockDraft.isFullDay ? null : blockDraft.startTime,
-        endTime:   blockDraft.isFullDay ? null : blockDraft.endTime,
-        createdBy: currentUser?.id ?? null,
-      })
-      setScheduleBlocks(prev => [...prev, saved].sort((a, b) => a.date.localeCompare(b.date)))
-      setBlockDraft({ date: todayISO(), label: '', isFullDay: true, startTime: '09:00', endTime: '17:00', isHoliday: false })
-      setAddingBlock(false)
-      setStampPreview(null)  // invalidate preview after block change
+      if (editingBlockId) {
+        const saved = await updateScheduleBlock(editingBlockId, payload)
+        setScheduleBlocks(prev =>
+          prev.map(b => b.id === saved.id ? saved : b).sort((a, b) => a.date.localeCompare(b.date))
+        )
+      } else {
+        const saved = await createScheduleBlock({ ...payload, createdBy: currentUser?.id ?? null })
+        setScheduleBlocks(prev => [...prev, saved].sort((a, b) => a.date.localeCompare(b.date)))
+      }
+      resetBlockForm()
+      setStampPreview(null)
     } catch (e) {
-      onAlert('Error adding block: ' + e.message)
+      onAlert('Error saving block: ' + e.message)
     } finally {
       setBlockSaving(false)
     }
@@ -1150,18 +1177,19 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '.5rem' }}>
                     <div style={{ fontSize: '.84rem', color: 'var(--muted)' }}>
-                      Blocks prevent shifts from being stamped. Holidays and full-day blocks skip the entire day. Partial-day blocks trim shifts — any shift shorter than 3 hours is eliminated.
+                      <strong>Full Day</strong> — skips the entire day when stamping. <strong>Partial</strong> — trims shift start/end; shifts under 3 hours are eliminated. <strong>Holiday</strong> — also skips the full day (use it to mark closures vs. operational blocks).
                     </div>
                     {!addingBlock && (
-                      <button className="btn btn-s btn-sm" onClick={() => setAddingBlock(true)}>+ Add Block</button>
+                      <button className="btn btn-s btn-sm" onClick={() => { resetBlockForm(); setAddingBlock(true) }}>+ Add Block</button>
                     )}
                   </div>
 
-                  {/* Add block form */}
+                  {/* Add / edit block form */}
                   {addingBlock && (
                     <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.75rem 1rem', marginBottom: '1.25rem' }}>
-                      <div style={{ fontSize: '.72rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.65rem' }}>New Block / Holiday</div>
-                      {/* Row 1: always-visible fields */}
+                      <div style={{ fontSize: '.72rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.65rem' }}>
+                        {editingBlockId ? 'Edit Block / Holiday' : 'New Block / Holiday'}
+                      </div>
                       <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '.25rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '.2rem', flexShrink: 0 }}>
                           <span style={{ fontSize: '.68rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>DATE</span>
@@ -1211,50 +1239,76 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                             Holiday
                           </label>
                         </div>
-                        <button className="btn btn-ok btn-sm" disabled={blockSaving} onClick={handleAddBlock}>Add Block</button>
-                        <button className="btn btn-s btn-sm" onClick={() => setAddingBlock(false)}>Cancel</button>
+                        <button className="btn btn-ok btn-sm" disabled={blockSaving} onClick={handleSaveBlock}>
+                          {editingBlockId ? 'Update' : 'Add Block'}
+                        </button>
+                        <button className="btn btn-s btn-sm" onClick={resetBlockForm}>Cancel</button>
                       </div>
                     </div>
                   )}
 
-                  {/* Block list */}
-                  {scheduleBlocks.length === 0 ? (
-                    <div className="empty">No blocks or holidays scheduled.</div>
-                  ) : (
-                    <div className="tw">
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ background: 'var(--surf2)', borderBottom: '1px solid var(--bdr)' }}>
-                            {['Date', 'Label', 'Type', 'Time Range', 'Holiday', ''].map(h => (
-                              <th key={h} style={{ padding: '.45rem .75rem', textAlign: 'left', fontSize: '.72rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {scheduleBlocks.map((blk, i) => (
-                            <tr key={blk.id} style={{ borderBottom: i < scheduleBlocks.length - 1 ? '1px solid var(--bdr)' : 'none' }}>
-                              <td style={{ padding: '.45rem .75rem', fontSize: '.85rem', fontFamily: 'var(--fd)' }}>{fmtDate(blk.date)}</td>
-                              <td style={{ padding: '.45rem .75rem', fontSize: '.84rem' }}>{blk.label ?? <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</span>}</td>
-                              <td style={{ padding: '.45rem .75rem' }}>
-                                <span className={`badge ${blk.isFullDay ? 'b-conflict' : 'b-warn'}`} style={{ fontSize: '.65rem' }}>
-                                  {blk.isFullDay ? 'Full Day' : 'Partial'}
-                                </span>
-                              </td>
-                              <td style={{ padding: '.45rem .75rem', fontSize: '.83rem', fontFamily: 'var(--fd)', color: 'var(--muted)' }}>
-                                {blk.isFullDay ? '—' : `${fmtTime(blk.startTime)} – ${fmtTime(blk.endTime)}`}
-                              </td>
-                              <td style={{ padding: '.45rem .75rem', fontSize: '.83rem' }}>
-                                {blk.isHoliday ? <span style={{ color: 'var(--okB)' }}>✓</span> : <span style={{ color: 'var(--muted)' }}>—</span>}
-                              </td>
-                              <td style={{ padding: '.45rem .75rem' }}>
-                                <button className="btn btn-d btn-sm" onClick={() => handleDeleteBlock(blk.id)}>✕</button>
-                              </td>
-                            </tr>
+                  {/* Future / Past tabs */}
+                  {(() => {
+                    const future = scheduleBlocks.filter(b => b.date >= today)
+                    const past   = scheduleBlocks.filter(b => b.date <  today)
+                    const listed = blockTab === 'future' ? future : past
+                    return (
+                      <>
+                        <div style={{ display: 'flex', gap: 0, marginBottom: '1rem', borderBottom: '1px solid var(--bdr)' }}>
+                          {[['future', `Upcoming (${future.length})`], ['past', `Past (${past.length})`]].map(([key, label]) => (
+                            <button key={key} onClick={() => setBlockTab(key)}
+                              style={{ padding: '.35rem .9rem', fontSize: '.8rem', border: 'none', background: 'none', cursor: 'pointer',
+                                color: blockTab === key ? 'var(--txt)' : 'var(--muted)',
+                                borderBottom: blockTab === key ? '2px solid var(--acc)' : '2px solid transparent',
+                                fontWeight: blockTab === key ? 600 : 400, marginBottom: -1 }}>
+                              {label}
+                            </button>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                        </div>
+
+                        {listed.length === 0 ? (
+                          <div className="empty">{blockTab === 'future' ? 'No upcoming blocks or holidays.' : 'No past blocks or holidays.'}</div>
+                        ) : (
+                          <div className="tw">
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr style={{ background: 'var(--surf2)', borderBottom: '1px solid var(--bdr)' }}>
+                                  {['Date', 'Label', 'Type', 'Time Range', 'Holiday', ''].map(h => (
+                                    <th key={h} style={{ padding: '.45rem .75rem', textAlign: 'left', fontSize: '.72rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {listed.map((blk, i) => (
+                                  <tr key={blk.id} style={{ borderBottom: i < listed.length - 1 ? '1px solid var(--bdr)' : 'none', background: editingBlockId === blk.id ? 'rgba(90,138,58,.06)' : undefined }}>
+                                    <td style={{ padding: '.45rem .75rem', fontSize: '.85rem', fontFamily: 'var(--fd)' }}>{fmtDate(blk.date)}</td>
+                                    <td style={{ padding: '.45rem .75rem', fontSize: '.84rem' }}>{blk.label ?? <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</span>}</td>
+                                    <td style={{ padding: '.45rem .75rem' }}>
+                                      <span className={`badge ${blk.isFullDay ? 'b-conflict' : 'b-warn'}`} style={{ fontSize: '.65rem' }}>
+                                        {blk.isFullDay ? 'Full Day' : 'Partial'}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '.45rem .75rem', fontSize: '.83rem', fontFamily: 'var(--fd)', color: 'var(--muted)' }}>
+                                      {blk.isFullDay ? '—' : `${fmtTime(blk.startTime)} – ${fmtTime(blk.endTime)}`}
+                                    </td>
+                                    <td style={{ padding: '.45rem .75rem', fontSize: '.83rem' }}>
+                                      {blk.isHoliday ? <span style={{ color: 'var(--okB)' }}>✓</span> : <span style={{ color: 'var(--muted)' }}>—</span>}
+                                    </td>
+                                    <td style={{ padding: '.45rem .75rem' }}>
+                                      <div style={{ display: 'flex', gap: '.35rem' }}>
+                                        <button className="btn btn-s btn-sm" onClick={() => startEditBlock(blk)}>Edit</button>
+                                        <button className="btn btn-d btn-sm" onClick={() => handleDeleteBlock(blk.id)}>✕</button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               )}
 
