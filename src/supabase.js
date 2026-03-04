@@ -1105,6 +1105,43 @@ export async function claimShift(shiftId) {
   return data ? toShift(data) : null
 }
 
+// ── Shift alerts ─────────────────────────────────────────────────────────────
+
+export async function createShiftAlerts(shiftId, staffIds) {
+  if (!staffIds.length) return
+  const rows = staffIds.map(staffId => ({ shift_id: shiftId, staff_id: staffId }))
+  const { error } = await supabase.from('shift_alerts')
+    .upsert(rows, { onConflict: 'shift_id,staff_id', ignoreDuplicates: true })
+  if (error) throw error
+}
+
+export async function fetchMyShiftAlerts(staffId) {
+  const { data, error } = await supabase
+    .from('shift_alerts')
+    .select('id, shift_id, created_at, shifts(id, date, start_time, end_time, role, open, conflicted, staff_id)')
+    .eq('staff_id', staffId)
+    .is('dismissed_at', null)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(r => ({
+    id: r.id,
+    shiftId: r.shift_id,
+    createdAt: r.created_at,
+    shift: r.shifts ? {
+      id: r.shifts.id, date: r.shifts.date,
+      start: r.shifts.start_time, end: r.shifts.end_time,
+      role: r.shifts.role, open: r.shifts.open,
+      conflicted: r.shifts.conflicted, staffId: r.shifts.staff_id,
+    } : null,
+  }))
+}
+
+export async function dismissShiftAlert(alertId) {
+  const { error } = await supabase.from('shift_alerts')
+    .update({ dismissed_at: new Date().toISOString() }).eq('id', alertId)
+  if (error) throw error
+}
+
 export async function deleteShift(id) {
   const { error } = await supabase.from('shifts').delete().eq('id', id)
   if (error) throw error
