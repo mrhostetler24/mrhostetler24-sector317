@@ -1783,6 +1783,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   const [blockSaving,setBlockSaving]=useState(false);
   const [shiftOpBusy,setShiftOpBusy]=useState(false);
   const [selectedDay,setSelectedDay]=useState(todayStr());
+  const [hideAdminShifts,setHideAdminShifts]=useState(true);
   const today=todayStr();
   function timeToMin(t){if(!t)return 0;const p=(t+'').split(':').map(Number);return p[0]*60+(p[1]||0);}
   function fmtDur(s,e){const m=timeToMin(e)-timeToMin(s);if(m<=0)return '';return Math.floor(m/60)+' hr'+(m%60?' '+m%60+' min':'');}
@@ -1928,9 +1929,17 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
         })}
       </div>}
       {tab==="all"&&isManager&&<div>
-        <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
-        {!dayShifts.length&&<div className="empty"><div className="ei">📅</div><p>No shifts on this date.</p></div>}
-        {dayShifts.map(s=>{
+        <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap',marginBottom:'.25rem'}}>
+          <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
+        </div>
+        {currentUser?.access==='admin'&&<div style={{marginBottom:'.5rem'}}>
+          <button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>
+            {hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}
+          </button>
+        </div>}
+        {(()=>{const adminIds=new Set(users.filter(u=>u.access==='admin').map(u=>u.id));const vis=hideAdminShifts&&currentUser?.access==='admin'?dayShifts.filter(s=>!adminIds.has(s.staffId)):dayShifts;return(<>
+        {!vis.length&&<div className="empty"><div className="ei">📅</div><p>No shifts on this date.</p></div>}
+        {vis.map(s=>{
           const m=getU(s.staffId);
           const unassigned=!s.staffId||s.open;
           return <div key={s.id} className="shift-card" style={{padding:'.5rem 1rem',flexWrap:'nowrap',borderLeft:unassigned?'3px solid var(--warn)':'',background:unassigned?'rgba(255,160,0,.07)':''}}>

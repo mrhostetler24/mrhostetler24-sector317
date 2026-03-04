@@ -5,7 +5,7 @@
 
 import { useState, useMemo, useEffect, Fragment } from 'react'
 import {
-  updateShift, createShiftBatch,
+  updateShift, createShiftBatch, upsertShiftBatch,
   fetchShiftTemplates, upsertShiftTemplate, deleteShiftTemplate, setActiveShiftTemplate,
   fetchTemplateSlots, upsertTemplateSlot, deleteTemplateSlot,
   fetchSlotAssignments, upsertSlotAssignment,
@@ -107,7 +107,7 @@ function isWithin14Days(dateISO) {
 }
 
 function maxWeekStart() {
-  return weekSunday(addDays(todayISO(), 70))
+  return addDays(todayISO(), 84)
 }
 
 /**
@@ -248,7 +248,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   const [selectedDate, setSelectedDate] = useState(today)
 
   // ── Week view ──────────────────────────────────────────────────────────────
-  const [weekStart, setWeekStart] = useState(weekSunday(today))
+  const [weekStart, setWeekStart] = useState(today)
 
   // ── Assignment ─────────────────────────────────────────────────────────────
   const [assigning,  setAssigning]  = useState(null)  // { shiftId, selectedUserId }
@@ -568,25 +568,21 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     if (!stampPreview?.shifts?.length) return
     setStamping(true)
     try {
-      const toCreate  = stampPreview.shifts.filter(s => !s._existingId)
-      const toUpdate  = stampPreview.shifts.filter(s =>  s._existingId)
-      const created = toCreate.length ? await createShiftBatch(toCreate) : []
-      const updated = []
-      for (const s of toUpdate) {
-        const { _existingId, ...fields } = s
-        const u = await updateShift(_existingId, fields)
-        updated.push(u)
-      }
+      const nCreate = stampPreview.shifts.filter(s => !s._existingId).length
+      const nUpdate = stampPreview.shifts.filter(s =>  s._existingId).length
+      // Map _existingId -> id so upsert updates existing rows
+      const allRows = stampPreview.shifts.map(s => {
+        if (s._existingId) { const { _existingId, ...fields } = s; return { ...fields, id: _existingId } }
+        return s
+      })
+      const result = await upsertShiftBatch(allRows)
       setShifts(prev => {
-        const withUpdates = prev.map(s => {
-          const u = updated.find(u => u.id === s.id)
-          return u ?? s
-        })
-        return [...withUpdates, ...created]
+        const updatedIds = new Set(stampPreview.shifts.filter(s => s._existingId).map(s => s._existingId))
+        return [...prev.filter(s => !updatedIds.has(s.id)), ...result]
       })
       const parts = []
-      if (created.length) parts.push(`${created.length} new shift${created.length !== 1 ? 's' : ''} created`)
-      if (updated.length) parts.push(`${updated.length} existing shift${updated.length !== 1 ? 's' : ''} updated`)
+      if (nCreate) parts.push(`${nCreate} new shift${nCreate !== 1 ? 's' : ''} created`)
+      if (nUpdate) parts.push(`${nUpdate} existing shift${nUpdate !== 1 ? 's' : ''} updated`)
       onAlert('Stamped: ' + parts.join(', ') + '.')
       setStampPreview(null)
     } catch (e) {
@@ -968,7 +964,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
             >
               Next →
             </button>
-            <button className="btn btn-s btn-sm" onClick={() => setWeekStart(weekSunday(today))}>Today</button>
+            <button className="btn btn-s btn-sm" onClick={() => setWeekStart(todayISO())}>Today</button>
             <span style={{ fontSize: '.72rem', color: 'var(--muted)', fontStyle: 'italic' }}>(navigate up to 10 weeks out)</span>
           </div>
 

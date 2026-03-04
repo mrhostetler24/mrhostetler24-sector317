@@ -1063,6 +1063,25 @@ export async function createShiftBatch(shiftsArray) {
   return data.map(toShift)
 }
 
+export async function upsertShiftBatch(shiftsArray) {
+  if (!shiftsArray.length) return []
+  const rows = shiftsArray.map(shift => ({
+    ...(shift.id ? { id: shift.id } : {}),
+    staff_id:         shift.staffId ?? null,
+    date:             shift.date,
+    start_time:       shift.start,
+    end_time:         shift.end,
+    open:             shift.open ?? true,
+    conflicted:       shift.conflicted ?? false,
+    conflict_note:    shift.conflictNote ?? null,
+    template_slot_id: shift.templateSlotId ?? null,
+    role:             shift.role ?? null,
+  }))
+  const { data, error } = await supabase.from('shifts').upsert(rows).select()
+  if (error) throw error
+  return data.map(toShift)
+}
+
 export async function updateShift(id, changes) {
   const row = {}
   if (changes.staffId        !== undefined) row.staff_id         = changes.staffId
