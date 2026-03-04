@@ -523,8 +523,15 @@ function Toggle({on,onChange}){
 
 function WaiverTooltip({user,waiverDocs,activeWaiverDoc,readOnly=false,onResign}){
   const [open,setOpen]=useState(false);
-  const [above,setAbove]=useState(true);
+  const [tipPos,setTipPos]=useState(null); // {left, top|bottom (px number), above}
   const wrapRef=useRef(null);
+  // Close on outside click
+  useEffect(()=>{
+    if(!open)return;
+    const handler=(e)=>{if(wrapRef.current&&!wrapRef.current.contains(e.target))setOpen(false);};
+    document.addEventListener('mousedown',handler);
+    return()=>document.removeEventListener('mousedown',handler);
+  },[open]);
   const valid=hasValidWaiver(user,activeWaiverDoc);
   const entry=latestWaiverEntry(user);
   const doc=waiverDocs?.find(d=>d.id===entry?.waiverDocId);
@@ -536,14 +543,24 @@ function WaiverTooltip({user,waiverDocs,activeWaiverDoc,readOnly=false,onResign}
   const handleClick=()=>{
     if(!open&&wrapRef.current){
       const rect=wrapRef.current.getBoundingClientRect();
-      setAbove(rect.top>200);
+      const above=rect.top>window.innerHeight/2;
+      setTipPos({
+        left:rect.left+rect.width/2,
+        above,
+        // above → anchor popup bottom edge just above trigger; below → anchor top edge just below
+        ...(above?{bottom:window.innerHeight-rect.top+6}:{top:rect.bottom+6}),
+      });
     }
     setOpen(o=>!o);
   };
   return(
     <div className="waiver-tooltip-wrap" ref={wrapRef}>
       <span style={{fontSize:".75rem",cursor:"pointer",color,textDecoration:"underline dotted",textUnderlineOffset:"2px"}} onClick={handleClick}>{label}</span>
-      {open&&<div className={`waiver-tip${above?"":" below"}`}>
+      {open&&tipPos&&<div
+        className={`waiver-tip${tipPos.above?"":" below"}`}
+        style={{position:'fixed',zIndex:9999,left:tipPos.left,
+          ...(tipPos.above?{bottom:tipPos.bottom,top:'auto'}:{top:tipPos.top,bottom:'auto'})}}
+      >
         <div style={{fontWeight:700,marginBottom:".35rem",color}}>{valid?"Valid":needsNew?"New Version Required":expired?"Expired":"None on File"}</div>
         {entry&&<div style={{color:"var(--muted)",fontSize:".72rem",marginBottom:".15rem"}}>Signed: {fmtTS(entry.signedAt)}</div>}
         {entry?.signedName&&<div style={{color:"var(--muted)",fontSize:".72rem",marginBottom:".15rem"}}>Name: {entry.signedName}</div>}
@@ -552,6 +569,50 @@ function WaiverTooltip({user,waiverDocs,activeWaiverDoc,readOnly=false,onResign}
         <button className="btn btn-s btn-sm" style={{marginLeft:".4rem",marginTop:".25rem"}} onClick={()=>setOpen(false)}>Close</button>
       </div>}
     </div>
+  );
+}
+
+function RunsCell({runs,reservations,resTypes,userId}){
+  const [pos,setPos]=useState(null);
+  const ref=useRef(null);
+  const bd=useMemo(()=>{
+    const resIds=new Set(reservations.filter(r=>r.userId===userId||r.players?.some(p=>p.userId===userId)).map(r=>r.id));
+    const out={coopPri:0,coopOpen:0,vsPri:0,vsOpen:0};
+    runs.filter(r=>resIds.has(r.reservationId)).forEach(run=>{
+      const res=reservations.find(r=>r.id===run.reservationId);
+      const rt=res?resTypes.find(t=>t.id===res.typeId):null;
+      if(!rt)return;
+      if(rt.mode==='coop'&&rt.style==='private')out.coopPri++;
+      else if(rt.mode==='coop')out.coopOpen++;
+      else if(rt.mode==='versus'&&rt.style==='private')out.vsPri++;
+      else out.vsOpen++;
+    });
+    return out;
+  },[runs,reservations,resTypes,userId]);
+  const total=bd.coopPri+bd.coopOpen+bd.vsPri+bd.vsOpen;
+  if(total===0)return<span style={{color:'var(--muted)'}}>—</span>;
+  const multi=Object.values(bd).filter(v=>v>0).length>1;
+  const handleEnter=()=>{
+    if(!ref.current)return;
+    const rect=ref.current.getBoundingClientRect();
+    const above=rect.top>window.innerHeight/2;
+    setPos({left:rect.left+rect.width/2,above,...(above?{bottom:window.innerHeight-rect.top+6}:{top:rect.bottom+6})});
+  };
+  return(
+    <span ref={ref} style={{fontFamily:'var(--fd)',cursor:multi?'default':'',borderBottom:multi?'1px dotted var(--muted)':''}}
+      onMouseEnter={multi?handleEnter:undefined} onMouseLeave={()=>setPos(null)}>
+      {total}
+      {pos&&<div style={{position:'fixed',zIndex:9999,left:pos.left,transform:'translateX(-50%)',
+        background:'var(--surf2)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.5rem .8rem',
+        fontSize:'.72rem',color:'var(--txt)',boxShadow:'0 4px 16px rgba(0,0,0,.4)',whiteSpace:'nowrap',
+        ...(pos.above?{bottom:pos.bottom,top:'auto'}:{top:pos.top,bottom:'auto'})}}>
+        <div style={{fontFamily:'var(--fd)',fontSize:'.63rem',letterSpacing:'.08em',color:'var(--muted)',textTransform:'uppercase',marginBottom:'.3rem'}}>Run Breakdown</div>
+        {bd.coopPri>0&&<div>Co-op Private: <strong>{bd.coopPri}</strong></div>}
+        {bd.coopOpen>0&&<div>Co-op Open Play: <strong>{bd.coopOpen}</strong></div>}
+        {bd.vsPri>0&&<div>Versus Private: <strong>{bd.vsPri}</strong></div>}
+        {bd.vsOpen>0&&<div>Versus Open Play: <strong>{bd.vsOpen}</strong></div>}
+      </div>}
+    </span>
   );
 }
 
@@ -2509,7 +2570,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
     if(!editUser)return;
     setUserSaving(true);
     try{
-      const updated=await updateUserAdmin(editUser.id,{name:editUser.name,phone:editUser.phone,access:editUser.access,role:editUser.role,active:editUser.active});
+      const updated=await updateUserAdmin(editUser.id,{
+        name:editUser.name,phone:editUser.phone,access:editUser.access,role:editUser.role,active:editUser.active,
+        ...(editUser.access==="customer"?{
+          leaderboardName:editUser.leaderboardName||null,
+          hideFromLeaderboard:editUser.hideFromLeaderboard??false,
+        }:{}),
+      });
       setUsers(p=>p.map(u=>u.id===updated.id?updated:u));
       setModal(null);setEditUser(null);showToast("Saved");
     }catch(e){showToast("Error: "+e.message);}
@@ -2630,6 +2697,25 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <div className="f"><label>Mobile</label><div className="phone-wrap"><span className="phone-prefix">+1</span><input type="tel" value={editUser?.phone||newUser.phone} onChange={e=>{const v=cleanPh(e.target.value);editUser?setEditUser(p=>({...p,phone:v})):setNewUser(p=>({...p,phone:v}));}} maxLength={10}/></div></div>
         {(()=>{const curAccess=editUser?.access||newUser.access;return <div className="g2"><div className="f"><label>Access</label><select value={curAccess} onChange={e=>{const acc=e.target.value;const role=acc==="customer"?null:"Referee";editUser?setEditUser(p=>({...p,access:acc,role})):setNewUser(p=>({...p,access:acc,role}));}}><option value="customer">Customer</option><option value="staff">Staff</option><option value="manager">Manager</option>{isAdmin&&<option value="admin">Admin</option>}</select></div>{curAccess!=="customer"&&<div className="f"><label>Role</label><select value={editUser?.role||newUser.role||""} onChange={e=>editUser?setEditUser(p=>({...p,role:e.target.value})):setNewUser(p=>({...p,role:e.target.value}))}><option value="">— None —</option>{STAFF_ROLES.map(r=><option key={r}>{r}</option>)}</select></div>}</div>;})()}
         {editUser&&<div className="f"><label>Status</label><select value={editUser.active?"active":"inactive"} onChange={e=>setEditUser(p=>({...p,active:e.target.value==="active"}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>}
+        {editUser?.access==="customer"&&(()=>{
+          const authEntry=userAuthDates.find(d=>d.userId===editUser.id);
+          const fmtD=s=>s?new Date(s).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—";
+          return<>
+            <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".6rem .9rem",marginBottom:".5rem",fontSize:".78rem",color:"var(--muted)",display:"flex",gap:"1.5rem",flexWrap:"wrap",alignItems:"center"}}>
+              <span><strong style={{color:"var(--txt)"}}>Auth:</strong>&nbsp;<AuthBadge provider={editUser.authProvider}/></span>
+              <span><strong style={{color:"var(--txt)"}}>User created:</strong>&nbsp;{fmtD(editUser.createdAt)}</span>
+              {authEntry&&<span><strong style={{color:"var(--txt)"}}>Auth account:</strong>&nbsp;{fmtD(authEntry.authCreatedAt)}</span>}
+            </div>
+            <div className="f">
+              <label>Leaderboard Name</label>
+              <input value={editUser.leaderboardName||""} onChange={e=>setEditUser(p=>({...p,leaderboardName:e.target.value}))} placeholder={genDefaultLeaderboardName(editUser.name,editUser.phone)} maxLength={24}/>
+            </div>
+            <label style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".75rem",cursor:"pointer",fontSize:".82rem",color:"var(--muted)"}}>
+              <input type="checkbox" checked={editUser.hideFromLeaderboard??false} onChange={e=>setEditUser(p=>({...p,hideFromLeaderboard:e.target.checked}))} style={{accentColor:"var(--accB)",width:15,height:15,flexShrink:0}}/>
+              Hide from all leaderboards
+            </label>
+          </>;
+        })()}
         <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditUser(null);}}>Cancel</button><button className="btn btn-p" disabled={userSaving} onClick={()=>{if(editUser)doSaveUser();else{setUsers(p=>[...p,{...newUser,id:Date.now()}]);setModal(null);setEditUser(null);showToast("Saved");}}}>{userSaving?"Saving…":"Save"}</button></div>
       </div></div>}
       {modal==="shift"&&<div className="mo"><div className="mc"><div className="mt2">Schedule Shift</div>
@@ -2663,7 +2749,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
         {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
-        <button style={{marginLeft:"auto",background:"rgba(40,200,100,.15)",color:"#2dc86e",border:"1px solid rgba(40,200,100,.4)",borderRadius:6,padding:".35rem .9rem",fontWeight:700,fontSize:".85rem",cursor:"pointer"}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
+        <button className="btn btn-p btn-sm" style={{marginLeft:"auto"}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
 
       {tab==="dashboard"&&<>
@@ -2993,12 +3079,12 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             </div>
           </div>
         ))}
-        <div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Spent</th><th>Waiver</th><th></th></tr></thead>
+        <div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Runs</th><th>Spent</th><th>Waiver</th><th></th></tr></thead>
           <tbody>{(()=>{
             const q=custSearch.trim().toLowerCase();
             const digits=cleanPh(custSearch);
             const filtered=users.filter(u=>u.access==="customer"&&(!q||(u.name||"").toLowerCase().includes(q)||(digits.length>=3&&(u.phone||"").includes(digits))));
-            if(filtered.length===0&&q) return <tr><td colSpan={8} style={{textAlign:"center",padding:"1.5rem",color:"var(--muted)"}}>
+            if(filtered.length===0&&q) return <tr><td colSpan={9} style={{textAlign:"center",padding:"1.5rem",color:"var(--muted)"}}>
               No customers found for <strong style={{color:"var(--txt)"}}>&ldquo;{custSearch}&rdquo;</strong>
               <button className="btn btn-p btn-sm" style={{marginLeft:"1rem"}} onClick={()=>{
                 const isPhone=digits.length>=7;
@@ -3018,6 +3104,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 <td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(c.phone)}</td>
                 <td><AuthBadge provider={c.authProvider}/></td>
                 <td>{cr.length}</td>
+                <td><RunsCell runs={runs} reservations={reservations} resTypes={resTypes} userId={c.id}/></td>
                 <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(cr.reduce((s,r)=>s+r.amount,0))}</td>
                 <td>{valid?<span className="badge b-ok">Valid</span>:wd?<span className="badge b-warn">Exp.</span>:<span className="badge b-cancel">None</span>}</td>
                 <td><button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...c});setModal("user");}}>Edit</button><button className="btn btn-sm btn-warn" style={{marginLeft:".25rem"}} onClick={()=>setMergeTarget(c)}>Merge</button></td>
