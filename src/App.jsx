@@ -1840,6 +1840,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   const isAdmin=currentUser?.access==='admin';
   const adminUserIds=new Set(users.filter(u=>u.access==='admin').map(u=>u.id));
   const visShifts=hideAdminShifts&&isAdmin?dayShifts.filter(s=>!adminUserIds.has(s.staffId)):dayShifts;
+  const visMine=hideAdminShifts&&isAdmin?mine.filter(s=>!adminUserIds.has(s.staffId)):mine;
   const getU=id=>users.find(u=>u.id===id);
   return(
     <div>
@@ -1857,9 +1858,14 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
         {!isManager&&<button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending').length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending').length}</span>}</button>}
       </div>
       {tab==="mine"&&<>
-        {!mine.length&&<div className="empty"><div className="ei">📅</div><p>No shifts scheduled.</p></div>}
-        {mine.map(s=><div key={s.id} className={`shift-card mine${s.conflicted?" conflict":""}`} style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
-          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,minWidth:108,flexShrink:0,whiteSpace:'nowrap',color:s.conflicted?"var(--warnL)":"var(--accB)"}}>{fmt(s.date)}</div>
+        {isAdmin&&<div style={{marginBottom:'.5rem'}}>
+          <button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>
+            {hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}
+          </button>
+        </div>}
+        {!visMine.length&&<div className="empty"><div className="ei">📅</div><p>No shifts scheduled.</p></div>}
+        {visMine.map(s=><div key={s.id} className={`shift-card mine${s.conflicted?" conflict":""}`} style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,minWidth:160,flexShrink:0,color:s.conflicted?"var(--warnL)":"var(--accB)"}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
           <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
             <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
             {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
@@ -1874,7 +1880,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
       {tab==="conflict"&&<>
         {!conflicts.length&&<div className="empty"><div className="ei">✅</div><p>No conflicted shifts.</p></div>}
         {conflicts.map(s=>{const orig=getU(s.staffId);return <div key={s.id} className="shift-card conflict" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
-          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--warnL)",minWidth:108,flexShrink:0,whiteSpace:'nowrap'}}>{fmt(s.date)}</div>
+          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--warnL)",minWidth:160,flexShrink:0}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
           <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
             <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
             {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
@@ -1892,7 +1898,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
         <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
         {!dayOpens.length&&<div className="empty"><div className="ei">📋</div><p>No open shifts on this date.</p></div>}
         {dayOpens.map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
-          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--okB)",minWidth:108,flexShrink:0,whiteSpace:'nowrap'}}>{fmt(s.date)}</div>
+          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--okB)",minWidth:160,flexShrink:0}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
           <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
             <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
             {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
