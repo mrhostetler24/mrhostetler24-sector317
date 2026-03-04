@@ -1862,7 +1862,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
         <button className={`tab${tab==="open"?" on":""}`} onClick={()=>setTab("open")}>Open ({opens.length})</button>
         {isManager&&<button className={`tab${tab==="all"?" on":""}`} onClick={()=>setTab("all")}>All Staff</button>}
         {isManager&&<button className={`tab${tab==="templates"?" on":""}`} onClick={()=>setTab("templates")}>Templates</button>}
-        {!isManager&&<button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending').length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending').length}</span>}</button>}
+        <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending').length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending').length}</span>}</button>
       </div>
       {tab==="mine"&&<>
         {isAdmin&&<div style={{marginBottom:'.5rem'}}>
@@ -1915,7 +1915,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
         </div>)}
         {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>{const d=prompt("Date (YYYY-MM-DD):");const st=prompt("Start (HH:MM):");const en=prompt("End (HH:MM):");if(d&&st&&en)setShifts(p=>[...p,{id:Date.now(),staffId:null,date:d,start:st,end:en,open:true}]);}}>+ Post Open Shift</button>}
       </>}
-      {tab==="blocks"&&!isManager&&<div>
+      {tab==="blocks"&&<div>
         {!addingBlock&&<button className="btn btn-s btn-sm" style={{marginBottom:'.75rem'}} onClick={()=>setAddingBlock(true)}>+ Add Block</button>}
         {addingBlock&&<div style={{background:'var(--bg2)',borderRadius:'var(--r)',padding:'1rem',marginBottom:'1rem',border:'1px solid var(--border)'}}>
           <div style={{fontWeight:700,marginBottom:'.5rem'}}>New Availability Block</div>
@@ -1950,14 +1950,10 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
           <button className={`tab${allStaffSub==='week'?' on':''}`} onClick={()=>setAllStaffSub('week')}>Week View</button>
         </div>
         {allStaffSub==='roster'&&<>
-          <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap',marginBottom:'.25rem'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap',marginBottom:'.5rem'}}>
             <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
+            {isAdmin&&<><span style={{color:'var(--bdr)',margin:'0 .1rem'}}>|</span><button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>{hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}</button></>}
           </div>
-          {isAdmin&&<div style={{marginBottom:'.5rem'}}>
-            <button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>
-              {hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}
-            </button>
-          </div>}
           {!visShifts.length&&<div className="empty"><div className="ei">📅</div><p>No shifts on this date.</p></div>}
           {visShifts.map(s=>{
             const m=getU(s.staffId);
@@ -1982,12 +1978,13 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
             <span style={{fontSize:'.88rem',fontFamily:'var(--fd)',minWidth:210,textAlign:'center'}}>{fmt(weekStart)} – {fmt(weekDays2[6])}</span>
             <button className="btn btn-s btn-sm" disabled={weekStart>=maxWeekStartFn()} onClick={()=>setWeekStart(p=>{const n=addDaysStr(p,7);return n>maxWeekStartFn()?maxWeekStartFn():n;})}>Next →</button>
             <button className="btn btn-s btn-sm" onClick={()=>setWeekStart(today)}>Today</button>
+            {isAdmin&&<><span style={{color:'var(--bdr)',margin:'0 .1rem'}}>|</span><button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>{hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}</button></>}
           </div>
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:'.8rem'}}>
               <thead>
                 <tr style={{background:'var(--surf2)'}}>
-                  <th style={{padding:'.45rem .75rem',textAlign:'left',borderBottom:'1px solid var(--bdr)',color:'var(--muted)',minWidth:110,fontWeight:600,fontSize:'.72rem',letterSpacing:'.04em',textTransform:'uppercase'}}>Staff / Role</th>
+                  <th style={{padding:'.45rem .75rem',textAlign:'left',borderBottom:'1px solid var(--bdr)',color:'var(--muted)',minWidth:110,fontWeight:600,fontSize:'.72rem',letterSpacing:'.04em',textTransform:'uppercase'}}>Staff</th>
                   {weekDays2.map(d=><th key={d} style={{padding:'.45rem .55rem',textAlign:'center',borderBottom:'1px solid var(--bdr)',color:d===today?'var(--acc)':'var(--txt)',minWidth:88,fontWeight:d===today?700:500,fontSize:'.72rem'}}>
                     {getDayName(d).slice(0,3)+' '+new Date(d+'T00:00:00').getDate()}
                   </th>)}
@@ -1999,7 +1996,6 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
                   :weekRows2.map((row,ri)=><tr key={row.id??'__open'} style={{borderBottom:ri<weekRows2.length-1?'1px solid var(--bdr)':'none'}}>
                     <td style={{padding:'.45rem .75rem',verticalAlign:'middle'}}>
                       <div style={{fontSize:'.84rem',fontWeight:500}}>{row.name}</div>
-                      <div style={{fontSize:'.72rem',color:'var(--muted)'}}>{row.role}</div>
                     </td>
                     {weekDays2.map(d=>{
                       const dayS=weekShifts2.filter(s=>s.date===d&&(row.id?s.staffId===row.id:!s.staffId));
@@ -2007,7 +2003,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
                         {dayS.map(s=>{
                           const st=s.conflicted?'conflict':s.open?'open':'ok';
                           return <div key={s.id} style={{background:st==='conflict'?'rgba(184,150,12,.15)':st==='open'?'rgba(90,138,58,.1)':'var(--surf2)',borderRadius:4,padding:'.2rem .3rem',marginBottom:'.2rem',lineHeight:1.35}}>
-                            <div style={{fontSize:'.73rem',fontFamily:'var(--fd)'}}>{fmt12(s.start)}–{fmt12(s.end)}</div>
+                            <div style={{fontSize:'.73rem',fontFamily:'var(--fd)'}}>{s.role?s.role+' | ':''}{fmt12(s.start)}–{fmt12(s.end)}</div>
                             {st!=='ok'&&<div style={{fontSize:'.65rem',color:st==='conflict'?'var(--warnL)':'var(--okB)',marginTop:'.1rem'}}>{st}</div>}
                           </div>;
                         })}

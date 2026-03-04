@@ -813,8 +813,8 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
         </div>
       </div>}
 
-      {/* Main tabs */}
-      <div className="tabs" style={{ marginBottom: '1.25rem' }}>
+      {/* Main tabs — hidden when embedded inside another panel */}
+      {!embedded && <div className="tabs" style={{ marginBottom: '1.25rem' }}>
         {([
           ['roster',    'Daily Roster'],
           ['conflicts', `Conflicts / Pickups${pickupShifts.length > 0 ? ` (${pickupShifts.length})` : ''}`],
@@ -825,7 +825,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
             {label}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* ── A) DAILY ROSTER ──────────────────────────────────────────────────── */}
       {view === 'roster' && (
