@@ -251,11 +251,18 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     }
   }
 
+  // Sort helper: day (Sun=0) → start time → role alphabetically
+  const sortSlots = slots => [...slots].sort((a, b) =>
+    a.dayOfWeek - b.dayOfWeek ||
+    a.startTime.localeCompare(b.startTime) ||
+    (a.role ?? '').localeCompare(b.role ?? '')
+  )
+
   // Load slots whenever the editing template changes
   useEffect(() => {
     if (!editingTmplId) { setEditingSlots([]); return }
     fetchTemplateSlots(editingTmplId)
-      .then(setEditingSlots)
+      .then(slots => setEditingSlots(sortSlots(slots)))
       .catch(() => setEditingSlots([]))
   }, [editingTmplId])
 
@@ -352,12 +359,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
       if (editingSlotId) {
         // Editing existing slot — just update it (qty ignored)
         const saved = await upsertTemplateSlot({ ...base, id: editingSlotId })
-        setEditingSlots(prev => {
-          const without = prev.filter(s => s.id !== saved.id)
-          return [...without, saved].sort((a, b) =>
-            a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)
-          )
-        })
+        setEditingSlots(prev => sortSlots([...prev.filter(s => s.id !== saved.id), saved]))
       } else {
         // New slot — create copies (qty per role, or qty copies of single role)
         const qty = Math.max(1, Math.min(20, Number(slotDraft.qty) || 1))
@@ -369,11 +371,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
             Array.from({ length: qty }, () => upsertTemplateSlot({ ...base, role: r }))
           )
         )
-        setEditingSlots(prev =>
-          [...prev, ...saved].sort((a, b) =>
-            a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)
-          )
-        )
+        setEditingSlots(prev => sortSlots([...prev, ...saved]))
       }
 
       setSlotDraft({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', qty: 1, forAllRoles: false })
@@ -404,6 +402,21 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
       setEditingSlots(prev => prev.filter(s => s.id !== id))
     } catch (e) {
       onAlert('Error removing slot: ' + e.message)
+    }
+  }
+
+  async function handleDuplicateSlot(slot) {
+    try {
+      const saved = await upsertTemplateSlot({
+        templateId: slot.templateId,
+        dayOfWeek:  slot.dayOfWeek,
+        startTime:  slot.startTime.slice(0, 5),
+        endTime:    slot.endTime.slice(0, 5),
+        role:       slot.role ?? null,
+      })
+      setEditingSlots(prev => sortSlots([...prev, saved]))
+    } catch (e) {
+      onAlert('Error duplicating slot: ' + e.message)
     }
   }
 
@@ -971,7 +984,8 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                                   </td>
                                   <td style={{ padding: '.45rem .75rem' }}>
                                     <div style={{ display: 'flex', gap: '.35rem' }}>
-                                      <button className="btn btn-s btn-sm" onClick={() => startEditSlot(slot)}>Edit</button>
+                                        <button className="btn btn-s btn-sm" onClick={() => startEditSlot(slot)}>Edit</button>
+                                      <button className="btn btn-s btn-sm" onClick={() => handleDuplicateSlot(slot)} title="Duplicate">⧉</button>
                                       <button className="btn btn-d btn-sm" onClick={() => handleDeleteSlot(slot.id)}>✕</button>
                                     </div>
                                   </td>
