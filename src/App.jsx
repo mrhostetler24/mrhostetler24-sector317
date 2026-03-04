@@ -1751,6 +1751,27 @@ function StaffStandardSchedule({userId}){
   );
 }
 
+function addDaysStr(d,n){const dt=new Date(d+'T00:00:00');dt.setDate(dt.getDate()+n);return dt.toISOString().slice(0,10);}
+function DateNav({selected,today,onChange}){
+  const offs=[-3,-2,-1,0,1,2,3],ops=[0.25,0.5,0.75,1,0.75,0.5,0.25];
+  const dns=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  function fmtS(d){const[,m,dy]=d.split('-');return parseInt(m)+'/'+parseInt(dy);}
+  function dn(d){return dns[new Date(d+'T00:00:00').getDay()];}
+  return(
+    <div style={{display:'flex',alignItems:'center',gap:'.25rem',marginBottom:'.75rem',overflowX:'auto',flexWrap:'nowrap'}}>
+      {selected!==today&&<button className="btn btn-s btn-sm" style={{flexShrink:0,marginRight:'.25rem'}} onClick={()=>onChange(today)}>Today</button>}
+      {offs.map((offset,i)=>{
+        const d=addDaysStr(selected,offset);
+        const isSel=offset===0;
+        return <button key={offset} onClick={()=>onChange(d)} style={{flexShrink:0,minWidth:44,textAlign:'center',padding:'.3rem .35rem',background:isSel?'var(--acc)':' transparent',border:isSel?'1px solid var(--acc)':' 1px solid transparent',borderRadius:'var(--r)',cursor:'pointer',opacity:ops[i],color:isSel?'var(--bg)':' var(--txt)',fontWeight:isSel?700:400,lineHeight:1.2}}>
+          <div style={{fontSize:'.65rem'}}>{dn(d)}</div>
+          <div style={{fontSize:'.78rem'}}>{fmtS(d)}</div>
+        </button>;
+      })}
+      <input type="date" value={selected} onChange={e=>onChange(e.target.value)} style={{marginLeft:'auto',flexShrink:0,background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:'var(--r)',color:'var(--txt)',padding:'.25rem .4rem',fontSize:'.8rem'}}/>
+    </div>
+  );
+}
 function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   const [tab,setTab]=useState("mine");
   const [conflictModal,setConflictModal]=useState(null);
@@ -1761,6 +1782,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   const [addingBlock,setAddingBlock]=useState(false);
   const [blockSaving,setBlockSaving]=useState(false);
   const [shiftOpBusy,setShiftOpBusy]=useState(false);
+  const [selectedDay,setSelectedDay]=useState(todayStr());
   const today=todayStr();
   function timeToMin(t){if(!t)return 0;const p=(t+'').split(':').map(Number);return p[0]*60+(p[1]||0);}
   function fmtDur(s,e){const m=timeToMin(e)-timeToMin(s);if(m<=0)return '';return Math.floor(m/60)+' hr'+(m%60?' '+m%60+' min':'');}
@@ -1812,6 +1834,8 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   const mine=[...shifts].filter(s=>s.staffId===currentUser.id).sort((a,b)=>a.date.localeCompare(b.date));
   const conflicts=shifts.filter(s=>s.conflicted&&s.staffId!==currentUser.id);
   const opens=shifts.filter(s=>s.open&&!s.staffId);
+  const dayShifts=[...shifts].filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
+  const dayOpens=opens.filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const getU=id=>users.find(u=>u.id===id);
   return(
     <div>
@@ -1861,8 +1885,9 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
         </div>;})}
       </>}
       {tab==="open"&&<>
-        {!opens.length&&<div className="empty"><div className="ei">📋</div><p>No open shifts.</p></div>}
-        {opens.map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
+        <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
+        {!dayOpens.length&&<div className="empty"><div className="ei">📋</div><p>No open shifts on this date.</p></div>}
+        {dayOpens.map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
           <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--okB)",minWidth:108,flexShrink:0,whiteSpace:'nowrap'}}>{fmt(s.date)}</div>
           <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
             <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
@@ -1902,10 +1927,26 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
           </div>;
         })}
       </div>}
-      {tab==="all"&&isManager&&<div className="tw"><table><thead><tr><th>Staff</th><th>Date</th><th>Start</th><th>End</th><th>Status</th><th/></tr></thead>
-        <tbody>{!shifts.length&&<tr><td colSpan={6} style={{textAlign:"center",color:"var(--muted)",padding:"2rem"}}>No shifts.</td></tr>}
-        {[...shifts].sort((a,b)=>a.date.localeCompare(b.date)).map(s=>{const m=getU(s.staffId);return <tr key={s.id}><td>{m?.name||<span style={{color:"var(--muted)"}}>Open</span>}</td><td>{fmt(s.date)}</td><td>{fmt12(s.start)}</td><td>{fmt12(s.end)}</td><td>{s.conflicted?<span className="badge b-conflict">Conflict</span>:s.open?<span className="badge b-available">Open</span>:<span className="badge b-ok">Scheduled</span>}</td><td><button className="btn btn-d btn-sm" onClick={()=>setShifts(p=>p.filter(x=>x.id!==s.id))}>Remove</button></td></tr>;})}
-        </tbody></table></div>}
+      {tab==="all"&&isManager&&<div>
+        <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
+        {!dayShifts.length&&<div className="empty"><div className="ei">📅</div><p>No shifts on this date.</p></div>}
+        {dayShifts.map(s=>{
+          const m=getU(s.staffId);
+          const unassigned=!s.staffId||s.open;
+          return <div key={s.id} className="shift-card" style={{padding:'.5rem 1rem',flexWrap:'nowrap',borderLeft:unassigned?'3px solid var(--warn)':'',background:unassigned?'rgba(255,160,0,.07)':''}}>
+            <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
+              <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap',fontWeight:600}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
+              {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
+              {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
+              {unassigned
+                ?<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>⚠️ Unassigned</span>
+                :<span style={{fontSize:".85rem",color:"var(--txt)"}}>{m?.name}</span>}
+              {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.7rem'}}>Conflict</span>}
+            </div>
+            <button className="btn btn-d btn-sm" style={{flexShrink:0}} onClick={()=>setShifts(p=>p.filter(x=>x.id!==s.id))}>Remove</button>
+          </div>;
+        })}
+      </div>}
     </div>
   );
 }
