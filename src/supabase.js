@@ -1122,10 +1122,11 @@ export async function fetchPlayerWaiverStatus(userIds) {
 // ============================================================
 
 const toShiftTemplate = r => r ? ({
-  id:        r.id,
-  name:      r.name,
-  active:    r.active ?? false,
-  createdAt: r.created_at,
+  id:             r.id,
+  name:           r.name,
+  active:         r.active ?? false,
+  cycleStartDate: r.cycle_start_date ?? null,
+  createdAt:      r.created_at,
 }) : null
 
 const toTemplateSlot = r => r ? ({
@@ -1164,7 +1165,11 @@ export async function fetchShiftTemplates() {
 }
 
 export async function upsertShiftTemplate(tmpl) {
-  const row = { name: tmpl.name, active: tmpl.active ?? false }
+  const row = {
+    name:             tmpl.name,
+    active:           tmpl.active ?? false,
+    cycle_start_date: tmpl.cycleStartDate ?? null,
+  }
   if (tmpl.id) row.id = tmpl.id
   const { data, error } = await supabase
     .from('shift_templates').upsert(row).select().single()
@@ -1275,4 +1280,44 @@ export async function addUserRole(userId, role) {
 export async function removeUserRole(id) {
   const { error } = await supabase.from('user_roles').delete().eq('id', id)
   if (error) throw error
+}
+
+// ── Slot assignments (2-week rotation) ─────────────────────────────────────
+
+const toSlotAssignment = r => r ? ({
+  id:         r.id,
+  slotId:     r.template_slot_id,
+  weekNumber: r.week_number,
+  staffId:    r.staff_id,
+}) : null
+
+export async function fetchSlotAssignments(templateId) {
+  const { data, error } = await supabase
+    .from('shift_slot_assignments')
+    .select('*, shift_template_slots!inner(template_id)')
+    .eq('shift_template_slots.template_id', templateId)
+  if (error) throw error
+  return (data ?? []).map(toSlotAssignment)
+}
+
+// staffId=null → deletes the assignment; staffId set → upserts
+export async function upsertSlotAssignment(slotId, weekNum, staffId) {
+  if (!staffId) {
+    const { error } = await supabase
+      .from('shift_slot_assignments')
+      .delete()
+      .eq('template_slot_id', slotId)
+      .eq('week_number', weekNum)
+    if (error) throw error
+    return null
+  }
+  const { data, error } = await supabase
+    .from('shift_slot_assignments')
+    .upsert(
+      { template_slot_id: slotId, week_number: weekNum, staff_id: staffId },
+      { onConflict: 'template_slot_id,week_number' }
+    )
+    .select().single()
+  if (error) throw error
+  return toSlotAssignment(data)
 }

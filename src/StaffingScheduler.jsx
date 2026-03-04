@@ -8,6 +8,7 @@ import {
   updateShift, createShiftBatch,
   fetchShiftTemplates, upsertShiftTemplate, deleteShiftTemplate, setActiveShiftTemplate,
   fetchTemplateSlots, upsertTemplateSlot, deleteTemplateSlot,
+  fetchSlotAssignments, upsertSlotAssignment,
   fetchScheduleBlocks, createScheduleBlock, updateScheduleBlock, deleteScheduleBlock,
   fetchUserRoles, addUserRole, removeUserRole,
   fetchStaffRoles,
@@ -109,7 +110,16 @@ function maxWeekStart() {
  *  - If resulting shift < 3 hours (180 min) → eliminate
  *  - If this slot was already stamped for that date → skip
  */
-function computeStampShifts(slots, existingShifts, blocks) {
+// Returns 1 or 2 based on how many complete 7-day periods have elapsed since cycleStartDate.
+// If no cycleStartDate or date is before it, defaults to week 1.
+function getWeekNumber(dateStr, cycleStartDate) {
+  if (!cycleStartDate) return 1
+  const daysDiff = Math.floor((new Date(dateStr) - new Date(cycleStartDate)) / 86400000)
+  if (daysDiff < 0) return 1
+  return (Math.floor(daysDiff / 7) % 2) + 1
+}
+
+function computeStampShifts(slots, existingShifts, blocks, assignments, cycleStartDate) {
   const today  = todayISO()
   const result = []
 
@@ -141,14 +151,17 @@ function computeStampShifts(slots, existingShifts, blocks) {
       if (eliminated) continue
       if (e0 - s0 < 180) continue  // < 3 hours after trimming → eliminate
 
+      const weekNum    = getWeekNumber(date, cycleStartDate)
+      const assignment = (assignments ?? []).find(a => a.slotId === slot.id && a.weekNumber === weekNum)
+
       result.push({
         date,
         start:          minutesToTime(s0),
         end:            minutesToTime(e0),
         templateSlotId: slot.id,
         role:           slot.role ?? null,
-        open:           true,
-        staffId:        null,
+        open:           !assignment,
+        staffId:        assignment?.staffId ?? null,
         conflicted:     false,
         conflictNote:   null,
       })
@@ -181,6 +194,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   const [templates,       setTemplates]       = useState([])
   const [editingTmplId,   setEditingTmplId]   = useState(null)  // template shown in builder
   const [editingSlots,    setEditingSlots]     = useState([])    // slots for editingTmplId
+  const [slotAssignments, setSlotAssignments] = useState([])    // {id,slotId,weekNumber,staffId}
   const [scheduleBlocks,  setScheduleBlocks]  = useState([])
   const [userRoles,       setUserRoles]       = useState([])
   const [templatesLoaded, setTemplatesLoaded] = useState(false)
@@ -260,12 +274,18 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     (a.role ?? '').localeCompare(b.role ?? '')
   )
 
-  // Load slots whenever the editing template changes
+  // Load slots + assignments whenever the editing template changes
   useEffect(() => {
-    if (!editingTmplId) { setEditingSlots([]); return }
-    fetchTemplateSlots(editingTmplId)
-      .then(slots => setEditingSlots(sortSlots(slots)))
-      .catch(() => setEditingSlots([]))
+    if (!editingTmplId) { setEditingSlots([]); setSlotAssignments([]); return }
+    Promise.all([
+      fetchTemplateSlots(editingTmplId),
+      fetchSlotAssignments(editingTmplId),
+    ])
+      .then(([slots, asgns]) => {
+        setEditingSlots(sortSlots(slots))
+        setSlotAssignments(asgns)
+      })
+      .catch(() => { setEditingSlots([]); setSlotAssignments([]) })
   }, [editingTmplId])
 
   // ── Assignment logic ───────────────────────────────────────────────────────
@@ -430,10 +450,14 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     setStamping(true)
     try {
       let slots = editingSlots
+      let asgns = slotAssignments
       if (editingTmplId !== active.id) {
-        slots = await fetchTemplateSlots(active.id)
+        ;[slots, asgns] = await Promise.all([
+          fetchTemplateSlots(active.id),
+          fetchSlotAssignments(active.id),
+        ])
       }
-      const newShifts = computeStampShifts(slots, shifts, scheduleBlocks)
+      const newShifts = computeStampShifts(slots, shifts, scheduleBlocks, asgns, active.cycleStartDate)
       setStampPreview({ shifts: newShifts, templateName: active.name })
     } catch (e) {
       onAlert('Error computing stamp preview: ' + e.message)
@@ -962,6 +986,32 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                     )}
                   </div>
 
+                  {/* Cycle start date for 2-week rotation */}
+                  {editingTmplId && (() => {
+                    const tmpl = templates.find(t => t.id === editingTmplId)
+                    if (!tmpl) return null
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem', marginBottom: '.75rem', flexWrap: 'wrap', fontSize: '.83rem', color: 'var(--txt2)' }}>
+                        <span>Cycle week 1 starts:</span>
+                        <input
+                          type="date"
+                          value={tmpl.cycleStartDate ?? ''}
+                          onChange={async e => {
+                            const val = e.target.value || null
+                            try {
+                              const updated = await upsertShiftTemplate({ ...tmpl, cycleStartDate: val })
+                              setTemplates(prev => prev.map(t => t.id === updated.id ? updated : t))
+                            } catch (err) {
+                              onAlert('Error saving cycle date: ' + err.message)
+                            }
+                          }}
+                          style={{ fontSize: '.83rem', padding: '.2rem .45rem', background: 'var(--surf2)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4 }}
+                        />
+                        <span style={{ opacity: .55, fontSize: '.77rem' }}>Week 1/2 alternates every 7 days from this date</span>
+                      </div>
+                    )
+                  })()}
+
                   {/* New template input */}
                   {showNewTmpl && (
                     <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', marginBottom: '1rem', background: 'var(--surf2)', padding: '.75rem 1rem', borderRadius: 6, border: '1px solid var(--bdr)' }}>
@@ -993,7 +1043,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ background: 'var(--surf2)', borderBottom: '1px solid var(--bdr)' }}>
-                                {['Day', 'Start', 'End', 'Role', ''].map(h => (
+                                {['Day', 'Start', 'End', 'Role', 'Wk 1 Staff', 'Wk 2 Staff', ''].map(h => (
                                   <th key={h} style={{ padding: '.45rem .75rem', textAlign: 'left', fontSize: '.72rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>{h}</th>
                                 ))}
                               </tr>
@@ -1009,6 +1059,31 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                                   <td style={{ padding: '.45rem .75rem', fontSize: '.83rem', color: slot.role ? 'var(--txt)' : 'var(--muted)' }}>
                                     {slot.role ?? <span style={{ fontStyle: 'italic' }}>Any</span>}
                                   </td>
+                                  {[1, 2].map(wk => (
+                                    <td key={wk} style={{ padding: '.35rem .55rem' }}>
+                                      <select
+                                        value={slotAssignments.find(a => a.slotId === slot.id && a.weekNumber === wk)?.staffId ?? ''}
+                                        onChange={async e => {
+                                          const staffId = e.target.value || null
+                                          try {
+                                            const updated = await upsertSlotAssignment(slot.id, wk, staffId)
+                                            setSlotAssignments(prev => {
+                                              const filtered = prev.filter(a => !(a.slotId === slot.id && a.weekNumber === wk))
+                                              return updated ? [...filtered, updated] : filtered
+                                            })
+                                          } catch (err) {
+                                            onAlert('Error saving assignment: ' + err.message)
+                                          }
+                                        }}
+                                        style={{ fontSize: '.78rem', padding: '.2rem .35rem', background: 'var(--surf2)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, maxWidth: 130 }}
+                                      >
+                                        <option value="">— open —</option>
+                                        {staffUsers.map(u => (
+                                          <option key={u.id} value={u.id}>{u.name}</option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  ))}
                                   <td style={{ padding: '.45rem .75rem' }}>
                                     <div style={{ display: 'flex', gap: '.35rem' }}>
                                         <button className="btn btn-s btn-sm" onClick={() => startEditSlot(slot)}>Edit</button>
