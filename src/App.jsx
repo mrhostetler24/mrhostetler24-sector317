@@ -153,6 +153,10 @@ function getTierInfo(runs){
   const sessionsToNext=next?Math.ceil(runsToNext/2):0
   return{current,next,runsToNext,sessionsToNext}
 }
+// Half-size tier SVG for use in table rows
+function getTierSvg1x(key){
+  return TIER_SVGS[key].replace(/ width="(\d+)"/,(m,v)=>` width="${v/2}"`).replace(/ height="(\d+)"/,(m,v)=>` height="${v/2}"`)
+}
 
 function getSessionsForDate(date,templates) { return templates.filter(t=>t.active&&t.dayOfWeek===getDayName(date)); }
 // Build lane state for a given date+time slot.
@@ -2280,15 +2284,24 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           const rank=r[rankCol]??'?';
           const sc=Number(r.leaderboard_score??0).toFixed(lbMode==='avg'?1:0);
           const avgT=fmtSec2(r.avg_seconds);
-          const runsLbl=lbMode==='avg'?`${r.runs_in_avg??'?'} runs avg`:`${r.total_runs??r.total_runs_played??'?'} total runs`;
+          const runCount=lbMode==='avg'?(r.runs_in_avg??r.total_runs??0):(r.total_runs??r.total_runs_played??0);
+          const runsLbl=lbMode==='avg'?`${runCount} runs avg`:`${runCount} total runs`;
           const isMe=r.player_id===user.id;
+          const tierRunCount=r.total_runs_played??runCount;
+          const {current:tier}=getTierInfo(tierRunCount);
+          const tierCol=TIER_COLORS[tier.key];
           return <tr key={r.player_id+(pinned?'-pin':'')} style={pinned||isMe?{background:"var(--accD)"}:{}}>
             <td style={{textAlign:"center",fontFamily:"var(--fd)",fontSize:"1rem",width:52,color:rank===1?"var(--gold)":rank===2?"var(--silver)":rank===3?"var(--bronze)":"var(--muted)"}}>
               {rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":`#${rank}`}
             </td>
             <td>
-              <div style={{fontFamily:"var(--fc)",fontWeight:700,fontSize:"1rem",color:isMe?"var(--accB)":"var(--txt)"}}>{r.player_name??'Unknown'}{isMe&&<span style={{fontSize:".7rem",color:"var(--acc2)",marginLeft:".5rem"}}>← you</span>}</div>
-              <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:".1rem"}}>{runsLbl} · ⏱ avg {avgT}</div>
+              <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
+                <span style={{color:tierCol,display:"inline-flex",alignItems:"center",flexShrink:0,opacity:.9}} dangerouslySetInnerHTML={{__html:getTierSvg1x(tier.key)}}/>
+                <div>
+                  <div style={{fontFamily:"var(--fc)",fontWeight:700,fontSize:"1rem",color:isMe?"var(--accB)":"var(--txt)"}}>{r.player_name??'Unknown'}{isMe&&<span style={{fontSize:".7rem",color:"var(--acc2)",marginLeft:".5rem"}}>← you</span>}</div>
+                  <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:".1rem"}}><span style={{fontFamily:"var(--fd)",letterSpacing:".05em",color:tierCol,textTransform:"uppercase",marginRight:".35rem"}}>{tier.name}</span>{runsLbl} · ⏱ avg {avgT}</div>
+                </div>
+              </div>
             </td>
             <td style={{textAlign:"right"}}>
               <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",color:"var(--accB)"}}>{sc}</div>
