@@ -1860,6 +1860,10 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <div className="f"><label>Reason (optional)</label><input value={cNote} onChange={e=>setCNote(e.target.value)} placeholder="e.g. family commitment, medical"/></div>
         <div className="ma"><button className="btn btn-s" onClick={()=>setConflictModal(null)}>Cancel</button><button className="btn btn-warn" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(conflictModal.id,{conflicted:true,conflictNote:cNote||null});setShifts(p=>p.map(s=>s.id===conflictModal.id?{...s,conflicted:true,conflictNote:cNote}:s));onAlert(currentUser.name+' flagged a conflict for '+fmt(conflictModal.date));setConflictModal(null);}catch(e){onAlert('Error flagging conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Flag →</button></div>
       </div></div>}
+      {opens.length>0&&tab!=="open"&&<div style={{background:'var(--okB)',color:'#fff',borderRadius:8,padding:'.6rem 1rem',marginBottom:'.75rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap'}}>
+        <span style={{fontFamily:'var(--fd)',fontWeight:700,fontSize:'.92rem'}}>📋 {opens.length} open shift{opens.length!==1?'s':''} available to pick up</span>
+        <button onClick={()=>setTab("open")} style={{background:'rgba(255,255,255,.2)',color:'#fff',border:'1px solid rgba(255,255,255,.4)',borderRadius:6,padding:'.25rem .75rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:700,fontSize:'.85rem'}}>View →</button>
+      </div>}
       <div className="tabs">
         <button className={`tab${tab==="mine"?" on":""}`} onClick={()=>setTab("mine")}>My Shifts</button>
         <button className={`tab${tab==="conflict"?" on":""}`} onClick={()=>setTab("conflict")}>Conflicts {conflicts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".62rem",marginLeft:".25rem"}}>{conflicts.length}</span>}</button>
