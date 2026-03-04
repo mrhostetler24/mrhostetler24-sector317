@@ -1321,3 +1321,67 @@ export async function upsertSlotAssignment(slotId, weekNum, staffId) {
   if (error) throw error
   return toSlotAssignment(data)
 }
+
+// ── Staff Availability Blocks ────────────────────────────────────────────────
+
+const toStaffBlock = r => r ? ({
+  id:        r.id,
+  staffId:   r.staff_id,
+  startDate: r.start_date,
+  endDate:   r.end_date,
+  startTime: r.start_time ?? null,
+  endTime:   r.end_time ?? null,
+  label:     r.label ?? null,
+  status:    r.status,
+  createdAt: r.created_at,
+}) : null
+
+export async function fetchStaffBlocks(staffId) {
+  const { data, error } = await supabase
+    .from('staff_availability_blocks').select('*')
+    .eq('staff_id', staffId).order('start_date')
+  if (error) throw error
+  return (data ?? []).map(toStaffBlock)
+}
+
+export async function fetchAllStaffBlocks() {
+  const { data, error } = await supabase
+    .from('staff_availability_blocks').select('*')
+  if (error) throw error
+  return (data ?? []).map(toStaffBlock)
+}
+
+export async function createStaffBlock(block) {
+  const { data, error } = await supabase
+    .from('staff_availability_blocks').insert({
+      staff_id:   block.staffId,
+      start_date: block.startDate,
+      end_date:   block.endDate,
+      start_time: block.startTime ?? null,
+      end_time:   block.endTime ?? null,
+      label:      block.label ?? null,
+      status:     block.status ?? 'confirmed',
+    }).select().single()
+  if (error) throw error
+  return toStaffBlock(data)
+}
+
+export async function updateStaffBlock(id, changes) {
+  const row = {}
+  if (changes.status    !== undefined) row.status     = changes.status
+  if (changes.label     !== undefined) row.label      = changes.label
+  if (changes.startDate !== undefined) row.start_date = changes.startDate
+  if (changes.endDate   !== undefined) row.end_date   = changes.endDate
+  if (changes.startTime !== undefined) row.start_time = changes.startTime
+  if (changes.endTime   !== undefined) row.end_time   = changes.endTime
+  const { data, error } = await supabase
+    .from('staff_availability_blocks').update(row).eq('id', id).select().single()
+  if (error) throw error
+  return toStaffBlock(data)
+}
+
+export async function deleteStaffBlock(id) {
+  const { error } = await supabase
+    .from('staff_availability_blocks').delete().eq('id', id)
+  if (error) throw error
+}

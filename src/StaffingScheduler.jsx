@@ -9,6 +9,7 @@ import {
   fetchShiftTemplates, upsertShiftTemplate, deleteShiftTemplate, setActiveShiftTemplate,
   fetchTemplateSlots, upsertTemplateSlot, deleteTemplateSlot,
   fetchSlotAssignments, upsertSlotAssignment,
+  fetchAllStaffBlocks,
   fetchScheduleBlocks, createScheduleBlock, updateScheduleBlock, deleteScheduleBlock,
   fetchUserRoles, addUserRole, removeUserRole,
   fetchStaffRoles,
@@ -128,7 +129,31 @@ function getWeekNumber(dateStr, cycleStartDate) {
   return (Math.floor(daysDiff / 7) % 2) + 1
 }
 
-function computeStampShifts(slots, existingShifts, blocks, assignments, cycleStartDate) {
+// Returns true when a staff availability block prevents the staff member from
+// covering at least 3 hours of the shift on the given date.
+function isStaffBlocked(staffId, date, shiftStart, shiftEnd, staffBlocks) {
+  const relevant = (staffBlocks ?? []).filter(b =>
+    b.staffId === staffId && b.startDate <= date && b.endDate >= date
+  )
+  if (!relevant.length) return false
+
+  let s0 = timeToMinutes(shiftStart)
+  let e0 = timeToMinutes(shiftEnd)
+
+  for (const blk of relevant) {
+    if (!blk.startTime || !blk.endTime) return true  // full-day block
+    const bs = timeToMinutes(blk.startTime)
+    const be = timeToMinutes(blk.endTime)
+    if (bs >= e0 || be <= s0) continue                // no overlap
+    if (bs <= s0 && be >= e0) return true             // block covers entire shift
+    // Clip and check remaining duration
+    const remaining = Math.max(0, (bs > s0 ? bs : e0) - Math.min(e0, be > s0 ? be : s0))
+    if (remaining < 180) return true
+  }
+  return false
+}
+
+function computeStampShifts(slots, existingShifts, blocks, assignments, cycleStartDate, staffBlocks) {
   const today  = todayISO()
   const result = []
 
@@ -163,14 +188,26 @@ function computeStampShifts(slots, existingShifts, blocks, assignments, cycleSta
       const weekNum    = getWeekNumber(date, cycleStartDate)
       const assignment = (assignments ?? []).find(a => a.slotId === slot.id && a.weekNumber === weekNum)
 
+      // Check staff availability block — if blocked, create as open shift
+      let finalStaffId = assignment?.staffId ?? null
+      let isOpen       = !assignment
+      if (assignment?.staffId) {
+        const blocked = isStaffBlocked(
+          assignment.staffId, date,
+          minutesToTime(s0), minutesToTime(e0),
+          staffBlocks
+        )
+        if (blocked) { finalStaffId = null; isOpen = true }
+      }
+
       result.push({
         date,
         start:          minutesToTime(s0),
         end:            minutesToTime(e0),
         templateSlotId: slot.id,
         role:           slot.role ?? null,
-        open:           !assignment,
-        staffId:        assignment?.staffId ?? null,
+        open:           isOpen,
+        staffId:        finalStaffId,
         conflicted:     false,
         conflictNote:   null,
       })
@@ -498,7 +535,8 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
           fetchSlotAssignments(active.id),
         ])
       }
-      const newShifts = computeStampShifts(slots, shifts, scheduleBlocks, asgns, active.cycleStartDate)
+      const allBlocks = await fetchAllStaffBlocks()
+      const newShifts = computeStampShifts(slots, shifts, scheduleBlocks, asgns, active.cycleStartDate, allBlocks)
       setStampPreview({ shifts: newShifts, templateName: active.name })
     } catch (e) {
       onAlert('Error computing stamp preview: ' + e.message)
