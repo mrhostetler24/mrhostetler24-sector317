@@ -1093,8 +1093,9 @@ export async function updateShift(id, changes) {
   if (changes.templateSlotId !== undefined) row.template_slot_id = changes.templateSlotId
   if (changes.role           !== undefined) row.role             = changes.role
   const { data, error } = await supabase
-    .from('shifts').update(row).eq('id', id).select().single()
+    .from('shifts').update(row).eq('id', id).select().maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('Permission denied — shift could not be updated. Ask an admin to check the shifts RLS policy.')
   return toShift(data)
 }
 

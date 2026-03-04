@@ -1772,7 +1772,7 @@ function DateNav({selected,today,onChange}){
     </div>
   );
 }
-function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
+function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tabOverride,onTabOverrideConsumed}){
   const [tab,setTab]=useState("mine");
   const [conflictModal,setConflictModal]=useState(null);
   const [cNote,setCNote]=useState("");
@@ -1790,6 +1790,9 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   function timeToMin(t){if(!t)return 0;const p=(t+'').split(':').map(Number);return p[0]*60+(p[1]||0);}
   function fmtDur(s,e){const m=timeToMin(e)-timeToMin(s);if(m<=0)return '';return Math.floor(m/60)+' hr'+(m%60?' '+m%60+' min':'');}
   function computeRemaining(ss,se,bs,be){let s2=ss,e2=se;if(bs<=s2&&be>=e2)return 0;if(bs<=s2)s2=be;else if(be>=e2)e2=bs;else e2=bs;return Math.max(0,e2-s2);}
+  useEffect(()=>{
+    if(tabOverride){setTab(tabOverride);onTabOverrideConsumed?.();}
+  },[tabOverride]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{
     if(tab==='blocks'&&!blocksLoaded){
       fetchStaffBlocks(currentUser.id).then(b=>{setStaffBlocks(b);setBlocksLoaded(true);}).catch(()=>{});
@@ -2861,6 +2864,7 @@ function DeactivateStaffModal({userToDeactivate,futureShifts,users,shifts,onConf
 
 function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,sessionTemplates,setSessionTemplates,waiverDocs,setWaiverDocs,activeWaiverDoc,users,setUsers,shifts,setShifts,payments,setPayments,onAlert,userAuthDates=[],runs=[],staffRoles=[]}){
   const [tab,setTab]=useState("dashboard");
+  const [schedTabOverride,setSchedTabOverride]=useState(null);
   const [toastMsg,setToastMsg]=useState(null);
   const [modal,setModal]=useState(null);
   const [deactivateModal,setDeactivateModal]=useState(null);
@@ -3029,7 +3033,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       {showAccountFor&&<AccountPanel user={showAccountFor} users={users} setUsers={setUsers} onClose={()=>setShowAccountFor(null)}/>}
       {mergeTarget&&<MergeAccountsModal users={users} targetUser={mergeTarget} reservations={reservations} onMerge={async(wId,lId)=>{await handleMergeUsers(wId,lId);setMergeTarget(null);}} onClose={()=>setMergeTarget(null)}/>}
       {toastMsg&&<Toast msg={toastMsg} onClose={()=>setToastMsg(null)}/>}
-      {alertShifts.length>0&&<div className="alert-banner"><div className="alert-dot"/><strong style={{color:"var(--warnL)"}}>⚠ {alertShifts.length} shift conflict{alertShifts.length!==1?"s":""} need attention</strong><button className="btn btn-warn btn-sm" style={{marginLeft:"auto"}} onClick={()=>setTab("schedule")}>View →</button></div>}
+      {alertShifts.length>0&&<div className="alert-banner"><div className="alert-dot"/><strong style={{color:"var(--warnL)"}}>⚠ {alertShifts.length} shift conflict{alertShifts.length!==1?"s":""} need attention</strong><button className="btn btn-warn btn-sm" style={{marginLeft:"auto"}} onClick={()=>{setTab("schedule");setSchedTabOverride("conflict");}}>View →</button></div>}
       {modal==="rt"&&<div className="mo"><div className="mc"><div className="mt2">{editRT?"Edit":"New"} Type</div>
         <div className="f"><label>Name</label><input value={rtF.name} onChange={e=>setRTF(p=>({...p,name:e.target.value}))}/></div>
         <div className="g2"><div className="f"><label>Mode</label><select value={rtF.mode} onChange={e=>setRTF(p=>({...p,mode:e.target.value}))}><option value="coop">Co-Op</option><option value="versus">Versus</option></select></div><div className="f"><label>Style</label><select value={rtF.style} onChange={e=>setRTF(p=>({...p,style:e.target.value}))}><option value="open">Open</option><option value="private">Private</option></select></div></div>
@@ -3420,7 +3424,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
 
       {tab==="schedule"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Schedule</div></div><button className="btn btn-p" onClick={()=>setModal("shift")}>+ Add Shift</button></div>
-        <SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)}/>
+        <SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)} tabOverride={schedTabOverride} onTabOverrideConsumed={()=>setSchedTabOverride(null)}/>
         {isManager&&<StaffingScheduler currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)}/>}
       </>}
 

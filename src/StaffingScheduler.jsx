@@ -346,7 +346,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     try {
       const [tmplList, blockList, roleList, canonicalRoles] = await Promise.all([
         fetchShiftTemplates(),
-        fetchScheduleBlocks(todayISO(), addDays(todayISO(), 180)),
+        fetchScheduleBlocks(null, addDays(todayISO(), 365)),
         fetchUserRoles(),
         fetchStaffRoles(),
       ])
