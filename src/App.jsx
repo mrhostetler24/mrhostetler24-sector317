@@ -110,6 +110,50 @@ function hasValidWaiver(user, activeWaiverDoc) {
 }
 const latestWaiverDate = user => user?.waivers?.length ? user.waivers.reduce((a,b)=>a.signedAt>b.signedAt?a:b).signedAt : null;
 const latestWaiverEntry = user => user?.waivers?.length ? user.waivers.reduce((a,b)=>a.signedAt>b.signedAt?a:b) : null;
+
+// ── Tier rank ─────────────────────────────────────────────────────
+const TIER_THRESHOLDS=[
+  {key:'recruit',  name:'Recruit',  min:0},
+  {key:'initiate', name:'Initiate', min:4},
+  {key:'operator', name:'Operator', min:10},
+  {key:'striker',  name:'Striker',  min:18},
+  {key:'vanguard', name:'Vanguard', min:28},
+  {key:'sentinel', name:'Sentinel', min:40},
+  {key:'enforcer', name:'Enforcer', min:56},
+  {key:'apex',     name:'Apex',     min:71},
+  {key:'elite',    name:'Elite',    min:86},
+  {key:'legend',   name:'Legend',   min:100},
+]
+const TIER_COLORS={recruit:'#e8e8e8',initiate:'#8b95c9',operator:'#4db6ac',striker:'#85b07a',vanguard:'#5a9a6a',sentinel:'#6b9dcf',enforcer:'#c94a5a',apex:'#cd7f32',elite:'#b8bfc7',legend:'#f5c842'}
+const TIER_SVGS=(()=>{
+  const SP='M0,-1 .23,-.32 .95,-.31 .36,.12 .59,.81 0,.38 -.59,.81 -.36,.12 -.95,-.31 -.23,-.32Z'
+  const star=(cx,cy,sz)=>`<path d="${SP}" fill="currentColor" transform="translate(${cx},${cy}) scale(${sz})"/>`
+  const cf=(py,ey,hw)=>{const ht=ey-py,len=Math.hypot(10,ht),nx=ht/len*hw,ny=10/len*hw,iy=ey+ny,ipy=iy-ht*(10-nx)/10,f=v=>+v.toFixed(1);return`<polygon points="0,${ey} 10,${py} 20,${ey} ${f(20-nx)},${f(iy)} 10,${f(ipy)} ${f(nx)},${f(iy)}" fill="currentColor"/>`}
+  const s=(w,h,vw,vh,c)=>`<svg width="${w*2}" height="${h*2}" viewBox="0 0 ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg">${c}</svg>`
+  return{
+    recruit: s(14,12,20,17,cf(2,14,3.5)),
+    initiate:s(14,17,20,24,cf(2,9,3.5)+cf(13,20,3.5)),
+    operator:s(14,18,20,26,cf(2,8,3.0)+cf(10.5,16.5,3.0)+star(10,22,3.2)),
+    striker: s(10,20,12,24,'<rect x="3" y="1" width="6" height="22" fill="currentColor"/>'),
+    vanguard:s(16,20,20,24,'<rect x="1" y="1" width="6" height="22" fill="currentColor"/><rect x="13" y="1" width="6" height="22" fill="currentColor"/>'),
+    sentinel:s(16,20,20,24,'<path d="M10,2 L18,5 L18,12 Q18,21 10,23 Q2,21 2,12 L2,5 Z" stroke="currentColor" stroke-width="2.8" fill="none" stroke-linejoin="miter"/>'),
+    enforcer:s(22,14,28,18,'<path d="M14,9 C11,6 6,5 0,7 C3,10 9,10 14,10Z" fill="currentColor"/><path d="M14,9 C17,6 22,5 28,7 C25,10 19,10 14,10Z" fill="currentColor"/><ellipse cx="14" cy="12" rx="2.5" ry="3.5" fill="currentColor"/>'),
+    apex:    s(16,16,20,20,star(10,10,8.5)),
+    elite:   s(22,14,28,18,star(7,9,5.5)+star(21,9,5.5)),
+    legend:  s(28,22,56,44,'<path d="M 0,40 L 0,28 L 12,16 L 22,30 L 28,10 L 34,30 L 44,16 L 56,28 L 56,40 Z" fill="currentColor"/>'+star(12,12,5)+star(28,6,6)+star(44,12,5)),
+  }
+})()
+function getTierInfo(runs){
+  const n=runs??0
+  let idx=0
+  for(let i=TIER_THRESHOLDS.length-1;i>=0;i--){if(n>=TIER_THRESHOLDS[i].min){idx=i;break;}}
+  const current=TIER_THRESHOLDS[idx]
+  const next=TIER_THRESHOLDS[idx+1]??null
+  const runsToNext=next?next.min-n:0
+  const sessionsToNext=next?Math.ceil(runsToNext/2):0
+  return{current,next,runsToNext,sessionsToNext}
+}
+
 function getSessionsForDate(date,templates) { return templates.filter(t=>t.active&&t.dayOfWeek===getDayName(date)); }
 // Build lane state for a given date+time slot.
 // Each lane (1..maxSessions) can hold: one private reservation OR open-play
@@ -358,6 +402,8 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .waiver-tooltip-wrap{position:relative;display:inline-block;}
 .waiver-tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:.65rem .9rem;white-space:nowrap;font-size:.76rem;z-index:50;color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.4);min-width:200px;text-align:left;}
 .waiver-tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--bdr);}
+.waiver-tip.below{top:calc(100% + 6px);bottom:auto;}
+.waiver-tip.below::after{top:auto;bottom:100%;border-top-color:transparent;border-bottom-color:var(--bdr);}
 .waiver-doc-card{background:var(--surf);border:1px solid var(--bdr);border-left:4px solid var(--acc2);border-radius:6px;padding:1.25rem;margin-bottom:1rem;}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;}
 .fb{display:flex;align-items:center;justify-content:space-between;}
@@ -467,6 +513,8 @@ function Toggle({on,onChange}){
 
 function WaiverTooltip({user,waiverDocs,activeWaiverDoc,readOnly=false,onResign}){
   const [open,setOpen]=useState(false);
+  const [above,setAbove]=useState(true);
+  const wrapRef=useRef(null);
   const valid=hasValidWaiver(user,activeWaiverDoc);
   const entry=latestWaiverEntry(user);
   const doc=waiverDocs?.find(d=>d.id===entry?.waiverDocId);
@@ -475,10 +523,17 @@ function WaiverTooltip({user,waiverDocs,activeWaiverDoc,readOnly=false,onResign}
   if(!user)return <span style={{fontSize:".75rem",color:"var(--muted)"}}>—</span>;
   const label=valid?"✓ Valid":needsNew?"↻ New Version":expired?"⚠ Expired":"✗ None";
   const color=valid?"var(--okB)":needsNew||expired?"var(--warnL)":"var(--dangerL)";
+  const handleClick=()=>{
+    if(!open&&wrapRef.current){
+      const rect=wrapRef.current.getBoundingClientRect();
+      setAbove(rect.top>200);
+    }
+    setOpen(o=>!o);
+  };
   return(
-    <div className="waiver-tooltip-wrap">
-      <span style={{fontSize:".75rem",cursor:"pointer",color,textDecoration:"underline dotted",textUnderlineOffset:"2px"}} onClick={()=>setOpen(o=>!o)}>{label}</span>
-      {open&&<div className="waiver-tip">
+    <div className="waiver-tooltip-wrap" ref={wrapRef}>
+      <span style={{fontSize:".75rem",cursor:"pointer",color,textDecoration:"underline dotted",textUnderlineOffset:"2px"}} onClick={handleClick}>{label}</span>
+      {open&&<div className={`waiver-tip${above?"":" below"}`}>
         <div style={{fontWeight:700,marginBottom:".35rem",color}}>{valid?"Valid":needsNew?"New Version Required":expired?"Expired":"None on File"}</div>
         {entry&&<div style={{color:"var(--muted)",fontSize:".72rem",marginBottom:".15rem"}}>Signed: {fmtTS(entry.signedAt)}</div>}
         {entry?.signedName&&<div style={{color:"var(--muted)",fontSize:".72rem",marginBottom:".15rem"}}>Name: {entry.signedName}</div>}
@@ -1895,6 +1950,12 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [playerInputs,setPlayerInputs]=useState([]);
   const [bookerIsPlayer,setBookerIsPlayer]=useState(true);
   const [player1Input,setPlayer1Input]=useState({phone:"",userId:null,name:"",status:"idle"});
+  const [careerRuns,setCareerRuns]=useState(null);
+  useEffect(()=>{
+    supabase.from('v_leaderboard_cumulative').select('total_runs_played').eq('player_id',user.id).maybeSingle()
+      .then(({data})=>setCareerRuns(data?.total_runs_played??0))
+      .catch(()=>setCareerRuns(0));
+  },[]);// eslint-disable-line react-hooks/exhaustive-deps
   // Leaderboard view map (mirrors leaderboard.html VIEW_MAP)
   const LB_VIEW_MAP={
     avg:{alltime:{view:'v_leaderboard',rankCol:'rank_all_time'},yearly:{view:'v_leaderboard_yearly',rankCol:'rank_yearly'},monthly:{view:'v_leaderboard_monthly',rankCol:'rank_monthly'},weekly:{view:'v_leaderboard_weekly',rankCol:'rank_weekly'}},
@@ -2090,6 +2151,21 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         </div>
         <button className="btn btn-s btn-sm" onClick={()=>setShowAccount(true)}>Edit Account</button>
       </div>
+      {/* Tier Rank */}
+      {careerRuns!==null&&(()=>{
+        const {current,next,sessionsToNext}=getTierInfo(careerRuns)
+        const col=TIER_COLORS[current.key]
+        return <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderLeft:`4px solid ${col}`,borderRadius:6,padding:".85rem 1.25rem",marginBottom:".75rem",display:"flex",alignItems:"center",gap:"1rem",flexWrap:"wrap"}}>
+          <span style={{color:col,display:"inline-flex",alignItems:"center",flexShrink:0}} dangerouslySetInnerHTML={{__html:TIER_SVGS[current.key]}}/>
+          <div>
+            <div style={{fontFamily:"var(--fd)",fontSize:".95rem",letterSpacing:".06em",textTransform:"uppercase",color:col}}>{current.name}</div>
+            {next
+              ?<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".15rem"}}>{sessionsToNext} more session{sessionsToNext!==1?"s":""} until rank up — <strong style={{color:TIER_COLORS[next.key]}}>{next.name}</strong></div>
+              :<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".15rem"}}>Maximum rank achieved.</div>
+            }
+          </div>
+        </div>
+      })()}
       {/* Waiver Status */}
       <div style={{background:"var(--surf)",border:`1px solid ${valid?"var(--acc2)":"var(--danger)"}`,borderLeft:`4px solid ${valid?"var(--acc)":"var(--danger)"}`,borderRadius:6,padding:"1rem 1.25rem",marginBottom:"1.5rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".75rem"}}>
         <div><div style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:valid?"var(--accB)":"var(--dangerL)"}}>{valid?"✓ Waiver On File":"⚠ Waiver Required"}</div><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>{valid?`Signed ${fmtTS(wDate)} · Valid 12 months`:wDate?`Expired — last signed ${fmtTS(wDate)}`:"No waiver on file — sign before your session"}</div></div>
