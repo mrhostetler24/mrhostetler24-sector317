@@ -3,7 +3,7 @@
 // All staffing schedule components live in this file.
 // Weeks start on Sunday throughout.
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Fragment } from 'react'
 import {
   updateShift, createShiftBatch,
   fetchShiftTemplates, upsertShiftTemplate, deleteShiftTemplate, setActiveShiftTemplate,
@@ -53,6 +53,15 @@ function fmtTime(t) {
   const ampm = h >= 12 ? 'PM' : 'AM'
   const h12 = h % 12 || 12
   return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
+}
+
+function fmtDuration(startTime, endTime) {
+  const mins = timeToMinutes(endTime) - timeToMinutes(startTime)
+  if (mins <= 0) return '—'
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (m === 0) return `${h} hr`
+  return `${h} hr ${m} min`
 }
 
 function fmtDate(isoDate) {
@@ -233,6 +242,38 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     [users]
   )
 
+  // Returns staff who (a) can fill the slot's role AND (b) have no conflicting assignment
+  // for the same week/day/overlapping time — with Admin exempt from conflict rules.
+  function getEligibleStaff(slot, weekNum) {
+    const slotRole = slot.role ?? null
+    const s0 = timeToMinutes(slot.startTime)
+    const e0 = timeToMinutes(slot.endTime)
+    return staffUsers.filter(u => {
+      // Role capability: if slot has a role, user must hold it as primary or cross-training
+      if (slotRole) {
+        const hasPrimary   = u.role === slotRole
+        const hasTraining  = userRoles.some(r => r.userId === u.id && r.role === slotRole)
+        if (!hasPrimary && !hasTraining) return false
+      }
+      // Conflict check: another assignment for the same week/day with overlapping time
+      const hasConflict = slotAssignments.some(a => {
+        if (a.staffId !== u.id) return false
+        if (a.weekNumber !== weekNum) return false
+        if (a.slotId === slot.id) return false            // same slot → not a conflict
+        const other = editingSlots.find(s => s.id === a.slotId)
+        if (!other) return false
+        if (other.dayOfWeek !== slot.dayOfWeek) return false
+        const as = timeToMinutes(other.startTime)
+        const ae = timeToMinutes(other.endTime)
+        if (as >= e0 || ae <= s0) return false            // no time overlap
+        // Admin role is exempt from double-booking rules
+        if (other.role === 'Admin' || slotRole === 'Admin') return false
+        return true
+      })
+      return !hasConflict
+    })
+  }
+
   function getUserById(id) {
     return users.find(u => u.id === id) ?? null
   }
@@ -409,13 +450,13 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   function startEditSlot(slot) {
     setSlotDraft({
       dayOfWeek: slot.dayOfWeek,
-      startTime: slot.startTime.slice(0, 5),  // trim seconds if present
+      startTime: slot.startTime.slice(0, 5),
       endTime:   slot.endTime.slice(0, 5),
       role:      slot.role ?? '',
       qty:       1,
     })
     setEditingSlotId(slot.id)
-    setAddingSlot(true)
+    setAddingSlot(false)  // close new-slot form if open
   }
 
   async function handleDeleteSlot(id) {
@@ -1043,66 +1084,126 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ background: 'var(--surf2)', borderBottom: '1px solid var(--bdr)' }}>
-                                {['Day', 'Start', 'End', 'Role', 'Wk 1 Staff', 'Wk 2 Staff', ''].map(h => (
+                                {['Day', 'Start', 'End', 'Duration', 'Role', 'Wk 1 Staff', 'Wk 2 Staff', ''].map(h => (
                                   <th key={h} style={{ padding: '.45rem .75rem', textAlign: 'left', fontSize: '.72rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>{h}</th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
-                              {editingSlots.map((slot, i) => (
-                                <tr key={slot.id} style={{ borderBottom: i < editingSlots.length - 1 ? '1px solid var(--bdr)' : 'none', background: editingSlotId === slot.id ? 'rgba(90,138,58,.06)' : undefined }}>
-                                  <td style={{ padding: '.45rem .75rem', fontSize: '.85rem', fontWeight: 500 }}>
-                                    {DAY_NAMES_FULL[slot.dayOfWeek]}
-                                  </td>
-                                  <td style={{ padding: '.45rem .75rem', fontSize: '.84rem', fontFamily: 'var(--fd)' }}>{fmtTime(slot.startTime)}</td>
-                                  <td style={{ padding: '.45rem .75rem', fontSize: '.84rem', fontFamily: 'var(--fd)' }}>{fmtTime(slot.endTime)}</td>
-                                  <td style={{ padding: '.45rem .75rem', fontSize: '.83rem', color: slot.role ? 'var(--txt)' : 'var(--muted)' }}>
-                                    {slot.role ?? <span style={{ fontStyle: 'italic' }}>Any</span>}
-                                  </td>
-                                  {[1, 2].map(wk => (
-                                    <td key={wk} style={{ padding: '.35rem .55rem' }}>
-                                      <select
-                                        value={slotAssignments.find(a => a.slotId === slot.id && a.weekNumber === wk)?.staffId ?? ''}
-                                        onChange={async e => {
-                                          const staffId = e.target.value || null
-                                          try {
-                                            const updated = await upsertSlotAssignment(slot.id, wk, staffId)
-                                            setSlotAssignments(prev => {
-                                              const filtered = prev.filter(a => !(a.slotId === slot.id && a.weekNumber === wk))
-                                              return updated ? [...filtered, updated] : filtered
-                                            })
-                                          } catch (err) {
-                                            onAlert('Error saving assignment: ' + err.message)
-                                          }
-                                        }}
-                                        style={{ fontSize: '.78rem', padding: '.2rem .35rem', background: 'var(--surf2)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, maxWidth: 130 }}
-                                      >
-                                        <option value="">— open —</option>
-                                        {staffUsers.map(u => (
-                                          <option key={u.id} value={u.id}>{u.name}</option>
-                                        ))}
-                                      </select>
-                                    </td>
-                                  ))}
-                                  <td style={{ padding: '.45rem .75rem' }}>
-                                    <div style={{ display: 'flex', gap: '.35rem' }}>
-                                        <button className="btn btn-s btn-sm" onClick={() => startEditSlot(slot)}>Edit</button>
-                                      <button className="btn btn-s btn-sm" onClick={() => handleDuplicateSlot(slot)} title="Duplicate">⧉</button>
-                                      <button className="btn btn-d btn-sm" onClick={() => handleDeleteSlot(slot.id)}>✕</button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
+                              {editingSlots.map((slot, i) => {
+                                const isEditingThis = editingSlotId === slot.id
+                                return (
+                                  <Fragment key={slot.id}>
+                                    <tr style={{ borderBottom: (i < editingSlots.length - 1 && !isEditingThis) ? '1px solid var(--bdr)' : 'none', background: isEditingThis ? 'rgba(90,138,58,.09)' : undefined }}>
+                                      <td style={{ padding: '.45rem .75rem', fontSize: '.85rem', fontWeight: 500 }}>
+                                        {DAY_NAMES_FULL[slot.dayOfWeek]}
+                                      </td>
+                                      <td style={{ padding: '.45rem .75rem', fontSize: '.84rem', fontFamily: 'var(--fd)' }}>{fmtTime(slot.startTime)}</td>
+                                      <td style={{ padding: '.45rem .75rem', fontSize: '.84rem', fontFamily: 'var(--fd)' }}>{fmtTime(slot.endTime)}</td>
+                                      <td style={{ padding: '.45rem .75rem', fontSize: '.8rem', color: 'var(--txt2)', whiteSpace: 'nowrap' }}>{fmtDuration(slot.startTime, slot.endTime)}</td>
+                                      <td style={{ padding: '.45rem .75rem', fontSize: '.83rem', color: slot.role ? 'var(--txt)' : 'var(--muted)' }}>
+                                        {slot.role ?? <span style={{ fontStyle: 'italic' }}>Any</span>}
+                                      </td>
+                                      {[1, 2].map(wk => {
+                                        const eligible = getEligibleStaff(slot, wk)
+                                        const savedId  = slotAssignments.find(a => a.slotId === slot.id && a.weekNumber === wk)?.staffId ?? ''
+                                        const savedUser = savedId ? staffUsers.find(u => u.id === savedId) : null
+                                        // Always include the currently-saved staff in options even if ineligible (marked ⚠)
+                                        const opts = savedUser && !eligible.find(u => u.id === savedId)
+                                          ? [...eligible, savedUser]
+                                          : eligible
+                                        return (
+                                          <td key={wk} style={{ padding: '.35rem .55rem' }}>
+                                            <select
+                                              value={savedId}
+                                              onChange={async e => {
+                                                const staffId = e.target.value || null
+                                                try {
+                                                  const updated = await upsertSlotAssignment(slot.id, wk, staffId)
+                                                  setSlotAssignments(prev => {
+                                                    const filtered = prev.filter(a => !(a.slotId === slot.id && a.weekNumber === wk))
+                                                    return updated ? [...filtered, updated] : filtered
+                                                  })
+                                                } catch (err) {
+                                                  onAlert('Error saving assignment: ' + err.message)
+                                                }
+                                              }}
+                                              style={{ fontSize: '.78rem', padding: '.2rem .35rem', background: 'var(--surf2)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, maxWidth: 130 }}
+                                            >
+                                              <option value="">— open —</option>
+                                              {opts.map(u => (
+                                                <option key={u.id} value={u.id}>
+                                                  {u.name}{!eligible.find(x => x.id === u.id) ? ' ⚠' : ''}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </td>
+                                        )
+                                      })}
+                                      <td style={{ padding: '.45rem .75rem' }}>
+                                        <div style={{ display: 'flex', gap: '.35rem' }}>
+                                          <button
+                                            className={`btn btn-sm ${isEditingThis ? 'btn-ok' : 'btn-s'}`}
+                                            onClick={() => isEditingThis ? (setEditingSlotId(null)) : startEditSlot(slot)}
+                                          >
+                                            {isEditingThis ? 'Close' : 'Edit'}
+                                          </button>
+                                          <button className="btn btn-s btn-sm" onClick={() => handleDuplicateSlot(slot)} title="Duplicate">⧉</button>
+                                          <button className="btn btn-d btn-sm" onClick={() => handleDeleteSlot(slot.id)}>✕</button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                    {isEditingThis && (
+                                      <tr>
+                                        <td colSpan={8} style={{ padding: 0, borderBottom: '1px solid var(--bdr)' }}>
+                                          <div style={{ padding: '.75rem 1rem', background: 'var(--surf2)', borderLeft: '3px solid var(--acc)' }}>
+                                            <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.65rem' }}>Edit Slot</div>
+                                            <div style={{ display: 'flex', gap: '.65rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                                              <div className="f" style={{ margin: 0 }}>
+                                                <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Day</label>
+                                                <select value={slotDraft.dayOfWeek} onChange={e => setSlotDraft(d => ({ ...d, dayOfWeek: Number(e.target.value) }))} style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }}>
+                                                  {DAY_NAMES_FULL.map((name, ii) => <option key={ii} value={ii}>{name}</option>)}
+                                                </select>
+                                              </div>
+                                              <div className="f" style={{ margin: 0 }}>
+                                                <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Start</label>
+                                                <select value={slotDraft.startTime} onChange={e => setSlotDraft(d => ({ ...d, startTime: e.target.value }))} style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }}>
+                                                  {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmtTime(t)}</option>)}
+                                                </select>
+                                              </div>
+                                              <div className="f" style={{ margin: 0 }}>
+                                                <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>End</label>
+                                                <select value={slotDraft.endTime} onChange={e => setSlotDraft(d => ({ ...d, endTime: e.target.value }))} style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem' }}>
+                                                  {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmtTime(t)}</option>)}
+                                                </select>
+                                              </div>
+                                              <div className="f" style={{ margin: 0 }}>
+                                                <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Role</label>
+                                                <select value={slotDraft.role} onChange={e => setSlotDraft(d => ({ ...d, role: e.target.value }))} style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', minWidth: 140 }}>
+                                                  <option value="">— Any role —</option>
+                                                  {allRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                                                </select>
+                                              </div>
+                                              <button className="btn btn-ok btn-sm" disabled={tmplSaving} onClick={handleSaveSlot}>Update Slot</button>
+                                              <button className="btn btn-s btn-sm" onClick={() => { setEditingSlotId(null); setSlotDraft({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', qty: 1, forAllRoles: false }) }}>Cancel</button>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </Fragment>
+                                )
+                              })}
                             </tbody>
                           </table>
                         </div>
                       )}
 
-                      {/* Add / edit slot form */}
-                      {addingSlot ? (
+                      {/* New slot form — hidden while inline-editing an existing slot */}
+                      {!editingSlotId && (addingSlot ? (
                         <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '1rem', marginBottom: '1rem' }}>
                           <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.75rem' }}>
-                            {editingSlotId ? 'Edit Slot' : 'New Slot'}
+                            New Slot
                           </div>
                           <div style={{ display: 'flex', gap: '.65rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                             {/* Day */}
@@ -1138,54 +1239,48 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                                 {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmtTime(t)}</option>)}
                               </select>
                             </div>
+                            {/* ALL checkbox */}
+                            <div className="f" style={{ margin: 0, justifyContent: 'flex-end' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '.3rem', fontSize: '.78rem', color: 'var(--muted)', cursor: 'pointer', marginTop: 'auto', paddingBottom: '.1rem' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={slotDraft.forAllRoles}
+                                  onChange={e => setSlotDraft(d => ({ ...d, forAllRoles: e.target.checked }))}
+                                />
+                                ALL
+                              </label>
+                            </div>
                             {/* Role */}
-                            {!editingSlotId && (
-                              <div className="f" style={{ margin: 0, justifyContent: 'flex-end' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '.3rem', fontSize: '.78rem', color: 'var(--muted)', cursor: 'pointer', marginTop: 'auto', paddingBottom: '.1rem' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={slotDraft.forAllRoles}
-                                    onChange={e => setSlotDraft(d => ({ ...d, forAllRoles: e.target.checked }))}
-                                  />
-                                  ALL
-                                </label>
-                              </div>
-                            )}
                             <div className="f" style={{ margin: 0 }}>
                               <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Role</label>
                               <select
                                 value={slotDraft.role}
                                 onChange={e => setSlotDraft(d => ({ ...d, role: e.target.value }))}
-                                disabled={!editingSlotId && slotDraft.forAllRoles}
-                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', minWidth: 140, opacity: (!editingSlotId && slotDraft.forAllRoles) ? 0.4 : 1 }}
+                                disabled={slotDraft.forAllRoles}
+                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', minWidth: 140, opacity: slotDraft.forAllRoles ? 0.4 : 1 }}
                               >
                                 <option value="">— Any role —</option>
                                 {allRoles.map(r => <option key={r} value={r}>{r}</option>)}
                               </select>
                             </div>
-                            {!editingSlotId && (
-                              <div className="f" style={{ margin: 0 }}>
-                                <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Qty</label>
-                                <input
-                                  type="number"
-                                  min={1} max={20}
-                                  value={slotDraft.qty}
-                                  onChange={e => setSlotDraft(d => ({ ...d, qty: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))}
-                                  style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', width: 60 }}
-                                />
-                              </div>
-                            )}
-                            <button className="btn btn-ok btn-sm" disabled={tmplSaving} onClick={handleSaveSlot}>
-                              {editingSlotId ? 'Update Slot' : 'Add Slot'}
-                            </button>
-                            <button className="btn btn-s btn-sm" onClick={() => { setAddingSlot(false); setEditingSlotId(null); setSlotDraft({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', qty: 1, forAllRoles: false }) }}>
-                              Cancel
-                            </button>
+                            {/* Qty */}
+                            <div className="f" style={{ margin: 0 }}>
+                              <label style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Qty</label>
+                              <input
+                                type="number"
+                                min={1} max={20}
+                                value={slotDraft.qty}
+                                onChange={e => setSlotDraft(d => ({ ...d, qty: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))}
+                                style={{ fontSize: '.85rem', padding: '.3rem .5rem', background: 'var(--bg)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4, display: 'block', marginTop: '.25rem', width: 60 }}
+                              />
+                            </div>
+                            <button className="btn btn-ok btn-sm" disabled={tmplSaving} onClick={handleSaveSlot}>Add Slot</button>
+                            <button className="btn btn-s btn-sm" onClick={() => { setAddingSlot(false); setSlotDraft({ dayOfWeek: 1, startTime: '09:00', endTime: '17:00', role: '', qty: 1, forAllRoles: false }) }}>Cancel</button>
                           </div>
                         </div>
                       ) : (
-                        <button className="btn btn-s btn-sm" style={{ marginBottom: '1rem' }} onClick={() => { setAddingSlot(true); setEditingSlotId(null) }}>+ Add Slot</button>
-                      )}
+                        <button className="btn btn-s btn-sm" style={{ marginBottom: '1rem' }} onClick={() => { setAddingSlot(true) }}>+ Add Slot</button>
+                      ))}
 
                       {/* Stamp section */}
                       <div style={{ borderTop: '1px solid var(--bdr)', paddingTop: '1.25rem', marginTop: '.5rem' }}>
