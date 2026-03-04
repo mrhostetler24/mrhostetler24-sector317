@@ -1839,8 +1839,8 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert}){
   const dayOpens=opens.filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const isAdmin=currentUser?.access==='admin';
   const adminUserIds=new Set(users.filter(u=>u.access==='admin').map(u=>u.id));
-  const visShifts=hideAdminShifts&&isAdmin?dayShifts.filter(s=>!adminUserIds.has(s.staffId)):dayShifts;
-  const visMine=hideAdminShifts&&isAdmin?mine.filter(s=>!adminUserIds.has(s.staffId)):mine;
+  const visShifts=hideAdminShifts&&isAdmin?dayShifts.filter(s=>s.role):dayShifts;
+  const visMine=hideAdminShifts&&isAdmin?mine.filter(s=>s.role):mine;
   const getU=id=>users.find(u=>u.id===id);
   return(
     <div>
