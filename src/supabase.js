@@ -1099,6 +1099,12 @@ export async function updateShift(id, changes) {
   return toShift(data)
 }
 
+export async function claimShift(shiftId) {
+  const { data, error } = await supabase.rpc('claim_shift', { p_shift_id: shiftId })
+  if (error) throw error
+  return data ? toShift(data) : null
+}
+
 export async function deleteShift(id) {
   const { error } = await supabase.from('shifts').delete().eq('id', id)
   if (error) throw error
