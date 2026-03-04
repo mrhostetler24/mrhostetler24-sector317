@@ -4,7 +4,7 @@ import OpsView from "./OpsView.jsx";
 import KioskPage from "./KioskPage.jsx";
 import {
   supabase,
-  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver,
+  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateOwnProfile, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver,
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   fetchResTypes, upsertResType, deleteResType,
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
@@ -17,7 +17,7 @@ const LOGO_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhQAAAFuCAYAAADZ
 
 const DAYS_OF_WEEK = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const ACCESS_LEVELS = { customer:{label:"Customer"}, staff:{label:"Staff"}, manager:{label:"Manager"}, admin:{label:"Admin"} };
-const STAFF_ROLES = ["Referee","Armorer","Instructor","Manager","Admin"];
+const STAFF_ROLES = ["Referee","Armorer","Bartender","Instructor","Manager","Admin"];
 
 const DEFAULT_RES_TYPES = [
   { id:"coop-open", name:"Co-Op Open Play", mode:"coop", style:"open", pricingMode:"per_person", price:55, maxPlayers:null, description:"Join forces in a shared Co-Op session. Price per player.", active:true, availableForBooking:true },
@@ -209,6 +209,12 @@ function openPlayCapacity(mode,allLanes){
 function getSlotStatus(date,startTime,typeId,reservations,resTypes,templates) {
   const {tmpl,lanes} = buildLanes(date,startTime,reservations,resTypes,templates);
   if(!tmpl) return {available:false,reason:"No session",lanes:[]};
+  // Block bookings within 15 minutes of start time
+  const now=new Date();
+  const todayISO=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  if(date===todayISO&&new Date(`${date}T${startTime}:00`)-now<15*60*1000){
+    return {available:false,reason:"Check-in closed",lanes};
+  }
   const desired = resTypes.find(rt=>rt.id===typeId);
   if(!desired) return {available:false,reason:"Unknown type",lanes};
 
@@ -1696,7 +1702,7 @@ function AccountPanel({user,users,setUsers,onClose}){
     setSaving(true);setErr(null);
     try{
       const defaultLb=genDefaultLeaderboardName(name.trim(),phoneClean);
-      const updated=await updateUser(user.id,{
+      const updated=await updateOwnProfile(user.id,{
         name:name.trim(),
         phone:phoneClean,
         leaderboardName:lbName.trim()||defaultLb,

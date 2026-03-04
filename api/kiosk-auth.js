@@ -16,6 +16,13 @@ function getIp(req) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
+  // IP allowlist — if KIOSK_ALLOWED_IP is set, reject all other IPs
+  const allowedIp = process.env.KIOSK_ALLOWED_IP
+  if (allowedIp) {
+    const ip = getIp(req)
+    if (ip !== allowedIp) return res.status(403).json({ error: 'Access denied.' })
+  }
+
   const url       = process.env.SUPABASE_URL
   const anon      = process.env.SUPABASE_ANON_KEY
   const email     = process.env.KIOSK_EMAIL

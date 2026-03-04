@@ -12,6 +12,13 @@ function getIp(req) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
+  // IP allowlist — if KIOSK_ALLOWED_IP is set, reject all other IPs
+  const allowedIp = process.env.KIOSK_ALLOWED_IP
+  if (allowedIp) {
+    const ip = getIp(req)
+    if (ip !== allowedIp) return res.status(403).json({ error: 'Access denied.' })
+  }
+
   const exitPin = process.env.KIOSK_EXIT_PIN
   if (!exitPin) return res.status(500).json({ error: 'Exit PIN not configured.' })
 

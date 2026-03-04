@@ -322,6 +322,20 @@ export async function updateUser(id, changes) {
   return toUser(data)
 }
 
+// Customer self-update via SECURITY DEFINER RPC (bypasses RLS auth_id mismatch).
+export async function updateOwnProfile(id, { name, phone, leaderboardName, hideFromLeaderboard }) {
+  const { data, error } = await supabase.rpc('update_own_profile', {
+    p_user_id:               id,
+    p_name:                  name,
+    p_phone:                 phone,
+    p_leaderboard_name:      leaderboardName,
+    p_hide_from_leaderboard: hideFromLeaderboard,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  return toUser(row)
+}
+
 // Links an OAuth identity to an existing user row via SECURITY DEFINER RPC,
 // bypassing RLS for the case where auth_id is not yet set on the row.
 export async function linkOAuthUser(id, authId, email, authProvider) {
