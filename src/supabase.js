@@ -40,8 +40,9 @@ const toUser = r => r ? ({
   authProvider:       r.auth_provider,
   needsRewaiverDocId: r.needs_rewaiver_doc_id,
   waivers:            r.waivers ?? [],
-  leaderboardName:    r.leaderboard_name ?? null,
-  isReal:             r.is_real ?? true,
+  leaderboardName:        r.leaderboard_name ?? null,
+  hideFromLeaderboard:    r.hide_from_leaderboard ?? false,
+  isReal:                 r.is_real ?? true,
   createdByUserId:    r.created_by_user_id ?? null,
   createdAt:          r.created_at ?? null,
 }) : null
@@ -314,7 +315,8 @@ export async function updateUser(id, changes) {
   if (changes.authProvider       !== undefined) row.auth_provider         = changes.authProvider
   if (changes.needsRewaiverDocId !== undefined) row.needs_rewaiver_doc_id = changes.needsRewaiverDocId
   if (changes.waivers            !== undefined) row.waivers               = changes.waivers
-  if (changes.leaderboardName    !== undefined) row.leaderboard_name      = changes.leaderboardName
+  if (changes.leaderboardName        !== undefined) row.leaderboard_name       = changes.leaderboardName
+  if (changes.hideFromLeaderboard    !== undefined) row.hide_from_leaderboard  = changes.hideFromLeaderboard
   const { data, error } = await supabase.from('users').update(row).eq('id', id).select().single()
   if (error) throw error
   return toUser(data)

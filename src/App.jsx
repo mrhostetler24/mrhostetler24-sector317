@@ -1683,6 +1683,7 @@ function AccountPanel({user,users,setUsers,onClose}){
   const [name,setName]=useState(user.name||"");
   const [phone,setPhone]=useState(user.phone||"");
   const [lbName,setLbName]=useState(user.leaderboardName||"");
+  const [hideFromLb,setHideFromLb]=useState(user.hideFromLeaderboard??false);
   const [saving,setSaving]=useState(false);
   const [saved,setSaved]=useState(false);
   const [err,setErr]=useState(null);
@@ -1699,6 +1700,7 @@ function AccountPanel({user,users,setUsers,onClose}){
         name:name.trim(),
         phone:phoneClean,
         leaderboardName:lbName.trim()||defaultLb,
+        hideFromLeaderboard:hideFromLb,
       });
       setUsers(prev=>prev.map(u=>u.id===user.id?updated:u));
       setSaved(true);setTimeout(()=>setSaved(false),3000);
@@ -1730,10 +1732,14 @@ function AccountPanel({user,users,setUsers,onClose}){
         </div>
         <div className="f">
           <label>Leaderboard Name <span style={{color:"var(--muted)",fontWeight:400}}>(optional)</span></label>
-          <input value={lbName} onChange={e=>setLbName(e.target.value)} placeholder={genDefaultLeaderboardName(name||user.name,phone||user.phone)} maxLength={24}/>
+          <input value={lbName} onChange={e=>setLbName(e.target.value)} placeholder={genDefaultLeaderboardName(name||user.name,phone||user.phone)} maxLength={24} disabled={hideFromLb}/>
           <div style={{fontSize:".7rem",color:lbErr?"var(--dangerL)":"var(--muted)",marginTop:".25rem"}}>
             {lbErr||"Shown on the public leaderboard. Leave blank to use your initials + last 4 of phone."}
           </div>
+          <label style={{display:"flex",alignItems:"center",gap:".5rem",marginTop:".6rem",cursor:"pointer",fontSize:".82rem",color:"var(--muted)"}}>
+            <input type="checkbox" checked={hideFromLb} onChange={e=>setHideFromLb(e.target.checked)} style={{accentColor:"var(--accB)",width:15,height:15,flexShrink:0}}/>
+            Hide my account from all leaderboards
+          </label>
         </div>
         {err&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginBottom:".75rem"}}>⚠ {err}</div>}
         {saved&&<div style={{color:"var(--okB)",fontSize:".85rem",marginBottom:".75rem"}}>✓ Changes saved</div>}
@@ -2334,7 +2340,11 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
               <div style={{background:"var(--accD)",padding:".4rem 1rem",fontSize:".7rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc2)",textTransform:"uppercase"}}>Your Placement</div>
               <table><tbody>{renderLbRow(myRow,true)}</tbody></table>
             </div>}
-            {!myRow&&<div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".75rem 1rem",marginBottom:".75rem",fontSize:".82rem",color:"var(--muted)"}}>You don't appear on this leaderboard yet — complete a scored run to get ranked.</div>}
+            {!myRow&&<div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".75rem 1rem",marginBottom:".75rem",fontSize:".82rem",color:"var(--muted)"}}>
+              {user.hideFromLeaderboard
+                ?"Your account is hidden from leaderboards. Uncheck \"Hide my account\" in account settings to appear."
+                :"You don't appear on this leaderboard yet — complete a scored run to get ranked."}
+            </div>}
             <table><thead><tr>
               <th style={{textAlign:"center",width:52}}>Rank</th>
               <th>Operative</th>
