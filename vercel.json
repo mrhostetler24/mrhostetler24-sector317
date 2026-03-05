@@ -1,4 +1,7 @@
 {
+  "crons": [
+    { "path": "/api/auto-stamp", "schedule": "0 3 * * *" }
+  ],
   "redirects": [
     {
       "source": "/(.*)",

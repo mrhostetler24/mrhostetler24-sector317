@@ -1905,7 +1905,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
             {s.conflictNote&&<span style={{fontSize:".78rem",color:"var(--warnL)",fontStyle:'italic',whiteSpace:'nowrap'}}>"{s.conflictNote}"</span>}
           </div>
           <div style={{display:"flex",gap:".4rem",flexShrink:0}}>
-            <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed)setShifts(p=>p.map(x=>x.id===s.id?claimed:x));onAlert(currentUser.name+' claimed conflict shift on '+fmt(s.date));}catch(e){onAlert('Error picking up shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Pick Up</button>
+            <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){await updateShift(s.id,{isModified:true});setShifts(p=>p.map(x=>x.id===s.id?{...claimed,isModified:true}:x));}onAlert(currentUser.name+' claimed conflict shift on '+fmt(s.date));}catch(e){onAlert('Error picking up shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Pick Up</button>
             {isManager&&<button className="btn btn-s btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{conflicted:false,conflictNote:null});setShifts(p=>p.map(x=>x.id===s.id?{...x,conflicted:false,conflictNote:null}:x));}catch(e){onAlert('Error resolving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>Resolve</button>}
           </div>
         </div>;})}
@@ -1920,7 +1920,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
             {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
             {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
           </div>
-          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed)setShifts(p=>p.map(x=>x.id===s.id?claimed:x));onAlert(currentUser.name+' picked up open shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
+          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){await updateShift(s.id,{isModified:true});setShifts(p=>p.map(x=>x.id===s.id?{...claimed,isModified:true}:x));}onAlert(currentUser.name+' picked up open shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
         </div>)}
         {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>{const d=prompt("Date (YYYY-MM-DD):");const st=prompt("Start (HH:MM):");const en=prompt("End (HH:MM):");if(d&&st&&en)setShifts(p=>[...p,{id:Date.now(),staffId:null,date:d,start:st,end:en,open:true}]);}}>+ Post Open Shift</button>}
       </>}

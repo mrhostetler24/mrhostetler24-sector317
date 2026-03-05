@@ -112,6 +112,7 @@ const toShift = r => r ? ({
   conflictNote:   r.conflict_note,
   templateSlotId: r.template_slot_id ?? null,
   role:           r.role ?? null,
+  isModified:     r.is_modified ?? false,
 }) : null
 
 const toReservationPlayer = r => r ? ({
@@ -1088,6 +1089,7 @@ export async function upsertShiftBatch(shiftsArray) {
     conflict_note:    shift.conflictNote ?? null,
     template_slot_id: shift.templateSlotId ?? null,
     role:             shift.role ?? null,
+    is_modified:      false,  // stamp always resets the modified flag
   }))
   const { data, error } = await supabase.from('shifts').upsert(rows, { onConflict: 'id' }).select()
   if (error) throw error
@@ -1104,6 +1106,7 @@ export async function updateShift(id, changes) {
   if (changes.conflictNote   !== undefined) row.conflict_note    = changes.conflictNote
   if (changes.templateSlotId !== undefined) row.template_slot_id = changes.templateSlotId
   if (changes.role           !== undefined) row.role             = changes.role
+  if (changes.isModified     !== undefined) row.is_modified      = changes.isModified
   const { data, error } = await supabase
     .from('shifts').update(row).eq('id', id).select().maybeSingle()
   if (error) throw error

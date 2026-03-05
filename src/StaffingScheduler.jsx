@@ -4,6 +4,7 @@
 // Weeks start on Sunday throughout.
 
 import { useState, useMemo, useEffect, Fragment } from 'react'
+import { timeToMinutes, minutesToTime, addDays, todayISO, getWeekNumber, isStaffBlocked, computeStampShifts } from './stampUtils.js'
 import {
   updateShift, createShiftBatch, upsertShiftBatch,
   fetchShiftTemplates, upsertShiftTemplate, deleteShiftTemplate, setActiveShiftTemplate,
@@ -30,16 +31,8 @@ const TIME_OPTIONS = (() => {
 })()
 
 // ── Pure helpers ───────────────────────────────────────────────────────────
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function addDays(isoDate, n) {
-  const d = new Date(isoDate + 'T00:00:00')
-  d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
-}
+// timeToMinutes, minutesToTime, addDays, todayISO, getWeekNumber,
+// isStaffBlocked, computeStampShifts imported from ./stampUtils.js
 
 // Returns the Sunday that starts the week containing isoDate
 function weekSunday(isoDate) {
@@ -84,18 +77,6 @@ function fmtPhone(raw) {
   return raw
 }
 
-function timeToMinutes(t) {
-  if (!t) return 0
-  const parts = t.split(':').map(Number)
-  return parts[0] * 60 + (parts[1] ?? 0)
-}
-
-function minutesToTime(m) {
-  const h = Math.floor(m / 60)
-  const min = m % 60
-  return `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
-}
-
 function shiftStatus(shift) {
   if (shift.conflicted)          return 'conflict'
   if (shift.open || !shift.staffId) return 'open'
@@ -108,132 +89,6 @@ function isWithin14Days(dateISO) {
 
 function maxWeekStart() {
   return addDays(todayISO(), 84)
-}
-
-/**
- * Compute which shifts would be created by stamping the given template slots
- * across the 91-day horizon, respecting existing stamped shifts and blocks.
- *
- * Rules:
- *  - Full-day block → skip the entire day
- *  - Partial block clips the shift start or end
- *  - If resulting shift < 3 hours (180 min) → eliminate
- *  - If this slot was already stamped for that date → skip
- */
-// Returns 1 or 2 based on how many complete 7-day periods have elapsed since cycleStartDate.
-// If no cycleStartDate or date is before it, defaults to week 1.
-function getWeekNumber(dateStr, cycleStartDate) {
-  if (!cycleStartDate) return 1
-  const daysDiff = Math.floor((new Date(dateStr) - new Date(cycleStartDate)) / 86400000)
-  if (daysDiff < 0) return 1
-  return (Math.floor(daysDiff / 7) % 2) + 1
-}
-
-// Returns true when a staff availability block prevents the staff member from
-// covering at least 3 hours of the shift on the given date.
-function isStaffBlocked(staffId, date, shiftStart, shiftEnd, staffBlocks) {
-  const relevant = (staffBlocks ?? []).filter(b =>
-    b.staffId === staffId && b.startDate <= date && b.endDate >= date
-  )
-  if (!relevant.length) return false
-
-  let s0 = timeToMinutes(shiftStart)
-  let e0 = timeToMinutes(shiftEnd)
-
-  for (const blk of relevant) {
-    if (!blk.startTime || !blk.endTime) return true  // full-day block
-    const bs = timeToMinutes(blk.startTime)
-    const be = timeToMinutes(blk.endTime)
-    if (bs >= e0 || be <= s0) continue                // no overlap
-    if (bs <= s0 && be >= e0) return true             // block covers entire shift
-    // Clip and check remaining duration
-    const remaining = Math.max(0, (bs > s0 ? bs : e0) - Math.min(e0, be > s0 ? be : s0))
-    if (remaining < 180) return true
-  }
-  return false
-}
-
-function computeStampShifts(slots, existingShifts, blocks, assignments, cycleStartDate, staffBlocks) {
-  const today  = todayISO()
-  const result = []
-
-  for (let i = 1; i <= 91; i++) {
-    const date      = addDays(today, i)
-    const dow       = new Date(date + 'T00:00:00').getDay()
-    const dayBlocks = blocks.filter(b => b.date === date)
-
-    if (dayBlocks.some(b => b.isFullDay || b.isHoliday)) continue // full-day or holiday → skip
-
-    for (const slot of slots.filter(s => s.dayOfWeek === dow)) {
-      const existing = existingShifts.find(s => s.date === date && s.templateSlotId === slot.id)
-
-      let s0 = timeToMinutes(slot.startTime)
-      let e0 = timeToMinutes(slot.endTime)
-      let eliminated = false
-
-      for (const blk of dayBlocks.filter(b => !b.isFullDay)) {
-        const bs = timeToMinutes(blk.startTime)
-        const be = timeToMinutes(blk.endTime)
-        if (bs <= s0 && be >= e0) { eliminated = true; break }  // block covers entire slot
-        if (bs <= s0 && be > s0)  s0 = be                        // clips start
-        if (bs < e0  && be >= e0) e0 = bs                        // clips end
-        // block in the middle: keep first portion (simpler & predictable)
-        if (bs > s0 && be < e0)   e0 = bs
-      }
-
-      if (eliminated) continue
-      if (e0 - s0 < 180) continue  // < 3 hours after trimming → eliminate
-
-      const weekNum    = getWeekNumber(date, cycleStartDate)
-      const assignment = (assignments ?? []).find(a => a.slotId === slot.id && a.weekNumber === weekNum)
-
-      // Check staff availability block — if blocked, create as open shift
-      let finalStaffId = assignment?.staffId ?? null
-      let isOpen       = !assignment
-      if (assignment?.staffId) {
-        const blocked = isStaffBlocked(
-          assignment.staffId, date,
-          minutesToTime(s0), minutesToTime(e0),
-          staffBlocks
-        )
-        if (blocked) { finalStaffId = null; isOpen = true }
-      }
-
-      if (existing) {
-        // Already stamped — skip if manually altered (conflicted, has note, or open shift was claimed)
-        const claimedOpen = existing.open === false && existing.staffId && isOpen
-        if (existing.conflicted || existing.conflictNote || claimedOpen) continue
-        // Unaltered — include as an update so template changes are reflected
-        result.push({
-          _existingId: existing.id,
-          date,
-          start:          minutesToTime(s0),
-          end:            minutesToTime(e0),
-          templateSlotId: slot.id,
-          role:           slot.role ?? null,
-          open:           isOpen,
-          staffId:        finalStaffId,
-          conflicted:     false,
-          conflictNote:   null,
-        })
-        continue
-      }
-
-      result.push({
-        date,
-        start:          minutesToTime(s0),
-        end:            minutesToTime(e0),
-        templateSlotId: slot.id,
-        role:           slot.role ?? null,
-        open:           isOpen,
-        staffId:        finalStaffId,
-        conflicted:     false,
-        conflictNote:   null,
-      })
-    }
-  }
-
-  return result
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -395,6 +250,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
         open:         !userId,
         conflicted:   false,
         conflictNote: null,
+        isModified:   true,  // manual assignment — protect from auto-stamp
       })
       setShifts(prev => prev.map(s =>
         s.id === shiftId
