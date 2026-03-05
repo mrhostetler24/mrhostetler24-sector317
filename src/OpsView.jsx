@@ -801,9 +801,30 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
 function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onSave,onClose}){
   const [pending,setPending]=useState({...laneOverrides});
   const [pendingTeams,setPendingTeams]=useState({...versusTeams});
+  const [pendingScoredRes,setPendingScoredRes]=useState(()=>{
+    const init={};
+    for(const lane of rawLanes){for(const res of lane.reservations){for(const pl of (res.players||[])){if(pl.scoredReservationId)init[pl.id]=pl.scoredReservationId;}}}
+    return init;
+  });
+  const [modSaving,setModSaving]=useState(false);
   const lanes=applyLaneOverrides(rawLanes,pending,resTypes);
   const activeLanes=lanes.filter(l=>l.type!==null);
   const allLanes=lanes;
+  const allPlayers=rawLanes.flatMap(l=>l.reservations.flatMap(r=>r.players||[]));
+  const handleSave=async()=>{
+    setModSaving(true);
+    try{
+      const updates=[];
+      for(const pl of allPlayers){
+        const next=pendingScoredRes[pl.id]??null;
+        const prev=pl.scoredReservationId??null;
+        if(next!==prev)updates.push(updateReservationPlayer(pl.id,{scoredReservationId:next}));
+      }
+      await Promise.all(updates);
+      onSave(pending,pendingTeams);
+    }catch(e){alert('Error saving: '+e.message);}
+    finally{setModSaving(false);}
+  };
 
   const moveRes=(resId,toLaneNum)=>setPending(p=>({...p,[resId]:toLaneNum}));
 
@@ -879,8 +900,24 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
                           );
                         })()}
                         {!isVs&&players.length>0&&(
-                          <div style={{display:"flex",flexWrap:"wrap",gap:".25rem",marginTop:".2rem"}}>
-                            {players.map(pl=><span key={pl.id} style={{fontSize:".78rem",color:"var(--txt)",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:4,padding:".15rem .4rem"}}>{pl.name}</span>)}
+                          <div style={{display:"flex",flexDirection:"column",gap:".2rem",marginTop:".3rem"}}>
+                            {players.map(pl=>{
+                              const override=pendingScoredRes[pl.id]??null;
+                              const overrideLane=override?allLanes.find(l=>l.reservations.some(r=>r.id===override)):null;
+                              const otherLanes=allLanes.filter(l=>l.laneNum!==lane.laneNum&&l.reservations.length>0);
+                              return(
+                                <div key={pl.id} style={{display:"flex",alignItems:"center",gap:".3rem",padding:".2rem .3rem",background:override?"var(--surf)":"transparent",borderRadius:4,border:override?"1px solid var(--warn)":"1px solid transparent"}}>
+                                  <span style={{flex:1,fontSize:".8rem",color:"var(--txt)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pl.name}</span>
+                                  {override&&<span style={{fontSize:".65rem",color:"var(--warnL)",fontWeight:600,whiteSpace:"nowrap"}}>→L{overrideLane?.laneNum??'?'}</span>}
+                                  {otherLanes.map(ol=>(
+                                    <button key={ol.laneNum} style={{fontSize:".65rem",padding:".1rem .35rem",border:"1px solid var(--bdr)",borderRadius:4,background:"none",color:"var(--muted)",cursor:"pointer",whiteSpace:"nowrap"}}
+                                      onClick={()=>setPendingScoredRes(p=>({...p,[pl.id]:ol.reservations[0].id}))}>→L{ol.laneNum}</button>
+                                  ))}
+                                  {override&&<button style={{fontSize:".65rem",padding:".1rem .35rem",border:"1px solid var(--bdr)",borderRadius:4,background:"none",color:"var(--danger)",cursor:"pointer"}}
+                                    onClick={()=>setPendingScoredRes(p=>{const n={...p};delete n[pl.id];return n;})}>✕</button>}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -893,7 +930,7 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
         </div>
         <div style={{display:"flex",justifyContent:"flex-end",gap:".65rem",padding:".85rem 1.25rem",borderTop:"1px solid var(--bdr)",flexShrink:0}}>
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-p" onClick={()=>onSave(pending,pendingTeams)}>Save Changes</button>
+          <button className="btn btn-p" disabled={modSaving} onClick={handleSave}>{modSaving?'Saving…':'Save Changes'}</button>
         </div>
       </div>
     </div>

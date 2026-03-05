@@ -107,11 +107,12 @@ const toShift = r => r ? ({
 }) : null
 
 const toReservationPlayer = r => r ? ({
-  id:            r.id,
-  reservationId: r.reservation_id,
-  userId:        r.user_id ?? null,
-  name:          r.name,
-  team:          r.team ?? null,
+  id:                  r.id,
+  reservationId:       r.reservation_id,
+  userId:              r.user_id ?? null,
+  name:                r.name,
+  team:                r.team ?? null,
+  scoredReservationId: r.scored_reservation_id ?? null,
 }) : null
 
 const toRun = r => r ? ({
@@ -748,9 +749,10 @@ export async function syncReservationPlayers(resId, players) {
 /** Update a player record (e.g. link a userId after they sign in) */
 export async function updateReservationPlayer(id, changes) {
   const row = {}
-  if (changes.userId !== undefined) row.user_id = changes.userId
-  if (changes.name   !== undefined) row.name    = changes.name
-  if (changes.team   !== undefined) row.team    = changes.team
+  if (changes.userId              !== undefined) row.user_id               = changes.userId
+  if (changes.name                !== undefined) row.name                  = changes.name
+  if (changes.team                !== undefined) row.team                  = changes.team
+  if (changes.scoredReservationId !== undefined) row.scored_reservation_id = changes.scoredReservationId
   const { data, error } = await supabase
     .from('reservation_players').update(row).eq('id', id).select().single()
   if (error) throw error
