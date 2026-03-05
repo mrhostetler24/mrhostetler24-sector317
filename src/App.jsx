@@ -2284,7 +2284,7 @@ function PaymentReceiptModal({payment,onClose}){
 }
 
 function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onSignWaiver,autoBook=false,onAutoBookDone,payments=[],runs=[]}){
-  const [tab,setTab]=useState("reservations");
+  const [tab,setTab]=useState("social");
   const [resSub,setResSub]=useState("upcoming");
   const [expandedPastId,setExpandedPastId]=useState(null);
   const [lbPlayerFilter,setLbPlayerFilter]=useState("all");
@@ -2311,6 +2311,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [bookerIsPlayer,setBookerIsPlayer]=useState(true);
   const [player1Input,setPlayer1Input]=useState({phone:"",userId:null,name:"",status:"idle"});
   const [careerRuns,setCareerRuns]=useState(null);
+  const [lbHideSaving,setLbHideSaving]=useState(false);
   useEffect(()=>{
     supabase.from('v_leaderboard_cumulative').select('total_runs_played').eq('player_id',user.id).maybeSingle()
       .then(({data})=>setCareerRuns(data?.total_runs_played??0))
@@ -2503,41 +2504,73 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         </div>
       </div></div>}
       <div className="hero"><h2>Welcome, Operative {user.name.split(" ")[0]}</h2><p>Manage your missions, group roster, and waiver status.</p></div>
-      {/* Leaderboard Name Card */}
-      <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderLeft:"4px solid var(--acc2)",borderRadius:6,padding:".85rem 1.25rem",marginBottom:".75rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".5rem"}}>
-        <div>
-          <div style={{fontFamily:"var(--fd)",fontSize:".95rem",color:"var(--accB)",letterSpacing:".06em",textTransform:"uppercase"}}>🏆 Leaderboard Name</div>
-          <div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".15rem"}}>{user.leaderboardName?<span>Showing as <strong style={{color:"var(--txt)"}}>{user.leaderboardName}</strong></span>:"Using default: "+genDefaultLeaderboardName(user.name,user.phone)}</div>
+      {/* ── Top info row: Leaderboard Name · Tier Rank · Waiver — three columns ── */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:".75rem",marginBottom:"1.5rem"}}>
+        {/* Leaderboard Name card */}
+        <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:"3px solid var(--acc2)",borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".45rem"}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--acc2)",letterSpacing:".08em",textTransform:"uppercase"}}>🏆 Leaderboard</div>
+          <div style={{fontSize:".88rem",color:user.hideFromLeaderboard?"var(--muted)":"var(--txt)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {user.hideFromLeaderboard?"Hidden":user.leaderboardName||genDefaultLeaderboardName(user.name,user.phone)}
+          </div>
+          <label style={{display:"flex",alignItems:"center",gap:".4rem",cursor:"pointer",fontSize:".75rem",color:"var(--muted)",marginTop:".1rem",userSelect:"none"}}>
+            <input type="checkbox" checked={user.hideFromLeaderboard??false} disabled={lbHideSaving}
+              style={{accentColor:"var(--accB)",width:13,height:13,flexShrink:0,cursor:"pointer"}}
+              onChange={async e=>{
+                setLbHideSaving(true);
+                try{
+                  const updated=await updateOwnProfile(user.id,{
+                    name:user.name,phone:user.phone,
+                    leaderboardName:user.leaderboardName||genDefaultLeaderboardName(user.name,user.phone),
+                    hideFromLeaderboard:e.target.checked,
+                  });
+                  setUsers(prev=>prev.map(u=>u.id===user.id?updated:u));
+                }catch(_){}
+                finally{setLbHideSaving(false);}
+              }}/>
+            Hide from leaderboard
+          </label>
+          <button className="btn btn-s btn-sm" style={{marginTop:"auto",alignSelf:"flex-start"}} onClick={()=>setShowAccount(true)}>Edit Account</button>
         </div>
-        <button className="btn btn-s btn-sm" onClick={()=>setShowAccount(true)}>Edit Account</button>
-      </div>
-      {/* Tier Rank */}
-      {careerRuns!==null&&(()=>{
-        const {current,next,sessionsToNext}=getTierInfo(careerRuns)
-        const col=TIER_COLORS[current.key]
-        return <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderLeft:`4px solid ${col}`,borderRadius:6,padding:".85rem 1.25rem",marginBottom:".75rem",display:"flex",alignItems:"center",gap:"1rem",flexWrap:"wrap"}}>
-          <span style={{color:col,display:"inline-flex",alignItems:"center",flexShrink:0}} dangerouslySetInnerHTML={{__html:TIER_SVGS[current.key]}}/>
-          <div>
-            <div style={{fontFamily:"var(--fd)",fontSize:".95rem",letterSpacing:".06em",textTransform:"uppercase",color:col}}>{current.name}</div>
-            {next
-              ?<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".15rem"}}>{sessionsToNext} more session{sessionsToNext!==1?"s":""} until rank up — <strong style={{color:TIER_COLORS[next.key]}}>{next.name}</strong></div>
-              :<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".15rem"}}>Maximum rank achieved.</div>
-            }
+
+        {/* Tier Rank card */}
+        {careerRuns!==null&&(()=>{
+          const{current,next,sessionsToNext}=getTierInfo(careerRuns);
+          const col=TIER_COLORS[current.key];
+          return <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:`3px solid ${col}`,borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase"}}>Rank</div>
+            <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
+              <span style={{color:col,display:"inline-flex",alignItems:"center",flexShrink:0}} dangerouslySetInnerHTML={{__html:getTierSvg1x(current.key)}}/>
+              <span style={{fontFamily:"var(--fd)",fontSize:"1rem",letterSpacing:".06em",textTransform:"uppercase",color:col}}>{current.name}</span>
+            </div>
+            <div style={{fontSize:".75rem",color:"var(--muted)"}}>
+              {next
+                ?<>{sessionsToNext} session{sessionsToNext!==1?"s":""} to <strong style={{color:TIER_COLORS[next.key]}}>{next.name}</strong></>
+                :"Maximum rank achieved."}
+            </div>
+            <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".1rem"}}>{careerRuns} career run{careerRuns!==1?"s":""}</div>
+          </div>;
+        })()}
+
+        {/* Waiver Status card */}
+        <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:`3px solid ${valid?"var(--acc)":"var(--danger)"}`,borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase"}}>Waiver</div>
+          <div style={{fontFamily:"var(--fd)",fontSize:"1rem",textTransform:"uppercase",letterSpacing:".06em",color:valid?"var(--accB)":"var(--dangerL)"}}>{valid?"✓ On File":"⚠ Required"}</div>
+          <div style={{fontSize:".75rem",color:"var(--muted)"}}>
+            {valid?`Signed ${fmtTS(wDate)} · valid 12 mo`:wDate?`Expired ${fmtTS(wDate)}`:"No waiver on file"}
+          </div>
+          <div style={{display:"flex",gap:".4rem",marginTop:"auto",flexWrap:"wrap"}}>
+            {wDate&&<button className="btn btn-s btn-sm" onClick={()=>setWViewOpen(true)}>View</button>}
+            <button className={`btn btn-sm ${valid?"btn-s":"btn-p"}`} onClick={()=>setWOpen(true)}>{valid?"Re-sign":"Sign Now"}</button>
           </div>
         </div>
-      })()}
-      {/* Waiver Status */}
-      <div style={{background:"var(--surf)",border:`1px solid ${valid?"var(--acc2)":"var(--danger)"}`,borderLeft:`4px solid ${valid?"var(--acc)":"var(--danger)"}`,borderRadius:6,padding:"1rem 1.25rem",marginBottom:"1.5rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:".75rem"}}>
-        <div><div style={{fontFamily:"var(--fd)",fontSize:"1rem",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:valid?"var(--accB)":"var(--dangerL)"}}>{valid?"✓ Waiver On File":"⚠ Waiver Required"}</div><div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".2rem"}}>{valid?`Signed ${fmtTS(wDate)} · Valid 12 months`:wDate?`Expired — last signed ${fmtTS(wDate)}`:"No waiver on file — sign before your session"}</div></div>
-        <div style={{display:"flex",gap:".5rem"}}>{wDate&&<button className="btn btn-s btn-sm" onClick={()=>setWViewOpen(true)}>View</button>}<button className={`btn btn-sm ${valid?"btn-s":"btn-p"}`} onClick={()=>setWOpen(true)}>{valid?"Re-sign":"Sign Now"}</button></div>
       </div>
       {/* Primary Tab Bar */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.1rem",flexWrap:"wrap",gap:".75rem"}}>
         <div className="tabs" style={{marginBottom:0,borderBottom:"none"}}>
+          <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
           <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
           <button className={`tab${tab==="payments"?" on":""}`} onClick={()=>setTab("payments")}>Payments</button>
           <button className={`tab${tab==="leaderboard"?" on":""}`} onClick={()=>setTab("leaderboard")}>Leaderboard</button>
-          <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
         </div>
         {tab==="reservations"&&<button className="btn btn-p" onClick={()=>setShowBook(true)}>+ Book Mission</button>}
       </div>

@@ -1482,11 +1482,15 @@ function resizeImage(file, maxPx = 512, quality = 0.85) {
 }
 
 /** Upload a profile picture to Supabase Storage (bucket: avatars) and return the public URL. */
-export async function uploadAvatar(userId, file) {
+export async function uploadAvatar(_userId, file) {
   const MAX_BYTES = 8 * 1024 * 1024 // 8 MB pre-resize guard
   if (file.size > MAX_BYTES) throw new Error('File too large — please choose an image under 8 MB.')
   const resized = await resizeImage(file, 512, 0.85)
-  const path = `${userId}/avatar.jpg`
+  // RLS policy checks auth.uid() — use the session's auth UUID, not the public.users id
+  const { data: { session } } = await supabase.auth.getSession()
+  const authUid = session?.user?.id
+  if (!authUid) throw new Error('Not authenticated.')
+  const path = `${authUid}/avatar.jpg`
   const { error } = await supabase.storage
     .from('avatars')
     .upload(path, resized, { upsert: true, contentType: 'image/jpeg' })
