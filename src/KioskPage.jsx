@@ -707,7 +707,7 @@ export default function KioskPage() {
                   <div style={{ display: 'flex', gap: '.5rem', flexShrink: 0 }}>
                     {canSign && (
                       <button style={{ padding: '.5rem .9rem', borderRadius: 6, fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', background: 'var(--acc)', color: 'var(--bg)', border: 'none', touchAction: 'manipulation' }}
-                        onClick={() => { setSigningPlayer(player); setSignedName(player.name); setWaiverScrolled(false); setPhase('waiver-read') }}>
+                        onClick={() => { setSigningPlayer(player); setSignedName(''); setWaiverScrolled(false); setPhase('waiver-read') }}>
                         Sign Waiver
                       </button>
                     )}
