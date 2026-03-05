@@ -2723,11 +2723,15 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   );
 }
 
-function StaffPortal({user,reservations,setReservations,resTypes,users,waiverDocs,activeWaiverDoc,shifts,setShifts,onSignWaiver,onAddPlayer,onAlert}){
+function StaffPortal({user,reservations,setReservations,resTypes,users,waiverDocs,activeWaiverDoc,shifts,setShifts,onSignWaiver,onAddPlayer,onAlert,navTarget,onNavConsumed}){
   const [tab,setTab]=useState("today");
+  const [schedTabOverride,setSchedTabOverride]=useState(null);
   const today=todayStr();
   const todayRes=[...reservations].filter(r=>r.date===today&&r.status!=="cancelled").sort((a,b)=>a.startTime.localeCompare(b.startTime));
   const upcoming=[...reservations].filter(r=>r.date>today&&r.status!=="cancelled").sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)).slice(0,25);
+  useEffect(()=>{
+    if(navTarget){setTab("schedule");setSchedTabOverride(navTarget);onNavConsumed?.();}
+  },[navTarget]); // eslint-disable-line react-hooks/exhaustive-deps
   return(
     <div className="content">
       <div className="hero"><h2>Staff — {user.name}</h2><p>{user.role||"Staff"} · Check-in, waiver management, and schedule.</p></div>
@@ -2743,7 +2747,7 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,waiverDoc
             <tbody>{(tab==="today"?todayRes:upcoming).map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} currentUser={user} onAddPlayer={onAddPlayer} onSignWaiver={(uid,name)=>onSignWaiver(uid,name)} onRemovePlayer={async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(p=>p.map(r=>r.id===resId?{...r,players:r.players.filter(x=>x.id!==playerId)}:r));}catch(e){onAlert("Error removing player: "+e.message);}}} onReschedule={async(resId,date,startTime)=>{try{const updated=await updateReservation(resId,{date,startTime,rescheduled:true});setReservations(p=>p.map(r=>r.id===resId?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true}:r));}catch(e){onAlert("Error rescheduling: "+e.message);}}}/>)}</tbody>
           </table></div>}
       </>}
-      {tab==="schedule"&&<SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={false} onAlert={onAlert}/>}
+      {tab==="schedule"&&<SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={false} onAlert={onAlert} tabOverride={schedTabOverride} onTabOverrideConsumed={()=>setSchedTabOverride(null)}/>}
     </div>
   );
 }
@@ -3931,6 +3935,7 @@ useEffect(() => {
   const portal=!liveUser?null:liveUser.access==="customer"?"customer":liveUser.access==="staff"?"staff":"admin";
   const [viewAs,setViewAs]=useState(null); // null | "manager" | "staff" | "customer"
   const [viewAsOpen,setViewAsOpen]=useState(false);
+  const [staffNavTarget,setStaffNavTarget]=useState(null);
   const isAdminOrManager=liveUser&&(liveUser.access==="admin"||liveUser.access==="manager");
   const canViewAs=liveUser&&(isAdminOrManager||liveUser.access==="staff");
   const effectivePortal=viewAs?(viewAs==="customer"?"customer":viewAs==="staff"?"staff":"admin"):portal;
@@ -4045,9 +4050,13 @@ useEffect(() => {
           <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);}}>Sign Out</button>
         </div>
       </nav>
+      {effectivePortal==="staff"&&(()=>{const avail=shifts.filter(s=>(s.open&&!s.staffId)||(s.conflicted&&s.staffId!==effectiveUser?.id));if(!avail.length)return null;const hasConflict=avail.some(s=>s.conflicted&&s.staffId!==effectiveUser?.id);return(<div style={{background:'var(--okB)',color:'#fff',padding:'.45rem 1.25rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap',fontSize:'.88rem',fontFamily:'var(--fd)',fontWeight:700}}>
+        <span>📋 {avail.length} shift{avail.length!==1?'s':''} available to pick up</span>
+        <button onClick={()=>setStaffNavTarget(hasConflict?'conflict':'open')} style={{background:'rgba(255,255,255,.2)',color:'#fff',border:'1px solid rgba(255,255,255,.4)',borderRadius:6,padding:'.2rem .65rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:700,fontSize:'.82rem'}}>View →</button>
+      </div>);})()}
       <div className="main">
         {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} runs={runs}/>}
-        {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert}/>}
+        {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
         {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs} staffRoles={staffRoles}/>}
       </div>
     </div>
