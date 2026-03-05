@@ -3,7 +3,7 @@
 // Displayed inside CustomerPortal in App.jsx.
 
 import { useState } from 'react'
-import { uploadAvatar, updateOwnAvatar } from './supabase.js'
+import { uploadAvatar, updateOwnAvatar, updateSocialProfile } from './supabase.js'
 
 // ── Tier data (mirrors App.jsx) ─────────────────────────────────────────────
 const TIER_THRESHOLDS = [
@@ -72,6 +72,21 @@ function fmtSec(s) {
   return `${m}:${String(sec).padStart(2, '0')}`
 }
 
+function fmtMonthYear(dateStr) {
+  if (!dateStr) return null
+  const [y, m] = dateStr.split('-')
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  return `${months[parseInt(m, 10) - 1]} ${y}`
+}
+
+function fmtPhone(p) {
+  if (!p) return null
+  const d = p.replace(/\D/g, '')
+  if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
+  if (d.length === 11 && d[0] === '1') return `+1 (${d.slice(1,4)}) ${d.slice(4,7)}-${d.slice(7)}`
+  return p
+}
+
 function computeStats(runArr) {
   if (!runArr.length) return null
   const scores = runArr.map(r => r.score ?? 0)
@@ -97,12 +112,17 @@ function StatCard({ label, value, sub }) {
   )
 }
 
+const MAX_BIO = 150
+
 // ── Main export ──────────────────────────────────────────────────────────────
 export default function SocialPortal({ user, users, setUsers, reservations, resTypes, runs, careerRuns, onEditProfile }) {
-  const [tab, setTab]                   = useState('profile')
+  const [tab, setTab]                         = useState('profile')
   const [profileStatsSub, setProfileStatsSub] = useState('coop')
   const [avatarUploading, setAvatarUploading] = useState(false)
-  const [avatarKey, setAvatarKey]       = useState(() => Date.now())
+  const [avatarKey, setAvatarKey]             = useState(() => Date.now())
+  const [editing, setEditing]                 = useState(false)
+  const [editDraft, setEditDraft]             = useState({})
+  const [editSaving, setEditSaving]           = useState(false)
 
   // ── Stats computation ────────────────────────────────────────────────────
   const myRes = reservations.filter(r => r.userId === user.id)
@@ -131,6 +151,11 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     return pl?.team && rn.winningTeam && teamLetter(pl.team) !== rn.winningTeam
   }).length
 
+  // Operator since — date of earliest mission
+  const operatorSince = myRes.length
+    ? fmtMonthYear(myRes.reduce((min, r) => r.date < min ? r.date : min, myRes[0].date))
+    : null
+
   // ── Avatar upload ────────────────────────────────────────────────────────
   const handleAvatarChange = async e => {
     const file = e.target.files?.[0]
@@ -148,7 +173,46 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     }
   }
 
+  // ── Social profile edit ──────────────────────────────────────────────────
+  function startEditing() {
+    setEditDraft({
+      motto:        user.motto        || '',
+      profession:   user.profession   || '',
+      homeBaseCity: user.homeBaseCity || '',
+      homeBaseState: user.homeBaseState || '',
+      bio:          user.bio          || '',
+      hidePhone:    user.hidePhone    ?? false,
+      hideEmail:    user.hideEmail    ?? false,
+    })
+    setEditing(true)
+  }
+
+  async function handleSaveSocial() {
+    setEditSaving(true)
+    try {
+      const updated = await updateSocialProfile(user.id, {
+        motto:        editDraft.motto.trim()        || null,
+        profession:   editDraft.profession.trim()   || null,
+        homeBaseCity: editDraft.homeBaseCity.trim() || null,
+        homeBaseState: editDraft.homeBaseState.trim() || null,
+        bio:          editDraft.bio.trim().slice(0, MAX_BIO) || null,
+        hidePhone:    editDraft.hidePhone,
+        hideEmail:    editDraft.hideEmail,
+      })
+      setUsers(prev => prev.map(u => u.id === user.id ? updated : u))
+      setEditing(false)
+    } catch (err) {
+      alert('Save failed: ' + err.message)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   const activeStats = profileStatsSub === 'coop' ? computeStats(coopRuns) : computeStats(versRuns)
+
+  // ── Shared label style ───────────────────────────────────────────────────
+  const lbl = { color: 'var(--muted)', fontSize: '.87rem' }
+  const val = { color: 'var(--txt)',   fontSize: '.87rem' }
 
   return (
     <>
@@ -196,23 +260,160 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 </div>
               )
             })()}
+            {user.motto && !editing && (
+              <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontStyle: 'italic', marginTop: '.4rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{user.motto}"</div>
+            )}
           </div>
         </div>
 
-        {/* Operative Info */}
+        {/* ── Operative Info ── */}
         <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.75rem 1rem', marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.65rem' }}>Operative Info</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '.3rem .85rem', fontSize: '.87rem' }}>
-            <span style={{ color: 'var(--muted)' }}>Name</span>
-            <span style={{ color: 'var(--txt)' }}>{user.name}</span>
-            <span style={{ color: 'var(--muted)' }}>Callsign</span>
-            <span style={{ color: 'var(--accB)' }}>{user.leaderboardName || <span style={{ color: 'var(--muted)' }}>—</span>}</span>
-            <span style={{ color: 'var(--muted)' }}>Phone</span>
-            <span style={{ color: 'var(--txt)' }}>{user.phone ? `••• ••• ${user.phone.slice(-4)}` : '—'}</span>
-            <span style={{ color: 'var(--muted)' }}>Email</span>
-            <span style={{ color: 'var(--txt)', wordBreak: 'break-all' }}>{user.email || '—'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.65rem' }}>
+            <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase' }}>Operative Info</div>
+            {!editing && (
+              <div style={{ display: 'flex', gap: '.5rem' }}>
+                <button className="btn btn-s btn-sm" onClick={startEditing}>✎ Edit Social</button>
+                <button className="btn btn-s btn-sm" onClick={onEditProfile}>⚙ Account</button>
+              </div>
+            )}
           </div>
-          <button className="btn btn-s btn-sm" style={{ marginTop: '.85rem' }} onClick={onEditProfile}>✎ Edit Profile</button>
+
+          {!editing ? (
+            /* ── Display mode ── */
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '.3rem .85rem', fontSize: '.87rem' }}>
+                <span style={lbl}>Name</span>
+                <span style={val}>{user.name}</span>
+
+                <span style={lbl}>Callsign</span>
+                <span style={{ ...val, color: 'var(--accB)' }}>{user.leaderboardName || <span style={{ color: 'var(--muted)' }}>—</span>}</span>
+
+                {user.profession && <>
+                  <span style={lbl}>Profession</span>
+                  <span style={val}>{user.profession}</span>
+                </>}
+
+                {(user.homeBaseCity || user.homeBaseState) && <>
+                  <span style={lbl}>Home Base</span>
+                  <span style={val}>
+                    {[user.homeBaseCity, user.homeBaseState].filter(Boolean).join(', ')}
+                  </span>
+                </>}
+
+                {operatorSince && <>
+                  <span style={lbl}>Operative Since</span>
+                  <span style={val}>{operatorSince}</span>
+                </>}
+
+                <span style={lbl}>Phone</span>
+                <span style={val}>
+                  {user.phone ? fmtPhone(user.phone) : '—'}
+                  {user.phone && user.hidePhone && <span style={{ marginLeft: '.5rem', fontSize: '.72rem', color: 'var(--muted)', background: 'var(--surf3,var(--bdr))', borderRadius: 3, padding: '1px 5px' }}>private</span>}
+                </span>
+
+                <span style={lbl}>Email</span>
+                <span style={{ ...val, wordBreak: 'break-all' }}>
+                  {user.email || '—'}
+                  {user.email && user.hideEmail && <span style={{ marginLeft: '.5rem', fontSize: '.72rem', color: 'var(--muted)', background: 'var(--surf3,var(--bdr))', borderRadius: 3, padding: '1px 5px' }}>private</span>}
+                </span>
+              </div>
+
+              {user.bio && (
+                <div style={{ marginTop: '.75rem', padding: '.55rem .65rem', background: 'var(--bg)', borderRadius: 4, fontSize: '.84rem', color: 'var(--txt)', lineHeight: 1.5, borderLeft: '2px solid var(--bdr)' }}>
+                  {user.bio}
+                </div>
+              )}
+            </>
+          ) : (
+            /* ── Edit mode ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.65rem' }}>
+              <p style={{ margin: 0, fontSize: '.75rem', color: 'var(--muted)' }}>
+                Name and callsign are updated in <button className="btn-link" style={{ fontSize: '.75rem' }} onClick={() => { setEditing(false); onEditProfile() }}>Account Settings</button>.
+              </p>
+
+              <div>
+                <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Motto</label>
+                <input
+                  className="inp"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="Your personal motto…"
+                  value={editDraft.motto}
+                  maxLength={80}
+                  onChange={e => setEditDraft(d => ({ ...d, motto: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Profession</label>
+                <input
+                  className="inp"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="e.g. Software Engineer"
+                  value={editDraft.profession}
+                  maxLength={60}
+                  onChange={e => setEditDraft(d => ({ ...d, profession: e.target.value }))}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '.5rem' }}>
+                <div>
+                  <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>City</label>
+                  <input
+                    className="inp"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="Indianapolis"
+                    value={editDraft.homeBaseCity}
+                    maxLength={60}
+                    onChange={e => setEditDraft(d => ({ ...d, homeBaseCity: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>State</label>
+                  <input
+                    className="inp"
+                    style={{ width: 56, boxSizing: 'border-box' }}
+                    placeholder="IN"
+                    value={editDraft.homeBaseState}
+                    maxLength={4}
+                    onChange={e => setEditDraft(d => ({ ...d, homeBaseState: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>
+                  Bio <span style={{ float: 'right', color: editDraft.bio.length > MAX_BIO ? 'var(--danger,#e05)' : 'var(--muted)' }}>{editDraft.bio.length}/{MAX_BIO}</span>
+                </label>
+                <textarea
+                  className="inp"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+                  placeholder="Tell other operatives a little about yourself…"
+                  value={editDraft.bio}
+                  maxLength={MAX_BIO}
+                  onChange={e => setEditDraft(d => ({ ...d, bio: e.target.value.slice(0, MAX_BIO) }))}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '.35rem', paddingTop: '.15rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '.45rem', cursor: 'pointer', fontSize: '.85rem', color: 'var(--txt)' }}>
+                  <input type="checkbox" checked={editDraft.hidePhone} onChange={e => setEditDraft(d => ({ ...d, hidePhone: e.target.checked }))} />
+                  Hide my phone number from other operatives
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '.45rem', cursor: 'pointer', fontSize: '.85rem', color: 'var(--txt)' }}>
+                  <input type="checkbox" checked={editDraft.hideEmail} onChange={e => setEditDraft(d => ({ ...d, hideEmail: e.target.checked }))} />
+                  Hide my email address from other operatives
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '.5rem', paddingTop: '.25rem' }}>
+                <button className="btn btn-s" onClick={handleSaveSocial} disabled={editSaving} style={{ minWidth: 90 }}>
+                  {editSaving ? 'Saving…' : '✓ Save'}
+                </button>
+                <button className="btn btn-s btn-sm" onClick={() => setEditing(false)} disabled={editSaving}>Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Match Stats */}

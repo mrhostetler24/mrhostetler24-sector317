@@ -46,6 +46,13 @@ const toUser = r => r ? ({
   createdByUserId:    r.created_by_user_id ?? null,
   createdAt:          r.created_at ?? null,
   avatarUrl:          r.avatar_url ?? null,
+  motto:              r.motto ?? null,
+  homeBaseCity:       r.home_base_city ?? null,
+  homeBaseState:      r.home_base_state ?? null,
+  profession:         r.profession ?? null,
+  bio:                r.bio ?? null,
+  hidePhone:          r.hide_phone ?? false,
+  hideEmail:          r.hide_email ?? false,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -1506,4 +1513,21 @@ export async function updateOwnAvatar(userId, avatarUrl) {
     p_avatar_url: avatarUrl,
   })
   if (error) throw error
+}
+
+/** Update social profile fields (motto, home base, profession, bio, privacy flags). */
+export async function updateSocialProfile(id, { motto, homeBaseCity, homeBaseState, profession, bio, hidePhone, hideEmail }) {
+  const { data, error } = await supabase.rpc('update_social_profile', {
+    p_user_id:         id,
+    p_motto:           motto ?? null,
+    p_home_base_city:  homeBaseCity ?? null,
+    p_home_base_state: homeBaseState ?? null,
+    p_profession:      profession ?? null,
+    p_bio:             bio ?? null,
+    p_hide_phone:      hidePhone ?? false,
+    p_hide_email:      hideEmail ?? false,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  return toUser(row)
 }
