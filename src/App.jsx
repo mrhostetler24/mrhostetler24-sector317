@@ -1782,6 +1782,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   const [blocksLoaded,setBlocksLoaded]=useState(false);
   const [blockDraft,setBlockDraft]=useState({startDate:todayStr(),endDate:todayStr(),isFullDay:true,startTime:'09:00',endTime:'17:00',label:''});
   const [addingBlock,setAddingBlock]=useState(false);
+  const [editingBlockId,setEditingBlockId]=useState(null);
   const [blockSaving,setBlockSaving]=useState(false);
   const [shiftOpBusy,setShiftOpBusy]=useState(false);
   const [selectedDay,setSelectedDay]=useState(todayStr());
@@ -1815,7 +1816,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
     setBlockSaving(true);
     try{
       const conflictingShifts=shifts.filter(s=>{
-        if(s.staffId!==currentUser.id||s.open)return false;
+        if(s.staffId!==currentUser.id||s.conflicted)return false;
         if(s.date<blockDraft.startDate||s.date>blockDraft.endDate)return false;
         if(blockDraft.isFullDay)return true;
         const bs=timeToMin(blockDraft.startTime),be=timeToMin(blockDraft.endTime);
@@ -1838,6 +1839,20 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   async function handleDeleteBlock(id){
     try{await deleteStaffBlock(id);setStaffBlocks(prev=>prev.filter(b=>b.id!==id));}
     catch(e){onAlert('Error deleting block: '+e.message);}
+  }
+  function startEditBlock(b){
+    setBlockDraft({startDate:b.startDate,endDate:b.endDate,isFullDay:!b.startTime,startTime:b.startTime||'09:00',endTime:b.endTime||'17:00',label:b.label||''});
+    setEditingBlockId(b.id);
+    setAddingBlock(false);
+  }
+  async function handleUpdateBlock(){
+    setBlockSaving(true);
+    try{
+      const updated=await updateStaffBlock(editingBlockId,{startDate:blockDraft.startDate,endDate:blockDraft.endDate,startTime:blockDraft.isFullDay?null:blockDraft.startTime,endTime:blockDraft.isFullDay?null:blockDraft.endTime,label:blockDraft.label||null});
+      setStaffBlocks(prev=>prev.map(b=>b.id===editingBlockId?updated:b).sort((a,b2)=>a.startDate.localeCompare(b2.startDate)));
+      setEditingBlockId(null);
+      setBlockDraft({startDate:todayStr(),endDate:todayStr(),isFullDay:true,startTime:'09:00',endTime:'17:00',label:''});
+    }catch(e){onAlert('Error updating block: '+e.message);}finally{setBlockSaving(false);}
   }
   const mine=[...shifts].filter(s=>s.staffId===currentUser.id).sort((a,b)=>a.date.localeCompare(b.date));
   const conflicts=isManager?shifts.filter(s=>s.conflicted):shifts.filter(s=>s.conflicted&&s.staffId!==currentUser.id);
@@ -1906,7 +1921,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
           </div>
           <div style={{display:"flex",gap:".4rem",flexShrink:0}}>
             <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){await updateShift(s.id,{isModified:true});setShifts(p=>p.map(x=>x.id===s.id?{...claimed,isModified:true}:x));}onAlert(currentUser.name+' claimed conflict shift on '+fmt(s.date));}catch(e){onAlert('Error picking up shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Pick Up</button>
-            {isManager&&<button className="btn btn-s btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{conflicted:false,conflictNote:null});setShifts(p=>p.map(x=>x.id===s.id?{...x,conflicted:false,conflictNote:null}:x));}catch(e){onAlert('Error resolving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>Resolve</button>}
+            {isManager&&<button className="btn btn-s btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{conflicted:false,conflictNote:null});setShifts(p=>p.map(x=>x.id===s.id?{...x,conflicted:false,conflictNote:null}:x));}catch(e){onAlert('Error resolving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>Unflag</button>}
           </div>
         </div>;})}
       </>}
@@ -1930,7 +1945,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
           <div style={{fontWeight:700,marginBottom:'.5rem'}}>New Availability Block</div>
           <div className="f"><label>Start Date</label><input type="date" value={blockDraft.startDate} onChange={e=>setBlockDraft(p=>({...p,startDate:e.target.value,endDate:e.target.value>p.endDate?e.target.value:p.endDate}))}/></div>
           <div className="f"><label>End Date</label><input type="date" value={blockDraft.endDate} min={blockDraft.startDate} onChange={e=>setBlockDraft(p=>({...p,endDate:e.target.value}))}/></div>
-          <div className="f"><label style={{display:'flex',alignItems:'center',gap:'.4rem'}}><input type="checkbox" checked={blockDraft.isFullDay} onChange={e=>setBlockDraft(p=>({...p,isFullDay:e.target.checked}))}/> All Day</label></div>
+          <div style={{display:'flex',alignItems:'center',gap:'.5rem',margin:'.35rem 0 .5rem'}}><input type="checkbox" id="block-fullday" checked={blockDraft.isFullDay} onChange={e=>setBlockDraft(p=>({...p,isFullDay:e.target.checked}))}/><label htmlFor="block-fullday" style={{cursor:'pointer',fontSize:'.9rem',margin:0}}>All Day</label></div>
           {!blockDraft.isFullDay&&<><div className="f"><label>Start Time</label><input type="time" value={blockDraft.startTime} onChange={e=>setBlockDraft(p=>({...p,startTime:e.target.value}))}/></div><div className="f"><label>End Time</label><input type="time" value={blockDraft.endTime} onChange={e=>setBlockDraft(p=>({...p,endTime:e.target.value}))}/></div></>}
           <div className="f"><label>Label (optional)</label><input value={blockDraft.label} onChange={e=>setBlockDraft(p=>({...p,label:e.target.value}))} placeholder="e.g. Vacation, Doctor appt"/></div>
           <div className="ma"><button className="btn btn-s" onClick={()=>setAddingBlock(false)}>Cancel</button><button className="btn btn-ok" disabled={blockSaving} onClick={handleAddBlock}>{blockSaving?'Saving…':'Save Block'}</button></div>
@@ -1940,6 +1955,15 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
           const resolved=blockIsResolved(b);
           const dateRange=b.startDate===b.endDate?fmt(b.startDate):fmt(b.startDate)+' – '+fmt(b.endDate);
           const timeRange=(!b.startTime||!b.endTime)?'All day':fmt12(b.startTime)+' – '+fmt12(b.endTime);
+          if(editingBlockId===b.id) return <div key={b.id} style={{background:'var(--bg2)',borderRadius:'var(--r)',padding:'1rem',marginBottom:'.5rem',border:'1px solid var(--border)'}}>
+            <div style={{fontWeight:700,marginBottom:'.5rem'}}>Edit Block</div>
+            <div className="f"><label>Start Date</label><input type="date" value={blockDraft.startDate} onChange={e=>setBlockDraft(p=>({...p,startDate:e.target.value,endDate:e.target.value>p.endDate?e.target.value:p.endDate}))}/></div>
+            <div className="f"><label>End Date</label><input type="date" value={blockDraft.endDate} min={blockDraft.startDate} onChange={e=>setBlockDraft(p=>({...p,endDate:e.target.value}))}/></div>
+            <div style={{display:'flex',alignItems:'center',gap:'.5rem',margin:'.35rem 0 .5rem'}}><input type="checkbox" id={'edit-fullday-'+b.id} checked={blockDraft.isFullDay} onChange={e=>setBlockDraft(p=>({...p,isFullDay:e.target.checked}))}/><label htmlFor={'edit-fullday-'+b.id} style={{cursor:'pointer',fontSize:'.9rem',margin:0}}>All Day</label></div>
+            {!blockDraft.isFullDay&&<><div className="f"><label>Start Time</label><input type="time" value={blockDraft.startTime} onChange={e=>setBlockDraft(p=>({...p,startTime:e.target.value}))}/></div><div className="f"><label>End Time</label><input type="time" value={blockDraft.endTime} onChange={e=>setBlockDraft(p=>({...p,endTime:e.target.value}))}/></div></>}
+            <div className="f"><label>Label (optional)</label><input value={blockDraft.label} onChange={e=>setBlockDraft(p=>({...p,label:e.target.value}))} placeholder="e.g. Vacation, Doctor appt"/></div>
+            <div className="ma"><button className="btn btn-s" onClick={()=>setEditingBlockId(null)}>Cancel</button><button className="btn btn-ok" disabled={blockSaving} onClick={handleUpdateBlock}>{blockSaving?'Saving…':'Save Changes'}</button></div>
+          </div>;
           return <div key={b.id} className="shift-card" style={{marginBottom:'.5rem'}}>
             <div style={{flex:1}}>
               <div style={{fontFamily:'var(--fd)',fontSize:'1rem',fontWeight:700,color:'var(--accB)'}}>{dateRange}</div>
@@ -1949,7 +1973,10 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
                 {resolved?<span className="badge b-ok" style={{fontSize:'.7rem'}}>✓ Cleared</span>:b.status==='pending'?<span className="badge b-conflict" style={{fontSize:'.7rem'}}>⏳ Pending coverage</span>:<span className="badge b-ok" style={{fontSize:'.7rem'}}>✓ Confirmed</span>}
               </div>
             </div>
-            <button className="btn btn-d btn-sm" onClick={()=>handleDeleteBlock(b.id)}>Remove</button>
+            <div style={{display:'flex',gap:'.4rem'}}>
+              <button className="btn btn-s btn-sm" onClick={()=>startEditBlock(b)}>Edit</button>
+              <button className="btn btn-d btn-sm" onClick={()=>handleDeleteBlock(b.id)}>Remove</button>
+            </div>
           </div>;
         })}
       </div>}
