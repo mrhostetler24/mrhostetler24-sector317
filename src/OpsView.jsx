@@ -130,7 +130,7 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
 
 // ── Scoring Modal constants ────────────────────────────────────────────────────
 const VISUAL_OPTIONS=[
-  {ui:'STD',   code:'V', label:'Standard', desc:'Normal lighting'},
+  {ui:'Standard', code:'V', label:'Standard', desc:'Normal lighting'},
   {ui:'COSMIC',code:'C', label:'Cosmic',   desc:'Black-light UV (+20%)'},
   {ui:'STROBE',code:'S', label:'Strobe',   desc:'Flash pulse (+40%)'},
   {ui:'DARK',  code:'B', label:'Dark',     desc:'Lights off (+80%)'},
@@ -151,7 +151,7 @@ const DIFF_OPTIONS=[
 ];
 const MAX_TENTHS=6000; // 10 minutes in tenths of a second
 const fmtTenths=t=>{const min=Math.floor(t/600),sec=Math.floor((t%600)/10),tenth=t%10;return`${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${tenth}`;};
-const dfltLane=()=>({uiVisual:'STD',visual:'V',uiAudio:'TUNES',audio:'T',cranked:false,targetsEliminated:false,objectiveComplete:false,objectiveId:null,difficulty:'NONE',winnerTeam:null});
+const dfltLane=()=>({uiVisual:'Standard',visual:'V',uiAudio:'TUNES',audio:'T',cranked:false,targetsEliminated:false,objectiveComplete:false,objectiveId:null,difficulty:'NONE',winnerTeam:null});
 
 function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit}){
   const [run,setRun]=useState(1);

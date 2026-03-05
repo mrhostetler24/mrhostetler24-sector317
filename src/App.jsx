@@ -3243,7 +3243,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const vizPct=(arr,code)=>arr.length?Math.round(arr.filter(r=>r.visual===code).length/arr.length*100):null;
             const audPct=(arr,code)=>arr.length?Math.round(arr.filter(r=>audioCode(r)===code).length/arr.length*100):null;
             // Env — only show non-zero entries, find dominant
-            const vizNames={V:"STD",C:"Cosmic",R:"Rave",S:"Strobe",B:"Dark"};
+            const vizNames={V:"Standard",C:"Cosmic",R:"Rave",S:"Strobe",B:"Dark"};
             const audNames={O:"Off",T:"Tunes",C:"Cranked"};
             const vizLine=arr=>{if(!arr.length)return"—";return Object.entries(vizNames).map(([k,n])=>{const p=vizPct(arr,k);return p>0?`${n} ${p}%`:null;}).filter(Boolean).join(" · ")||"—";};
             const audLine=arr=>{if(!arr.length)return"—";return Object.entries(audNames).map(([k,n])=>{const p=audPct(arr,k);return p>0?`${n} ${p}%`:null;}).filter(Boolean).join(" · ")||"—";};
