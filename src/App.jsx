@@ -3,6 +3,7 @@ import LandingPage from "./LandingPage.jsx";
 import OpsView from "./OpsView.jsx";
 import KioskPage from "./KioskPage.jsx";
 import StaffingScheduler from "./StaffingScheduler.jsx";
+import SocialPortal from "./SocialPortal.jsx";
 import {
   supabase,
   fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateOwnProfile, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver,
@@ -2292,7 +2293,6 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [lbData,setLbData]=useState([]);
   const [lbLoading,setLbLoading]=useState(false);
   const [lbError,setLbError]=useState(null);
-  const [socialSub,setSocialSub]=useState("friends");
   const [showBook,setShowBook]=useState(false);
   useEffect(()=>{if(autoBook){setShowBook(true);onAutoBookDone?.();}},[]);// eslint-disable-line react-hooks/exhaustive-deps
   const [availRes,setAvailRes]=useState([]);
@@ -2708,17 +2708,16 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
       })()}
 
       {/* ── SOCIAL TAB ── */}
-      {tab==="social"&&<>
-        <div className="tabs" style={{marginBottom:"1rem",borderBottom:"1px solid var(--bdr)"}}>
-          <button className={`tab${socialSub==="friends"?" on":""}`} onClick={()=>setSocialSub("friends")}>Friends</button>
-          <button className={`tab${socialSub==="requests"?" on":""}`} onClick={()=>setSocialSub("requests")}>Requests</button>
-        </div>
-        <div className="empty">
-          <div className="ei">👥</div>
-          <p style={{color:"var(--muted)",fontSize:".9rem"}}>Social features coming soon.</p>
-          <p style={{color:"var(--muted)",fontSize:".78rem",marginTop:".35rem"}}>Connect with other operatives, track friends' scores, and challenge your squad.</p>
-        </div>
-      </>}
+      {tab==="social"&&<SocialPortal
+        user={user}
+        users={users}
+        setUsers={setUsers}
+        reservations={reservations}
+        resTypes={resTypes}
+        runs={runs}
+        careerRuns={careerRuns}
+        onEditProfile={()=>setShowAccount(true)}
+      />}
     </div>
   );
 }

@@ -45,6 +45,7 @@ const toUser = r => r ? ({
   isReal:                 r.is_real ?? true,
   createdByUserId:    r.created_by_user_id ?? null,
   createdAt:          r.created_at ?? null,
+  avatarUrl:          r.avatar_url ?? null,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -1450,5 +1451,55 @@ export async function updateStaffBlock(id, changes) {
 export async function deleteStaffBlock(id) {
   const { error } = await supabase
     .from('staff_availability_blocks').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ============================================================
+// AVATAR / PROFILE PICTURE
+// ============================================================
+
+/** Resize an image file to at most maxPx on the longest side, returned as JPEG blob. */
+function resizeImage(file, maxPx = 512, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('Image resize failed')); return }
+        resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
+      }, 'image/jpeg', quality)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')) }
+    img.src = url
+  })
+}
+
+/** Upload a profile picture to Supabase Storage (bucket: avatars) and return the public URL. */
+export async function uploadAvatar(userId, file) {
+  const MAX_BYTES = 8 * 1024 * 1024 // 8 MB pre-resize guard
+  if (file.size > MAX_BYTES) throw new Error('File too large — please choose an image under 8 MB.')
+  const resized = await resizeImage(file, 512, 0.85)
+  const path = `${userId}/avatar.jpg`
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, resized, { upsert: true, contentType: 'image/jpeg' })
+  if (error) throw error
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  return data.publicUrl
+}
+
+/** Persist the avatar URL to the users table via SECURITY DEFINER RPC. */
+export async function updateOwnAvatar(userId, avatarUrl) {
+  const { error } = await supabase.rpc('update_own_avatar', {
+    p_user_id:   userId,
+    p_avatar_url: avatarUrl,
+  })
   if (error) throw error
 }
