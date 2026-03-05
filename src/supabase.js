@@ -111,6 +111,7 @@ const toReservationPlayer = r => r ? ({
   reservationId: r.reservation_id,
   userId:        r.user_id ?? null,
   name:          r.name,
+  team:          r.team ?? null,
 }) : null
 
 const toRun = r => r ? ({
@@ -749,6 +750,7 @@ export async function updateReservationPlayer(id, changes) {
   const row = {}
   if (changes.userId !== undefined) row.user_id = changes.userId
   if (changes.name   !== undefined) row.name    = changes.name
+  if (changes.team   !== undefined) row.team    = changes.team
   const { data, error } = await supabase
     .from('reservation_players').update(row).eq('id', id).select().single()
   if (error) throw error

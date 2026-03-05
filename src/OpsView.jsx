@@ -12,6 +12,7 @@ import {
   fetchObjectives,
   fetchPlayerScoringStats,
   calculateRunScore,
+  updateReservationPlayer,
 } from './supabase.js'
 
 // ── Shared utilities (mirrored from App.jsx) ─────────────────────────────────
@@ -230,6 +231,12 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,audio:s.audio??null,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
     setSaving(laneIdx);
     try{
+      // Persist team assignments to reservation_players
+      const players=res.players||[];
+      await Promise.all(players.map(player=>{
+        const team=versusTeams[res.id]?.[player.id]??(players.findIndex(p=>p.id===player.id)<6?1:2);
+        return updateReservationPlayer(player.id,{team});
+      }));
       const r1=await createRun({...base,team:1,targetsEliminated:false,objectiveComplete:objComplete,score:huntersScore});
       const r2=await createRun({...base,team:2,targetsEliminated:false,objectiveComplete:!objComplete,score:coyotesScore});
       setScored(p=>({...p,[laneKey(runNum,laneIdx,1)]:r1,[laneKey(runNum,laneIdx,2)]:r2}));
@@ -900,7 +907,19 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [signedName,setSignedName]=useState("");
   const [addingTo,setAddingTo]=useState(null);
   const [addingToTeam,setAddingToTeam]=useState(null);
-  const [versusTeams,setVersusTeams]=useState({});
+  const [versusTeams,setVersusTeams]=useState(()=>{
+    // Seed from persisted team assignments in reservation_players
+    const init={};
+    for(const res of reservations){
+      for(const player of (res.players||[])){
+        if(player.team!=null){
+          if(!init[res.id])init[res.id]={};
+          init[res.id][player.id]=player.team;
+        }
+      }
+    }
+    return init;
+  });
   const [laneOverrides,setLaneOverrides]=useState({});
   const [showLaneOverride,setShowLaneOverride]=useState(null);
   const [addInput,setAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
