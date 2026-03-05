@@ -1078,7 +1078,7 @@ export async function createShiftBatch(shiftsArray) {
 export async function upsertShiftBatch(shiftsArray) {
   if (!shiftsArray.length) return []
   const rows = shiftsArray.map(shift => ({
-    ...(shift.id ? { id: shift.id } : {}),
+    id:               shift.id || crypto.randomUUID(),
     staff_id:         shift.staffId ?? null,
     date:             shift.date,
     start_time:       shift.start,
@@ -1089,7 +1089,7 @@ export async function upsertShiftBatch(shiftsArray) {
     template_slot_id: shift.templateSlotId ?? null,
     role:             shift.role ?? null,
   }))
-  const { data, error } = await supabase.from('shifts').upsert(rows).select()
+  const { data, error } = await supabase.from('shifts').upsert(rows, { onConflict: 'id' }).select()
   if (error) throw error
   return data.map(toShift)
 }
