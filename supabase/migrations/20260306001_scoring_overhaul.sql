@@ -166,10 +166,6 @@ SELECT
   MAX(vpr.effective_score)                                AS best_run_score,
   MIN(CASE WHEN vpr.elapsed_seconds > 0
            THEN vpr.elapsed_seconds END)                  AS best_run_seconds,
-  SUM(CASE WHEN vpr.elapsed_seconds > 0
-           THEN vpr.elapsed_seconds ELSE 0 END)           AS total_elapsed,
-  COUNT(CASE WHEN vpr.elapsed_seconds > 0
-             THEN 1 END)                                  AS elapsed_count,
   COUNT(*)                                                AS run_count,
 
   -- Versus W/L — only counted when war outcome is stored
@@ -186,7 +182,13 @@ SELECT
       AND res.war_winner_team IS DISTINCT FROM vpr.player_group
       AND vpr.player_group IS NOT NULL
     THEN 1 ELSE 0
-  END AS is_versus_loss
+  END AS is_versus_loss,
+
+  -- For true avg time across all runs (not just session-best)
+  SUM(CASE WHEN vpr.elapsed_seconds > 0
+           THEN vpr.elapsed_seconds ELSE 0 END)           AS total_elapsed,
+  COUNT(CASE WHEN vpr.elapsed_seconds > 0
+             THEN 1 END)                                  AS elapsed_count
 
 FROM v_player_runs vpr
 JOIN reservations res ON res.id = vpr.reservation_id
