@@ -1016,7 +1016,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   return null;
 }
 
-function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,currentUser,users,activeWaiverDoc,onBook,onClose}){
+function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,currentUser,users,activeWaiverDoc,onBook,onPayCreate,onFinalize,onClose}){
   const _allRes=allReservations??reservations;
   const [step,setStep]=useState(1);
   const [selMode,setSelMode]=useState(null);
@@ -1035,6 +1035,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   // For multi-slot bookings: track which slots each player is assigned to
   // slotAssignments[playerIndex] = Set of startTime strings
   const [slotAssignments,setSlotAssignments]=useState({});
+  const [pendingResIds,setPendingResIds]=useState(null); // [{startTime,laneIdx,resId}] set after Pay
   const bookable=resTypes.filter(rt=>rt.active&&rt.availableForBooking);
   const selType=bookable.find(rt=>rt.mode===selMode&&rt.style===selStyle);
   const allDates=get60Dates(sessionTemplates);
@@ -1231,7 +1232,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
       })()}
       {step===5&&!isPrivate&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Players{selType?.pricingMode==="per_person"&&<span style={{color:"var(--accB)",marginLeft:".5rem"}}>{fmtMoney(selType.price)}/player</span>}</p>
-        <div className="f"><label>Number of Players {spotsLocked?<span style={{fontSize:".78rem",color:"var(--dangerL)",fontWeight:600}}>({openMaxFromLane} spot{openMaxFromLane!==1?"s":""} left — fixed)</span>:isVersusOpen?<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>(min 4, max {maxP})</span>:<span style={{fontSize:".78rem",color:"var(--muted)"}}>max {maxP}</span>}</label>{spotsLocked?<div style={{fontSize:"1.1rem",fontWeight:700,color:"var(--accB)",padding:".35rem 0"}}>{openMaxFromLane} player{openMaxFromLane!==1?"s":""}</div>:<input type="number" min={minP} max={maxP} value={playerCount} onChange={e=>setPlayerCount(Math.min(maxP,Math.max(minP,+e.target.value)))}/>}{spotsLocked?<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".3rem"}}>⚠ This lane only has {openMaxFromLane} spot{openMaxFromLane!==1?"s":""} remaining — booking qty is fixed.</div>:!isVersusOpen&&!isPrivate&&openMaxFromLane<perLaneCap&&selSlots.length>0?<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".3rem"}}>⚠ This lane already has {perLaneCap-openMaxFromLane} of {perLaneCap} players — max {openMaxFromLane} spot{openMaxFromLane!==1?"s":""} remaining.</div>:isVersusOpen&&playerCount<4&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ Versus open play requires a minimum of 4 players.</div>}</div>
+        <div className="f"><label>Number of Players {spotsLocked?<span style={{fontSize:".78rem",color:"var(--dangerL)",fontWeight:600}}>({openMaxFromLane} spot{openMaxFromLane!==1?"s":""} left — fixed)</span>:isVersusOpen?<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>(min 4, max {maxP})</span>:<span style={{fontSize:".78rem",color:"var(--muted)"}}>max {maxP}</span>}</label>{spotsLocked?<div style={{fontSize:"1.1rem",fontWeight:700,color:"var(--accB)",padding:".35rem 0"}}>{openMaxFromLane} player{openMaxFromLane!==1?"s":""}</div>:<div style={{display:"flex",alignItems:"center",gap:"1rem"}}><span style={{fontSize:"2rem",fontWeight:800,color:"var(--txt)",minWidth:36,textAlign:"center",lineHeight:1,flexShrink:0}}>{playerCount}</span><div style={{flex:1,display:"flex",flexDirection:"column",gap:".25rem"}}><input type="range" min={minP} max={maxP} value={playerCount} onChange={e=>setPlayerCount(+e.target.value)} style={{width:"100%",accentColor:"var(--acc)",cursor:"pointer"}}/><div style={{display:"flex",justifyContent:"space-between",fontSize:".7rem",color:"var(--muted)"}}><span>{minP}</span><span style={{color:maxP<(selMode==="versus"?12:6)?"var(--warn)":"var(--muted)",fontWeight:600}}>{maxP} max</span></div></div></div>}{spotsLocked?<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".3rem"}}>⚠ This lane only has {openMaxFromLane} spot{openMaxFromLane!==1?"s":""} remaining — booking qty is fixed.</div>:!isVersusOpen&&!isPrivate&&openMaxFromLane<perLaneCap&&selSlots.length>0?<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".3rem"}}>⚠ This lane already has {perLaneCap-openMaxFromLane} of {perLaneCap} players — max {openMaxFromLane} spot{openMaxFromLane!==1?"s":""} remaining.</div>:isVersusOpen&&playerCount<4&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ Versus open play requires a minimum of 4 players.</div>}</div>
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
@@ -1440,49 +1441,58 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         {step===6&&<button className="btn btn-s" onClick={()=>{const w=window.open("","_blank","width=680,height=820");if(!w)return;w.document.write(`<!DOCTYPE html><html><head><title>Receipt — Sector 317</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:2.5rem 3rem;}.logo{font-family:Arial Black,Arial,sans-serif;font-size:2rem;font-weight:900;letter-spacing:.12em;color:#c8e03a;margin-bottom:.15rem;}.tagline{font-size:.78rem;color:#555;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2rem;}h2{font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;border-bottom:2px solid #c8e03a;padding-bottom:.5rem;margin-bottom:1.25rem;}.row{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid #eee;font-size:.92rem;}.row .lbl{color:#555;}.row .val{font-weight:600;}.total-row{display:flex;justify-content:space-between;padding:.75rem 0;margin-top:.5rem;font-size:1.1rem;font-weight:700;border-top:2px solid #111;}.footer{margin-top:2.5rem;font-size:.74rem;color:#888;text-align:center;line-height:1.6;}.ref{font-family:monospace;}.no-print{text-align:center;margin-bottom:1.5rem;display:flex;gap:.75rem;justify-content:center;}button{padding:.55rem 1.4rem;border-radius:5px;font-size:.88rem;font-weight:600;cursor:pointer;border:2px solid #111;}button.print-btn{background:#c8e03a;color:#111;border-color:#c8e03a;}button.close-btn{background:#fff;color:#111;}@media print{.no-print{display:none;}}</style></head><body><div class="no-print"><button class="print-btn" onclick="window.print()">🖨 Print Receipt</button><button class="close-btn" onclick="window.close()">✕ Close</button></div><div class="logo">SECTOR 317</div><div class="tagline">Indoor Tactical Experience · Noblesville, IN</div><h2>Booking Receipt</h2><div class="row"><span class="lbl">Customer</span><span class="val">${currentUser.name}</span></div><div class="row"><span class="lbl">Session Type</span><span class="val">${selType?.name||"—"}</span></div><div class="row"><span class="lbl">Date</span><span class="val">${selDate?new Date(selDate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}):"—"}</span></div><div class="row"><span class="lbl">Time(s)</span><span class="val">${[...new Set(selSlots.map(s=>s.startTime))].sort().map(st=>fmt12(st)).join(", ")}</span></div><div class="row"><span class="lbl">Players</span><span class="val">${effPlayerCount}</span></div><div class="row"><span class="lbl">Status</span><span class="val">Confirmed ✔</span></div><div class="total-row"><span>Amount Charged</span><span>${fmtMoney(total)}</span></div><div class="footer">Sector 317 · sector317.com · Indianapolis, IN<br/>Payment processed securely via GoDaddy Payments<br/><span class="ref">Receipt generated ${new Date().toLocaleString("en-US",{dateStyle:"long",timeStyle:"short"})}</span><br/><em>Please retain this receipt for your records.</em></div></body></html>`);w.document.close();}}>🖨 Print Receipt</button>}
         {step<steps.length
           ?<>{!paymentSuccess&&step===5
-              ?<button className="btn btn-p" disabled={paying} onClick={()=>{setPaying(true);setPayError(null);setTimeout(()=>{setPaying(false);setPaymentSuccess(true);setStep(s=>s+1);},1200);}}>{paying?"Processing…":`Pay ${fmtMoney(total)} & Confirm Reservation →`}</button>
+              ?<button className="btn btn-p" disabled={paying} onClick={async()=>{setPaying(true);setPayError(null);try{const pgId=crypto.randomUUID();const bks=[];const isD=lanesBooked>1;if(isD){const uTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();uTimes.forEach(st=>{selSlots.filter(s=>s.startTime===st).forEach((sl,i)=>bks.push({typeId:selType.id,date:selDate,startTime:sl.startTime,playerCount:perLaneCap,amount:pricePerSlot,laneIdx:i}));});}else{selSlots.forEach(s=>bks.push({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,laneIdx:0}));}const ids=await onPayCreate({bookings:bks,userId:currentUser.id,customerName:currentUser.name,paymentGroupId:pgId,totalTransactionAmount:total,totalPlayerCount:effPlayerCount});setPendingResIds(ids);setPaymentSuccess(true);setStep(s=>s+1);}catch(e){setPayError(e.message);}finally{setPaying(false);}}}>{paying?"Processing…":`Pay ${fmtMoney(total)} & Confirm Reservation →`}</button>
               :<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>
             }</>
-          :<button className="btn btn-p" onClick={()=>{
+          :<button className="btn btn-p" onClick={async()=>{
             const p1=bookingForOther
               ?{userId:player1Input.userId??null,name:player1Input.name||(player1Input.status==="found"?users.find(u=>u.id===player1Input.userId)?.name:"")}
               :{userId:currentUser.id,name:currentUser.name};
             const isDualLane=lanesBooked>1;
             const capPerLane=perLaneCap;
-            const resolveInput=pi=>({
-              userId:pi.userId??null,
-              name:pi.name||(pi.userId?users.find(u=>u.id===pi.userId)?.name||"":""),
-            });
-            // One paymentGroupId per checkout — all lanes/slots share it so only 1 payment record is created
-            const paymentGroupId=crypto.randomUUID();
+            const resolveInput=pi=>({userId:pi.userId??null,name:pi.name||(pi.userId?users.find(u=>u.id===pi.userId)?.name||"":"")});
             const totalPlayerCount=effPlayerCount;
-            if(isDualLane){
-              // Split playerInputs by POSITION first (before filtering blanks)
-              // Lane 1 extras = first (capPerLane-1) slots; Lane 2 extras = remaining slots
-              // p1 (booker) always goes to Lane 1
-              const lane1ExtraRaw=playerInputs.slice(0,capPerLane-1);
-              const lane2ExtraRaw=playerInputs.slice(capPerLane-1);
-              // Filter blanks within each lane after splitting
-              const lane1Extras=lane1ExtraRaw.filter(p=>p.phone||p.name).map(resolveInput);
-              const lane2Extras=lane2ExtraRaw.filter(p=>p.phone||p.name).map(resolveInput);
-              const lane1Players=[p1,...lane1Extras];
-              const lane2Players=lane2Extras; // Lane 2 has no guaranteed anchor player
-              // selSlots: for each unique time, slot[0]=lane1, slot[1]=lane2
-              const uniqueTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
-              uniqueTimes.forEach(st=>{
-                const slotsAtTime=selSlots.filter(s=>s.startTime===st);
-                const sl1=slotsAtTime[0];
-                const sl2=slotsAtTime[1];
-                if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
-                if(sl2&&lane2Players.length>0) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0],bookingForOther:false,extraPlayers:lane2Players.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
-                else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:""},bookingForOther:false,extraPlayers:[],paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
-              });
-            } else {
-              // Single lane — filter blanks then send all players to every slot
-              const allPlayers=[p1,...playerInputs.filter(p=>p.phone||p.name).map(resolveInput)];
-              selSlots.forEach(s=>{
-                onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:p1,bookingForOther,extraPlayers:allPlayers.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
-              });
+            if(pendingResIds?.length>0){
+              // Reservations already created at payment — just add players
+              const playerItems=[];
+              if(isDualLane){
+                const lane1Players=[p1,...playerInputs.slice(0,capPerLane-1).filter(p=>p.phone||p.name).map(resolveInput)];
+                const lane2Players=playerInputs.slice(capPerLane-1).filter(p=>p.phone||p.name).map(resolveInput);
+                const uTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
+                uTimes.forEach(st=>{
+                  const r0=pendingResIds.find(r=>r.startTime===st&&r.laneIdx===0);
+                  const r1=pendingResIds.find(r=>r.startTime===st&&r.laneIdx===1);
+                  if(r0) playerItems.push({resId:r0.resId,players:lane1Players});
+                  if(r1&&lane2Players.length) playerItems.push({resId:r1.resId,players:lane2Players});
+                });
+              }else{
+                const allPlayers=[p1,...playerInputs.filter(p=>p.phone||p.name).map(resolveInput)];
+                const uTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
+                uTimes.forEach(st=>{
+                  const r=pendingResIds.find(x=>x.startTime===st&&x.laneIdx===0);
+                  if(r) playerItems.push({resId:r.resId,players:allPlayers});
+                });
+              }
+              await onFinalize(playerItems);
+              onClose();
+            }else{
+              // Fallback: create reservations now (should not normally reach here)
+              const paymentGroupId=crypto.randomUUID();
+              if(isDualLane){
+                const lane1Players=[p1,...playerInputs.slice(0,capPerLane-1).filter(p=>p.phone||p.name).map(resolveInput)];
+                const lane2Players=playerInputs.slice(capPerLane-1).filter(p=>p.phone||p.name).map(resolveInput);
+                const uTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();
+                uTimes.forEach(st=>{
+                  const slotsAtTime=selSlots.filter(s=>s.startTime===st);
+                  const sl1=slotsAtTime[0];const sl2=slotsAtTime[1];
+                  if(sl1) onBook({typeId:selType.id,date:selDate,startTime:sl1.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane1Players[0]||p1,bookingForOther:false,extraPlayers:lane1Players.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
+                  if(sl2&&lane2Players.length>0) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:lane2Players[0],bookingForOther:false,extraPlayers:lane2Players.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
+                  else if(sl2) onBook({typeId:selType.id,date:selDate,startTime:sl2.startTime,playerCount:capPerLane,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:{userId:null,name:""},bookingForOther:false,extraPlayers:[],paymentGroupId,totalTransactionAmount:total,totalPlayerCount});
+                });
+              }else{
+                const allPlayers=[p1,...playerInputs.filter(p=>p.phone||p.name).map(resolveInput)];
+                selSlots.forEach(s=>{onBook({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,userId:currentUser.id,customerName:currentUser.name,player1:p1,bookingForOther,extraPlayers:allPlayers.slice(1),paymentGroupId,totalTransactionAmount:total,totalPlayerCount});});
+              }
             }
           }}>Set Team →</button>}
       </div>
@@ -2310,7 +2320,7 @@ function PaymentReceiptModal({payment,onClose}){
   );
 }
 
-function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onSignWaiver,autoBook=false,onAutoBookDone,payments=[],runs=[]}){
+function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onPayCreate,onFinalize,onSignWaiver,autoBook=false,onAutoBookDone,payments=[],runs=[]}){
   const [tab,setTab]=useState("social");
   const [resSub,setResSub]=useState("upcoming");
   const [expandedPastId,setExpandedPastId]=useState(null);
@@ -2469,7 +2479,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           setModifyRes(null);
         }}
       />}
-      {showBook&&<BookingWizard resTypes={resTypes} sessionTemplates={sessionTemplates} reservations={reservations} allReservations={availRes.length?availRes:reservations} currentUser={user} users={users} activeWaiverDoc={activeWaiverDoc} onBook={b=>{onBook(b);setShowBook(false);}} onClose={()=>setShowBook(false)}/>}
+      {showBook&&<BookingWizard resTypes={resTypes} sessionTemplates={sessionTemplates} reservations={reservations} allReservations={availRes.length?availRes:reservations} currentUser={user} users={users} activeWaiverDoc={activeWaiverDoc} onBook={b=>{onBook(b);setShowBook(false);}} onPayCreate={onPayCreate} onFinalize={async items=>{await onFinalize(items);setShowBook(false);}} onClose={()=>setShowBook(false)}/>}
       {receiptRes&&<ReceiptModal res={receiptRes} resTypes={resTypes} user={user} onClose={()=>setReceiptRes(null)}/>}
       {viewPayment&&<PaymentReceiptModal payment={viewPayment} onClose={()=>setViewPayment(null)}/>}
       {waiverAlert&&<div className="mo"><div className="mc" style={{maxWidth:480}}>
@@ -3947,6 +3957,41 @@ useEffect(() => {
     }catch(err){showToast("Booking error: "+err.message);}
   };
 
+  // Creates reservations + payment immediately at Pay click (no players yet)
+  const handlePayCreate=async({bookings,userId,customerName,paymentGroupId,totalTransactionAmount,totalPlayerCount})=>{
+    const created=[];
+    for(const b of bookings){
+      const newRes=await createReservation({typeId:b.typeId,userId,customerName,date:b.date,startTime:b.startTime,playerCount:b.playerCount,amount:b.amount,status:"confirmed",paid:true,players:[]});
+      setReservations(p=>[{...newRes,players:[]},...p]);
+      created.push({startTime:b.startTime,laneIdx:b.laneIdx,resId:newRes.id});
+    }
+    if(created.length>0&&!paymentGroups.current[paymentGroupId]){
+      try{
+        const rt=resTypes.find(x=>x.id===bookings[0].typeId);
+        const snapshot={customerName,sessionType:rt?.name??'—',mode:rt?.mode??'—',style:rt?.style??'—',date:bookings[0].date,startTime:bookings[0].startTime,playerCount:totalPlayerCount,amount:totalTransactionAmount,status:'confirmed',paid:true,refNum:created[0].resId.replace(/-/g,'').slice(0,12).toUpperCase()};
+        const pmt=await createPayment({userId,reservationId:created[0].resId,customerName,amount:totalTransactionAmount,status:'paid',snapshot});
+        setPayments(prev=>[pmt,...prev]);
+        paymentGroups.current[paymentGroupId]=true;
+      }catch(pmtErr){console.warn("Payment record error:",pmtErr.message);}
+    }
+    return created;
+  };
+
+  // Adds players to pre-created reservations after Set Team step
+  const handleFinalize=async(playerItems)=>{
+    for(const item of playerItems){
+      const resolveExtra=async(p)=>{
+        if(p.userId) return {userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||'')};
+        if(!p.name?.trim()) return null;
+        const guest=await createGuestUser({name:p.name.trim(),phone:p.phone||null,createdByUserId:currentUser.id});
+        return {userId:guest.id,name:guest.name};
+      };
+      const resolved=(await Promise.all(item.players.map(resolveExtra))).filter(Boolean);
+      const saved=await Promise.all(resolved.map(p=>addPlayerToReservation(item.resId,p)));
+      setReservations(p=>p.map(r=>r.id===item.resId?{...r,players:[...(r.players||[]),...saved]}:r));
+    }
+  };
+
   const handleSignWaiver=async(uid,name)=>{
     try{
       const updated=await signWaiver(uid,name,activeWaiver?.id);
@@ -4118,7 +4163,7 @@ useEffect(() => {
         <button onClick={()=>setStaffNavTarget(hasConflict?'conflict':'open')} style={{background:'rgba(0,0,0,.15)',color:'#111209',border:'1px solid rgba(0,0,0,.2)',borderRadius:6,padding:'.2rem .65rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:400,fontSize:'.82rem'}}>View →</button>
       </div>);})()}
       <div className="main">
-        {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} runs={runs}/>}
+        {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} runs={runs}/>}
         {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
         {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs} staffRoles={staffRoles}/>}
       </div>
