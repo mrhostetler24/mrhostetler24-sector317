@@ -3393,7 +3393,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                   <td style={{fontSize:".82rem"}}>{vizLabel[r.visual]||r.visual||"—"}</td>
                   <td style={{fontSize:".82rem"}}>{audLabel(r)}</td>
                   <td style={{fontFamily:"var(--fd)",color:"var(--accB)"}}>{fmtRunSec(r.elapsedSeconds)}</td>
-                  <td style={{fontFamily:"var(--fd)",fontWeight:700,color:r.score!=null?"var(--txt)":"var(--muted)"}}>{r.score??"—"}</td>
+                  <td style={{fontFamily:"var(--fd)",fontWeight:700,color:r.score!=null?"var(--txt)":"var(--muted)"}}>{r.score!=null?Number(r.score).toFixed(1):"—"}</td>
                 </tr>;})}
                 </tbody>
               </table>

@@ -86,19 +86,21 @@ const toSessionTemplate = r => r ? ({
 }) : null
 
 const toReservation = r => r ? ({
-  id:           r.id,
-  typeId:       r.type_id,
-  userId:       r.user_id,
-  customerName: r.customer_name,
-  date:         r.date,
-  startTime:    r.start_time,
-  playerCount:  r.player_count,
-  amount:       Number(r.amount),
-  status:       r.status,
-  paid:         r.paid ?? false,
-  rescheduled:  r.rescheduled ?? false,
-  players:      r.players ?? [],
-  createdAt:    r.created_at ?? null,
+  id:             r.id,
+  typeId:         r.type_id,
+  userId:         r.user_id,
+  customerName:   r.customer_name,
+  date:           r.date,
+  startTime:      r.start_time,
+  playerCount:    r.player_count,
+  amount:         Number(r.amount),
+  status:         r.status,
+  paid:           r.paid ?? false,
+  rescheduled:    r.rescheduled ?? false,
+  players:        r.players ?? [],
+  createdAt:      r.created_at ?? null,
+  warWinnerTeam:  r.war_winner_team ?? null,
+  warWinType:     r.war_win_type ?? null,
 }) : null
 
 const toShift = r => r ? ({
@@ -135,9 +137,11 @@ const toRun = r => r ? ({
   targetsEliminated:  r.targets_eliminated,
   objectiveComplete:  r.objective_complete,
   elapsedSeconds:     r.elapsed_seconds,
-  score:              r.score,
+  score:              r.score != null ? Number(r.score) : null,
+  warBonus:           r.war_bonus != null ? Number(r.war_bonus) : 0,
   scoredBy:           r.scored_by,
   objectiveId:        r.objective_id,
+  role:               r.role ?? null,
   team:               r.team,
   liveOpDifficulty:   r.live_op_difficulty,
   winningTeam:        r.winning_team,
@@ -816,6 +820,7 @@ export async function createRun(run) {
     team:               run.team ?? null,
     live_op_difficulty: run.liveOpDifficulty ?? null,
     winning_team:       run.winningTeam ?? null,
+    role:               run.role ?? null,
   }, { onConflict: 'reservation_id,run_number,team', ignoreDuplicates: false })
   .select().single()
   if (error) throw error
@@ -838,6 +843,7 @@ export async function updateRun(id, changes) {
   if (changes.team               !== undefined) row.team               = changes.team
   if (changes.liveOpDifficulty   !== undefined) row.live_op_difficulty  = changes.liveOpDifficulty
   if (changes.winningTeam        !== undefined) row.winning_team        = changes.winningTeam
+  if (changes.role               !== undefined) row.role               = changes.role
   const { data, error } = await supabase
     .from('session_runs').update(row).eq('id', id).select().single()
   if (error) throw error
@@ -853,6 +859,15 @@ export async function scoreRun(id, inputs, scoredByUserId) {
 /** Delete a run (if instructor needs to redo entry) */
 export async function deleteRun(id) {
   const { error } = await supabase.from('session_runs').delete().eq('id', id)
+  if (error) throw error
+}
+
+/** Stamp the war outcome on a VERSUS reservation (war_winner_team + war_win_type) */
+export async function finalizeVersusWar(reservationId, warWinnerTeam, warWinType) {
+  const { error } = await supabase
+    .from('reservations')
+    .update({ war_winner_team: warWinnerTeam, war_win_type: warWinType })
+    .eq('id', reservationId)
   if (error) throw error
 }
 

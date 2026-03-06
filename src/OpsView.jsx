@@ -11,9 +11,15 @@ import {
   createRun,
   fetchObjectives,
   fetchPlayerScoringStats,
-  calculateRunScore,
   updateReservationPlayer,
+  finalizeVersusWar,
 } from './supabase.js'
+import {
+  calcCoopRunScore,
+  calcVersusRunScore,
+  calcWarOutcome,
+  WAR_BONUS,
+} from './scoreUtils.js'
 
 // ── Shared utilities (mirrored from App.jsx) ─────────────────────────────────
 const fmtMoney = n => `$${Number(n).toFixed(2)}`
@@ -224,11 +230,11 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const lane=lanes[laneIdx];const s=settings[run][laneIdx];
     const res=lane.reservations[0];if(!res)return;
     const runNum=run;
-    const objComplete=s.winnerTeam===1; // hunters win = they completed the objective
-    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:objComplete});
-    const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!objComplete});
+    const env={visual:s.visual,audio:s.audio??null,cranked:s.cranked??false};
+    const huntersScore=calcVersusRunScore({role:'hunter',winningTeam:s.winnerTeam,team:1,...env});
+    const coyotesScore=calcVersusRunScore({role:'coyote',winningTeam:s.winnerTeam,team:2,...env});
     const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
-    const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,audio:s.audio??null,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
+    const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],...env,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
     setSaving(laneIdx);
     try{
       // Persist team assignments to reservation_players
@@ -237,8 +243,8 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         const team=versusTeams[res.id]?.[player.id]??(players.findIndex(p=>p.id===player.id)<6?1:2);
         return updateReservationPlayer(player.id,{team});
       }));
-      const r1=await createRun({...base,team:1,targetsEliminated:false,objectiveComplete:objComplete,score:huntersScore});
-      const r2=await createRun({...base,team:2,targetsEliminated:false,objectiveComplete:!objComplete,score:coyotesScore});
+      const r1=await createRun({...base,team:1,role:'hunter',targetsEliminated:false,objectiveComplete:s.winnerTeam===1,score:huntersScore});
+      const r2=await createRun({...base,team:2,role:'coyote',targetsEliminated:false,objectiveComplete:s.winnerTeam!==2,score:coyotesScore});
       setScored(p=>({...p,[laneKey(runNum,laneIdx,1)]:r1,[laneKey(runNum,laneIdx,2)]:r2}));
     }catch(e){alert("Score error: "+e.message);}
     setSaving(null);
@@ -247,13 +253,13 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   const doScoreCoop=async(laneIdx)=>{
     const lane=lanes[laneIdx];const s=settings[run][laneIdx];
     const runNum=run;
-    const score=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete});
+    const score=calcCoopRunScore({visual:s.visual,audio:s.audio??null,cranked:s.cranked??false,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,liveOpDifficulty:s.difficulty??'MEDIUM'});
     const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
     setSaving(laneIdx);
     try{
       const runs=[];
       for(const res of lane.reservations){
-        const r=await createRun({reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,audio:s.audio??null,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,elapsedSeconds:elapsedSec,score,objectiveId:s.objectiveId,liveOpDifficulty:s.difficulty,team:null,winningTeam:null,scoredBy:currentUser?.id??null});
+        const r=await createRun({reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,audio:s.audio??null,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,elapsedSeconds:elapsedSec,score,objectiveId:s.objectiveId,liveOpDifficulty:s.difficulty??'MEDIUM',team:null,winningTeam:null,scoredBy:currentUser?.id??null});
         runs.push(r);
       }
       setScored(p=>({...p,[laneKey(runNum,laneIdx,null)]:runs[0]}));
@@ -287,6 +293,25 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   const doCommit=async()=>{
     const ids=[...new Set(lanes.flatMap(l=>l.reservations.map(r=>r.id)))];
     setShowCommit(false);
+    // For VERSUS sessions, stamp the war outcome before marking complete
+    const vsLaneIdx=lanes.findIndex((_,i)=>{const rt=resTypes.find(x=>x.id===(lanes[i].reservations[0]?.typeId));return rt?.mode==='versus';});
+    if(vsLaneIdx>=0){
+      const run1Winner=getRunWinner(1,vsLaneIdx)??null;
+      const run2Winner=getRunWinner(2,vsLaneIdx)??null;
+      // Elapsed seconds: group 1 was hunter in run 1, group 2 was hunter in run 2
+      const r1Rec=scored[laneKey(1,vsLaneIdx,1)];
+      const r2Rec=scored[laneKey(2,vsLaneIdx,2)]; // team 2 in run 2 = original group 1 as hunters
+      const g1HunterElapsed=r1Rec?.elapsedSeconds??null;
+      const g2HunterElapsed=r2Rec?.elapsedSeconds??null;
+      const warResult=calcWarOutcome({run1WinnerTeam:run1Winner,run2WinnerTeam:run2Winner,group1HunterElapsed:g1HunterElapsed,group2HunterElapsed:g2HunterElapsed});
+      if(warResult){
+        const vsRes=lanes[vsLaneIdx].reservations[0];
+        if(vsRes){
+          try{ await finalizeVersusWar(vsRes.id,warResult.warWinner,warResult.warWinType); }
+          catch(e){ console.error('finalizeVersusWar failed:',e); }
+        }
+      }
+    }
     await onCommit(ids);
   };
 
@@ -297,15 +322,18 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   };
   const getRunWinner=(runNum,laneIdx)=>settings[runNum]?.[laneIdx]?.winnerTeam;
   const getSessionWinner=()=>{
-    // Only for versus: determine which team won the most runs
-    const vsLanes=lanes.map((_,i)=>i).filter(i=>{const rt=resTypes.find(x=>x.id===(lanes[i].reservations[0]?.typeId));return rt?.mode==='versus';});
-    if(!vsLanes.length)return null;
-    const li=vsLanes[0];
-    const r1w=getRunWinner(1,li),r2w=getRunWinner(2,li);
-    if(r1w===r2w)return r1w;
-    // Split — compare Hunter elapsed times (team 1 in run 1 is hunters, team 2 in run 2 is hunters after swap)
-    const r1t=laneFinish[0]??MAX_TENTHS,r2t=laneFinish[0]??MAX_TENTHS;
-    return r1t<=r2t?1:2;
+    // Only for versus: use calcWarOutcome for consistent logic
+    const vsLaneIdx=lanes.findIndex((_,i)=>{const rt=resTypes.find(x=>x.id===(lanes[i].reservations[0]?.typeId));return rt?.mode==='versus';});
+    if(vsLaneIdx<0)return null;
+    const r1Rec=scored[laneKey(1,vsLaneIdx,1)];
+    const r2Rec=scored[laneKey(2,vsLaneIdx,2)];
+    const result=calcWarOutcome({
+      run1WinnerTeam:getRunWinner(1,vsLaneIdx)??null,
+      run2WinnerTeam:getRunWinner(2,vsLaneIdx)??null,
+      group1HunterElapsed:r1Rec?.elapsedSeconds??null,
+      group2HunterElapsed:r2Rec?.elapsedSeconds??null,
+    });
+    return result?{winner:result.warWinner,winType:result.warWinType}:null;
   };
 
   // Render helpers
@@ -430,9 +458,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const coyotes=allPlayers.filter(p=>getLaneTeam(p.id)===2);
     const huntersAvg=teamAvg(hunters);const coyotesAvg=teamAvg(coyotes);
     const bookerNames=[...new Set(allRes.map(r=>r.customerName).filter(Boolean))].join(' · ');
-    const vsObjComplete=s.winnerTeam===1;
-    const huntersScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:vsObjComplete});
-    const coyotesScore=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:false,objectiveComplete:!vsObjComplete});
+    const env={visual:s.visual,audio:s.audio??null,cranked:s.cranked??false};
+    const huntersScore=s.winnerTeam!=null?calcVersusRunScore({role:'hunter',winningTeam:s.winnerTeam,team:1,...env}).toFixed(1):'—';
+    const coyotesScore=s.winnerTeam!=null?calcVersusRunScore({role:'coyote',winningTeam:s.winnerTeam,team:2,...env}).toFixed(1):'—';
     const isScoredVs=isLaneScored(laneIdx,1)&&isLaneScored(laneIdx,2);
     const isSavingThis=saving===laneIdx;
     const canScore=s.winnerTeam!=null&&laneFinish[laneIdx]!=null&&!isScoredVs;
@@ -554,9 +582,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         </div>
       ):(
         <div style={{display:'flex',gap:'.75rem',alignItems:'center',padding:'.5rem 0'}}>
-          <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase'}}>Hunters</div><div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--acc)'}}>{getScoredTeamScore(run,laneIdx,1)}</div></div>
+          <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase'}}>Hunters</div><div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--acc)'}}>{getScoredTeamScore(run,laneIdx,1)!=null?Number(getScoredTeamScore(run,laneIdx,1)).toFixed(1):'—'}</div></div>
           <div style={{textAlign:'center',padding:'.4rem .75rem',background:'var(--accD)',borderRadius:6,color:'var(--accB)',fontWeight:700,fontSize:'.82rem'}}>✓ Scored</div>
-          <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase'}}>Coyotes</div><div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--warnL)'}}>{getScoredTeamScore(run,laneIdx,2)}</div></div>
+          <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase'}}>Coyotes</div><div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--warnL)'}}>{getScoredTeamScore(run,laneIdx,2)!=null?Number(getScoredTeamScore(run,laneIdx,2)).toFixed(1):'—'}</div></div>
         </div>
       )}
     </div>);
@@ -568,7 +596,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const bookerNames=[...new Set(lane.reservations.map(r=>r.customerName).filter(Boolean))].join(' · ');
     const allPlayers=lane.reservations.flatMap(r=>r.players||[]);
     const coopAvg=teamAvg(allPlayers);
-    const score=calculateRunScore({visual:s.visual,cranked:s.cranked,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete});
+    const score=calcCoopRunScore({visual:s.visual,audio:s.audio??null,cranked:s.cranked??false,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,liveOpDifficulty:s.difficulty??'MEDIUM'}).toFixed(1);
     const isSc=isLaneScored(laneIdx,null);const isSavingThis=saving===laneIdx;
     const canScore=laneFinish[laneIdx]!=null&&!isSc;
     const selDiff=DIFF_OPTIONS.find(d=>d.value===s.difficulty)||DIFF_OPTIONS[0];
@@ -655,7 +683,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         </div>
       ):(
         <div style={{textAlign:'center',padding:'.5rem 0'}}>
-          <div style={{fontSize:'2rem',fontWeight:800,color:'var(--acc)',fontVariantNumeric:'tabular-nums'}}>{getScoredTeamScore(run,laneIdx,null)}</div>
+          <div style={{fontSize:'2rem',fontWeight:800,color:'var(--acc)',fontVariantNumeric:'tabular-nums'}}>{getScoredTeamScore(run,laneIdx,null)!=null?Number(getScoredTeamScore(run,laneIdx,null)).toFixed(1):'—'}</div>
           <div style={{fontSize:'.82rem',color:'var(--accB)',background:'var(--accD)',borderRadius:6,display:'inline-block',padding:'.3rem .75rem',marginTop:'.3rem',fontWeight:700}}>✓ Scored</div>
         </div>
       )}
@@ -779,13 +807,13 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
               <div key={i} style={{padding:'.4rem .75rem',marginBottom:'.3rem',background:'var(--bg2)',borderRadius:6,fontSize:'.88rem'}}>
                 <span style={{color:'var(--muted)',fontSize:'.75rem',textTransform:'uppercase',letterSpacing:'.04em'}}>Run {line.runNum} · {line.struct} · </span>
                 {line.mode==='versus'?(
-                  <span style={{color:'var(--txt)'}}>Hunters <strong style={{color:'var(--acc)'}}>{line.hs}</strong> · Coyotes <strong style={{color:'var(--warnL)'}}>{line.cs}</strong>{line.winner&&<span style={{color:'var(--ok)',marginLeft:'.5rem'}}>→ {line.winner} win</span>}</span>
+                  <span style={{color:'var(--txt)'}}>Hunters <strong style={{color:'var(--acc)'}}>{line.hs!=null?Number(line.hs).toFixed(1):'—'}</strong> · Coyotes <strong style={{color:'var(--warnL)'}}>{line.cs!=null?Number(line.cs).toFixed(1):'—'}</strong>{line.winner&&<span style={{color:'var(--ok)',marginLeft:'.5rem'}}>→ {line.winner} win</span>}</span>
                 ):(
-                  <span style={{color:'var(--txt)'}}>Score <strong style={{color:'var(--acc)'}}>{line.sc}</strong></span>
+                  <span style={{color:'var(--txt)'}}>Score <strong style={{color:'var(--acc)'}}>{line.sc!=null?Number(line.sc).toFixed(1):'—'}</strong></span>
                 )}
               </div>
             ))}
-            {sw&&<div style={{marginTop:'.75rem',padding:'.5rem .75rem',background:'var(--accD)',borderRadius:6,color:'var(--accB)',fontWeight:700}}>Session Winner: {teamLabel(sw)}</div>}
+            {sw&&<div style={{marginTop:'.75rem',padding:'.5rem .75rem',background:'var(--accD)',borderRadius:6,color:'var(--accB)',fontWeight:700}}>War Winner: {teamLabel(sw.winner)} ({sw.winType}) +{WAR_BONUS[sw.winType]}</div>}
           </div>
           <p style={{color:'var(--muted)',fontSize:'.85rem',marginBottom:'1rem'}}>This will mark all reservations in this slot as Completed and cannot be undone.</p>
           <div className="ma">
