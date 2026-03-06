@@ -121,7 +121,7 @@ SELECT
     ELSE 0.0
   END AS effective_score,
 
-  sr.elapsed_seconds,
+  CASE WHEN sr.role IS NULL OR sr.role = 'hunter' THEN sr.elapsed_seconds ELSE NULL END AS elapsed_seconds,
   sr.objective_complete,
   sr.targets_eliminated,
   sr.visual,
