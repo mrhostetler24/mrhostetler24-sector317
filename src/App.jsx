@@ -2944,6 +2944,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dashTo,setDashTo]=useState("");
   const [recentPage,setRecentPage]=useState(0);
   const [dashViewTab,setDashViewTab]=useState("bookings");
+  const [acknowledgedFlags,setAcknowledgedFlags]=useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("ack-flags")||"[]"))}catch{return new Set()}});
   const [dismissedDups,setDismissedDups]=useState([]);
   const [showWidgetMenu,setShowWidgetMenu]=useState(false);
   const [dashWidgets,setDashWidgets]=useState(()=>isAdmin
@@ -3357,6 +3358,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const noshowRows=reservations.filter(r=>r.status==="no-show"&&r.date>=t90).map(r=>({...r,_flag:"no-show"}));
           const rescheduledRows=reservations.filter(r=>r.rescheduled===true&&r.date>=t90).map(r=>({...r,_flag:"rescheduled"}));
           const flagRows=[...unpaidRows,...rescheduledRows,...noshowRows,...cancelledRows].sort((a,b)=>b.date.localeCompare(a.date)||b.startTime.localeCompare(a.startTime));
+          const visibleFlagRows=flagRows.filter(r=>!acknowledgedFlags.has(r.id+r._flag));
+          const ackFlag=key=>{const next=new Set(acknowledgedFlags);next.add(key);setAcknowledgedFlags(next);try{localStorage.setItem("ack-flags",JSON.stringify([...next]))}catch{}};
           const flagBadge=flag=>flag==="unpaid"?{bg:"rgba(192,57,43,.15)",color:"#e07060",label:"Unpaid"}:flag==="rescheduled"?{bg:"rgba(58,130,200,.15)",color:"var(--accB)",label:"Rescheduled"}:flag==="no-show"?{bg:"rgba(180,120,0,.15)",color:"var(--warnL)",label:"No-Show"}:{bg:"var(--surf2)",color:"var(--muted)",label:"Cancelled"};
           const tabBtnStyle=active=>({padding:".35rem .9rem",borderRadius:20,fontSize:".78rem",fontWeight:active?700:500,cursor:"pointer",border:`1px solid ${active?"var(--acc)":"var(--bdr)"}`,background:active?"var(--accD)":"var(--surf)",color:active?"var(--accB)":"var(--muted)"});
           return <div className="tw">
@@ -3364,7 +3367,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               <button style={tabBtnStyle(dashViewTab==="bookings")} onClick={()=>{setDashViewTab("bookings");setRecentPage(0);}}>Bookings <span style={{opacity:.65}}>({recentSorted.length})</span></button>
               <button style={tabBtnStyle(dashViewTab==="runs")} onClick={()=>setDashViewTab("runs")}>Runs <span style={{opacity:.65}}>({recentRuns.length})</span></button>
               <button style={tabBtnStyle(dashViewTab==="users")} onClick={()=>setDashViewTab("users")}>New Users <span style={{opacity:.65}}>({recentUsers.length})</span></button>
-              <button style={{...tabBtnStyle(dashViewTab==="flags"),borderColor:flagRows.length>0&&dashViewTab!=="flags"?"#e07060":"",color:flagRows.length>0&&dashViewTab!=="flags"?"#e07060":""}} onClick={()=>setDashViewTab("flags")}>⚑ Flags <span style={{opacity:.65}}>({flagRows.length})</span></button>
+              <button style={{...tabBtnStyle(dashViewTab==="flags"),borderColor:visibleFlagRows.length>0&&dashViewTab!=="flags"?"#e07060":"",color:visibleFlagRows.length>0&&dashViewTab!=="flags"?"#e07060":""}} onClick={()=>setDashViewTab("flags")}>⚑ Flags <span style={{opacity:.65}}>({visibleFlagRows.length})</span></button>
               <span style={{marginLeft:"auto",fontSize:".73rem",color:"var(--muted)"}}>last 30 days</span>
             </div>
 
@@ -3397,9 +3400,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             </>}
 
             {dashViewTab==="flags"&&<>
-              {!flagRows.length&&<div style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem .5rem"}}>No unpaid, cancelled, or no-show reservations to show.</div>}
-              {!!flagRows.length&&<table><thead><tr><th>Session</th><th>Booked</th><th>Customer</th><th>Type</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Flag</th></tr></thead>
-                <tbody>{flagRows.map(r=>{const rt=getType(r.typeId);const fb=flagBadge(r._flag);return <tr key={r.id+r._flag}>
+              {!visibleFlagRows.length&&<div style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem .5rem"}}>{flagRows.length>0?"All flags acknowledged.":"No unpaid, cancelled, or no-show reservations to show."}</div>}
+              {!!visibleFlagRows.length&&<table><thead><tr><th>Session</th><th>Booked</th><th>Customer</th><th>Type</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Flag</th><th></th></tr></thead>
+                <tbody>{visibleFlagRows.map(r=>{const rt=getType(r.typeId);const fb=flagBadge(r._flag);return <tr key={r.id+r._flag}>
                   <td><strong style={{fontSize:".88rem"}}>{fmt(r.date)}</strong><br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td>
                   <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{r.createdAt?fmt(r.createdAt.slice(0,10)):""}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td>
                   <td>{r.customerName}</td>
@@ -3407,6 +3410,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                   <td>{r.playerCount}</td>
                   {isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}
                   <td><span style={{fontSize:".75rem",padding:".2rem .55rem",borderRadius:4,fontWeight:700,background:fb.bg,color:fb.color}}>{fb.label}</span></td>
+                  <td><button onClick={()=>ackFlag(r.id+r._flag)} style={{fontSize:".72rem",padding:".2rem .55rem",borderRadius:4,border:"1px solid var(--bdr)",background:"var(--surf2)",color:"var(--muted)",cursor:"pointer"}}>Acknowledge</button></td>
                 </tr>;})}
                 </tbody>
               </table>}

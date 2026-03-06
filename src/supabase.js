@@ -213,23 +213,20 @@ export async function fetchUserByEmail(email) {
 }
 
 export async function createUser(user) {
-  const { data, error } = await supabase.from('users').insert({
-    name:                  user.name,
-    phone:                 user.phone ?? null,
-    email:                 user.email ?? null,
-    auth_id:               user.authId ?? null,
-    access:                user.access ?? 'customer',
-    role:                  user.role ?? null,
-    active:                user.active ?? true,
-    auth_provider:         user.authProvider ?? null,
-    needs_rewaiver_doc_id: user.needsRewaiverDocId ?? null,
-    waivers:               user.waivers ?? [],
-    leaderboard_name:      user.leaderboardName ?? null,
-    is_real:               true,
-    created_by_user_id:    user.createdByUserId ?? null,
-  }).select().single()
+  // SECURITY DEFINER RPC bypasses RLS — same pattern as createGuestUser
+  const { data, error } = await supabase.rpc('create_user_record', {
+    p_name:              user.name,
+    p_phone:             user.phone ?? null,
+    p_email:             user.email ?? null,
+    p_auth_id:           user.authId ?? null,
+    p_access:            user.access ?? 'customer',
+    p_auth_provider:     user.authProvider ?? null,
+    p_leaderboard_name:  user.leaderboardName ?? null,
+    p_created_by_user_id: user.createdByUserId ?? null,
+  })
   if (error) throw error
-  return toUser(data)
+  const row = Array.isArray(data) ? data[0] : data
+  return toUser(row)
 }
 
 /**
