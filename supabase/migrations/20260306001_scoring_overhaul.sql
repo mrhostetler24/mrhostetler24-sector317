@@ -95,9 +95,9 @@ SELECT
   -- Raw run score (numeric, no bonus)
   sr.score,
 
-  -- War bonus included once on run_number=1 rows for winning-team players
+  -- War bonus applied to the winning team's hunter run
   CASE
-    WHEN sr.run_number = 1
+    WHEN sr.role = 'hunter'
       AND res.war_winner_team IS NOT NULL
       AND res.war_winner_team = rp.team
     THEN CASE res.war_win_type
@@ -110,7 +110,7 @@ SELECT
 
   -- Score used for leaderboard aggregation = run_score + war_bonus
   sr.score + CASE
-    WHEN sr.run_number = 1
+    WHEN sr.role = 'hunter'
       AND res.war_winner_team IS NOT NULL
       AND res.war_winner_team = rp.team
     THEN CASE res.war_win_type
@@ -163,9 +163,13 @@ SELECT
   rt.mode                                                 AS session_mode,
 
   SUM(vpr.effective_score)                                AS session_score,
-  MAX(vpr.score)                                          AS best_run_score,
+  MAX(vpr.effective_score)                                AS best_run_score,
   MIN(CASE WHEN vpr.elapsed_seconds > 0
            THEN vpr.elapsed_seconds END)                  AS best_run_seconds,
+  SUM(CASE WHEN vpr.elapsed_seconds > 0
+           THEN vpr.elapsed_seconds ELSE 0 END)           AS total_elapsed,
+  COUNT(CASE WHEN vpr.elapsed_seconds > 0
+             THEN 1 END)                                  AS elapsed_count,
   COUNT(*)                                                AS run_count,
 
   -- Versus W/L — only counted when war outcome is stored
@@ -222,7 +226,7 @@ WITH player_agg AS (
     MAX(ps.best_run_score) AS best_run,
     SUM(ps.run_count)      AS total_run_count,
     MIN(ps.best_run_seconds)   AS best_seconds,
-    AVG(ps.best_run_seconds)   AS avg_seconds_raw,
+    SUM(ps.total_elapsed)::float / NULLIF(SUM(ps.elapsed_count), 0) AS avg_seconds_raw,
     SUM(ps.is_versus_win)      AS versus_wins,
     SUM(ps.is_versus_loss)     AS versus_losses
   FROM v_player_sessions ps
@@ -265,7 +269,7 @@ WITH player_agg AS (
     MAX(ps.best_run_score) AS best_run,
     SUM(ps.run_count)      AS total_run_count,
     MIN(ps.best_run_seconds)   AS best_seconds,
-    AVG(ps.best_run_seconds)   AS avg_seconds_raw,
+    SUM(ps.total_elapsed)::float / NULLIF(SUM(ps.elapsed_count), 0) AS avg_seconds_raw,
     SUM(ps.is_versus_win)      AS versus_wins,
     SUM(ps.is_versus_loss)     AS versus_losses
   FROM v_player_sessions ps
@@ -309,7 +313,7 @@ WITH player_agg AS (
     MAX(ps.best_run_score) AS best_run,
     SUM(ps.run_count)      AS total_run_count,
     MIN(ps.best_run_seconds)   AS best_seconds,
-    AVG(ps.best_run_seconds)   AS avg_seconds_raw,
+    SUM(ps.total_elapsed)::float / NULLIF(SUM(ps.elapsed_count), 0) AS avg_seconds_raw,
     SUM(ps.is_versus_win)      AS versus_wins,
     SUM(ps.is_versus_loss)     AS versus_losses
   FROM v_player_sessions ps
@@ -353,7 +357,7 @@ WITH player_agg AS (
     MAX(ps.best_run_score) AS best_run,
     SUM(ps.run_count)      AS total_run_count,
     MIN(ps.best_run_seconds)   AS best_seconds,
-    AVG(ps.best_run_seconds)   AS avg_seconds_raw,
+    SUM(ps.total_elapsed)::float / NULLIF(SUM(ps.elapsed_count), 0) AS avg_seconds_raw,
     SUM(ps.is_versus_win)      AS versus_wins,
     SUM(ps.is_versus_loss)     AS versus_losses
   FROM v_player_sessions ps
@@ -396,7 +400,7 @@ WITH player_agg AS (
     MAX(ps.best_run_score) AS best_run,
     SUM(ps.run_count)      AS total_run_count,
     MIN(ps.best_run_seconds)   AS best_seconds,
-    AVG(ps.best_run_seconds)   AS avg_seconds_raw,
+    SUM(ps.total_elapsed)::float / NULLIF(SUM(ps.elapsed_count), 0) AS avg_seconds_raw,
     SUM(ps.is_versus_win)      AS versus_wins,
     SUM(ps.is_versus_loss)     AS versus_losses
   FROM v_player_sessions ps
@@ -438,7 +442,7 @@ WITH player_agg AS (
     MAX(ps.best_run_score) AS best_run,
     SUM(ps.run_count)      AS total_run_count,
     MIN(ps.best_run_seconds)   AS best_seconds,
-    AVG(ps.best_run_seconds)   AS avg_seconds_raw,
+    SUM(ps.total_elapsed)::float / NULLIF(SUM(ps.elapsed_count), 0) AS avg_seconds_raw,
     SUM(ps.is_versus_win)      AS versus_wins,
     SUM(ps.is_versus_loss)     AS versus_losses
   FROM v_player_sessions ps
@@ -481,7 +485,7 @@ WITH player_agg AS (
     MAX(ps.best_run_score) AS best_run,
     SUM(ps.run_count)      AS total_run_count,
     MIN(ps.best_run_seconds)   AS best_seconds,
-    AVG(ps.best_run_seconds)   AS avg_seconds_raw,
+    SUM(ps.total_elapsed)::float / NULLIF(SUM(ps.elapsed_count), 0) AS avg_seconds_raw,
     SUM(ps.is_versus_win)      AS versus_wins,
     SUM(ps.is_versus_loss)     AS versus_losses
   FROM v_player_sessions ps
@@ -524,7 +528,7 @@ WITH player_agg AS (
     MAX(ps.best_run_score) AS best_run,
     SUM(ps.run_count)      AS total_run_count,
     MIN(ps.best_run_seconds)   AS best_seconds,
-    AVG(ps.best_run_seconds)   AS avg_seconds_raw,
+    SUM(ps.total_elapsed)::float / NULLIF(SUM(ps.elapsed_count), 0) AS avg_seconds_raw,
     SUM(ps.is_versus_win)      AS versus_wins,
     SUM(ps.is_versus_loss)     AS versus_losses
   FROM v_player_sessions ps
