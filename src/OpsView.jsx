@@ -1187,10 +1187,60 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const resetAddInput=()=>setAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
   const doAddLookup=async(resId)=>{const clean=cleanPh(addInput.phone);if(clean.length<10)return;setAddInput(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){if(resId!=null){const targetRes=reservations.find(r=>r.id===resId);const slotIds=targetRes?reservations.filter(r=>r.date===targetRes.date&&r.startTime===targetRes.startTime&&r.status!=="cancelled").flatMap(r=>(r.players||[]).map(p=>p.userId).filter(Boolean)):[];if(slotIds.includes(found.id)){setAddInput(p=>({...p,foundUserId:null,name:found.name,lookupStatus:"duplicate"}));return;}try{const pl=await addPlayerToReservation(resId,{name:found.name,userId:found.id});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),pl]}:r));if(addingToTeam!==null){setVersusTeams(prev=>({...prev,[resId]:{...(prev[resId]||{}),[pl.id]:addingToTeam}}));}resetAddInput();setAddingTo(null);setAddingToTeam(null);showMsg("Added: "+found.name);}catch(e){showMsg("Error: "+e.message);setAddInput(p=>({...p,foundUserId:found.id,name:found.name,lookupStatus:"found"}));}}else{setAddInput(p=>({...p,foundUserId:found.id,name:found.name,lookupStatus:"found"}));}}else{setAddInput(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setAddInput(p=>({...p,lookupStatus:"notfound"}));}};
   const doAddPlayer=async resId=>{const userId=addInput.foundUserId||null;const name=userId?(users.find(u=>u.id===userId)?.name||addInput.name):addInput.name.trim();if(!name)return;if(userId){const targetRes=reservations.find(r=>r.id===resId);const slotIds=targetRes?reservations.filter(r=>r.date===targetRes.date&&r.startTime===targetRes.startTime&&r.status!=="cancelled").flatMap(r=>(r.players||[]).map(p=>p.userId).filter(Boolean)):[];if(slotIds.includes(userId)){showMsg(name+" is already in this time slot");return;}}try{let effectiveUserId=userId;if(!effectiveUserId){const phone=cleanPh(addInput.phone);if(phone.length!==10){showMsg("A phone number is required to add a new guest player.");return;}const newUser=await createGuestUser({name,phone,createdByUserId:currentUser?.id??null});effectiveUserId=newUser.id;setUsers(p=>[...p,newUser]);}const p=await addPlayerToReservation(resId,{name,userId:effectiveUserId});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));if(addingToTeam!==null){setVersusTeams(prev=>({...prev,[resId]:{...(prev[resId]||{}),[p.id]:addingToTeam}}));}resetAddInput();setAddingTo(null);setAddingToTeam(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
-  const doRemovePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}};
+  const doRemovePlayer=async(resId,playerId)=>{
+    // Snapshot remaining players' teams BEFORE updating reservations so positional
+    // fallback stays based on pre-removal indices (removing a player would otherwise
+    // shift others from idx≥6 down to idx<6 and flip their team).
+    setVersusTeams(prev=>{
+      const res=reservations.find(r=>r.id===resId);
+      if(!res)return prev;
+      const snap={...(prev[resId]||{})};
+      (res.players||[]).forEach((p,idx)=>{
+        if(p.id!==playerId&&snap[p.id]===undefined)snap[p.id]=idx<6?1:2;
+      });
+      delete snap[playerId];
+      return{...prev,[resId]:snap};
+    });
+    try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}
+  };
   const doWiLookup=async()=>{const clean=cleanPh(wi.phone);if(clean.length<10)return;setWi(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWi(p=>({...p,foundUserId:found.id,customerName:found.name,lookupStatus:"found"}));}else{setWi(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWi(p=>({...p,lookupStatus:"notfound"}));}};
   const doWiLookupPlayer=async()=>{const clean=cleanPh(wiAddInput.phone);if(clean.length<10)return;setWiAddInput(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWiAddInput(p=>({...p,foundUserId:found.id,name:found.name,lookupStatus:"found"}));}else{setWiAddInput(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWiAddInput(p=>({...p,lookupStatus:"notfound"}));}};
-  const doWiAddPlayer=async()=>{const userId=wiAddInput.foundUserId||null;const name=userId?(users.find(u=>u.id===userId)?.name||wiAddInput.name):wiAddInput.name.trim();if(!name)return;const phone=cleanPh(wiAddInput.phone);try{let effectiveUserId=userId;if(!effectiveUserId){if(phone.length!==10){showMsg("Phone required to add a new guest.");return;}const newUser=await createGuestUser({name,phone,createdByUserId:currentUser?.id??null});effectiveUserId=newUser.id;setUsers(p=>[...p,newUser]);}for(const resId of wiNewResIds){const existing=reservations.find(r=>r.id===resId);if(existing?.players?.some(p=>p.userId===effectiveUserId))continue;try{const p=await addPlayerToReservation(resId,{name,userId:effectiveUserId});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));}catch(e){}}setWiAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});showMsg(wiNewResIds.length>1?`Added to all ${wiNewResIds.length} sessions`:"Player added");}catch(e){showMsg("Error: "+e.message);}};
+  const doWiAddPlayer=async()=>{
+    const userId=wiAddInput.foundUserId||null;
+    const name=userId?(users.find(u=>u.id===userId)?.name||wiAddInput.name):wiAddInput.name.trim();
+    if(!name)return;
+    const phone=cleanPh(wiAddInput.phone);
+    try{
+      let effectiveUserId=userId;
+      if(!effectiveUserId){
+        if(phone.length!==10){showMsg("Phone required to add a new guest.");return;}
+        const newUser=await createGuestUser({name,phone,createdByUserId:currentUser?.id??null});
+        effectiveUserId=newUser.id;
+        setUsers(p=>[...p,newUser]);
+      }
+      // Add to all sessions in parallel; track individual failures
+      const targets=wiNewResIds.filter(resId=>{
+        const existing=reservations.find(r=>r.id===resId);
+        return !existing?.players?.some(p=>p.userId===effectiveUserId);
+      });
+      const results=await Promise.allSettled(targets.map(async resId=>{
+        const p=await addPlayerToReservation(resId,{name,userId:effectiveUserId});
+        setReservations(prev=>{
+          const already=prev.find(r=>r.id===resId);
+          if(!already)return[...prev,]; // reservation not yet in local state — skip UI update
+          return prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r);
+        });
+        return resId;
+      }));
+      const failed=results.filter(r=>r.status==='rejected').length;
+      setWiAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
+      if(failed>0){
+        showMsg(`Added to ${targets.length-failed} of ${targets.length} sessions — ${failed} failed`);
+      }else{
+        showMsg(wiNewResIds.length>1?`Added to all ${wiNewResIds.length} sessions`:"Player added");
+      }
+    }catch(e){showMsg("Error: "+e.message);}
+  };
   const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const isOpen=rt?.style==="open";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const doSplit=isOpen&&wi.splitA>0&&wi.splitA<playerCount;const bookDate=wi.date||viewDate;const allSlots=[{time,addSecondLane:wi.addSecondLane},...(wi.extraSlots||[])];const base={typeId:wi.typeId,date:bookDate,status:"confirmed",paid:true};setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null,createdByUserId:currentUser?.id??null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const autoAddBooker=async(resId)=>{try{return await addPlayerToReservation(resId,{name,userId});}catch(e){return null;}};const newReses=[];const primaryIds=[];for(const {time:t,addSecondLane:sl} of allSlots){if(doSplit){const sB=playerCount-wi.splitA;const rA=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:wi.splitA,amount:rt.price*wi.splitA});const rB=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:sB,amount:rt.price*sB});const bp=await autoAddBooker(rA.id);newReses.push({...rA,players:bp?[bp]:[]},{...rB,players:[]});primaryIds.push(rA.id);}else{const lanePrice=isPriv?rt.price*(sl?2:1):rt.price*playerCount;const newRes=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:isPriv?rt.price:lanePrice});const bp=await autoAddBooker(newRes.id);newReses.push({...newRes,players:bp?[bp]:[]});primaryIds.push(newRes.id);if(isPriv&&sl){const newRes2=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:rt.price});newReses.push({...newRes2,players:[]});primaryIds.push(newRes2.id);}}}setReservations(p=>[...p,...newReses]);setWiNewResIds(primaryIds);setWiStep("players");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
   const resetWI=()=>{setShowWI(null);setWiStep("details");setWiNewResIds([]);setWiAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraSlots:[],addSecondLane:false,splitA:0});};
   activeWorkRef.current=!!(showWI||signingFor||sendConfirm||addingTo||statusBusy||wiSaving);
