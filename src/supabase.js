@@ -561,10 +561,17 @@ export async function createPayment(payment) {
 }
 
 export async function fetchPayments() {
-  const { data, error } = await supabase
-    .from('payments').select('*').order('created_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(toPayment)
+  const BATCH = 1000
+  let all = [], from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('payments').select('*').order('created_at', { ascending: false }).range(from, from + BATCH - 1)
+    if (error) throw error
+    all = all.concat(data)
+    if (data.length < BATCH) break
+    from += BATCH
+  }
+  return all.map(toPayment)
 }
 
 export async function mergeUsers(winnerId, loserId) {
@@ -606,30 +613,45 @@ export async function fetchAvailabilityReservations() {
 }
 
 export async function fetchReservations() {
+  const BATCH = 1000
   // Try SECURITY DEFINER RPC — bypasses RLS on reservation_players
-  const { data: rpcData, error: rpcErr } = await supabase
-    .rpc('get_reservations_with_players')
+  let rpcAll = [], rpcFrom = 0, rpcErr = null
+  while (true) {
+    const { data, error } = await supabase.rpc('get_reservations_with_players').range(rpcFrom, rpcFrom + BATCH - 1)
+    if (error) { rpcErr = error; break }
+    rpcAll = rpcAll.concat(data ?? [])
+    if ((data ?? []).length < BATCH) break
+    rpcFrom += BATCH
+  }
   if (rpcErr) console.error('[fetchReservations] RPC error:', rpcErr.message, rpcErr.code)
-  if (!rpcErr && rpcData) return rpcRowsToReservations(rpcData)
+  if (!rpcErr) return rpcRowsToReservations(rpcAll)
 
   // Fallback: direct query (subject to RLS)
-  const { data: resData, error: resErr } = await supabase
-    .from('reservations')
-    .select('*')
-    .order('date', { ascending: true })
-    .order('start_time', { ascending: true })
-  if (resErr) throw resErr
-
-  const ids = (resData ?? []).map(r => r.id)
-  const { data: playerData, error: playerErr } = ids.length
-    ? await supabase.from('reservation_players').select('*').in('reservation_id', ids)
-    : { data: [] }
-  if (playerErr) {
-    console.error('[fetchReservations] reservation_players RLS blocked:', playerErr.message, playerErr.code)
-    return mergePlayersIntoReservations(resData, [])
+  let resAll = [], resFrom = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('reservations').select('*')
+      .order('date', { ascending: true }).order('start_time', { ascending: true })
+      .range(resFrom, resFrom + BATCH - 1)
+    if (error) throw error
+    resAll = resAll.concat(data)
+    if (data.length < BATCH) break
+    resFrom += BATCH
   }
 
-  return mergePlayersIntoReservations(resData, playerData)
+  const ids = resAll.map(r => r.id)
+  let playerAll = []
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const chunk = ids.slice(i, i + BATCH)
+    const { data, error } = await supabase.from('reservation_players').select('*').in('reservation_id', chunk)
+    if (error) {
+      console.error('[fetchReservations] reservation_players RLS blocked:', error.message, error.code)
+      return mergePlayersIntoReservations(resAll, [])
+    }
+    playerAll = playerAll.concat(data)
+  }
+
+  return mergePlayersIntoReservations(resAll, playerAll)
 }
 
 export async function fetchTodaysReservations() {
@@ -806,14 +828,20 @@ export async function fetchRunsForReservation(reservationId) {
 /** Fetch all runs for a list of reservation IDs (bulk load for mission board) */
 export async function fetchRunsForReservations(reservationIds) {
   if (!reservationIds.length) return []
-  const { data, error } = await supabase
-    .from('session_runs')
-    .select('*')
-    .in('reservation_id', reservationIds)
-    .order('reservation_id')
-    .order('run_number')
-  if (error) throw error
-  return data.map(toRun)
+  const BATCH = 1000
+  let all = [], from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('session_runs').select('*')
+      .in('reservation_id', reservationIds)
+      .order('reservation_id').order('run_number')
+      .range(from, from + BATCH - 1)
+    if (error) throw error
+    all = all.concat(data)
+    if (data.length < BATCH) break
+    from += BATCH
+  }
+  return all.map(toRun)
 }
 
 /** Upsert a run record — inserts or updates on (reservation_id, run_number, team) */
