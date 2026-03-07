@@ -180,7 +180,8 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       allPlayers.forEach((p,idx)=>{
         const ownerRes=lane.reservations.find(r=>(r.players||[]).some(pl=>pl.id===p.id));
         const vt=versusTeams?.[ownerRes?.id]?.[p.id];
-        laneSnap[p.id]=vt!=null?vt:(idx<6?1:2);
+        // Fall back to player.team from DB, then positional
+        laneSnap[p.id]=vt!=null?vt:p.team!=null?p.team:(idx<6?1:2);
       });
       snap[li]=laneSnap;
     });
@@ -427,12 +428,12 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
         Objective{selObj&&selObj.description?<span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}> · {selObj.description}</span>:''}
       </div>
-      <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem'}}>
+      <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem',justifyContent:'center'}}>
         {objectives.map(o=>{const sel=s.objectiveId===o.id;return(
           <button key={o.id} type="button" onClick={()=>setSetting(laneIdx,'objectiveId',o.id)}
             style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
               border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
-              color:sel?'var(--accB)':'var(--txt)',cursor:'pointer'}}>
+              color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
             {o.name}
           </button>);})}
       </div>
@@ -481,9 +482,12 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     // Aggregate all players across all reservations in this lane
     const allPlayers=allRes.flatMap(r=>r.players||[]);
     // Lane-scoped team getter: default splits by overall position across all players
+    // Check ALL reservations in lane for versusTeams (not just allRes[0])
+    const vtForPid=pid=>{for(const r of allRes){const v=versusTeams?.[r.id]?.[pid];if(v!==undefined)return v;}return undefined;};
     const getLaneTeam=pid=>{
       const ov=runTeams[run]?.[laneIdx]?.[pid];if(ov!==undefined)return ov;
-      const vt=versusTeams?.[allRes[0]?.id]?.[pid];if(vt!==undefined)return vt;
+      const vt=vtForPid(pid);if(vt!==undefined)return vt;
+      const pObj=allPlayers.find(p=>p.id===pid);if(pObj?.team!=null)return pObj.team;
       const idx=allPlayers.findIndex(p=>p.id===pid);return idx<6?1:2;
     };
     // Row tint: Blue(1)/Red(2) — locked to run 1 identity, never changes in run 2.
@@ -495,7 +499,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         if(r2!=null)return 3-r2; // invert: Blue was T1→T2, so 3-2=1=blue ✓
       }
       const r1=runTeams[1]?.[laneIdx]?.[pid];if(r1!=null)return r1;
-      const vt=versusTeams?.[allRes[0]?.id]?.[pid];if(vt!=null)return vt;
+      const vt=vtForPid(pid);if(vt!=null)return vt;
       return getLaneTeam(pid); // pre-assignment fallback: current role determines initial tint
     };
     // Run 1: Blue=T1=Hunters, Red=T2=Coyotes. Run 2 (after swap): Blue=T2=Coyotes, Red=T1=Hunters
@@ -764,7 +768,8 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const allPlayers=lane.reservations.flatMap(r=>r.players||[]);
     const getLT=pid=>{
       const rt1=runTeams[1]?.[li];if(rt1?.[pid]!=null)return rt1[pid];
-      const vt=versusTeams?.[lane.reservations[0]?.id]?.[pid];if(vt!=null)return vt;
+      for(const r of lane.reservations){const v=versusTeams?.[r.id]?.[pid];if(v!=null)return v;}
+      const pObj=allPlayers.find(p=>p.id===pid);if(pObj?.team!=null)return pObj.team;
       return allPlayers.findIndex(p=>p.id===pid)<Math.ceil(allPlayers.length/2)?1:2;
     };
     const t1Pl=allPlayers.filter(p=>getLT(p.id)===1);
