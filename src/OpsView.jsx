@@ -168,7 +168,24 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   const [laneFinish,setLaneFinish]=useState({});
   const [structOrder,setStructOrder]=useState(['Alpha','Bravo']);
   const [settings,setSettings]=useState({1:{0:dfltLane(),1:dfltLane()},2:{0:dfltLane(),1:dfltLane()}});
-  const [runTeams,setRunTeams]=useState({1:{},2:{}});
+  const [runTeams,setRunTeams]=useState(()=>{
+    // Snapshot every player's initial team for run 1 at mount time so that
+    // removing a player never shifts other players via the positional fallback.
+    const snap={};
+    lanes.forEach((lane,li)=>{
+      const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
+      if(rt?.mode!=='versus')return;
+      const allPlayers=lane.reservations.flatMap(r=>r.players||[]);
+      const laneSnap={};
+      allPlayers.forEach((p,idx)=>{
+        const ownerRes=lane.reservations.find(r=>(r.players||[]).some(pl=>pl.id===p.id));
+        const vt=versusTeams?.[ownerRes?.id]?.[p.id];
+        laneSnap[p.id]=vt!=null?vt:(idx<6?1:2);
+      });
+      snap[li]=laneSnap;
+    });
+    return{1:snap,2:{}};
+  });
   const [playerStats,setPlayerStats]=useState({});
   const [objectives,setObjectives]=useState([]);
   const [scored,setScored]=useState({});
