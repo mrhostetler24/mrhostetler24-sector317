@@ -1170,6 +1170,15 @@ export async function claimShift(shiftId) {
   return data ? toShift(data) : null
 }
 
+/** Staff-safe: flag own shift as conflicted via SECURITY DEFINER RPC */
+export async function flagShiftConflict(shiftId, conflictNote) {
+  const { error } = await supabase.rpc('flag_shift_conflict', {
+    p_shift_id: shiftId,
+    p_conflict_note: conflictNote ?? null,
+  })
+  if (error) throw error
+}
+
 // ── Shift alerts ─────────────────────────────────────────────────────────────
 
 export async function createShiftAlerts(shiftId, staffIds) {

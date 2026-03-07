@@ -12,7 +12,7 @@ import {
   fetchResTypes, upsertResType, deleteResType,
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
   fetchReservations, fetchAvailabilityReservations, createReservation, updateReservation, addPlayerToReservation, removePlayerFromReservation, syncReservationPlayers,
-  fetchShifts, createShift, updateShift, deleteShift, claimShift,
+  fetchShifts, createShift, updateShift, deleteShift, claimShift, flagShiftConflict,
   createPayment, fetchPayments, mergeUsers, linkAuthToGuest,
   fetchRunsForReservations, fetchUserAuthDates, calculateRunScore,
   fetchShiftTemplates, fetchTemplateSlots, fetchSlotAssignments,
@@ -597,10 +597,9 @@ function RunsCell({runs,reservations,resTypes,userId}){
     runs.filter(r=>resIds.has(r.reservationId)).forEach(run=>{
       const res=reservations.find(r=>r.id===run.reservationId);
       const rt=res?resTypes.find(t=>t.id===res.typeId):null;
-      if(!rt)return;
-      if(rt.mode==='coop'&&rt.style==='private')out.coopPri++;
-      else if(rt.mode==='coop')out.coopOpen++;
-      else if(rt.mode==='versus'&&rt.style==='private')out.vsPri++;
+      if(rt?.mode==='coop'&&rt?.style==='private')out.coopPri++;
+      else if(rt?.mode==='coop')out.coopOpen++;
+      else if(rt?.mode==='versus'&&rt?.style==='private')out.vsPri++;
       else out.vsOpen++;
     });
     return out;
@@ -1845,8 +1844,9 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
       const hasConflicts=conflictingShifts.length>0;
       const block=await createStaffBlock({staffId:currentUser.id,startDate:blockDraft.startDate,endDate:blockDraft.endDate,startTime:blockDraft.isFullDay?null:blockDraft.startTime,endTime:blockDraft.isFullDay?null:blockDraft.endTime,label:blockDraft.label||null,status:hasConflicts?'pending':'confirmed'});
       for(const shift of conflictingShifts){
-        const updated=await updateShift(shift.id,{conflicted:true,conflictNote:'Availability block'+(blockDraft.label?': '+blockDraft.label:'')});
-        setShifts(prev=>prev.map(s=>s.id===updated.id?updated:s));
+        const note='Availability block'+(blockDraft.label?': '+blockDraft.label:'');
+        await flagShiftConflict(shift.id,note);
+        setShifts(prev=>prev.map(s=>s.id===shift.id?{...s,conflicted:true,conflictNote:note}:s));
       }
       setStaffBlocks(prev=>[...prev,block].sort((a,b)=>a.startDate.localeCompare(b.startDate)));
       setAddingBlock(false);
@@ -1874,7 +1874,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   }
   const mine=[...shifts].filter(s=>s.staffId===currentUser.id).sort((a,b)=>a.date.localeCompare(b.date));
   const conflicts=isManager?shifts.filter(s=>s.conflicted):shifts.filter(s=>s.conflicted&&s.staffId!==currentUser.id);
-  const opens=shifts.filter(s=>s.open&&!s.staffId);
+  const opens=shifts.filter(s=>!s.staffId&&(s.open||s.templateSlotId));
   const dayShifts=[...shifts].filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const dayOpens=opens.filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const isAdmin=currentUser?.access==='admin';
@@ -1884,7 +1884,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   const getU=id=>users.find(u=>u.id===id);
   const maxWeekStartFn=()=>addDaysStr(today,84);
   const weekDays2=Array.from({length:7},(_,i)=>addDaysStr(weekStart,i));
-  const weekShifts2=shifts.filter(s=>s.date>=weekStart&&s.date<=weekDays2[6]);
+  const weekShifts2=(()=>{const base=shifts.filter(s=>s.date>=weekStart&&s.date<=weekDays2[6]);return hideAdminShifts&&isAdmin?base.filter(s=>s.role!=='Admin'):base;})();
   const weekRows2=(()=>{const ids=new Set(weekShifts2.map(s=>s.staffId).filter(Boolean));const hasOpen=weekShifts2.some(s=>!s.staffId);const rows=[];for(const id of ids){const u=users.find(x=>x.id===id);rows.push({id,name:u?.name??'Unknown',role:u?.role??u?.access??'—'});}rows.sort((a,b)=>a.name.localeCompare(b.name));if(hasOpen)rows.push({id:null,name:'Unassigned',role:'—'});return rows;})();
   return(
     <div>
@@ -1892,7 +1892,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <div className="mt2">Flag Conflict</div>
         <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}><strong style={{color:"var(--txt)"}}>{fmt(conflictModal.date)}</strong> ({fmt12(conflictModal.start)}–{fmt12(conflictModal.end)})<br/>Managers will be notified of your conflict.</p>
         <div className="f"><label>Reason (optional)</label><input value={cNote} onChange={e=>setCNote(e.target.value)} placeholder="e.g. family commitment, medical"/></div>
-        <div className="ma"><button className="btn btn-s" onClick={()=>setConflictModal(null)}>Cancel</button><button className="btn btn-warn" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(conflictModal.id,{conflicted:true,conflictNote:cNote||null});setShifts(p=>p.map(s=>s.id===conflictModal.id?{...s,conflicted:true,conflictNote:cNote}:s));onAlert(currentUser.name+' flagged a conflict for '+fmt(conflictModal.date));setConflictModal(null);}catch(e){onAlert('Error flagging conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Flag →</button></div>
+        <div className="ma"><button className="btn btn-s" onClick={()=>setConflictModal(null)}>Cancel</button><button className="btn btn-warn" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await flagShiftConflict(conflictModal.id,cNote||null);setShifts(p=>p.map(s=>s.id===conflictModal.id?{...s,conflicted:true,conflictNote:cNote}:s));onAlert(currentUser.name+' flagged a conflict for '+fmt(conflictModal.date));setConflictModal(null);}catch(e){onAlert('Error flagging conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Flag →</button></div>
       </div></div>}
       {opens.length>0&&tab!=="open"&&<div style={{background:'var(--okB)',color:'#fff',borderRadius:8,padding:'.6rem 1rem',marginBottom:'.75rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap'}}>
         <span style={{fontFamily:'var(--fd)',fontWeight:700,fontSize:'.92rem'}}>📋 {opens.length} open shift{opens.length!==1?'s':''} available to pick up</span>
@@ -1903,7 +1903,6 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <button className={`tab${tab==="conflict"?" on":""}`} onClick={()=>setTab("conflict")}>Conflicts {conflicts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".62rem",marginLeft:".25rem"}}>{conflicts.length}</span>}</button>
         <button className={`tab${tab==="open"?" on":""}`} onClick={()=>setTab("open")}>Open ({opens.length})</button>
         {isManager&&<button className={`tab${tab==="all"?" on":""}`} onClick={()=>setTab("all")}>All Staff</button>}
-        {isManager&&<button className={`tab${tab==="templates"?" on":""}`} onClick={()=>setTab("templates")}>Templates</button>}
         <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending').length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending').length}</span>}</button>
       </div>
       {tab==="mine"&&<>
@@ -2070,7 +2069,6 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
           </div>
         </>}
       </div>}
-      {tab==="templates"&&isManager&&<StaffingScheduler currentUser={currentUser} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={onAlert} initialView="templates" embedded={true}/>}
     </div>
   );
 }
@@ -2833,7 +2831,7 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,waiverDoc
         {!(tab==="today"?todayRes:upcoming).length&&<div className="empty"><div className="ei">{tab==="today"?"🎯":"📅"}</div><p>No {tab==="today"?"sessions today":"upcoming sessions"}.</p></div>}
         {!!(tab==="today"?todayRes:upcoming).length&&<div className="tw"><div className="th"><span className="ttl">{tab==="today"?"Today's Sessions":"Upcoming"}</span><span style={{fontSize:".74rem",color:"var(--muted)"}}>Click row to expand</span></div>
           <table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th></tr></thead>
-            <tbody>{(tab==="today"?todayRes:upcoming).map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} currentUser={user} onAddPlayer={onAddPlayer} onSignWaiver={(uid,name)=>onSignWaiver(uid,name)} onRemovePlayer={async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(p=>p.map(r=>r.id===resId?{...r,players:r.players.filter(x=>x.id!==playerId)}:r));}catch(e){onAlert("Error removing player: "+e.message);}}} onReschedule={async(resId,date,startTime)=>{try{const updated=await updateReservation(resId,{date,startTime,rescheduled:true});setReservations(p=>p.map(r=>r.id===resId?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true}:r));}catch(e){onAlert("Error rescheduling: "+e.message);}}}/>)}</tbody>
+            <tbody>{(tab==="today"?todayRes:upcoming).map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} currentUser={user} onAddPlayer={onAddPlayer} onSignWaiver={(uid,name)=>onSignWaiver(uid,name)} onRemovePlayer={async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(p=>p.map(r=>r.id===resId?{...r,players:r.players.filter(x=>x.id!==playerId)}:r));}catch(e){onAlert("Error removing player: "+e.message);}}} onReschedule={(user.access==='manager'||user.access==='admin')?async(resId,date,startTime)=>{try{const updated=await updateReservation(resId,{date,startTime,rescheduled:true});setReservations(p=>p.map(r=>r.id===resId?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true}:r));}catch(e){onAlert("Error rescheduling: "+e.message);}}:undefined}/>)}</tbody>
           </table></div>}
       </>}
       {tab==="schedule"&&<SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={false} onAlert={onAlert} tabOverride={schedTabOverride} onTabOverrideConsumed={()=>setSchedTabOverride(null)}/>}
@@ -3549,7 +3547,6 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       {tab==="schedule"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Schedule</div></div><button className="btn btn-p" onClick={()=>setModal("shift")}>+ Add Shift</button></div>
         <SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)} tabOverride={schedTabOverride} onTabOverrideConsumed={()=>setSchedTabOverride(null)}/>
-        {isManager&&<StaffingScheduler currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)}/>}
       </>}
 
       {tab==="customers"&&isManager&&<>
@@ -3578,13 +3575,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         {(()=>{
           const q=custSearch.trim().toLowerCase();
           const digits=cleanPh(custSearch);
-          const filtered=users.filter(u=>u.access==="customer"&&(!q||(u.name||"").toLowerCase().includes(q)||(digits.length>=3&&(u.phone||"").includes(digits))));
+          const filtered=users.filter(u=>u.active!==false&&(!q||(u.name||"").toLowerCase().includes(q)||(digits.length>=3&&(u.phone||"").includes(digits)))).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
           const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
           const page=Math.min(custPage,totalPages);
           const pageItems=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
           const pager=filtered.length>PAGE_SIZE&&(
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:".5rem 0",fontSize:".84rem",color:"var(--muted)"}}>
-              <span>{(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE,filtered.length)} of {filtered.length} customers</span>
+              <span>{(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE,filtered.length)} of {filtered.length} people</span>
               <div style={{display:"flex",gap:".4rem",alignItems:"center"}}>
                 <button className="btn btn-sm btn-s" disabled={page<=1} onClick={()=>setCustPage(p=>p-1)}>← Prev</button>
                 <span style={{padding:"0 .25rem"}}>Page {page} / {totalPages}</span>
@@ -3606,8 +3603,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               const valid=hasValidWaiver(c,activeWaiverDoc);
               const wd=latestWaiverDate(c);
               const isDup=dupAlerts.some(d=>d.phoneOnlyUser.id===c.id||d.authUser.id===c.id);
+              const isStaff=c.access!=='customer';
               return <tr key={c.id} style={{background:isDup?"rgba(184,150,12,.04)":""}}>
-                <td><strong>{c.name}</strong>{isDup&&<span className="badge b-warn" style={{marginLeft:".4rem",fontSize:".6rem"}}>⚠ dup</span>}</td>
+                <td><strong>{c.name}</strong>{isStaff&&<span className="badge" style={{marginLeft:".4rem",fontSize:".6rem",background:"var(--acc2)",color:"var(--accB)",border:"1px solid var(--acc)"}}>{c.access==='admin'?'Admin':c.access==='manager'?'Mgr':'Staff'}</span>}{isDup&&<span className="badge b-warn" style={{marginLeft:".4rem",fontSize:".6rem"}}>⚠ dup</span>}</td>
                 <td style={{fontFamily:"monospace",fontSize:".8rem",color:"var(--muted)"}}>{c.leaderboardName||genDefaultLeaderboardName(c.name,c.phone)}</td>
                 <td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(c.phone)}</td>
                 <td><AuthBadge provider={c.authProvider}/></td>
@@ -4053,9 +4051,12 @@ useEffect(() => {
 
   const handleSignWaiver=async(uid,name)=>{
     try{
-      const updated=await signWaiver(uid,name,activeWaiver?.id);
-      setUsers(p=>p.map(u=>u.id===uid?updated:u));
-      setCurrentUser(u=>u&&u.id===uid?updated:u);
+      await signWaiver(uid,name,activeWaiver?.id);
+      const ts=new Date().toISOString();
+      const entry={signedAt:ts,signedName:name,waiverDocId:activeWaiver?.id};
+      const addEntry=u=>({...u,waivers:[...(u.waivers||[]),entry],needsRewaiverDocId:null});
+      setUsers(p=>p.map(u=>u.id===uid?addEntry(u):u));
+      setCurrentUser(u=>u&&u.id===uid?addEntry(u):u);
     }catch(err){showToast("Waiver error: "+err.message);}
   };
 
@@ -4217,7 +4218,7 @@ useEffect(() => {
           <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);}}>Sign Out</button>
         </div>
       </nav>
-      {effectivePortal==="staff"&&(()=>{const avail=shifts.filter(s=>(s.open&&!s.staffId)||(s.conflicted&&s.staffId!==effectiveUser?.id));if(!avail.length)return null;const hasConflict=avail.some(s=>s.conflicted&&s.staffId!==effectiveUser?.id);return(<div style={{background:'var(--acc)',color:'#111209',padding:'.45rem 1.25rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap',fontSize:'.88rem',fontFamily:'var(--fd)',fontWeight:300}}>
+      {effectivePortal==="staff"&&(()=>{const avail=shifts.filter(s=>((!s.staffId&&(s.open||s.templateSlotId)))||(s.conflicted&&s.staffId!==effectiveUser?.id));if(!avail.length)return null;const hasConflict=avail.some(s=>s.conflicted&&s.staffId!==effectiveUser?.id);return(<div style={{background:'var(--acc)',color:'#111209',padding:'.45rem 1.25rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap',fontSize:'.88rem',fontFamily:'var(--fd)',fontWeight:300}}>
         <span>📋 {avail.length} shift{avail.length!==1?'s':''} available to pick up</span>
         <button onClick={()=>setStaffNavTarget(hasConflict?'conflict':'open')} style={{background:'rgba(0,0,0,.15)',color:'#111209',border:'1px solid rgba(0,0,0,.2)',borderRadius:6,padding:'.2rem .65rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:400,fontSize:'.82rem'}}>View →</button>
       </div>);})()}
