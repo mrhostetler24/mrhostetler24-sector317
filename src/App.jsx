@@ -2077,6 +2077,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
 function AccountPanel({user,users,setUsers,onClose}){
   const [name,setName]=useState(user.name||"");
   const [phone,setPhone]=useState(user.phone||"");
+  const [email,setEmail]=useState(user.email||"");
   const [lbName,setLbName]=useState(user.leaderboardName||"");
   const [hideFromLb,setHideFromLb]=useState(user.hideFromLeaderboard??false);
   const [saving,setSaving]=useState(false);
@@ -2094,6 +2095,7 @@ function AccountPanel({user,users,setUsers,onClose}){
       const updated=await updateOwnProfile(user.id,{
         name:name.trim(),
         phone:phoneClean,
+        email:email.trim()||null,
         leaderboardName:lbName.trim()||defaultLb,
         hideFromLeaderboard:hideFromLb,
       });
@@ -2124,6 +2126,11 @@ function AccountPanel({user,users,setUsers,onClose}){
           <label>Mobile Number <span style={{color:"var(--dangerL)"}}>*</span></label>
           <PhoneInput value={phone} onChange={setPhone}/>
           <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".25rem"}}>Used for check-in and group management. Never shared.</div>
+        </div>
+        <div className="f">
+          <label>Email Address <span style={{color:"var(--muted)",fontWeight:400}}>(optional)</span></label>
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/>
+          <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:".25rem"}}>Shown on your social profile if not hidden. Not used for login.</div>
         </div>
         <div className="f">
           <label>Leaderboard Name <span style={{color:"var(--muted)",fontWeight:400}}>(optional)</span></label>

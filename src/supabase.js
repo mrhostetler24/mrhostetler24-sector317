@@ -343,11 +343,12 @@ export async function updateUser(id, changes) {
 }
 
 // Customer self-update via SECURITY DEFINER RPC (bypasses RLS auth_id mismatch).
-export async function updateOwnProfile(id, { name, phone, leaderboardName, hideFromLeaderboard }) {
+export async function updateOwnProfile(id, { name, phone, email, leaderboardName, hideFromLeaderboard }) {
   const { data, error } = await supabase.rpc('update_own_profile', {
     p_user_id:               id,
     p_name:                  name,
     p_phone:                 phone,
+    p_email:                 email ?? null,
     p_leaderboard_name:      leaderboardName,
     p_hide_from_leaderboard: hideFromLeaderboard,
   })

@@ -106,6 +106,20 @@ function computeStats(runArr) {
 }
 
 // ── Small reusable components ─────────────────────────────────────────────────
+function PrivacyToggle({ checked, onChange }) {
+  return (
+    <button type="button" onClick={() => onChange(!checked)}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem', padding: '.15rem .55rem', borderRadius: 10, flexShrink: 0,
+        border: `1px solid ${checked ? 'var(--acc)' : 'var(--bdr)'}`,
+        background: checked ? 'rgba(200,224,58,.12)' : 'var(--bg)',
+        color: checked ? 'var(--accB)' : 'var(--muted)',
+        fontSize: '.68rem', fontWeight: checked ? 700 : 400, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: checked ? 'var(--accB)' : 'var(--muted)' }} />
+      {checked ? 'Hidden' : 'Hide from Social'}
+    </button>
+  )
+}
+
 function StatCard({ label, value, sub }) {
   return (
     <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', textAlign: 'center' }}>
@@ -552,51 +566,63 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '.65rem' }}>
               <p style={{ margin: 0, fontSize: '.75rem', color: 'var(--muted)' }}>
-                Name and callsign are updated in <button className="btn-link" style={{ fontSize: '.75rem' }} onClick={() => { setEditing(false); onEditProfile() }}>Account Settings</button>.
+                Name and callsign are updated in{' '}
+                <button className="btn-link" style={{ fontSize: '.75rem', color: 'var(--accB)', fontWeight: 600 }} onClick={onEditProfile}>Account Settings</button>.
               </p>
 
-              <div>
-                <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Motto</label>
-                <input className="inp" style={{ width: '100%', boxSizing: 'border-box' }} placeholder="Your personal motto…" value={editDraft.motto} maxLength={80} onChange={e => setEditDraft(d => ({ ...d, motto: e.target.value }))} />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Profession</label>
-                <input className="inp" style={{ width: '100%', boxSizing: 'border-box' }} placeholder="e.g. Software Engineer" value={editDraft.profession} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, profession: e.target.value }))} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '.5rem' }}>
-                <div>
-                  <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>City</label>
-                  <input className="inp" style={{ width: '100%', boxSizing: 'border-box' }} placeholder="Indianapolis" value={editDraft.homeBaseCity} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, homeBaseCity: e.target.value }))} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>State</label>
-                  <input className="inp" style={{ width: 56, boxSizing: 'border-box' }} placeholder="IN" value={editDraft.homeBaseState} maxLength={4} onChange={e => setEditDraft(d => ({ ...d, homeBaseState: e.target.value }))} />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>
-                  Bio <span style={{ float: 'right', color: editDraft.bio.length > MAX_BIO ? 'var(--danger,#e05)' : 'var(--muted)' }}>{editDraft.bio.length}/{MAX_BIO}</span>
-                </label>
-                <textarea className="inp" rows={3} style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }} placeholder="Tell other operatives a little about yourself…" value={editDraft.bio} maxLength={MAX_BIO} onChange={e => setEditDraft(d => ({ ...d, bio: e.target.value.slice(0, MAX_BIO) }))} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '.35rem', paddingTop: '.15rem' }}>
-                <div style={{ fontSize: '.72rem', fontFamily: 'var(--fd)', color: 'var(--acc2)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '.1rem' }}>Privacy</div>
+              {/* Read-only fields with privacy toggles */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '.3rem', borderBottom: '1px solid var(--bdr)', paddingBottom: '.65rem' }}>
                 {[
-                  ['hidePhone',  'Hide my phone number from other operatives'],
-                  ['hideEmail',  'Hide my email address from other operatives'],
-                  ['hideName',   'Hide my real name from other operatives'],
-                  ['hideAvatar', 'Hide my profile picture from other operatives'],
-                  ['hideBio',    'Hide my bio, motto, profession & home base from other operatives'],
-                ].map(([field, label]) => (
-                  <label key={field} style={{ display: 'flex', alignItems: 'center', gap: '.45rem', cursor: 'pointer', fontSize: '.85rem', color: 'var(--txt)' }}>
-                    <input type="checkbox" checked={editDraft[field] ?? false} onChange={e => setEditDraft(d => ({ ...d, [field]: e.target.checked }))} />
-                    {label}
-                  </label>
+                  ['Name',          user.name,             'hideName'],
+                  ['Profile Photo', null,                   'hideAvatar'],
+                  ['Phone',         fmtPhone(user.phone),  'hidePhone'],
+                  ['Email',         user.email,            'hideEmail'],
+                ].map(([title, val, field]) => (
+                  <div key={field} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem' }}>
+                    <span style={{ fontSize: '.82rem', color: 'var(--muted)' }}>
+                      {title}{val ? <span style={{ color: 'var(--txt)', marginLeft: '.4rem' }}>{val}</span> : null}
+                    </span>
+                    <PrivacyToggle checked={editDraft[field] ?? false} onChange={v => setEditDraft(d => ({ ...d, [field]: v }))} />
+                  </div>
                 ))}
+              </div>
+
+              {/* Editable fields with inline privacy toggles */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.2rem' }}>
+                  <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Motto</label>
+                  <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
+                </div>
+                <input className="inp" style={{ width: '100%' }} placeholder="Your personal motto…" value={editDraft.motto} maxLength={80} onChange={e => setEditDraft(d => ({ ...d, motto: e.target.value }))} />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.2rem' }}>
+                  <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Profession</label>
+                  <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
+                </div>
+                <input className="inp" style={{ width: '100%' }} placeholder="e.g. Software Engineer" value={editDraft.profession} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, profession: e.target.value }))} />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.2rem' }}>
+                  <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Home Base</label>
+                  <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px', gap: '.5rem' }}>
+                  <input className="inp" style={{ width: '100%' }} placeholder="Indianapolis" value={editDraft.homeBaseCity} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, homeBaseCity: e.target.value }))} />
+                  <input className="inp" placeholder="IN" value={editDraft.homeBaseState} maxLength={4} onChange={e => setEditDraft(d => ({ ...d, homeBaseState: e.target.value }))} />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.2rem' }}>
+                  <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>
+                    Bio <span style={{ color: editDraft.bio.length > MAX_BIO ? 'var(--danger,#e05)' : 'var(--muted)' }}>{editDraft.bio.length}/{MAX_BIO}</span>
+                  </label>
+                  <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
+                </div>
+                <textarea className="inp" rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Tell other operatives a little about yourself…" value={editDraft.bio} maxLength={MAX_BIO} onChange={e => setEditDraft(d => ({ ...d, bio: e.target.value.slice(0, MAX_BIO) }))} />
               </div>
 
               <div style={{ display: 'flex', gap: '.5rem', paddingTop: '.25rem' }}>
