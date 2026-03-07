@@ -130,6 +130,9 @@ export function calcVersusRunScore({ role, winningTeam, team, visual, audio, cra
 export function calcWarOutcome({ run1WinnerTeam, run2WinnerTeam, group1HunterElapsed, group2HunterElapsed }) {
   if (run1WinnerTeam == null || run2WinnerTeam == null) return null
 
+  // If both hunter teams lost their runs (both coyote teams won), it's a draw — no war bonus
+  if (run1WinnerTeam === 2 && run2WinnerTeam === 2) return null
+
   const origRun1Winner = run1WinnerTeam            // run 1: team numbers match original groups
   const origRun2Winner = 3 - run2WinnerTeam        // run 2: teams swapped, invert (1↔2)
 
@@ -140,7 +143,8 @@ export function calcWarOutcome({ run1WinnerTeam, run2WinnerTeam, group1HunterEla
   // 1-1 tiebreak: fastest hunter completion time wins
   if (group1HunterElapsed != null && group2HunterElapsed != null) {
     const winner = group1HunterElapsed <= group2HunterElapsed ? 1 : 2
-    return { warWinner: winner, warWinType: 'TIEBREAK' }
+    const timeDiff = Math.abs(group1HunterElapsed - group2HunterElapsed)
+    return { warWinner: winner, warWinType: 'TIEBREAK', timeDiff }
   }
 
   return null // incomplete — can't determine

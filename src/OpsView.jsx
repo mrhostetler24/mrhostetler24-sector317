@@ -270,7 +270,8 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   const doLogRun=()=>{
     // Copy run 1 settings to run 2 as defaults, swap structures and teams
     const newSettings2={};
-    lanes.forEach((_,i)=>{newSettings2[i]={...settings[1][i]};});
+    // Carry env controls + objective, but reset run winner (instructor must click fresh)
+    lanes.forEach((_,i)=>{newSettings2[i]={...settings[1][i],winnerTeam:undefined};});
     setSettings(p=>({...p,2:newSettings2}));
     // Swap structures
     setStructOrder(p=>[p[1],p[0]]);
@@ -333,11 +334,13 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       group1HunterElapsed:r1Rec?.elapsedSeconds??null,
       group2HunterElapsed:r2Rec?.elapsedSeconds??null,
     });
-    return result?{winner:result.warWinner,winType:result.warWinType}:null;
+    return result?{winner:result.warWinner,winType:result.warWinType,timeDiff:result.timeDiff??null}:null;
   };
 
   // Render helpers
-  const teamLabel=(t)=>t===1?'Hunters':'Coyotes';
+  const BLUE_COL='#4fc3f7',RED_COL='#ef9a9a',BLUE_BG='rgba(79,195,247,.15)',RED_BG='rgba(239,154,154,.15)';
+  const fmtSecMS=s=>{if(s==null)return'—';const t=Math.round(s);return`${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`;};
+  const teamCol=(t)=>t===1?BLUE_COL:RED_COL;const teamBg=(t)=>t===1?BLUE_BG:RED_BG;
   const teamAvg=(players)=>{
     const w=players.filter(p=>p.userId&&Number(playerStats[p.userId]?.total_runs)>0);
     if(!w.length)return null;
@@ -452,23 +455,30 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     // Lane-scoped team getter: default splits by overall position across all players
     const getLaneTeam=pid=>{
       const ov=runTeams[run]?.[laneIdx]?.[pid];if(ov!==undefined)return ov;
+      const vt=versusTeams?.[allRes[0]?.id]?.[pid];if(vt!==undefined)return vt;
       const idx=allPlayers.findIndex(p=>p.id===pid);return idx<6?1:2;
     };
-    const hunters=allPlayers.filter(p=>getLaneTeam(p.id)===1);
-    const coyotes=allPlayers.filter(p=>getLaneTeam(p.id)===2);
-    const huntersAvg=teamAvg(hunters);const coyotesAvg=teamAvg(coyotes);
+    // Persistent Blue/Red identity (from open screen; used only for row tinting)
+    const getColorTeam=pid=>{
+      const vt=versusTeams?.[allRes[0]?.id]?.[pid];if(vt!==undefined)return vt;
+      const idx=allPlayers.findIndex(p=>p.id===pid);return idx<6?1:2;
+    };
+    // Run 1: Blue=T1=Hunters, Red=T2=Coyotes. Run 2 (after swap): Blue=T2=Coyotes, Red=T1=Hunters
+    const blueTeamNum=run===1?1:2;const redTeamNum=run===1?2:1;
+    const blueRole=run===1?'Hunters':'Coyotes';const redRole=run===1?'Coyotes':'Hunters';
+    const hunterPlayers=allPlayers.filter(p=>getLaneTeam(p.id)===1);
+    const coyotePlayers=allPlayers.filter(p=>getLaneTeam(p.id)===2);
+    const bluePlayers=allPlayers.filter(p=>getLaneTeam(p.id)===blueTeamNum);
+    const redPlayers=allPlayers.filter(p=>getLaneTeam(p.id)===redTeamNum);
+    const blueAvg=teamAvg(bluePlayers);const redAvg=teamAvg(redPlayers);
     const bookerNames=[...new Set(allRes.map(r=>r.customerName).filter(Boolean))].join(' · ');
     const env={visual:s.visual,audio:s.audio??null,cranked:s.cranked??false};
     const huntersScore=s.winnerTeam!=null?calcVersusRunScore({role:'hunter',winningTeam:s.winnerTeam,team:1,...env}).toFixed(1):'—';
     const coyotesScore=s.winnerTeam!=null?calcVersusRunScore({role:'coyote',winningTeam:s.winnerTeam,team:2,...env}).toFixed(1):'—';
+    const blueScore=run===1?huntersScore:coyotesScore;const redScore=run===1?coyotesScore:huntersScore;
     const isScoredVs=isLaneScored(laneIdx,1)&&isLaneScored(laneIdx,2);
     const isSavingThis=saving===laneIdx;
     const canScore=s.winnerTeam!=null&&laneFinish[laneIdx]!=null&&!isScoredVs;
-    // Set all players in one reservation to a team
-    const setResAllTeam=(resObj,team)=>{
-      const batch={};(resObj.players||[]).forEach(p=>{batch[p.id]=team;});
-      setRunTeams(prev=>({...prev,[run]:{...prev[run],[laneIdx]:{...(prev[run][laneIdx]||{}),...batch}}}));
-    };
     // Swap all players across entire lane
     const swapAll=()=>{
       const batch={};allPlayers.forEach(p=>{batch[p.id]=getLaneTeam(p.id)===1?2:1;});
@@ -478,21 +488,27 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const pRow=player=>{
       const st=playerStats[player.userId]||{};
       const t=getLaneTeam(player.id);
+      const colorT=getColorTeam(player.id); // persistent Blue(1)/Red(2) for tinting
+      const isHunter=t===1;
       const wl=Number(st.total_runs)>0?`${st.versus_wins??0}-${st.versus_losses??0}`:'—';
       const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(0):'—';
       const runs=st.total_runs??0;
-      return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.35rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+      return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.35rem',
+          padding:'.3rem .4rem',borderRadius:4,marginBottom:'.15rem',
+          background:colorT===1?'rgba(79,195,247,.06)':'rgba(239,154,154,.06)',
+          border:`1px solid ${colorT===1?'rgba(79,195,247,.18)':'rgba(239,154,154,.18)'}`}}>
+        <span style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:colorT===1?BLUE_COL:RED_COL}}/>
         <span style={{flex:1,minWidth:0,fontSize:'.88rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{runs>0?`${runs}r`:'new'}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:26,textAlign:'right'}}>{avg}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{wl}</span>
         <button type="button"
-          style={{minWidth:34,padding:'.2rem .4rem',borderRadius:4,fontSize:'.72rem',fontWeight:700,cursor:'pointer',flexShrink:0,
-            border:`1px solid ${t===1?'var(--acc)':'var(--warn)'}`,
-            background:t===1?'var(--accD)':'rgba(184,150,12,.15)',
-            color:t===1?'var(--accB)':'var(--warnL)'}}
-          onClick={()=>setPlayerTeam(laneIdx,player.id,t===1?2:1)}>
-          T{t}
+          style={{minWidth:28,padding:'.2rem .4rem',borderRadius:4,fontSize:'.72rem',fontWeight:800,cursor:'pointer',flexShrink:0,
+            border:`1px solid ${isHunter?'var(--acc)':'var(--warn)'}`,
+            background:isHunter?'var(--accD)':'rgba(184,150,12,.15)',
+            color:isHunter?'var(--accB)':'var(--warnL)'}}
+          onClick={()=>setPlayerTeam(laneIdx,player.id,isHunter?2:1)}>
+          {isHunter?'H':'C'}
         </button>
       </div>);
     };
@@ -506,30 +522,29 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
           <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{bookerNames}</span>
         </div>
       </div>
-      {/* Per-reservation assignment blocks */}
-      {allRes.map(resObj=>{
-        const resPlayers=resObj.players||[];
-        return(<div key={resObj.id} style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.6rem .85rem'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.4rem',flexWrap:'wrap'}}>
-            <span style={{fontWeight:700,fontSize:'.82rem',color:'var(--txt)',flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{resObj.customerName}</span>
-            <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{resPlayers.length}/{resObj.playerCount}p</span>
+      {/* Hunters / Coyotes sections */}
+      {[[1,'var(--acc)','var(--accD)','var(--accB)','Hunters',hunterPlayers],[2,'var(--warn)','rgba(184,150,12,.15)','var(--warnL)','Coyotes',coyotePlayers]].map(([teamNum,bdr,bg,col,label,tPlayers])=>(
+        <div key={teamNum} style={{background:'var(--bg2)',border:`1px solid ${bdr}`,borderRadius:8,padding:'.6rem .85rem'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.5rem'}}>
+            <span style={{fontWeight:800,fontSize:'.88rem',color:col,textTransform:'uppercase',letterSpacing:'.05em'}}>{label}</span>
+            <span style={{flex:1}}/>
+            <span style={{fontSize:'.72rem',color:'var(--muted)'}}>{tPlayers.length}p</span>
             <button type="button"
-              style={{padding:'.15rem .5rem',borderRadius:4,fontSize:'.72rem',fontWeight:700,cursor:'pointer',border:'1px solid var(--acc)',background:'var(--accD)',color:'var(--accB)'}}
-              onClick={()=>setResAllTeam(resObj,1)}>All T1</button>
-            <button type="button"
-              style={{padding:'.15rem .5rem',borderRadius:4,fontSize:'.72rem',fontWeight:700,cursor:'pointer',border:'1px solid var(--warn)',background:'rgba(184,150,12,.15)',color:'var(--warnL)'}}
-              onClick={()=>setResAllTeam(resObj,2)}>All T2</button>
+              style={{padding:'.15rem .5rem',borderRadius:4,fontSize:'.72rem',fontWeight:700,cursor:'pointer',border:`1px solid ${bdr}`,background:bg,color:col}}
+              onClick={()=>{const batch={};allPlayers.forEach(p=>{batch[p.id]=teamNum;});setRunTeams(prev=>({...prev,[run]:{...prev[run],[laneIdx]:{...(prev[run][laneIdx]||{}),...batch}}}))}}>
+              All → {label}
+            </button>
           </div>
-          {resPlayers.length===0&&<div style={{fontSize:'.8rem',color:'var(--muted)',padding:'.2rem 0'}}>No players added yet</div>}
-          {resPlayers.map(p=>pRow(p))}
-        </div>);
-      })}
-      {/* Combined team summary + VS divider */}
+          {tPlayers.length===0&&<div style={{fontSize:'.8rem',color:'var(--muted)',padding:'.2rem 0',textAlign:'center'}}>None assigned</div>}
+          {tPlayers.map(p=>pRow(p))}
+        </div>
+      ))}
+      {/* VS divider + Swap All */}
       <div style={{background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,padding:'.5rem .85rem'}}>
         <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
           <div style={{flex:1,textAlign:'center'}}>
-            <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Hunters</div>
-            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{hunters.length}p{huntersAvg?` · avg ${huntersAvg}`:''}</div>
+            <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--accB)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Hunters</div>
+            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{hunterPlayers.length}p{teamAvg(hunterPlayers)?` · avg ${teamAvg(hunterPlayers)}`:''}</div>
           </div>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'.3rem'}}>
             <img src="/vs.png" alt="VS" style={{width:44,height:44,filter:'drop-shadow(0 0 8px rgba(200,224,58,.6))',opacity:.9}}
@@ -540,7 +555,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
           </div>
           <div style={{flex:1,textAlign:'center'}}>
             <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--warnL)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Coyotes</div>
-            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{coyotes.length}p{coyotesAvg?` · avg ${coyotesAvg}`:''}</div>
+            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{coyotePlayers.length}p{teamAvg(coyotePlayers)?` · avg ${teamAvg(coyotePlayers)}`:''}</div>
           </div>
         </div>
       </div>
@@ -555,13 +570,18 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         <div>
           <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>Run Winner</div>
           <div style={{display:'flex',gap:'.5rem'}}>
-            {[1,2].map(t=>{const sel=s.winnerTeam===t;return(
-              <button key={t} type="button" onClick={()=>setSetting(laneIdx,'winnerTeam',t)}
-                style={{flex:1,padding:'.5rem',borderRadius:8,fontWeight:sel?700:500,fontSize:'.88rem',
-                  border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg)',
-                  color:sel?'var(--accB)':'var(--txt)',cursor:'pointer'}}>
-                {teamLabel(t)}
-              </button>);})}
+            {[blueTeamNum,redTeamNum].map(t=>{
+              const isBlue=t===blueTeamNum;const tCol=isBlue?BLUE_COL:RED_COL;const tBg=isBlue?BLUE_BG:RED_BG;
+              const tRole=isBlue?blueRole:redRole;const sel=s.winnerTeam===t;
+              return(
+                <button key={t} type="button" onClick={()=>setSetting(laneIdx,'winnerTeam',t)}
+                  style={{flex:1,padding:'.5rem',borderRadius:8,fontWeight:sel?700:500,fontSize:'.85rem',
+                    border:`2px solid ${sel?tCol:'var(--bdr)'}`,background:sel?tBg:'var(--bg)',
+                    color:sel?tCol:'var(--txt)',cursor:'pointer',textAlign:'center',lineHeight:1.3}}>
+                  <div style={{fontWeight:700}}>{isBlue?'Blue Team':'Red Team'}</div>
+                  <div style={{fontSize:'.72rem',opacity:.8}}>{tRole}</div>
+                </button>);
+            })}
           </div>
         </div>
       </div>
@@ -569,22 +589,32 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       {!isScoredVs?(
         <div style={{display:'flex',alignItems:'center',gap:'.75rem',padding:'.5rem 0'}}>
           <div style={{textAlign:'center',flex:1}}>
-            <div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.2rem'}}>Hunters</div>
-            <div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--acc)',fontVariantNumeric:'tabular-nums'}}>{huntersScore}</div>
+            <div style={{fontSize:'.72rem',fontWeight:700,color:BLUE_COL,textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Blue Team</div>
+            <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.2rem'}}>{blueRole}</div>
+            <div style={{fontSize:'1.5rem',fontWeight:800,color:BLUE_COL,fontVariantNumeric:'tabular-nums'}}>{blueScore}</div>
           </div>
           <button className="btn btn-p" disabled={!canScore||isSavingThis} style={{fontSize:'.9rem',padding:'.6rem 1.2rem',whiteSpace:'nowrap'}} onClick={()=>doScoreVersus(laneIdx)}>
             {isSavingThis?'Saving…':'SCORE RUN'}
           </button>
           <div style={{textAlign:'center',flex:1}}>
-            <div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.2rem'}}>Coyotes</div>
-            <div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--warnL)',fontVariantNumeric:'tabular-nums'}}>{coyotesScore}</div>
+            <div style={{fontSize:'.72rem',fontWeight:700,color:RED_COL,textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Red Team</div>
+            <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.2rem'}}>{redRole}</div>
+            <div style={{fontSize:'1.5rem',fontWeight:800,color:RED_COL,fontVariantNumeric:'tabular-nums'}}>{redScore}</div>
           </div>
         </div>
       ):(
         <div style={{display:'flex',gap:'.75rem',alignItems:'center',padding:'.5rem 0'}}>
-          <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase'}}>Hunters</div><div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--acc)'}}>{getScoredTeamScore(run,laneIdx,1)!=null?Number(getScoredTeamScore(run,laneIdx,1)).toFixed(1):'—'}</div></div>
+          <div style={{textAlign:'center',flex:1}}>
+            <div style={{fontSize:'.72rem',fontWeight:700,color:BLUE_COL,textTransform:'uppercase'}}>Blue Team</div>
+            <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.15rem'}}>{blueRole}</div>
+            <div style={{fontSize:'1.5rem',fontWeight:800,color:BLUE_COL}}>{getScoredTeamScore(run,laneIdx,blueTeamNum)!=null?Number(getScoredTeamScore(run,laneIdx,blueTeamNum)).toFixed(1):'—'}</div>
+          </div>
           <div style={{textAlign:'center',padding:'.4rem .75rem',background:'var(--accD)',borderRadius:6,color:'var(--accB)',fontWeight:700,fontSize:'.82rem'}}>✓ Scored</div>
-          <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase'}}>Coyotes</div><div style={{fontSize:'1.5rem',fontWeight:800,color:'var(--warnL)'}}>{getScoredTeamScore(run,laneIdx,2)!=null?Number(getScoredTeamScore(run,laneIdx,2)).toFixed(1):'—'}</div></div>
+          <div style={{textAlign:'center',flex:1}}>
+            <div style={{fontSize:'.72rem',fontWeight:700,color:RED_COL,textTransform:'uppercase'}}>Red Team</div>
+            <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.15rem'}}>{redRole}</div>
+            <div style={{fontSize:'1.5rem',fontWeight:800,color:RED_COL}}>{getScoredTeamScore(run,laneIdx,redTeamNum)!=null?Number(getScoredTeamScore(run,laneIdx,redTeamNum)).toFixed(1):'—'}</div>
+          </div>
         </div>
       )}
     </div>);
@@ -704,9 +734,14 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
         const sName=runNum===1?structOrder[li]:(structOrder[li]==='Alpha'?'Bravo':'Alpha');
         if(rt?.mode==='versus'){
+          // Run 1: Blue=T1=Hunters, Red=T2=Coyotes. Run 2: Blue=T2=Coyotes, Red=T1=Hunters
+          const runBlueNum=runNum===1?1:2;const runRedNum=runNum===1?2:1;
           const hs=getScoredTeamScore(runNum,li,1),cs=getScoredTeamScore(runNum,li,2);
+          const blueScore=runBlueNum===1?hs:cs;const redScore=runBlueNum===1?cs:hs;
+          const blueRoleStr=runNum===1?'Hunters':'Coyotes';const redRoleStr=runNum===1?'Coyotes':'Hunters';
           const wt=getRunWinner(runNum,li);
-          lines.push({runNum,struct:sName,mode:'versus',hs,cs,winner:wt?teamLabel(wt):null});
+          const blueWon=wt!=null&&wt===runBlueNum;const redWon=wt!=null&&wt===runRedNum;
+          lines.push({runNum,struct:sName,mode:'versus',blueScore,redScore,blueRoleStr,redRoleStr,blueWon,redWon});
         }else{
           const sc=getScoredTeamScore(runNum,li,null);
           lines.push({runNum,struct:sName,mode:'coop',sc});
@@ -807,13 +842,32 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
               <div key={i} style={{padding:'.4rem .75rem',marginBottom:'.3rem',background:'var(--bg2)',borderRadius:6,fontSize:'.88rem'}}>
                 <span style={{color:'var(--muted)',fontSize:'.75rem',textTransform:'uppercase',letterSpacing:'.04em'}}>Run {line.runNum} · {line.struct} · </span>
                 {line.mode==='versus'?(
-                  <span style={{color:'var(--txt)'}}>Hunters <strong style={{color:'var(--acc)'}}>{line.hs!=null?Number(line.hs).toFixed(1):'—'}</strong> · Coyotes <strong style={{color:'var(--warnL)'}}>{line.cs!=null?Number(line.cs).toFixed(1):'—'}</strong>{line.winner&&<span style={{color:'var(--ok)',marginLeft:'.5rem'}}>→ {line.winner} win</span>}</span>
+                  <span>
+                    <strong style={{color:'#4fc3f7'}}>Blue</strong> <span style={{color:'var(--muted)',fontSize:'.78rem'}}>({line.blueRoleStr})</span> <strong style={{color:'#4fc3f7'}}>{line.blueScore!=null?Number(line.blueScore).toFixed(1):'—'}</strong>
+                    <span style={{color:'var(--muted)'}}> · </span>
+                    <strong style={{color:'#ef9a9a'}}>Red</strong> <span style={{color:'var(--muted)',fontSize:'.78rem'}}>({line.redRoleStr})</span> <strong style={{color:'#ef9a9a'}}>{line.redScore!=null?Number(line.redScore).toFixed(1):'—'}</strong>
+                    {(line.blueWon||line.redWon)&&<span style={{color:'var(--ok)',marginLeft:'.5rem'}}>→ {line.blueWon?'Blue Team':'Red Team'} wins</span>}
+                  </span>
                 ):(
                   <span style={{color:'var(--txt)'}}>Score <strong style={{color:'var(--acc)'}}>{line.sc!=null?Number(line.sc).toFixed(1):'—'}</strong></span>
                 )}
               </div>
             ))}
-            {sw&&<div style={{marginTop:'.75rem',padding:'.5rem .75rem',background:'var(--accD)',borderRadius:6,color:'var(--accB)',fontWeight:700}}>War Winner: {teamLabel(sw.winner)} ({sw.winType}) +{WAR_BONUS[sw.winType]}</div>}
+            {sw?(
+              <div style={{marginTop:'.75rem',padding:'.6rem .85rem',background:sw.winner===1?'rgba(79,195,247,.15)':'rgba(239,154,154,.15)',border:`1px solid ${sw.winner===1?'#4fc3f7':'#ef9a9a'}`,borderRadius:6}}>
+                <div style={{fontWeight:800,color:sw.winner===1?'#4fc3f7':'#ef9a9a',fontSize:'.95rem',marginBottom:'.2rem'}}>
+                  {sw.winner===1?'Blue Team':'Red Team'} Wins
+                </div>
+                <div style={{fontSize:'.82rem',color:'var(--muted)'}}>
+                  {sw.winType==='SWEEP'?'Clean Sweep':`Tiebreaker — ${fmtSecMS(sw.timeDiff)} faster hunter run`}
+                  <span style={{marginLeft:'.75rem',color:'var(--ok)',fontWeight:700}}>+{WAR_BONUS[sw.winType]} pts</span>
+                </div>
+              </div>
+            ):allRunsScored&&(
+              <div style={{marginTop:'.75rem',padding:'.5rem .75rem',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:6,color:'var(--muted)',fontSize:'.85rem',textAlign:'center'}}>
+                Neither team won their hunter run — this session ends as a tie. No war bonus awarded.
+              </div>
+            )}
           </div>
           <p style={{color:'var(--muted)',fontSize:'.85rem',marginBottom:'1rem'}}>This will mark all reservations in this slot as Completed and cannot be undone.</p>
           <div className="ma">
