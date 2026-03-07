@@ -740,32 +740,44 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     return renderCoopCard(laneIdx,mirror);
   };
 
-  // Commit summary lines
-  const summaryLines=()=>{
-    const lines=[];
-    [1,2].forEach(runNum=>{
-      lanes.forEach((lane,li)=>{
-        const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
-        const sName=runNum===1?structOrder[li]:(structOrder[li]==='Alpha'?'Bravo':'Alpha');
-        if(rt?.mode==='versus'){
-          // Run 1: Blue=T1=Hunters, Red=T2=Coyotes. Run 2: Blue=T2=Coyotes, Red=T1=Hunters
-          const runBlueNum=runNum===1?1:2;const runRedNum=runNum===1?2:1;
-          const hs=getScoredTeamScore(runNum,li,1),cs=getScoredTeamScore(runNum,li,2);
-          const blueScore=runBlueNum===1?hs:cs;const redScore=runBlueNum===1?cs:hs;
-          const blueRoleStr=runNum===1?'Hunters':'Coyotes';const redRoleStr=runNum===1?'Coyotes':'Hunters';
-          const wt=getRunWinner(runNum,li);
-          const blueWon=wt!=null&&wt===runBlueNum;const redWon=wt!=null&&wt===runRedNum;
-          lines.push({runNum,struct:sName,mode:'versus',blueScore,redScore,blueRoleStr,redRoleStr,blueWon,redWon});
-        }else{
-          const sc=getScoredTeamScore(runNum,li,null);
-          lines.push({runNum,struct:sName,mode:'coop',sc});
-        }
-      });
+  // Commit summary — grouped by lane
+  const buildLaneSummary=()=>lanes.map((lane,li)=>{
+    const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
+    const mode=rt?.mode||'coop';
+    const allPlayers=lane.reservations.flatMap(r=>r.players||[]);
+    const getLT=pid=>{
+      const rt1=runTeams[1]?.[li];if(rt1?.[pid]!=null)return rt1[pid];
+      const vt=versusTeams?.[lane.reservations[0]?.id]?.[pid];if(vt!=null)return vt;
+      return allPlayers.findIndex(p=>p.id===pid)<Math.ceil(allPlayers.length/2)?1:2;
+    };
+    const t1Pl=allPlayers.filter(p=>getLT(p.id)===1);
+    const t2Pl=allPlayers.filter(p=>getLT(p.id)===2);
+    const runs=[1,2].map(runNum=>{
+      const sName=runNum===1?structOrder[li]:(structOrder[li]==='Alpha'?'Bravo':'Alpha');
+      const elapsedSec=scored[laneKey(runNum,li,1)]?.elapsedSeconds??scored[laneKey(runNum,li,null)]?.elapsedSeconds??null;
+      if(mode==='versus'){
+        const hs=getScoredTeamScore(runNum,li,1),cs=getScoredTeamScore(runNum,li,2);
+        const btn=runNum===1?1:2,rtn=runNum===1?2:1;
+        const blueScore=btn===1?hs:cs,redScore=btn===1?cs:hs;
+        const blueRole=runNum===1?'Hunters':'Coyotes',redRole=runNum===1?'Coyotes':'Hunters';
+        const wt=getRunWinner(runNum,li);
+        const blueWon=wt!=null&&wt===btn,redWon=wt!=null&&wt===rtn;
+        const bPl=btn===1?t1Pl:t2Pl,rPl=btn===1?t2Pl:t1Pl;
+        return{runNum,struct:sName,elapsedSec,mode:'versus',blueScore,redScore,blueRole,redRole,blueWon,redWon,bluePlayers:bPl,redPlayers:rPl};
+      }else{
+        const sc=getScoredTeamScore(runNum,li,null);
+        return{runNum,struct:sName,elapsedSec,mode:'coop',sc,players:allPlayers};
+      }
     });
-    return lines;
-  };
-
-  const sw=getSessionWinner();
+    // Per-lane war outcome
+    const laneWar=(()=>{
+      if(mode!=='versus')return null;
+      const r1Rec=scored[laneKey(1,li,1)],r2Rec=scored[laneKey(2,li,2)];
+      const result=calcWarOutcome({run1WinnerTeam:getRunWinner(1,li)??null,run2WinnerTeam:getRunWinner(2,li)??null,group1HunterElapsed:r1Rec?.elapsedSeconds??null,group2HunterElapsed:r2Rec?.elapsedSeconds??null});
+      return result?{winner:result.warWinner,winType:result.warWinType,timeDiff:result.timeDiff??null}:null;
+    })();
+    return{li,mode,typeName:rt?.name||'',runs,laneWar};
+  });
 
   return(
     <div style={{position:'fixed',inset:0,background:'var(--bg)',zIndex:10000,display:'flex',flexDirection:'column',overflow:'hidden'}}>
@@ -848,48 +860,98 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         </div></div>
       )}
       {/* Commit confirm */}
-      {showCommit&&(
-        <div className="mo"><div className="mc" style={{maxWidth:540}}>
-          <div className="mt2">Commit Scores?</div>
-          <div style={{marginBottom:'1rem'}}>
-            {summaryLines().map((line,i)=>(
-              <div key={i} style={{padding:'.4rem .75rem',marginBottom:'.3rem',background:'var(--bg2)',borderRadius:6,fontSize:'.88rem'}}>
-                <span style={{color:'var(--muted)',fontSize:'.75rem',textTransform:'uppercase',letterSpacing:'.04em'}}>Run {line.runNum} · {line.struct} · </span>
-                {line.mode==='versus'?(
-                  <span>
-                    <strong style={{color:'#4fc3f7'}}>Blue</strong> <span style={{color:'var(--muted)',fontSize:'.78rem'}}>({line.blueRoleStr})</span> <strong style={{color:'#4fc3f7'}}>{line.blueScore!=null?Number(line.blueScore).toFixed(1):'—'}</strong>
-                    <span style={{color:'var(--muted)'}}> · </span>
-                    <strong style={{color:'#ef9a9a'}}>Red</strong> <span style={{color:'var(--muted)',fontSize:'.78rem'}}>({line.redRoleStr})</span> <strong style={{color:'#ef9a9a'}}>{line.redScore!=null?Number(line.redScore).toFixed(1):'—'}</strong>
-                    {(line.blueWon||line.redWon)&&<span style={{color:'var(--ok)',marginLeft:'.5rem'}}>→ {line.blueWon?'Blue Team':'Red Team'} wins</span>}
+      {showCommit&&(()=>{
+        const laneSummary=buildLaneSummary();
+        return(
+        <div className="mo"><div className="mc" style={{maxWidth:620,maxHeight:'85vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:0}}>
+          <div className="mt2" style={{flexShrink:0}}>Commit Scores?</div>
+          <div style={{marginBottom:'1rem',display:'flex',flexDirection:'column',gap:'1rem'}}>
+            {laneSummary.map(lane=>(
+              <div key={lane.li} style={{border:'1px solid var(--bdr)',borderRadius:8,overflow:'hidden'}}>
+                {/* Lane header */}
+                <div style={{background:'var(--bg2)',padding:'.45rem .85rem',display:'flex',alignItems:'center',gap:'.6rem',borderBottom:'1px solid var(--bdr)'}}>
+                  <span style={{fontWeight:700,fontSize:'.9rem'}}>Lane {lane.li+1}</span>
+                  {lane.typeName&&<span style={{color:'var(--muted)',fontSize:'.8rem'}}>{lane.typeName}</span>}
+                  <span style={{marginLeft:'auto',fontSize:'.72rem',textTransform:'uppercase',letterSpacing:'.06em',fontWeight:700,
+                    color:lane.mode==='versus'?'#4fc3f7':'var(--ok)',
+                    background:lane.mode==='versus'?'rgba(79,195,247,.12)':'rgba(76,175,80,.12)',
+                    padding:'.15rem .5rem',borderRadius:4}}>
+                    {lane.mode==='versus'?'VS':'CO-OP'}
                   </span>
-                ):(
-                  <span style={{color:'var(--txt)'}}>Score <strong style={{color:'var(--acc)'}}>{line.sc!=null?Number(line.sc).toFixed(1):'—'}</strong></span>
+                </div>
+                {/* Runs */}
+                {lane.runs.map(run=>(
+                  <div key={run.runNum} style={{padding:'.65rem .85rem',borderBottom:'1px solid var(--bdr)'}}>
+                    <div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.45rem',display:'flex',gap:'.5rem',alignItems:'center'}}>
+                      <span>Run {run.runNum}</span>
+                      <span>·</span>
+                      <span>{run.struct}</span>
+                      {run.elapsedSec!=null&&<><span>·</span><span>{fmtSecMS(run.elapsedSec)}</span></>}
+                    </div>
+                    {run.mode==='versus'?(
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem'}}>
+                        {/* Blue team */}
+                        <div style={{background:'rgba(79,195,247,.08)',border:`1px solid ${run.blueWon?'#4fc3f7':'rgba(79,195,247,.25)'}`,borderRadius:6,padding:'.5rem .65rem'}}>
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
+                            <span style={{color:'#4fc3f7',fontWeight:700,fontSize:'.85rem'}}>Blue · {run.blueRole}</span>
+                            <span style={{color:'#4fc3f7',fontWeight:800,fontSize:'1rem'}}>{run.blueScore!=null?Number(run.blueScore).toFixed(1):'—'}</span>
+                          </div>
+                          <div style={{fontSize:'.75rem',color:'var(--muted)',lineHeight:1.5}}>
+                            {run.bluePlayers.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
+                          </div>
+                          {run.blueWon&&<div style={{marginTop:'.3rem',fontSize:'.75rem',color:'#4fc3f7',fontWeight:700}}>✓ Won this run</div>}
+                        </div>
+                        {/* Red team */}
+                        <div style={{background:'rgba(239,154,154,.08)',border:`1px solid ${run.redWon?'#ef9a9a':'rgba(239,154,154,.25)'}`,borderRadius:6,padding:'.5rem .65rem'}}>
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
+                            <span style={{color:'#ef9a9a',fontWeight:700,fontSize:'.85rem'}}>Red · {run.redRole}</span>
+                            <span style={{color:'#ef9a9a',fontWeight:800,fontSize:'1rem'}}>{run.redScore!=null?Number(run.redScore).toFixed(1):'—'}</span>
+                          </div>
+                          <div style={{fontSize:'.75rem',color:'var(--muted)',lineHeight:1.5}}>
+                            {run.redPlayers.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
+                          </div>
+                          {run.redWon&&<div style={{marginTop:'.3rem',fontSize:'.75rem',color:'#ef9a9a',fontWeight:700}}>✓ Won this run</div>}
+                        </div>
+                      </div>
+                    ):(
+                      <div style={{display:'flex',alignItems:'center',gap:'1rem'}}>
+                        <span style={{color:'var(--acc)',fontWeight:800,fontSize:'1.1rem'}}>{run.sc!=null?Number(run.sc).toFixed(1):'—'}</span>
+                        <span style={{fontSize:'.78rem',color:'var(--muted)'}}>
+                          {run.players.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* Lane war result */}
+                {lane.mode==='versus'&&(
+                  lane.laneWar?(
+                    <div style={{padding:'.5rem .85rem',background:lane.laneWar.winner===1?'rgba(79,195,247,.1)':'rgba(239,154,154,.1)',display:'flex',alignItems:'center',gap:'.75rem'}}>
+                      <span style={{fontWeight:700,fontSize:'.85rem',color:lane.laneWar.winner===1?'#4fc3f7':'#ef9a9a'}}>
+                        {lane.laneWar.winner===1?'Blue':'Red'} Team Wins War
+                      </span>
+                      <span style={{fontSize:'.78rem',color:'var(--muted)',flex:1}}>
+                        {lane.laneWar.winType==='SWEEP'?'Clean Sweep':`Tiebreaker — ${fmtSecMS(lane.laneWar.timeDiff)} faster hunter run`}
+                      </span>
+                      <span style={{color:'var(--ok)',fontWeight:700,fontSize:'.82rem'}}>+{WAR_BONUS[lane.laneWar.winType]} pts</span>
+                    </div>
+                  ):(
+                    <div style={{padding:'.45rem .85rem',color:'var(--muted)',fontSize:'.78rem',textAlign:'center'}}>
+                      No war winner — session ends as a tie
+                    </div>
+                  )
                 )}
               </div>
             ))}
-            {sw?(
-              <div style={{marginTop:'.75rem',padding:'.6rem .85rem',background:sw.winner===1?'rgba(79,195,247,.15)':'rgba(239,154,154,.15)',border:`1px solid ${sw.winner===1?'#4fc3f7':'#ef9a9a'}`,borderRadius:6}}>
-                <div style={{fontWeight:800,color:sw.winner===1?'#4fc3f7':'#ef9a9a',fontSize:'.95rem',marginBottom:'.2rem'}}>
-                  {sw.winner===1?'Blue Team':'Red Team'} Wins
-                </div>
-                <div style={{fontSize:'.82rem',color:'var(--muted)'}}>
-                  {sw.winType==='SWEEP'?'Clean Sweep':`Tiebreaker — ${fmtSecMS(sw.timeDiff)} faster hunter run`}
-                  <span style={{marginLeft:'.75rem',color:'var(--ok)',fontWeight:700}}>+{WAR_BONUS[sw.winType]} pts</span>
-                </div>
-              </div>
-            ):allRunsScored&&(
-              <div style={{marginTop:'.75rem',padding:'.5rem .75rem',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:6,color:'var(--muted)',fontSize:'.85rem',textAlign:'center'}}>
-                Neither team won their hunter run — this session ends as a tie. No war bonus awarded.
-              </div>
-            )}
           </div>
-          <p style={{color:'var(--muted)',fontSize:'.85rem',marginBottom:'1rem'}}>This will mark all reservations in this slot as Completed and cannot be undone.</p>
-          <div className="ma">
+          <p style={{color:'var(--muted)',fontSize:'.85rem',marginBottom:'1rem',flexShrink:0}}>This will mark all reservations in this slot as Completed and cannot be undone.</p>
+          <div className="ma" style={{flexShrink:0}}>
             <button className="btn btn-s" onClick={()=>setShowCommit(false)}>Cancel</button>
             <button className="btn btn-p" onClick={doCommit}>Yes, Commit Scores</button>
           </div>
         </div></div>
-      )}
+        );
+      })()}
     </div>
   );
 }
