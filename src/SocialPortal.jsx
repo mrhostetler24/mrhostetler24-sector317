@@ -325,7 +325,10 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(async () => {
       setSearching(true)
-      const { data } = await searchPlayers(q)
+      // Strip formatting chars for phone searches (e.g. "317-867-5309" → "3178675309")
+      const digitsOnly = q.replace(/[\s\-().+]/g, '')
+      const searchQ = /^\d+$/.test(digitsOnly) && digitsOnly.length >= 2 ? digitsOnly : q
+      const { data } = await searchPlayers(searchQ)
       setSearchResults(data ?? [])
       setSearching(false)
     }, 400)
@@ -419,7 +422,9 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     }
   }
 
-  const activeStats = profileStatsSub === 'coop' ? computeStats(coopRuns) : computeStats(versRuns)
+  const activeStats = profileStatsSub === 'coop' ? computeStats(coopRuns)
+    : profileStatsSub === 'versus' ? computeStats(versRuns)
+    : computeStats(myRuns)
 
   const lbl = { color: 'var(--muted)', fontSize: '.87rem' }
   const val = { color: 'var(--txt)',   fontSize: '.87rem' }
@@ -608,13 +613,14 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
         <div>
           <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.65rem' }}>Match Stats</div>
           <div className="tabs" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--bdr)' }}>
+            <button className={`tab${profileStatsSub === 'all'    ? ' on' : ''}`} onClick={() => setProfileStatsSub('all')}>All ({myRuns.length})</button>
             <button className={`tab${profileStatsSub === 'coop'   ? ' on' : ''}`} onClick={() => setProfileStatsSub('coop')}>Co-op ({coopRuns.length})</button>
             <button className={`tab${profileStatsSub === 'versus' ? ' on' : ''}`} onClick={() => setProfileStatsSub('versus')}>Versus ({versRuns.length})</button>
           </div>
           {!activeStats && (
             <div className="empty" style={{ paddingTop: '1.25rem' }}>
-              <div className="ei">{profileStatsSub === 'coop' ? '🤝' : '⚔'}</div>
-              <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub === 'coop' ? 'co-op' : 'versus'} runs yet.</p>
+              <div className="ei">{profileStatsSub === 'coop' ? '🤝' : profileStatsSub === 'versus' ? '⚔' : '🎯'}</div>
+              <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub === 'all' ? '' : profileStatsSub + ' '}runs yet.</p>
             </div>
           )}
           {activeStats && (
@@ -625,10 +631,10 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <StatCard label="Avg Score"  value={activeStats.avg.toFixed(1)} />
               <StatCard label="Obj Rate"   value={`${activeStats.objRate}%`} />
               <StatCard label="Avg Time"   value={fmtSec(activeStats.avgTime)} />
-              {profileStatsSub === 'versus' && versRuns.length > 0 && <>
-                <StatCard label="Wins"   value={versWins}
+              {(profileStatsSub === 'versus' || profileStatsSub === 'all') && versRuns.length > 0 && <>
+                <StatCard label="VS Wins"   value={versWins}
                   sub={versWins + versLosses > 0 ? `${Math.round(versWins / (versWins + versLosses) * 100)}% W/L` : undefined} />
-                <StatCard label="Losses" value={versLosses} />
+                <StatCard label="VS Losses" value={versLosses} />
               </>}
             </div>
           )}
