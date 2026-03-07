@@ -179,9 +179,16 @@ const toLeaderboardEntry = r => r ? ({
 // ============================================================
 
 export async function fetchAllUsers() {
-  const { data, error } = await supabase.from('users').select('*').order('name').limit(10000)
-  if (error) throw error
-  return data.map(toUser)
+  const BATCH = 1000
+  let all = [], from = 0
+  while (true) {
+    const { data, error } = await supabase.from('users').select('*').order('name').range(from, from + BATCH - 1)
+    if (error) throw error
+    all = all.concat(data)
+    if (data.length < BATCH) break
+    from += BATCH
+  }
+  return all.map(toUser)
 }
 
 export async function fetchUserByPhone(phone) {
