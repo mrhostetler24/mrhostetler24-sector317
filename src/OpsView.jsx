@@ -458,10 +458,17 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const vt=versusTeams?.[allRes[0]?.id]?.[pid];if(vt!==undefined)return vt;
       const idx=allPlayers.findIndex(p=>p.id===pid);return idx<6?1:2;
     };
-    // Persistent Blue/Red identity (from open screen; used only for row tinting)
+    // Row tint: Blue(1)/Red(2) — locked to run 1 identity, never changes in run 2.
+    // In run 2, invert the run 2 assignment (doLogRun flipped T1↔T2) to recover run 1 color.
+    // Falls back to versusTeams, then current role before run 1 is set.
     const getColorTeam=pid=>{
-      const vt=versusTeams?.[allRes[0]?.id]?.[pid];if(vt!==undefined)return vt;
-      const idx=allPlayers.findIndex(p=>p.id===pid);return idx<6?1:2;
+      if(run===2){
+        const r2=runTeams[2]?.[laneIdx]?.[pid];
+        if(r2!=null)return 3-r2; // invert: Blue was T1→T2, so 3-2=1=blue ✓
+      }
+      const r1=runTeams[1]?.[laneIdx]?.[pid];if(r1!=null)return r1;
+      const vt=versusTeams?.[allRes[0]?.id]?.[pid];if(vt!=null)return vt;
+      return getLaneTeam(pid); // pre-assignment fallback: current role determines initial tint
     };
     // Run 1: Blue=T1=Hunters, Red=T2=Coyotes. Run 2 (after swap): Blue=T2=Coyotes, Red=T1=Hunters
     const blueTeamNum=run===1?1:2;const redTeamNum=run===1?2:1;
