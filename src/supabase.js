@@ -51,8 +51,11 @@ const toUser = r => r ? ({
   homeBaseState:      r.home_base_state ?? null,
   profession:         r.profession ?? null,
   bio:                r.bio ?? null,
-  hidePhone:          r.hide_phone ?? false,
-  hideEmail:          r.hide_email ?? false,
+  hidePhone:          r.hide_phone  ?? false,
+  hideEmail:          r.hide_email  ?? false,
+  hideName:           r.hide_name   ?? false,
+  hideAvatar:         r.hide_avatar ?? false,
+  hideBio:            r.hide_bio    ?? false,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -1531,7 +1534,7 @@ export async function updateOwnAvatar(userId, avatarUrl) {
 }
 
 /** Update social profile fields (motto, home base, profession, bio, privacy flags). */
-export async function updateSocialProfile(id, { motto, homeBaseCity, homeBaseState, profession, bio, hidePhone, hideEmail }) {
+export async function updateSocialProfile(id, { motto, homeBaseCity, homeBaseState, profession, bio, hidePhone, hideEmail, hideName, hideAvatar, hideBio }) {
   const { data, error } = await supabase.rpc('update_social_profile', {
     p_user_id:         id,
     p_motto:           motto ?? null,
@@ -1541,8 +1544,43 @@ export async function updateSocialProfile(id, { motto, homeBaseCity, homeBaseSta
     p_bio:             bio ?? null,
     p_hide_phone:      hidePhone ?? false,
     p_hide_email:      hideEmail ?? false,
+    p_hide_name:       hideName   ?? false,
+    p_hide_avatar:     hideAvatar ?? false,
+    p_hide_bio:        hideBio    ?? false,
   })
   if (error) throw error
   const row = Array.isArray(data) ? data[0] : data
   return toUser(row)
 }
+
+
+// ============================================================
+// FRIENDS
+// ============================================================
+
+export const sendFriendRequest   = (toId)    => supabase.rpc('send_friend_request',   { p_to: toId })
+export const cancelFriendRequest = (toId)    => supabase.rpc('cancel_friend_request', { p_to: toId })
+export const acceptFriendRequest = (fromId)  => supabase.rpc('accept_friend_request', { p_from: fromId })
+export const rejectFriendRequest = (fromId)  => supabase.rpc('reject_friend_request', { p_from: fromId })
+export const removeFriend        = (otherId) => supabase.rpc('remove_friend',          { p_other: otherId })
+export const searchPlayers       = (query)   => supabase.rpc('search_players',         { p_query: query })
+export const getRecentlyMet      = ()        => supabase.rpc('get_recently_met')
+export const getFriendProfile    = (userId)  => supabase.rpc('get_friend_profile',     { p_user_id: userId })
+
+export const fetchFriends = (userId) =>
+  supabase.from('friendships')
+    .select('user_id_1, user_id_2, created_at')
+    .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
+    .order('created_at', { ascending: false })
+
+export const fetchReceivedRequests = (userId) =>
+  supabase.from('friend_requests')
+    .select('id, from_user_id, created_at')
+    .eq('to_user_id', userId)
+    .order('created_at', { ascending: false })
+
+export const fetchSentRequests = (userId) =>
+  supabase.from('friend_requests')
+    .select('id, to_user_id, created_at')
+    .eq('from_user_id', userId)
+    .order('created_at', { ascending: false })

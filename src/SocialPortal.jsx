@@ -1,11 +1,15 @@
 // src/SocialPortal.jsx
-// Social tab for the Customer Portal — Profile, Friends, Requests.
-// Displayed inside CustomerPortal in App.jsx.
+// Social tab for the Customer Portal — Profile, Friends, Connect.
 
-import { useState } from 'react'
-import { uploadAvatar, updateOwnAvatar, updateSocialProfile } from './supabase.js'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import {
+  uploadAvatar, updateOwnAvatar, updateSocialProfile,
+  sendFriendRequest, cancelFriendRequest, acceptFriendRequest, rejectFriendRequest,
+  removeFriend, searchPlayers, getRecentlyMet, getFriendProfile,
+  fetchFriends, fetchReceivedRequests, fetchSentRequests,
+} from './supabase.js'
 
-// ── Tier data (mirrors App.jsx) ─────────────────────────────────────────────
+// ── Tier data ────────────────────────────────────────────────────────────────
 const TIER_THRESHOLDS = [
   { key: 'recruit',  name: 'Recruit',  min: 0 },
   { key: 'initiate', name: 'Initiate', min: 4 },
@@ -101,7 +105,7 @@ function computeStats(runArr) {
   }
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
+// ── Small reusable components ─────────────────────────────────────────────────
 function StatCard({ label, value, sub }) {
   return (
     <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', textAlign: 'center' }}>
@@ -112,10 +116,124 @@ function StatCard({ label, value, sub }) {
   )
 }
 
+function MiniAvatar({ url, hidden, size = 36 }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surf2)', border: '1px solid var(--bdr)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: Math.round(size * 0.4) }}>
+      {url && !hidden
+        ? <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+        : <span style={{ color: 'var(--muted)' }}>👤</span>}
+    </div>
+  )
+}
+
+function TierChip({ runs }) {
+  const { current: tier } = getTierInfo(runs ?? 0)
+  const col = TIER_COLORS[tier.key]
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '.2rem',
+      background: col + '22', border: `1px solid ${col}66`,
+      borderRadius: 4, padding: '1px 5px', fontSize: '.62rem',
+      color: col, fontFamily: 'var(--fd)', textTransform: 'uppercase', letterSpacing: '.05em',
+      whiteSpace: 'nowrap', flexShrink: 0,
+    }}>
+      <span style={{ color: col, display: 'inline-flex', lineHeight: 1 }} dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
+      {tier.name}
+    </span>
+  )
+}
+
+// ── Friend Profile Modal ──────────────────────────────────────────────────────
+function FriendProfileModal({ userId, onClose }) {
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    setProfile(null)
+    getFriendProfile(userId).then(({ data }) => {
+      const row = Array.isArray(data) ? data[0] : data
+      setProfile(row ?? null)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [userId])
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 8, padding: '1.5rem', maxWidth: 380, width: '100%', maxHeight: '82vh', overflowY: 'auto', position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '.6rem', right: '.75rem', background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1 }}>✕</button>
+
+        {loading && <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '2.5rem 0' }}>Loading…</div>}
+        {!loading && !profile && <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '2.5rem 0' }}>Profile not found.</div>}
+
+        {!loading && profile && (() => {
+          const { current: tier } = getTierInfo(profile.total_runs ?? 0)
+          const col = TIER_COLORS[tier.key]
+          return (
+            <>
+              {/* Avatar + identity */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--surf2)', border: '2px solid var(--bdr)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', flexShrink: 0 }}>
+                  {profile.avatar_url && !profile.hide_avatar
+                    ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                    : <span style={{ color: 'var(--muted)' }}>👤</span>}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--fd)', fontSize: '1.15rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.leaderboard_name}</div>
+                  {profile.real_name && <div style={{ fontSize: '.82rem', color: 'var(--muted)', marginTop: '.1rem' }}>{profile.real_name}</div>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginTop: '.35rem', flexWrap: 'wrap' }}>
+                    <span style={{ color: col, display: 'inline-flex', alignItems: 'center' }} dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
+                    <span style={{ fontFamily: 'var(--fd)', fontSize: '.75rem', color: col, textTransform: 'uppercase', letterSpacing: '.06em' }}>{tier.name}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem', marginBottom: '1rem' }}>
+                <StatCard label="Total Runs" value={profile.total_runs ?? 0} />
+                <StatCard label="Avg Score"  value={profile.avg_score != null ? Number(profile.avg_score).toFixed(1) : '—'} />
+                <StatCard label="Best Run"   value={profile.best_run   != null ? Number(profile.best_run).toFixed(1)   : '—'} />
+              </div>
+
+              {/* Detail fields */}
+              {(profile.profession || profile.home_base_city || profile.home_base_state ||
+                profile.bio || profile.motto || profile.phone_last4 || profile.email) && (
+                <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', display: 'flex', flexDirection: 'column', gap: '.35rem', fontSize: '.85rem' }}>
+                  {profile.profession && (
+                    <div><span style={{ color: 'var(--muted)' }}>Profession:</span> <span style={{ color: 'var(--txt)' }}>{profile.profession}</span></div>
+                  )}
+                  {(profile.home_base_city || profile.home_base_state) && (
+                    <div><span style={{ color: 'var(--muted)' }}>Home Base:</span> <span style={{ color: 'var(--txt)' }}>{[profile.home_base_city, profile.home_base_state].filter(Boolean).join(', ')}</span></div>
+                  )}
+                  {profile.phone_last4 && (
+                    <div><span style={{ color: 'var(--muted)' }}>Phone:</span> <span style={{ color: 'var(--txt)' }}>••••{profile.phone_last4}</span></div>
+                  )}
+                  {profile.email && (
+                    <div><span style={{ color: 'var(--muted)' }}>Email:</span> <span style={{ color: 'var(--txt)', wordBreak: 'break-all' }}>{profile.email}</span></div>
+                  )}
+                  {profile.motto && (
+                    <div style={{ fontStyle: 'italic', color: 'var(--muted)' }}>"{profile.motto}"</div>
+                  )}
+                  {profile.bio && (
+                    <div style={{ marginTop: '.25rem', color: 'var(--txt)', lineHeight: 1.5 }}>{profile.bio}</div>
+                  )}
+                </div>
+              )}
+            </>
+          )
+        })()}
+      </div>
+    </div>
+  )
+}
+
 const MAX_BIO = 150
 
-// ── Main export ──────────────────────────────────────────────────────────────
-export default function SocialPortal({ user, users, setUsers, reservations, resTypes, runs, careerRuns, onEditProfile }) {
+// ── Main export ───────────────────────────────────────────────────────────────
+export default function SocialPortal({ user, users, setUsers, reservations, resTypes, runs, careerRuns, onEditProfile, onFriendsChanged }) {
   const [tab, setTab]                         = useState('profile')
   const [profileStatsSub, setProfileStatsSub] = useState('coop')
   const [avatarUploading, setAvatarUploading] = useState(false)
@@ -123,6 +241,18 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [editing, setEditing]                 = useState(false)
   const [editDraft, setEditDraft]             = useState({})
   const [editSaving, setEditSaving]           = useState(false)
+
+  // Friends state
+  const [friendships, setFriendships]         = useState([])
+  const [receivedRequests, setReceivedRequests] = useState([])
+  const [sentRequests, setSentRequests]       = useState([])
+  const [recentlyMet, setRecentlyMet]         = useState([])
+  const [friendLoading, setFriendLoading]     = useState(false)
+  const [searchQuery, setSearchQuery]         = useState('')
+  const [searchResults, setSearchResults]     = useState([])
+  const [searching, setSearching]             = useState(false)
+  const [profileModal, setProfileModal]       = useState(null) // userId string
+  const searchTimerRef                        = useRef(null)
 
   // ── Stats computation ────────────────────────────────────────────────────
   const myRes = reservations.filter(r => r.userId === user.id)
@@ -138,7 +268,6 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const coopRuns = myRuns.filter(rn => coopResIds.has(rn.reservationId))
   const versRuns = myRuns.filter(rn => versResIds.has(rn.reservationId))
 
-  // Versus win/loss (per run, using team assignment)
   const teamLetter = n => n === 1 ? 'A' : n === 2 ? 'B' : null
   const versWins = versRuns.filter(rn => {
     const res = myResMap[rn.reservationId]
@@ -151,10 +280,86 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     return pl?.team && rn.winningTeam && teamLetter(pl.team) !== rn.winningTeam
   }).length
 
-  // Operator since — date of earliest mission
   const operatorSince = myRes.length
     ? fmtMonthYear(myRes.reduce((min, r) => r.date < min ? r.date : min, myRes[0].date))
     : null
+
+  // ── Friend helpers ───────────────────────────────────────────────────────
+  const friendIds = new Set(
+    friendships.map(f => f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1)
+  )
+  const resolveUser = id => {
+    const u = (users ?? []).find(u => u.id === id)
+    return u ?? { id, name: 'Operative', leaderboardName: null, avatarUrl: null, hideAvatar: false }
+  }
+
+  const loadFriends = useCallback(async () => {
+    setFriendLoading(true)
+    try {
+      const [{ data: fs }, { data: recv }, { data: sent }] = await Promise.all([
+        fetchFriends(user.id),
+        fetchReceivedRequests(user.id),
+        fetchSentRequests(user.id),
+      ])
+      setFriendships(fs ?? [])
+      setReceivedRequests(recv ?? [])
+      setSentRequests(sent ?? [])
+    } finally {
+      setFriendLoading(false)
+    }
+  }, [user.id])
+
+  useEffect(() => {
+    if (tab === 'friends' || tab === 'connect') loadFriends()
+  }, [tab, loadFriends])
+
+  useEffect(() => {
+    if (tab !== 'connect') return
+    getRecentlyMet().then(({ data }) => setRecentlyMet(data ?? []))
+  }, [tab])
+
+  // Debounced search
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (q.length < 2) { setSearchResults([]); return }
+    clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(async () => {
+      setSearching(true)
+      const { data } = await searchPlayers(q)
+      setSearchResults(data ?? [])
+      setSearching(false)
+    }, 400)
+    return () => clearTimeout(searchTimerRef.current)
+  }, [searchQuery])
+
+  // ── Friend action handlers ───────────────────────────────────────────────
+  async function handleAccept(fromId) {
+    await acceptFriendRequest(fromId)
+    await loadFriends()
+    onFriendsChanged?.()
+  }
+
+  async function handleIgnore(fromId) {
+    await rejectFriendRequest(fromId)
+    setReceivedRequests(prev => prev.filter(r => r.from_user_id !== fromId))
+  }
+
+  async function handleRemoveFriend(otherId) {
+    if (!window.confirm('Remove this operative from your squad?')) return
+    await removeFriend(otherId)
+    setFriendships(prev => prev.filter(f => f.user_id_1 !== otherId && f.user_id_2 !== otherId))
+    onFriendsChanged?.()
+  }
+
+  async function handleSendRequest(toId) {
+    await sendFriendRequest(toId)
+    setSentRequests(prev => [...prev, { to_user_id: toId, created_at: new Date().toISOString() }])
+  }
+
+  async function handleCancelRequest(toId) {
+    await cancelFriendRequest(toId)
+    setSentRequests(prev => prev.filter(r => r.to_user_id !== toId))
+  }
 
   // ── Avatar upload ────────────────────────────────────────────────────────
   const handleAvatarChange = async e => {
@@ -176,13 +381,16 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   // ── Social profile edit ──────────────────────────────────────────────────
   function startEditing() {
     setEditDraft({
-      motto:        user.motto        || '',
-      profession:   user.profession   || '',
-      homeBaseCity: user.homeBaseCity || '',
+      motto:         user.motto         || '',
+      profession:    user.profession    || '',
+      homeBaseCity:  user.homeBaseCity  || '',
       homeBaseState: user.homeBaseState || '',
-      bio:          user.bio          || '',
-      hidePhone:    user.hidePhone    ?? false,
-      hideEmail:    user.hideEmail    ?? false,
+      bio:           user.bio           || '',
+      hidePhone:     user.hidePhone     ?? false,
+      hideEmail:     user.hideEmail     ?? false,
+      hideName:      user.hideName      ?? false,
+      hideAvatar:    user.hideAvatar    ?? false,
+      hideBio:       user.hideBio       ?? false,
     })
     setEditing(true)
   }
@@ -191,13 +399,16 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     setEditSaving(true)
     try {
       const updated = await updateSocialProfile(user.id, {
-        motto:        editDraft.motto.trim()        || null,
-        profession:   editDraft.profession.trim()   || null,
-        homeBaseCity: editDraft.homeBaseCity.trim() || null,
+        motto:         editDraft.motto.trim()         || null,
+        profession:    editDraft.profession.trim()    || null,
+        homeBaseCity:  editDraft.homeBaseCity.trim()  || null,
         homeBaseState: editDraft.homeBaseState.trim() || null,
-        bio:          editDraft.bio.trim().slice(0, MAX_BIO) || null,
-        hidePhone:    editDraft.hidePhone,
-        hideEmail:    editDraft.hideEmail,
+        bio:           editDraft.bio.trim().slice(0, MAX_BIO) || null,
+        hidePhone:     editDraft.hidePhone,
+        hideEmail:     editDraft.hideEmail,
+        hideName:      editDraft.hideName,
+        hideAvatar:    editDraft.hideAvatar,
+        hideBio:       editDraft.hideBio,
       })
       setUsers(prev => prev.map(u => u.id === user.id ? updated : u))
       setEditing(false)
@@ -210,24 +421,37 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
 
   const activeStats = profileStatsSub === 'coop' ? computeStats(coopRuns) : computeStats(versRuns)
 
-  // ── Shared label style ───────────────────────────────────────────────────
   const lbl = { color: 'var(--muted)', fontSize: '.87rem' }
   const val = { color: 'var(--txt)',   fontSize: '.87rem' }
 
+  const SECTION_HDR = { fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.5rem' }
+
   return (
     <>
+      {profileModal && (
+        <FriendProfileModal userId={profileModal} onClose={() => setProfileModal(null)} />
+      )}
+
       {/* ── Sub-tabs ── */}
       <div className="tabs" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--bdr)' }}>
-        <button className={`tab${tab === 'profile'  ? ' on' : ''}`} onClick={() => setTab('profile')}>Profile</button>
-        <button className={`tab${tab === 'friends'  ? ' on' : ''}`} onClick={() => setTab('friends')}>Friends</button>
-        <button className={`tab${tab === 'requests' ? ' on' : ''}`} onClick={() => setTab('requests')}>Requests</button>
+        <button className={`tab${tab === 'profile' ? ' on' : ''}`} onClick={() => setTab('profile')}>Profile</button>
+        <button className={`tab${tab === 'friends' ? ' on' : ''}`} onClick={() => setTab('friends')}>
+          Friends
+          {receivedRequests.length > 0 && (
+            <span style={{ marginLeft: '.35rem', background: '#e04444', color: '#fff', borderRadius: 10, fontSize: '.6rem', padding: '1px 5px', fontFamily: 'var(--fd)', verticalAlign: 'middle' }}>
+              {receivedRequests.length}
+            </span>
+          )}
+        </button>
+        <button className={`tab${tab === 'connect' ? ' on' : ''}`} onClick={() => setTab('connect')}>Connect</button>
       </div>
 
-      {/* ── PROFILE ── */}
+      {/* ════════════════════════════════════════════════════════
+          PROFILE TAB
+      ════════════════════════════════════════════════════════ */}
       {tab === 'profile' && <>
         {/* Avatar + Identity */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem', marginBottom: '1.5rem' }}>
-          {/* Avatar circle */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <div style={{ width: 84, height: 84, borderRadius: '50%', background: 'var(--surf2)', border: '2px solid var(--bdr)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem' }}>
               {user.avatarUrl
@@ -243,7 +467,6 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             </label>
           </div>
 
-          {/* Name + tier */}
           <div style={{ flex: 1, minWidth: 0, paddingTop: '.25rem' }}>
             <div style={{ fontFamily: 'var(--fd)', fontSize: '1.3rem', color: 'var(--txt)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
             <div style={{ fontSize: '.85rem', color: 'var(--acc2)', marginTop: '.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -279,7 +502,6 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           </div>
 
           {!editing ? (
-            /* ── Display mode ── */
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '.3rem .85rem', fontSize: '.87rem' }}>
                 <span style={lbl}>Name</span>
@@ -295,9 +517,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
 
                 {(user.homeBaseCity || user.homeBaseState) && <>
                   <span style={lbl}>Home Base</span>
-                  <span style={val}>
-                    {[user.homeBaseCity, user.homeBaseState].filter(Boolean).join(', ')}
-                  </span>
+                  <span style={val}>{[user.homeBaseCity, user.homeBaseState].filter(Boolean).join(', ')}</span>
                 </>}
 
                 {operatorSince && <>
@@ -325,7 +545,6 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               )}
             </>
           ) : (
-            /* ── Edit mode ── */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '.65rem' }}>
               <p style={{ margin: 0, fontSize: '.75rem', color: 'var(--muted)' }}>
                 Name and callsign are updated in <button className="btn-link" style={{ fontSize: '.75rem' }} onClick={() => { setEditing(false); onEditProfile() }}>Account Settings</button>.
@@ -333,50 +552,22 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
 
               <div>
                 <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Motto</label>
-                <input
-                  className="inp"
-                  style={{ width: '100%', boxSizing: 'border-box' }}
-                  placeholder="Your personal motto…"
-                  value={editDraft.motto}
-                  maxLength={80}
-                  onChange={e => setEditDraft(d => ({ ...d, motto: e.target.value }))}
-                />
+                <input className="inp" style={{ width: '100%', boxSizing: 'border-box' }} placeholder="Your personal motto…" value={editDraft.motto} maxLength={80} onChange={e => setEditDraft(d => ({ ...d, motto: e.target.value }))} />
               </div>
 
               <div>
                 <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Profession</label>
-                <input
-                  className="inp"
-                  style={{ width: '100%', boxSizing: 'border-box' }}
-                  placeholder="e.g. Software Engineer"
-                  value={editDraft.profession}
-                  maxLength={60}
-                  onChange={e => setEditDraft(d => ({ ...d, profession: e.target.value }))}
-                />
+                <input className="inp" style={{ width: '100%', boxSizing: 'border-box' }} placeholder="e.g. Software Engineer" value={editDraft.profession} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, profession: e.target.value }))} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '.5rem' }}>
                 <div>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>City</label>
-                  <input
-                    className="inp"
-                    style={{ width: '100%', boxSizing: 'border-box' }}
-                    placeholder="Indianapolis"
-                    value={editDraft.homeBaseCity}
-                    maxLength={60}
-                    onChange={e => setEditDraft(d => ({ ...d, homeBaseCity: e.target.value }))}
-                  />
+                  <input className="inp" style={{ width: '100%', boxSizing: 'border-box' }} placeholder="Indianapolis" value={editDraft.homeBaseCity} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, homeBaseCity: e.target.value }))} />
                 </div>
                 <div>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>State</label>
-                  <input
-                    className="inp"
-                    style={{ width: 56, boxSizing: 'border-box' }}
-                    placeholder="IN"
-                    value={editDraft.homeBaseState}
-                    maxLength={4}
-                    onChange={e => setEditDraft(d => ({ ...d, homeBaseState: e.target.value }))}
-                  />
+                  <input className="inp" style={{ width: 56, boxSizing: 'border-box' }} placeholder="IN" value={editDraft.homeBaseState} maxLength={4} onChange={e => setEditDraft(d => ({ ...d, homeBaseState: e.target.value }))} />
                 </div>
               </div>
 
@@ -384,26 +575,23 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 <label style={{ fontSize: '.75rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>
                   Bio <span style={{ float: 'right', color: editDraft.bio.length > MAX_BIO ? 'var(--danger,#e05)' : 'var(--muted)' }}>{editDraft.bio.length}/{MAX_BIO}</span>
                 </label>
-                <textarea
-                  className="inp"
-                  rows={3}
-                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
-                  placeholder="Tell other operatives a little about yourself…"
-                  value={editDraft.bio}
-                  maxLength={MAX_BIO}
-                  onChange={e => setEditDraft(d => ({ ...d, bio: e.target.value.slice(0, MAX_BIO) }))}
-                />
+                <textarea className="inp" rows={3} style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }} placeholder="Tell other operatives a little about yourself…" value={editDraft.bio} maxLength={MAX_BIO} onChange={e => setEditDraft(d => ({ ...d, bio: e.target.value.slice(0, MAX_BIO) }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '.35rem', paddingTop: '.15rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '.45rem', cursor: 'pointer', fontSize: '.85rem', color: 'var(--txt)' }}>
-                  <input type="checkbox" checked={editDraft.hidePhone} onChange={e => setEditDraft(d => ({ ...d, hidePhone: e.target.checked }))} />
-                  Hide my phone number from other operatives
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '.45rem', cursor: 'pointer', fontSize: '.85rem', color: 'var(--txt)' }}>
-                  <input type="checkbox" checked={editDraft.hideEmail} onChange={e => setEditDraft(d => ({ ...d, hideEmail: e.target.checked }))} />
-                  Hide my email address from other operatives
-                </label>
+                <div style={{ fontSize: '.72rem', fontFamily: 'var(--fd)', color: 'var(--acc2)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '.1rem' }}>Privacy</div>
+                {[
+                  ['hidePhone',  'Hide my phone number from other operatives'],
+                  ['hideEmail',  'Hide my email address from other operatives'],
+                  ['hideName',   'Hide my real name from other operatives'],
+                  ['hideAvatar', 'Hide my profile picture from other operatives'],
+                  ['hideBio',    'Hide my bio, motto, profession & home base from other operatives'],
+                ].map(([field, label]) => (
+                  <label key={field} style={{ display: 'flex', alignItems: 'center', gap: '.45rem', cursor: 'pointer', fontSize: '.85rem', color: 'var(--txt)' }}>
+                    <input type="checkbox" checked={editDraft[field] ?? false} onChange={e => setEditDraft(d => ({ ...d, [field]: e.target.checked }))} />
+                    {label}
+                  </label>
+                ))}
               </div>
 
               <div style={{ display: 'flex', gap: '.5rem', paddingTop: '.25rem' }}>
@@ -431,7 +619,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           )}
           {activeStats && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem', marginBottom: '.75rem' }}>
-              <StatCard label="Sessions"  value={activeStats.sessions} />
+              <StatCard label="Sessions"   value={activeStats.sessions} />
               <StatCard label="Total Runs" value={activeStats.runs} />
               <StatCard label="Best Score" value={activeStats.best} />
               <StatCard label="Avg Score"  value={activeStats.avg.toFixed(1)} />
@@ -447,20 +635,171 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
         </div>
       </>}
 
-      {/* ── FRIENDS ── */}
+      {/* ════════════════════════════════════════════════════════
+          FRIENDS TAB
+      ════════════════════════════════════════════════════════ */}
       {tab === 'friends' && (
-        <div className="empty">
-          <div className="ei">👥</div>
-          <p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>Friends coming soon.</p>
-          <p style={{ color: 'var(--muted)', fontSize: '.78rem', marginTop: '.35rem' }}>Connect with other operatives, track friends' scores, and challenge your squad.</p>
+        <div>
+          {friendLoading && <div style={{ color: 'var(--muted)', fontSize: '.85rem', marginBottom: '.75rem' }}>Loading…</div>}
+
+          {/* Pending received requests */}
+          {receivedRequests.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={SECTION_HDR}>Pending Requests</div>
+              {receivedRequests.map(req => {
+                const sender = resolveUser(req.from_user_id)
+                return (
+                  <div key={req.from_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+                    <MiniAvatar url={sender.avatarUrl} hidden={sender.hideAvatar} />
+                    <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sender.leaderboardName || sender.name || 'Operative'}
+                    </span>
+                    <button className="btn btn-s" onClick={() => handleAccept(req.from_user_id)} title="Accept" style={{ padding: '3px 10px', fontSize: '.8rem' }}>✓</button>
+                    <button className="btn btn-s btn-sm" onClick={() => handleIgnore(req.from_user_id)} title="Ignore" style={{ padding: '3px 8px', fontSize: '.8rem' }}>✕</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Friends list */}
+          <div>
+            <div style={SECTION_HDR}>Your Squad</div>
+            {!friendLoading && friendships.length === 0 && (
+              <div className="empty">
+                <div className="ei">👥</div>
+                <p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>No friends yet.</p>
+                <p style={{ color: 'var(--muted)', fontSize: '.78rem', marginTop: '.35rem' }}>Head to the Connect tab to find operatives.</p>
+              </div>
+            )}
+            {friendships.map(f => {
+              const otherId = f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1
+              const friend = resolveUser(otherId)
+              return (
+                <div
+                  key={otherId}
+                  style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)', cursor: 'pointer' }}
+                  onClick={() => setProfileModal(otherId)}
+                >
+                  <MiniAvatar url={friend.avatarUrl} hidden={friend.hideAvatar} />
+                  <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {friend.leaderboardName || friend.name || 'Operative'}
+                  </span>
+                  <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>View →</span>
+                  <button
+                    className="btn btn-s btn-sm"
+                    title="Remove from squad"
+                    onClick={e => { e.stopPropagation(); handleRemoveFriend(otherId) }}
+                    style={{ fontSize: '.72rem', padding: '2px 7px', opacity: .55 }}
+                  >✕</button>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
-      {/* ── REQUESTS ── */}
-      {tab === 'requests' && (
-        <div className="empty">
-          <div className="ei">📨</div>
-          <p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>Friend requests coming soon.</p>
+      {/* ════════════════════════════════════════════════════════
+          CONNECT TAB
+      ════════════════════════════════════════════════════════ */}
+      {tab === 'connect' && (
+        <div>
+          {/* Search */}
+          <div style={{ marginBottom: '1rem' }}>
+            <input
+              className="inp"
+              style={{ width: '100%', boxSizing: 'border-box' }}
+              placeholder="🔍 Search by name or phone…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              autoComplete="off"
+            />
+            {searching && <div style={{ fontSize: '.78rem', color: 'var(--muted)', marginTop: '.4rem' }}>Searching…</div>}
+          </div>
+
+          {/* Search results */}
+          {searchResults.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              {searchResults.map(p => {
+                const isFriend  = friendIds.has(p.id)
+                const isPending = sentRequests.some(r => r.to_user_id === p.id) ||
+                                  receivedRequests.some(r => r.from_user_id === p.id)
+                return (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+                    <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leaderboard_name}</div>
+                      {p.phone_last4 && <div style={{ fontSize: '.73rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>}
+                    </div>
+                    <TierChip runs={p.total_runs} />
+                    {isFriend ? (
+                      <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Friends</span>
+                    ) : isPending ? (
+                      <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Pending</span>
+                    ) : (
+                      <button className="btn btn-s" onClick={() => handleSendRequest(p.id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Add</button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Sent requests */}
+          {sentRequests.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={SECTION_HDR}>Sent Requests</div>
+              {sentRequests.map(req => {
+                const recipient = resolveUser(req.to_user_id)
+                return (
+                  <div key={req.to_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+                    <MiniAvatar url={recipient.avatarUrl} hidden={recipient.hideAvatar} />
+                    <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {recipient.leaderboardName || recipient.name || 'Operative'}
+                    </span>
+                    <button className="btn btn-s btn-sm" onClick={() => handleCancelRequest(req.to_user_id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Cancel</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Recently met */}
+          {recentlyMet.length > 0 && (
+            <div>
+              <div style={SECTION_HDR}>Recently Met</div>
+              {recentlyMet.map(p => {
+                const isFriend  = friendIds.has(p.id)
+                const isPending = sentRequests.some(r => r.to_user_id === p.id) ||
+                                  receivedRequests.some(r => r.from_user_id === p.id)
+                return (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+                    <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leaderboard_name}</div>
+                      {p.phone_last4 && <div style={{ fontSize: '.73rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>}
+                    </div>
+                    <TierChip runs={p.total_runs} />
+                    {isFriend ? (
+                      <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Friends</span>
+                    ) : isPending ? (
+                      <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Pending</span>
+                    ) : (
+                      <button className="btn btn-s" onClick={() => handleSendRequest(p.id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Add</button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {!friendLoading && sentRequests.length === 0 && recentlyMet.length === 0 && searchResults.length === 0 && !searching && (
+            <div className="empty">
+              <div className="ei">🔍</div>
+              <p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>Search for operatives by name or phone number.</p>
+              <p style={{ color: 'var(--muted)', fontSize: '.78rem', marginTop: '.35rem' }}>Players you've shared a lane with will also appear here.</p>
+            </div>
+          )}
         </div>
       )}
     </>
