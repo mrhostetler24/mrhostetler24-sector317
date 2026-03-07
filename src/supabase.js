@@ -1539,7 +1539,7 @@ export async function updateOwnAvatar(userId, avatarUrl) {
 
 /** Update social profile fields (motto, home base, profession, bio, privacy flags). */
 export async function updateSocialProfile(id, { motto, homeBaseCity, homeBaseState, profession, bio, hidePhone, hideEmail, hideName, hideAvatar, hideMotto, hideProfession, hideHomeBase, hideBio }) {
-  const { data, error } = await supabase.rpc('update_social_profile', {
+  const { error } = await supabase.rpc('update_social_profile', {
     p_user_id:          id,
     p_motto:            motto ?? null,
     p_home_base_city:   homeBaseCity ?? null,
@@ -1556,7 +1556,10 @@ export async function updateSocialProfile(id, { motto, homeBaseCity, homeBaseSta
     p_hide_bio:         hideBio        ?? false,
   })
   if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
+  // RPC returns void — fetch the updated row separately
+  const { data: row, error: fetchErr } = await supabase
+    .from('users').select('*').eq('id', id).single()
+  if (fetchErr) throw fetchErr
   return toUser(row)
 }
 
