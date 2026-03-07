@@ -567,7 +567,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             <div style={{ display: 'flex', flexDirection: 'column', gap: '.65rem' }}>
               <p style={{ margin: 0, fontSize: '.75rem', color: 'var(--muted)' }}>
                 Name and callsign are updated in{' '}
-                <button className="btn-link" style={{ fontSize: '.75rem', color: 'var(--accB)', fontWeight: 600 }} onClick={onEditProfile}>Account Settings</button>.
+                <button onClick={onEditProfile} style={{ fontSize: '.75rem', color: 'var(--accB)', fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>Account Settings</button>.
               </p>
 
               {/* Read-only fields with privacy toggles */}
@@ -578,18 +578,22 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   ['Phone',         fmtPhone(user.phone),  'hidePhone'],
                   ['Email',         user.email,            'hideEmail'],
                 ].map(([title, val, field]) => (
-                  <div key={field} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.5rem' }}>
-                    <span style={{ fontSize: '.82rem', color: 'var(--muted)' }}>
-                      {title}{val ? <span style={{ color: 'var(--txt)', marginLeft: '.4rem' }}>{val}</span> : null}
+                  <div key={field} style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                    <span style={{ fontSize: '.82rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '.3rem' }}>
+                      {title}
+                      {title === 'Profile Photo' && user.avatar_url
+                        ? <span style={{ color: 'var(--acc)', fontWeight: 700 }}>✓</span>
+                        : null}
                     </span>
                     <PrivacyToggle checked={editDraft[field] ?? false} onChange={v => setEditDraft(d => ({ ...d, [field]: v }))} />
+                    {val ? <span style={{ fontSize: '.82rem', color: 'var(--txt)', marginLeft: 'auto' }}>{val}</span> : null}
                   </div>
                 ))}
               </div>
 
               {/* Editable fields with inline privacy toggles */}
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.2rem' }}>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Motto</label>
                   <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
                 </div>
@@ -597,7 +601,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               </div>
 
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.2rem' }}>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Profession</label>
                   <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
                 </div>
@@ -605,7 +609,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               </div>
 
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.2rem' }}>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Home Base</label>
                   <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
                 </div>
@@ -616,7 +620,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               </div>
 
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.2rem' }}>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>
                     Bio <span style={{ color: editDraft.bio.length > MAX_BIO ? 'var(--danger,#e05)' : 'var(--muted)' }}>{editDraft.bio.length}/{MAX_BIO}</span>
                   </label>
