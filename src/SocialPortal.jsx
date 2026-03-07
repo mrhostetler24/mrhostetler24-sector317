@@ -282,15 +282,16 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const coopRuns = myRuns.filter(rn => coopResIds.has(rn.reservationId))
   const versRuns = myRuns.filter(rn => versResIds.has(rn.reservationId))
 
-  const teamLetter = n => n === 1 ? 'A' : n === 2 ? 'B' : null
   // Count sessions (unique reservations) won/lost — each session has multiple runs per team
+  // winningTeam and pl.team are both integers (1=Hunters, 2=Coyotes)
   const versSessionResults = new Map()
   versRuns.forEach(rn => {
-    if (!rn.winningTeam || versSessionResults.has(rn.reservationId)) return
+    if (rn.winningTeam == null || versSessionResults.has(rn.reservationId)) return
     const res = myResMap[rn.reservationId]
     const pl = res?.players?.find(p => p.userId === user.id)
-    if (!pl?.team) return
-    versSessionResults.set(rn.reservationId, teamLetter(pl.team) === rn.winningTeam ? 'win' : 'loss')
+    if (pl?.team == null) return
+    // eslint-disable-next-line eqeqeq
+    versSessionResults.set(rn.reservationId, pl.team == rn.winningTeam ? 'win' : 'loss')
   })
   const versWins   = [...versSessionResults.values()].filter(v => v === 'win').length
   const versLosses = [...versSessionResults.values()].filter(v => v === 'loss').length

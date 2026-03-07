@@ -25,6 +25,7 @@ const LOGO_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAhQAAAFuCAYAAADZ
 
 const DAYS_OF_WEEK = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const ACCESS_LEVELS = { customer:{label:"Customer"}, staff:{label:"Staff"}, manager:{label:"Manager"}, admin:{label:"Admin"} };
+const PAGE_SIZE = 25;
 // Staff roles loaded from DB (staff_roles table)
 
 // TODO: delete after testing — DEFAULT_RES_TYPES (no longer used)
@@ -2982,6 +2983,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const toggleWidget=id=>setDashWidgets(p=>({...p,[id]:!p[id]}));
   const showToast=msg=>{setToastMsg(msg);setTimeout(()=>setToastMsg(null),3200);};
   const [custSearch,setCustSearch]=useState("");
+  const [custPage,setCustPage]=useState(1);
+  const [resPage,setResPage]=useState(1);
   const [mergeTarget,setMergeTarget]=useState(null);
   const handleMergeUsers=async(winnerId,loserId)=>{
     await mergeUsers(winnerId,loserId);
@@ -3470,15 +3473,29 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       {tab==="reservations"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Reservations</div></div></div>
         <div className="tabs" style={{marginBottom:"1rem"}}>
-          <button className={`tab${resSubTab==="upcoming"?" on":""}`} onClick={()=>setResSubTab("upcoming")}>Upcoming ({upcomingRes.length})</button>
-          <button className={`tab${resSubTab==="past"?" on":""}`} onClick={()=>setResSubTab("past")}>Past ({pastRes.length})</button>
+          <button className={`tab${resSubTab==="upcoming"?" on":""}`} onClick={()=>{setResSubTab("upcoming");setResPage(1);}}>Upcoming ({upcomingRes.length})</button>
+          <button className={`tab${resSubTab==="past"?" on":""}`} onClick={()=>{setResSubTab("past");setResPage(1);}}>Past ({pastRes.length})</button>
         </div>
-        {(()=>{const rows=resSubTab==="upcoming"?upcomingRes:pastRes;return(
+        {(()=>{
+          const rows=resSubTab==="upcoming"?upcomingRes:pastRes;
+          const totalPages=Math.max(1,Math.ceil(rows.length/PAGE_SIZE));
+          const page=Math.min(resPage,totalPages);
+          const pageRows=rows.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
+          const pager=rows.length>PAGE_SIZE&&(
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:".5rem 0",fontSize:".84rem",color:"var(--muted)"}}>
+              <span>{(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE,rows.length)} of {rows.length} reservations</span>
+              <div style={{display:"flex",gap:".4rem",alignItems:"center"}}>
+                <button className="btn btn-sm btn-s" disabled={page<=1} onClick={()=>setResPage(p=>p-1)}>← Prev</button>
+                <span style={{padding:"0 .25rem"}}>Page {page} / {totalPages}</span>
+                <button className="btn btn-sm btn-s" disabled={page>=totalPages} onClick={()=>setResPage(p=>p+1)}>Next →</button>
+              </div>
+            </div>);
+          return(<>{pager}
           <div className="tw"><div className="th"><span className="ttl">{resSubTab==="upcoming"?"Upcoming Sessions":"Past Sessions"}</span><span style={{fontSize:".74rem",color:"var(--muted)"}}>Click row to expand</span></div>
           <table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th>{isAdmin&&<th>Amount</th>}</tr></thead>
-            <tbody>{!rows.length&&<tr><td colSpan={isAdmin?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No {resSubTab} reservations.</td></tr>}{rows.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} currentUser={user} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes} onRemovePlayer={removePlayer} onReschedule={rescheduleRes}/>)}</tbody>
-          </table></div>
-        );})()}
+            <tbody>{!pageRows.length&&<tr><td colSpan={isAdmin?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No {resSubTab} reservations.</td></tr>}{pageRows.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} currentUser={user} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes} onRemovePlayer={removePlayer} onReschedule={rescheduleRes}/>)}</tbody>
+          </table></div>{pager}</>);
+        })()}
       </>}
 
       {tab==="types"&&<>
@@ -3514,7 +3531,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             <td><div style={{display:"flex",gap:".4rem"}}>
               {canManageUser(u)&&!(u.access==="admin"&&!isAdmin)&&<>
                 <button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...u});setModal("user");}}>Edit</button>
-                <button className="btn btn-sm btn-d" onClick={()=>{setUsers(p=>p.filter(x=>x.id!==u.id));showToast(`${u.name} removed`);}}>Remove</button>
+                <button className={`btn btn-sm ${u.active?"btn-d":"btn-ok"}`} onClick={async()=>{
+                  try{
+                    const updated=await updateUserAdmin(u.id,{name:u.name,phone:u.phone,access:u.access,role:u.role,active:!u.active});
+                    setUsers(p=>p.map(x=>x.id===updated.id?updated:x));
+                    showToast(`${u.name} ${updated.active?"enabled":"disabled"}`);
+                  }catch(e){showToast("Error: "+e.message);}
+                }}>{u.active?"Disable":"Enable"}</button>
               </>}
               {u.access==="admin"&&!isAdmin&&<span style={{fontSize:".72rem",color:"var(--muted)",fontStyle:"italic"}}>Protected</span>}
             </div></td>
@@ -3532,8 +3555,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       {tab==="customers"&&isManager&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Customers</div><div className="ps">All customers — social auth and phone-only</div></div></div>
         <div style={{display:"flex",gap:".6rem",alignItems:"center",marginBottom:"1rem"}}>
-          <input value={custSearch} onChange={e=>setCustSearch(e.target.value)} placeholder="Search by name or phone…" style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".55rem .9rem",color:"var(--txt)",fontSize:".9rem",outline:"none"}}/>
-          {custSearch&&<button className="btn btn-s" style={{whiteSpace:"nowrap"}} onClick={()=>setCustSearch("")}>✕ Clear</button>}
+          <input value={custSearch} onChange={e=>{setCustSearch(e.target.value);setCustPage(1);}} placeholder="Search by name or phone…" style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".55rem .9rem",color:"var(--txt)",fontSize:".9rem",outline:"none"}}/>
+          {custSearch&&<button className="btn btn-s" style={{whiteSpace:"nowrap"}} onClick={()=>{setCustSearch("");setCustPage(1);}}>✕ Clear</button>}
         </div>
         {/* Duplicate account alerts */}
         {dupAlerts.map(d=>(
@@ -3552,21 +3575,33 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             </div>
           </div>
         ))}
-        <div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Runs</th><th>Spent</th><th>Waiver</th><th></th></tr></thead>
-          <tbody>{(()=>{
-            const q=custSearch.trim().toLowerCase();
-            const digits=cleanPh(custSearch);
-            const filtered=users.filter(u=>u.access==="customer"&&(!q||(u.name||"").toLowerCase().includes(q)||(digits.length>=3&&(u.phone||"").includes(digits))));
-            if(filtered.length===0&&q) return <tr><td colSpan={9} style={{textAlign:"center",padding:"1.5rem",color:"var(--muted)"}}>
-              No customers found for <strong style={{color:"var(--txt)"}}>&ldquo;{custSearch}&rdquo;</strong>
-              <button className="btn btn-p btn-sm" style={{marginLeft:"1rem"}} onClick={()=>{
-                const isPhone=digits.length>=7;
-                setEditUser(null);
-                setNewUser({name:isPhone?"":custSearch,phone:isPhone?digits:"",access:"customer",role:"",active:true,waivers:[],needsRewaiverDocId:null});
-                setModal("user");
-              }}>+ Create Customer</button>
-            </td></tr>;
-            return filtered.map(c=>{
+        {(()=>{
+          const q=custSearch.trim().toLowerCase();
+          const digits=cleanPh(custSearch);
+          const filtered=users.filter(u=>u.access==="customer"&&(!q||(u.name||"").toLowerCase().includes(q)||(digits.length>=3&&(u.phone||"").includes(digits))));
+          const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+          const page=Math.min(custPage,totalPages);
+          const pageItems=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
+          const pager=filtered.length>PAGE_SIZE&&(
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:".5rem 0",fontSize:".84rem",color:"var(--muted)"}}>
+              <span>{(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE,filtered.length)} of {filtered.length} customers</span>
+              <div style={{display:"flex",gap:".4rem",alignItems:"center"}}>
+                <button className="btn btn-sm btn-s" disabled={page<=1} onClick={()=>setCustPage(p=>p-1)}>← Prev</button>
+                <span style={{padding:"0 .25rem"}}>Page {page} / {totalPages}</span>
+                <button className="btn btn-sm btn-s" disabled={page>=totalPages} onClick={()=>setCustPage(p=>p+1)}>Next →</button>
+              </div>
+            </div>);
+          if(filtered.length===0&&q) return <div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Runs</th><th>Spent</th><th>Waiver</th><th></th></tr></thead><tbody><tr><td colSpan={9} style={{textAlign:"center",padding:"1.5rem",color:"var(--muted)"}}>
+            No customers found for <strong style={{color:"var(--txt)"}}>&ldquo;{custSearch}&rdquo;</strong>
+            <button className="btn btn-p btn-sm" style={{marginLeft:"1rem"}} onClick={()=>{
+              const isPhone=digits.length>=7;
+              setEditUser(null);
+              setNewUser({name:isPhone?"":custSearch,phone:isPhone?digits:"",access:"customer",role:"",active:true,waivers:[],needsRewaiverDocId:null});
+              setModal("user");
+            }}>+ Create Customer</button>
+          </td></tr></tbody></table></div>;
+          return <>{pager}<div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Runs</th><th>Spent</th><th>Waiver</th><th></th></tr></thead>
+            <tbody>{pageItems.map(c=>{
               const cr=reservations.filter(r=>r.userId===c.id);
               const valid=hasValidWaiver(c,activeWaiverDoc);
               const wd=latestWaiverDate(c);
@@ -3580,11 +3615,16 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 <td><RunsCell runs={runs} reservations={reservations} resTypes={resTypes} userId={c.id}/></td>
                 <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(cr.reduce((s,r)=>s+r.amount,0))}</td>
                 <td>{valid?<span className="badge b-ok">Valid</span>:wd?<span className="badge b-warn">Exp.</span>:<span className="badge b-cancel">None</span>}</td>
-                <td><button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...c});setModal("user");}}>Edit</button><button className="btn btn-sm btn-warn" style={{marginLeft:".25rem"}} onClick={()=>setMergeTarget(c)}>Merge</button></td>
+                <td style={{display:"flex",gap:".25rem",flexWrap:"wrap"}}><button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...c});setModal("user");}}>Edit</button><button className="btn btn-sm btn-warn" onClick={()=>setMergeTarget(c)}>Merge</button><button className={`btn btn-sm ${c.active?"btn-d":"btn-ok"}`} onClick={async()=>{
+                  try{
+                    const updated=await updateUserAdmin(c.id,{name:c.name,phone:c.phone,access:c.access,role:c.role,active:!c.active,leaderboardName:c.leaderboardName||null,hideFromLeaderboard:c.hideFromLeaderboard??false});
+                    setUsers(p=>p.map(x=>x.id===updated.id?updated:x));
+                    showToast(`${c.name} ${updated.active?"enabled":"disabled"}`);
+                  }catch(e){showToast("Error: "+e.message);}
+                }}>{c.active?"Disable":"Enable"}</button></td>
               </tr>;
-            });
-          })()}
-          </tbody></table></div>
+            })}</tbody></table></div>{pager}</>;
+        })()}
       </>}
 
     </div>

@@ -181,7 +181,10 @@ const toLeaderboardEntry = r => r ? ({
 export async function fetchAllUsers() {
   const { data, error } = await supabase.from('users').select('*').order('name')
   if (error) throw error
-  return data.map(toUser)
+  console.log('[fetchAllUsers] raw count:', data.length, '| Wes in raw:', data.some(r => r.id === '95f30d99-ed77-4475-ac88-981efb151912'))
+  const mapped = data.map(toUser)
+  console.log('[fetchAllUsers] mapped count:', mapped.length, '| Wes in mapped:', mapped.some(u => u?.id === '95f30d99-ed77-4475-ac88-981efb151912'))
+  return mapped
 }
 
 export async function fetchUserByPhone(phone) {
