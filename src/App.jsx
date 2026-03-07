@@ -1806,6 +1806,8 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   const [hideAdminShifts,setHideAdminShifts]=useState(true);
   const [allStaffSub,setAllStaffSub]=useState('roster');
   const [weekStart,setWeekStart]=useState(todayStr());
+  const [assignModal,setAssignModal]=useState(null);
+  const [assignTarget,setAssignTarget]=useState('');
   const today=todayStr();
   function timeToMin(t){if(!t)return 0;const p=(t+'').split(':').map(Number);return p[0]*60+(p[1]||0);}
   function fmtDur(s,e){const m=timeToMin(e)-timeToMin(s);if(m<=0)return '';return Math.floor(m/60)+' hr'+(m%60?' '+m%60+' min':'');}
@@ -1873,10 +1875,10 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
     }catch(e){onAlert('Error updating block: '+e.message);}finally{setBlockSaving(false);}
   }
   const mine=[...shifts].filter(s=>s.staffId===currentUser.id).sort((a,b)=>a.date.localeCompare(b.date));
-  const conflicts=isManager?shifts.filter(s=>s.conflicted):shifts.filter(s=>s.conflicted&&s.staffId!==currentUser.id);
-  const opens=shifts.filter(s=>!s.staffId&&(s.open||s.templateSlotId));
+  const conflicts=shifts.filter(s=>s.conflicted);
+  const avail=shifts.filter(s=>(!s.staffId&&(s.open||s.templateSlotId))||(s.conflicted&&s.staffId&&s.staffId!==currentUser.id));
   const dayShifts=[...shifts].filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
-  const dayOpens=opens.filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
+  const dayAvail=avail.filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const isAdmin=currentUser?.access==='admin';
   const adminUserIds=new Set(users.filter(u=>u.access==='admin').map(u=>u.id));
   const visShifts=hideAdminShifts&&isAdmin?dayShifts.filter(s=>s.role!=='Admin'):dayShifts;
@@ -1894,14 +1896,20 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <div className="f"><label>Reason (optional)</label><input value={cNote} onChange={e=>setCNote(e.target.value)} placeholder="e.g. family commitment, medical"/></div>
         <div className="ma"><button className="btn btn-s" onClick={()=>setConflictModal(null)}>Cancel</button><button className="btn btn-warn" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await flagShiftConflict(conflictModal.id,cNote||null);setShifts(p=>p.map(s=>s.id===conflictModal.id?{...s,conflicted:true,conflictNote:cNote}:s));onAlert(currentUser.name+' flagged a conflict for '+fmt(conflictModal.date));setConflictModal(null);}catch(e){onAlert('Error flagging conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Flag →</button></div>
       </div></div>}
-      {opens.length>0&&tab!=="open"&&<div style={{background:'var(--okB)',color:'#fff',borderRadius:8,padding:'.6rem 1rem',marginBottom:'.75rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap'}}>
-        <span style={{fontFamily:'var(--fd)',fontWeight:700,fontSize:'.92rem'}}>📋 {opens.length} open shift{opens.length!==1?'s':''} available to pick up</span>
-        <button onClick={()=>setTab("open")} style={{background:'rgba(255,255,255,.2)',color:'#fff',border:'1px solid rgba(255,255,255,.4)',borderRadius:6,padding:'.25rem .75rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:700,fontSize:'.85rem'}}>View →</button>
+      {assignModal&&(()=>{const s=assignModal.shift;const eligible=users.filter(u=>{if(u.access==='customer')return false;if(s.role&&u.role!==s.role)return false;return!shifts.some(x=>x.id!==s.id&&x.staffId===u.id&&x.date===s.date&&x.startTime<s.endTime&&x.endTime>s.startTime);});return(<div className="mo" onClick={()=>{setAssignModal(null);setAssignTarget('')}}><div className="mc" style={{maxWidth:360}} onClick={e=>e.stopPropagation()}>
+        <div className="mt2">Assign Shift</div>
+        <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>{s.role&&<><strong style={{color:"var(--txt)"}}>{s.role}</strong> · </>}{fmt(s.date)} {fmt12(s.start)}–{fmt12(s.end)}</p>
+        {eligible.length===0?<p style={{color:"var(--muted)",fontSize:".85rem"}}>No eligible staff available at this time.</p>:<div className="f"><label>Assign to</label><select value={assignTarget} onChange={e=>setAssignTarget(e.target.value)} style={{width:'100%'}}><option value="">— select staff —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}</select></div>}
+        <div className="ma"><button className="btn btn-s" onClick={()=>{setAssignModal(null);setAssignTarget('')}}>Cancel</button><button className="btn btn-ok" disabled={!assignTarget||shiftOpBusy} onClick={async()=>{if(!assignTarget||shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{staffId:assignTarget,conflicted:false,conflictNote:null,open:false});setShifts(p=>p.map(x=>x.id===s.id?{...x,staffId:assignTarget,conflicted:false,conflictNote:null,open:false}:x));onAlert('Shift assigned to '+(users.find(u=>u.id===assignTarget)?.name??'staff'));setAssignModal(null);setAssignTarget('');}catch(e){onAlert('Error assigning shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Confirm'}</button></div>
+      </div></div>);})()}
+      {avail.length>0&&tab!=="available"&&<div style={{background:'var(--okB)',color:'#fff',borderRadius:8,padding:'.6rem 1rem',marginBottom:'.75rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap'}}>
+        <span style={{fontFamily:'var(--fd)',fontWeight:700,fontSize:'.92rem'}}>📋 {avail.length} shift{avail.length!==1?'s':''} available to pick up</span>
+        <button onClick={()=>setTab("available")} style={{background:'rgba(255,255,255,.2)',color:'#fff',border:'1px solid rgba(255,255,255,.4)',borderRadius:6,padding:'.25rem .75rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:700,fontSize:'.85rem'}}>View →</button>
       </div>}
       <div className="tabs">
         <button className={`tab${tab==="mine"?" on":""}`} onClick={()=>setTab("mine")}>My Shifts</button>
-        <button className={`tab${tab==="conflict"?" on":""}`} onClick={()=>setTab("conflict")}>Conflicts {conflicts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".62rem",marginLeft:".25rem"}}>{conflicts.length}</span>}</button>
-        <button className={`tab${tab==="open"?" on":""}`} onClick={()=>setTab("open")}>Open ({opens.length})</button>
+        <button className={`tab${tab==="available"?" on":""}`} onClick={()=>setTab("available")}>Available ({avail.length})</button>
+        {isManager&&<button className={`tab${tab==="conflict"?" on":""}`} onClick={()=>setTab("conflict")}>Conflicts {conflicts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".62rem",marginLeft:".25rem"}}>{conflicts.length}</span>}</button>}
         {isManager&&<button className={`tab${tab==="all"?" on":""}`} onClick={()=>setTab("all")}>All Staff</button>}
         <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending').length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending').length}</span>}</button>
       </div>
@@ -1925,34 +1933,36 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         </div>)}
         {!isManager&&<StaffStandardSchedule userId={currentUser.id}/>}
       </>}
-      {tab==="conflict"&&<>
+      {tab==="conflict"&&isManager&&<>
         {!conflicts.length&&<div className="empty"><div className="ei">✅</div><p>No conflicted shifts.</p></div>}
-        {conflicts.map(s=>{const orig=getU(s.staffId);return <div key={s.id} className="shift-card conflict" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
-          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--warnL)",minWidth:160,flexShrink:0}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
-          <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
+        {conflicts.map(s=>{const orig=getU(s.staffId);return <div key={s.id} className="shift-card conflict" style={{padding:'.5rem 1rem',flexDirection:'column',gap:'.35rem'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap'}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--warnL)",flexShrink:0}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
             <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
             {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
             {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
-            {orig&&<span style={{fontSize:".78rem",color:"var(--muted)",whiteSpace:'nowrap'}}>Originally: <strong style={{color:"var(--txt)"}}>{orig.name}</strong></span>}
-            {s.conflictNote&&<span style={{fontSize:".78rem",color:"var(--warnL)",fontStyle:'italic',whiteSpace:'nowrap'}}>"{s.conflictNote}"</span>}
+            <span className="badge b-conflict" style={{fontSize:'.65rem',flexShrink:0}}>conflict</span>
           </div>
-          <div style={{display:"flex",gap:".4rem",flexShrink:0}}>
-            <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){await updateShift(s.id,{isModified:true});setShifts(p=>p.map(x=>x.id===s.id?{...claimed,isModified:true}:x));}onAlert(currentUser.name+' claimed conflict shift on '+fmt(s.date));}catch(e){onAlert('Error picking up shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Pick Up</button>
-            {isManager&&<button className="btn btn-s btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{conflicted:false,conflictNote:null});setShifts(p=>p.map(x=>x.id===s.id?{...x,conflicted:false,conflictNote:null}:x));}catch(e){onAlert('Error resolving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>Unflag</button>}
+          {orig&&<div style={{fontSize:".82rem",color:"var(--muted)"}}>Assigned: <strong style={{color:"var(--txt)"}}>{orig.name}</strong></div>}
+          {s.conflictNote&&<div style={{fontSize:".82rem",color:"var(--warnL)",fontStyle:'italic'}}>"{s.conflictNote}"</div>}
+          <div style={{display:"flex",gap:".4rem",flexShrink:0,marginTop:'.15rem'}}>
+            <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{conflicted:false,conflictNote:null,staffId:null,open:true});setShifts(p=>p.map(x=>x.id===s.id?{...x,conflicted:false,conflictNote:null,staffId:null,open:true}:x));onAlert('Conflict approved — shift released to Available pool');}catch(e){onAlert('Error approving conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Approve</button>
+            <button className="btn btn-s btn-sm" disabled={shiftOpBusy} onClick={()=>setAssignModal({shift:s})}>Assign</button>
           </div>
         </div>;})}
       </>}
-      {tab==="open"&&<>
+      {tab==="available"&&<>
         <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
-        {!dayOpens.length&&<div className="empty"><div className="ei">📋</div><p>No open shifts on this date.</p></div>}
-        {dayOpens.map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
+        {!dayAvail.length&&<div className="empty"><div className="ei">📋</div><p>No available shifts on this date.</p></div>}
+        {dayAvail.map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
           <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--okB)",minWidth:160,flexShrink:0}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
           <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
             <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
             {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
             {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
+            {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.65rem',flexShrink:0}}>conflicted</span>}
           </div>
-          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){await updateShift(s.id,{isModified:true});setShifts(p=>p.map(x=>x.id===s.id?{...claimed,isModified:true}:x));}onAlert(currentUser.name+' picked up open shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
+          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){await updateShift(s.id,{isModified:true});setShifts(p=>p.map(x=>x.id===s.id?{...claimed,isModified:true}:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
         </div>)}
         {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>{const d=prompt("Date (YYYY-MM-DD):");const st=prompt("Start (HH:MM):");const en=prompt("End (HH:MM):");if(d&&st&&en)setShifts(p=>[...p,{id:Date.now(),staffId:null,date:d,start:st,end:en,open:true}]);}}>+ Post Open Shift</button>}
       </>}
@@ -4218,9 +4228,9 @@ useEffect(() => {
           <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);}}>Sign Out</button>
         </div>
       </nav>
-      {effectivePortal==="staff"&&(()=>{const avail=shifts.filter(s=>((!s.staffId&&(s.open||s.templateSlotId)))||(s.conflicted&&s.staffId!==effectiveUser?.id));if(!avail.length)return null;const hasConflict=avail.some(s=>s.conflicted&&s.staffId!==effectiveUser?.id);return(<div style={{background:'var(--acc)',color:'#111209',padding:'.45rem 1.25rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap',fontSize:'.88rem',fontFamily:'var(--fd)',fontWeight:300}}>
-        <span>📋 {avail.length} shift{avail.length!==1?'s':''} available to pick up</span>
-        <button onClick={()=>setStaffNavTarget(hasConflict?'conflict':'open')} style={{background:'rgba(0,0,0,.15)',color:'#111209',border:'1px solid rgba(0,0,0,.2)',borderRadius:6,padding:'.2rem .65rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:400,fontSize:'.82rem'}}>View →</button>
+      {effectivePortal==="staff"&&(()=>{const bannerAvail=shifts.filter(s=>(!s.staffId&&(s.open||s.templateSlotId))||(s.conflicted&&s.staffId&&s.staffId!==effectiveUser?.id));if(!bannerAvail.length)return null;return(<div style={{background:'var(--acc)',color:'#111209',padding:'.45rem 1.25rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap',fontSize:'.88rem',fontFamily:'var(--fd)',fontWeight:300}}>
+        <span>📋 {bannerAvail.length} shift{bannerAvail.length!==1?'s':''} available to pick up</span>
+        <button onClick={()=>setStaffNavTarget('available')} style={{background:'rgba(0,0,0,.15)',color:'#111209',border:'1px solid rgba(0,0,0,.2)',borderRadius:6,padding:'.2rem .65rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:400,fontSize:'.82rem'}}>View →</button>
       </div>);})()}
       <div className="main">
         {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} runs={runs}/>}
