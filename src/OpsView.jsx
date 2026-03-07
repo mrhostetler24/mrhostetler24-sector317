@@ -406,14 +406,19 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   const renderObjSelect=(laneIdx)=>{
     const s=settings[run][laneIdx];
     const selObj=objectives.find(o=>o.id===s.objectiveId);
-    return(<div style={{textAlign:'center'}}>
-      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>Objective</div>
-      <select value={s.objectiveId||''} onChange={e=>setSetting(laneIdx,'objectiveId',e.target.value||null)}
-        style={{width:'100%',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.5rem .75rem',color:'var(--txt)',fontSize:'.88rem',textAlign:'center'}}>
-        <option value=''>— Select objective —</option>
-        {objectives.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
-      </select>
-      {selObj?.description&&<div style={{fontSize:'.78rem',color:'var(--muted)',marginTop:'.35rem',lineHeight:1.5,fontStyle:'italic',textAlign:'center'}}>{selObj.description}</div>}
+    return(<div>
+      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
+        Objective{selObj&&selObj.description?<span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}> · {selObj.description}</span>:''}
+      </div>
+      <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem'}}>
+        {objectives.map(o=>{const sel=s.objectiveId===o.id;return(
+          <button key={o.id} type="button" onClick={()=>setSetting(laneIdx,'objectiveId',o.id)}
+            style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
+              border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
+              color:sel?'var(--accB)':'var(--txt)',cursor:'pointer'}}>
+            {o.name}
+          </button>);})}
+      </div>
     </div>);
   };
 
@@ -491,7 +496,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const blueScore=run===1?huntersScore:coyotesScore;const redScore=run===1?coyotesScore:huntersScore;
     const isScoredVs=isLaneScored(laneIdx,1)&&isLaneScored(laneIdx,2);
     const isSavingThis=saving===laneIdx;
-    const canScore=s.winnerTeam!=null&&laneFinish[laneIdx]!=null&&!isScoredVs;
+    const canScore=s.winnerTeam!=null&&s.objectiveId!=null&&laneFinish[laneIdx]!=null&&!isScoredVs;
     // Swap all players across entire lane
     const swapAll=()=>{
       const batch={};allPlayers.forEach(p=>{batch[p.id]=getLaneTeam(p.id)===1?2:1;});
@@ -542,11 +547,6 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
             <span style={{fontWeight:800,fontSize:'.88rem',color:col,textTransform:'uppercase',letterSpacing:'.05em'}}>{label}</span>
             <span style={{flex:1}}/>
             <span style={{fontSize:'.72rem',color:'var(--muted)'}}>{tPlayers.length}p</span>
-            <button type="button"
-              style={{padding:'.15rem .5rem',borderRadius:4,fontSize:'.72rem',fontWeight:700,cursor:'pointer',border:`1px solid ${bdr}`,background:bg,color:col}}
-              onClick={()=>{const batch={};allPlayers.forEach(p=>{batch[p.id]=teamNum;});setRunTeams(prev=>({...prev,[run]:{...prev[run],[laneIdx]:{...(prev[run][laneIdx]||{}),...batch}}}))}}>
-              All → {label}
-            </button>
           </div>
           {tPlayers.length===0&&<div style={{fontSize:'.8rem',color:'var(--muted)',padding:'.2rem 0',textAlign:'center'}}>None assigned</div>}
           {tPlayers.map(p=>pRow(p))}
@@ -583,9 +583,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         <div>
           <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>Run Winner</div>
           <div style={{display:'flex',gap:'.5rem'}}>
-            {[blueTeamNum,redTeamNum].map(t=>{
+            {[1,2].map(t=>{
               const isBlue=t===blueTeamNum;const tCol=isBlue?BLUE_COL:RED_COL;const tBg=isBlue?BLUE_BG:RED_BG;
-              const tRole=isBlue?blueRole:redRole;const sel=s.winnerTeam===t;
+              const tRole=t===1?'Hunters':'Coyotes';const sel=s.winnerTeam===t;
               return(
                 <button key={t} type="button" onClick={()=>setSetting(laneIdx,'winnerTeam',t)}
                   style={{flex:1,padding:'.5rem',borderRadius:8,fontWeight:sel?700:500,fontSize:'.85rem',
@@ -642,7 +642,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const coopAvg=teamAvg(allPlayers);
     const score=calcCoopRunScore({visual:s.visual,audio:s.audio??null,cranked:s.cranked??false,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,liveOpDifficulty:s.difficulty??'MEDIUM'}).toFixed(1);
     const isSc=isLaneScored(laneIdx,null);const isSavingThis=saving===laneIdx;
-    const canScore=laneFinish[laneIdx]!=null&&!isSc;
+    const canScore=s.objectiveId!=null&&laneFinish[laneIdx]!=null&&!isSc;
     const selDiff=DIFF_OPTIONS.find(d=>d.value===s.difficulty)||DIFF_OPTIONS[0];
 
     return(<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
@@ -1063,6 +1063,8 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [showWI,setShowWI]=useState(null);
   const [wi,setWi]=useState({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraSlots:[],addSecondLane:false,splitA:0});
   const [wiSaving,setWiSaving]=useState(false);
+  const [wiNewResIds,setWiNewResIds]=useState([]);
+  const [wiAddInput,setWiAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
   const [toast,setToast]=useState(null);
   const [showMerch,setShowMerch]=useState(false);
   const [showHistory,setShowHistory]=useState(false);
@@ -1097,8 +1099,10 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const doAddPlayer=async resId=>{const userId=addInput.foundUserId||null;const name=userId?(users.find(u=>u.id===userId)?.name||addInput.name):addInput.name.trim();if(!name)return;if(userId){const targetRes=reservations.find(r=>r.id===resId);const slotIds=targetRes?reservations.filter(r=>r.date===targetRes.date&&r.startTime===targetRes.startTime&&r.status!=="cancelled").flatMap(r=>(r.players||[]).map(p=>p.userId).filter(Boolean)):[];if(slotIds.includes(userId)){showMsg(name+" is already in this time slot");return;}}try{let effectiveUserId=userId;if(!effectiveUserId){const phone=cleanPh(addInput.phone);if(phone.length!==10){showMsg("A phone number is required to add a new guest player.");return;}const newUser=await createGuestUser({name,phone,createdByUserId:currentUser?.id??null});effectiveUserId=newUser.id;setUsers(p=>[...p,newUser]);}const p=await addPlayerToReservation(resId,{name,userId:effectiveUserId});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));if(addingToTeam!==null){setVersusTeams(prev=>({...prev,[resId]:{...(prev[resId]||{}),[p.id]:addingToTeam}}));}resetAddInput();setAddingTo(null);setAddingToTeam(null);showMsg("Player added");}catch(e){showMsg("Error: "+e.message);}};
   const doRemovePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));}catch(e){showMsg("Error: "+e.message);}};
   const doWiLookup=async()=>{const clean=cleanPh(wi.phone);if(clean.length<10)return;setWi(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWi(p=>({...p,foundUserId:found.id,customerName:found.name,lookupStatus:"found"}));}else{setWi(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWi(p=>({...p,lookupStatus:"notfound"}));}};
-  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const isOpen=rt?.style==="open";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const doSplit=isOpen&&wi.splitA>0&&wi.splitA<playerCount;const bookDate=wi.date||viewDate;const allSlots=[{time,addSecondLane:wi.addSecondLane},...(wi.extraSlots||[])];const base={typeId:wi.typeId,date:bookDate,status:"confirmed",paid:true};setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null,createdByUserId:currentUser?.id??null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const autoAddBooker=async(resId)=>{try{return await addPlayerToReservation(resId,{name,userId});}catch(e){return null;}};const newReses=[];for(const {time:t,addSecondLane:sl} of allSlots){if(doSplit){const sB=playerCount-wi.splitA;const rA=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:wi.splitA,amount:rt.price*wi.splitA});const rB=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:sB,amount:rt.price*sB});const bp=await autoAddBooker(rA.id);newReses.push({...rA,players:bp?[bp]:[]},{...rB,players:[]});}else{const lanePrice=isPriv?rt.price*(sl?2:1):rt.price*playerCount;const newRes=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:isPriv?rt.price:lanePrice});const bp=await autoAddBooker(newRes.id);newReses.push({...newRes,players:bp?[bp]:[]});if(isPriv&&sl){const newRes2=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:rt.price});newReses.push({...newRes2,players:[]});}}}setReservations(p=>[...p,...newReses]);const extraMsg=wi.extraSlots?.length?` · ${allSlots.length} sessions`:"";if(doSplit)showMsg(`Walk-in created — split ${wi.splitA}+${playerCount-wi.splitA} across 2 lanes${extraMsg}`);else showMsg("Walk-in created"+(isPriv&&wi.addSecondLane?" — 2 lanes":"")+extraMsg);resetWI();}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
-  const resetWI=()=>{setShowWI(null);setWiStep("details");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraSlots:[],addSecondLane:false,splitA:0});};
+  const doWiLookupPlayer=async()=>{const clean=cleanPh(wiAddInput.phone);if(clean.length<10)return;setWiAddInput(p=>({...p,lookupStatus:"searching"}));try{const found=await fetchUserByPhone(clean);if(found){setWiAddInput(p=>({...p,foundUserId:found.id,name:found.name,lookupStatus:"found"}));}else{setWiAddInput(p=>({...p,foundUserId:null,lookupStatus:"notfound"}));}}catch(e){setWiAddInput(p=>({...p,lookupStatus:"notfound"}));}};
+  const doWiAddPlayer=async()=>{const userId=wiAddInput.foundUserId||null;const name=userId?(users.find(u=>u.id===userId)?.name||wiAddInput.name):wiAddInput.name.trim();if(!name)return;const phone=cleanPh(wiAddInput.phone);try{let effectiveUserId=userId;if(!effectiveUserId){if(phone.length!==10){showMsg("Phone required to add a new guest.");return;}const newUser=await createGuestUser({name,phone,createdByUserId:currentUser?.id??null});effectiveUserId=newUser.id;setUsers(p=>[...p,newUser]);}for(const resId of wiNewResIds){const existing=reservations.find(r=>r.id===resId);if(existing?.players?.some(p=>p.userId===effectiveUserId))continue;try{const p=await addPlayerToReservation(resId,{name,userId:effectiveUserId});setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r));}catch(e){}}setWiAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});showMsg(wiNewResIds.length>1?`Added to all ${wiNewResIds.length} sessions`:"Player added");}catch(e){showMsg("Error: "+e.message);}};
+  const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const isOpen=rt?.style==="open";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const doSplit=isOpen&&wi.splitA>0&&wi.splitA<playerCount;const bookDate=wi.date||viewDate;const allSlots=[{time,addSecondLane:wi.addSecondLane},...(wi.extraSlots||[])];const base={typeId:wi.typeId,date:bookDate,status:"confirmed",paid:true};setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null,createdByUserId:currentUser?.id??null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const autoAddBooker=async(resId)=>{try{return await addPlayerToReservation(resId,{name,userId});}catch(e){return null;}};const newReses=[];const primaryIds=[];for(const {time:t,addSecondLane:sl} of allSlots){if(doSplit){const sB=playerCount-wi.splitA;const rA=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:wi.splitA,amount:rt.price*wi.splitA});const rB=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:sB,amount:rt.price*sB});const bp=await autoAddBooker(rA.id);newReses.push({...rA,players:bp?[bp]:[]},{...rB,players:[]});primaryIds.push(rA.id);}else{const lanePrice=isPriv?rt.price*(sl?2:1):rt.price*playerCount;const newRes=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:isPriv?rt.price:lanePrice});const bp=await autoAddBooker(newRes.id);newReses.push({...newRes,players:bp?[bp]:[]});primaryIds.push(newRes.id);if(isPriv&&sl){const newRes2=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:rt.price});newReses.push({...newRes2,players:[]});primaryIds.push(newRes2.id);}}}setReservations(p=>[...p,...newReses]);setWiNewResIds(primaryIds);setWiStep("players");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
+  const resetWI=()=>{setShowWI(null);setWiStep("details");setWiNewResIds([]);setWiAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraSlots:[],addSecondLane:false,splitA:0});};
   activeWorkRef.current=!!(showWI||signingFor||sendConfirm||addingTo||statusBusy||wiSaving);
   return(
     <div style={{paddingBottom:"2rem"}}>
@@ -1397,6 +1401,31 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
               <div style={{background:"rgba(184,150,12,.08)",border:"1px solid var(--warn)",borderRadius:6,padding:".75rem 1rem",fontSize:".9rem",color:"var(--warnL)",marginBottom:"1rem",textAlign:"center"}}>💳 Present card terminal to customer for <strong>{fmtMoney(wiAmt)}</strong></div>
               <div className="ma"><button className="btn btn-s" onClick={()=>setWiStep("details")}>← Back</button><button className="btn btn-p" disabled={wiSaving} onClick={doCreateWalkIn}>{wiSaving?"Processing…":"Payment Collected — Complete Walk-In"}</button></div>
             </>}
+            {wiStep==="players"&&(()=>{
+              const primaryRes=reservations.find(r=>r.id===wiNewResIds[0]);
+              const currentPlayers=primaryRes?.players||[];
+              return<>
+                <div className="mt2">Add Players</div>
+                {wiNewResIds.length>1&&<div style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".75rem",textAlign:"center",background:"rgba(79,195,247,.07)",border:"1px solid rgba(79,195,247,.2)",borderRadius:5,padding:".4rem .75rem"}}>Players added here will be added to all {wiNewResIds.length} sessions</div>}
+                {currentPlayers.length>0&&<div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".4rem .75rem",marginBottom:".75rem"}}>
+                  {currentPlayers.map(p=><div key={p.id} style={{display:"flex",alignItems:"center",gap:".5rem",padding:".3rem 0",borderBottom:"1px solid var(--bdr)",lastChild:{borderBottom:"none"}}}>
+                    <span style={{color:"#2dc86e",fontSize:".8rem"}}>✓</span>
+                    <span style={{fontSize:".9rem",color:"var(--txt)",flex:1}}>{p.name}</span>
+                  </div>)}
+                </div>}
+                <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".6rem .75rem",marginBottom:"1rem"}}>
+                  <div style={{display:"flex",gap:".4rem",alignItems:"center",marginBottom:".35rem"}}>
+                    <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={wiAddInput.phone} onChange={e=>setWiAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doWiLookupPlayer()} placeholder="Phone" autoFocus style={{fontSize:".9rem"}}/></div>
+                    {(wiAddInput.lookupStatus==="idle"||wiAddInput.lookupStatus==="searching")&&<button className="btn btn-s" disabled={cleanPh(wiAddInput.phone).length<10||wiAddInput.lookupStatus==="searching"} onClick={doWiLookupPlayer}>{wiAddInput.lookupStatus==="searching"?"…":"Search →"}</button>}
+                    {wiAddInput.lookupStatus!=="idle"&&wiAddInput.lookupStatus!=="searching"&&<button className="btn btn-s" onClick={()=>setWiAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""})}>✕</button>}
+                  </div>
+                  {wiAddInput.lookupStatus==="found"&&wiAddInput.foundUserId&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:".5rem",marginBottom:".35rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ {wiAddInput.name}</span><button className="btn btn-p" style={{padding:".3rem .8rem",fontSize:".85rem"}} onClick={doWiAddPlayer}>Add</button></div>}
+                  {(wiAddInput.lookupStatus==="notfound"||wiAddInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".4rem",alignItems:"center"}}><input placeholder="Player name" value={wiAddInput.name} onChange={e=>setWiAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&wiAddInput.name.trim()&&doWiAddPlayer()} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".4rem .6rem",color:"var(--txt)",fontSize:".9rem"}}/><button className="btn btn-p" disabled={!wiAddInput.name.trim()} onClick={doWiAddPlayer}>Add</button></div>}
+                  {wiAddInput.lookupStatus==="notfound"&&<div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>No account found — type a name to add as a guest.</div>}
+                </div>
+                <div className="ma"><button className="btn btn-p" onClick={resetWI}>Done — Go to Ops</button></div>
+              </>;
+            })()}
           </div></div>
         );
       })()}
