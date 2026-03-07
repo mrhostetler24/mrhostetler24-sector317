@@ -244,7 +244,7 @@ function FriendProfileModal({ userId, onClose }) {
   )
 }
 
-const MAX_BIO = 150
+const MAX_BIO = 250
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function SocialPortal({ user, users, setUsers, reservations, resTypes, runs, careerRuns, onEditProfile, onFriendsChanged }) {
