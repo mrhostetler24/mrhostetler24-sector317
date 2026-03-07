@@ -674,8 +674,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             {!friendLoading && friendships.length === 0 && (
               <div className="empty">
                 <div className="ei">👥</div>
-                <p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>No friends yet.</p>
-                <p style={{ color: 'var(--muted)', fontSize: '.78rem', marginTop: '.35rem' }}>Head to the Connect tab to find operatives.</p>
+                <p style={{ color: 'var(--muted)', fontSize: '.9rem', marginBottom: '.5rem' }}>Well, this is awkward... You have no friends.</p>
+                <p style={{ color: 'var(--muted)', fontSize: '.78rem' }}>Add some <button className="btn btn-s btn-sm" style={{ display: 'inline', padding: '1px 10px', fontSize: '.78rem', verticalAlign: 'middle' }} onClick={() => setTab('connect')}>HERE</button></p>
               </div>
             )}
             {friendships.map(f => {
@@ -770,42 +770,39 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             </div>
           )}
 
-          {/* Recently met */}
-          {recentlyMet.length > 0 && (
-            <div>
-              <div style={SECTION_HDR}>Recently Met</div>
-              {recentlyMet.map(p => {
-                const isFriend  = friendIds.has(p.id)
-                const isPending = sentRequests.some(r => r.to_user_id === p.id) ||
-                                  receivedRequests.some(r => r.from_user_id === p.id)
-                return (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
-                    <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leaderboard_name}</div>
-                      {p.phone_last4 && <div style={{ fontSize: '.73rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>}
-                    </div>
-                    <TierChip runs={p.total_runs} />
-                    {isFriend ? (
-                      <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Friends</span>
-                    ) : isPending ? (
-                      <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Pending</span>
-                    ) : (
-                      <button className="btn btn-s" onClick={() => handleSendRequest(p.id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Add</button>
-                    )}
+          {/* Recently met — always visible */}
+          <div style={{ marginTop: sentRequests.length > 0 ? '1.5rem' : 0 }}>
+            <div style={SECTION_HDR}>Recently Met</div>
+            {friendLoading && <div style={{ fontSize: '.78rem', color: 'var(--muted)' }}>Loading…</div>}
+            {!friendLoading && recentlyMet.length === 0 && (
+              <div style={{ fontSize: '.85rem', color: 'var(--muted)', fontStyle: 'italic', padding: '.4rem 0' }}>
+                No operatives from recent sessions to show yet.
+              </div>
+            )}
+            {recentlyMet.map(p => {
+              const isFriend  = friendIds.has(p.id)
+              const isPending = sentRequests.some(r => r.to_user_id === p.id) ||
+                                receivedRequests.some(r => r.from_user_id === p.id)
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+                  <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leaderboard_name}</div>
+                    {p.phone_last4 && <div style={{ fontSize: '.73rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>}
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  <TierChip runs={p.total_runs} />
+                  {isFriend ? (
+                    <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Friends</span>
+                  ) : isPending ? (
+                    <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Pending</span>
+                  ) : (
+                    <button className="btn btn-s" onClick={() => handleSendRequest(p.id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Add</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
 
-          {!friendLoading && sentRequests.length === 0 && recentlyMet.length === 0 && searchResults.length === 0 && !searching && (
-            <div className="empty">
-              <div className="ei">🔍</div>
-              <p style={{ color: 'var(--muted)', fontSize: '.9rem' }}>Search for operatives by name or phone number.</p>
-              <p style={{ color: 'var(--muted)', fontSize: '.78rem', marginTop: '.35rem' }}>Players you've shared a lane with will also appear here.</p>
-            </div>
-          )}
         </div>
       )}
     </>
