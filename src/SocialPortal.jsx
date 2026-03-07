@@ -403,11 +403,14 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       homeBaseCity:  user.homeBaseCity  || '',
       homeBaseState: user.homeBaseState || '',
       bio:           user.bio           || '',
-      hidePhone:     user.hidePhone     ?? false,
-      hideEmail:     user.hideEmail     ?? false,
-      hideName:      user.hideName      ?? false,
-      hideAvatar:    user.hideAvatar    ?? false,
-      hideBio:       user.hideBio       ?? false,
+      hidePhone:      user.hidePhone      ?? false,
+      hideEmail:      user.hideEmail      ?? false,
+      hideName:       user.hideName       ?? false,
+      hideAvatar:     user.hideAvatar     ?? false,
+      hideMotto:      user.hideMotto      ?? false,
+      hideProfession: user.hideProfession ?? false,
+      hideHomeBase:   user.hideHomeBase   ?? false,
+      hideBio:        user.hideBio        ?? false,
     })
     setEditing(true)
   }
@@ -421,11 +424,14 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
         homeBaseCity:  editDraft.homeBaseCity.trim()  || null,
         homeBaseState: editDraft.homeBaseState.trim() || null,
         bio:           editDraft.bio.trim().slice(0, MAX_BIO) || null,
-        hidePhone:     editDraft.hidePhone,
-        hideEmail:     editDraft.hideEmail,
-        hideName:      editDraft.hideName,
-        hideAvatar:    editDraft.hideAvatar,
-        hideBio:       editDraft.hideBio,
+        hidePhone:      editDraft.hidePhone,
+        hideEmail:      editDraft.hideEmail,
+        hideName:       editDraft.hideName,
+        hideAvatar:     editDraft.hideAvatar,
+        hideMotto:      editDraft.hideMotto,
+        hideProfession: editDraft.hideProfession,
+        hideHomeBase:   editDraft.hideHomeBase,
+        hideBio:        editDraft.hideBio,
       })
       setUsers(prev => prev.map(u => u.id === user.id ? updated : u))
       setEditing(false)
@@ -595,7 +601,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.2rem' }}>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Motto</label>
-                  <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
+                  <PrivacyToggle checked={editDraft.hideMotto ?? false} onChange={v => setEditDraft(d => ({ ...d, hideMotto: v }))} />
                 </div>
                 <input className="inp" style={{ width: '100%' }} placeholder="Your personal motto…" value={editDraft.motto} maxLength={80} onChange={e => setEditDraft(d => ({ ...d, motto: e.target.value }))} />
               </div>
@@ -603,7 +609,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.2rem' }}>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Profession</label>
-                  <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
+                  <PrivacyToggle checked={editDraft.hideProfession ?? false} onChange={v => setEditDraft(d => ({ ...d, hideProfession: v }))} />
                 </div>
                 <input className="inp" style={{ width: '100%' }} placeholder="e.g. Software Engineer" value={editDraft.profession} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, profession: e.target.value }))} />
               </div>
@@ -611,7 +617,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.2rem' }}>
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Home Base</label>
-                  <PrivacyToggle checked={editDraft.hideBio ?? false} onChange={v => setEditDraft(d => ({ ...d, hideBio: v }))} />
+                  <PrivacyToggle checked={editDraft.hideHomeBase ?? false} onChange={v => setEditDraft(d => ({ ...d, hideHomeBase: v }))} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px', gap: '.5rem' }}>
                   <input className="inp" style={{ width: '100%' }} placeholder="Indianapolis" value={editDraft.homeBaseCity} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, homeBaseCity: e.target.value }))} />

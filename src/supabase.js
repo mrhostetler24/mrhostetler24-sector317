@@ -53,9 +53,12 @@ const toUser = r => r ? ({
   bio:                r.bio ?? null,
   hidePhone:          r.hide_phone  ?? false,
   hideEmail:          r.hide_email  ?? false,
-  hideName:           r.hide_name   ?? false,
-  hideAvatar:         r.hide_avatar ?? false,
-  hideBio:            r.hide_bio    ?? false,
+  hideName:           r.hide_name       ?? false,
+  hideAvatar:         r.hide_avatar     ?? false,
+  hideMotto:          r.hide_motto      ?? false,
+  hideProfession:     r.hide_profession ?? false,
+  hideHomeBase:       r.hide_home_base  ?? false,
+  hideBio:            r.hide_bio        ?? false,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -1535,19 +1538,22 @@ export async function updateOwnAvatar(userId, avatarUrl) {
 }
 
 /** Update social profile fields (motto, home base, profession, bio, privacy flags). */
-export async function updateSocialProfile(id, { motto, homeBaseCity, homeBaseState, profession, bio, hidePhone, hideEmail, hideName, hideAvatar, hideBio }) {
+export async function updateSocialProfile(id, { motto, homeBaseCity, homeBaseState, profession, bio, hidePhone, hideEmail, hideName, hideAvatar, hideMotto, hideProfession, hideHomeBase, hideBio }) {
   const { data, error } = await supabase.rpc('update_social_profile', {
-    p_user_id:         id,
-    p_motto:           motto ?? null,
-    p_home_base_city:  homeBaseCity ?? null,
-    p_home_base_state: homeBaseState ?? null,
-    p_profession:      profession ?? null,
-    p_bio:             bio ?? null,
-    p_hide_phone:      hidePhone ?? false,
-    p_hide_email:      hideEmail ?? false,
-    p_hide_name:       hideName   ?? false,
-    p_hide_avatar:     hideAvatar ?? false,
-    p_hide_bio:        hideBio    ?? false,
+    p_user_id:          id,
+    p_motto:            motto ?? null,
+    p_home_base_city:   homeBaseCity ?? null,
+    p_home_base_state:  homeBaseState ?? null,
+    p_profession:       profession ?? null,
+    p_bio:              bio ?? null,
+    p_hide_phone:       hidePhone      ?? false,
+    p_hide_email:       hideEmail      ?? false,
+    p_hide_name:        hideName       ?? false,
+    p_hide_avatar:      hideAvatar     ?? false,
+    p_hide_motto:       hideMotto      ?? false,
+    p_hide_profession:  hideProfession ?? false,
+    p_hide_home_base:   hideHomeBase   ?? false,
+    p_hide_bio:         hideBio        ?? false,
   })
   if (error) throw error
   const row = Array.isArray(data) ? data[0] : data
