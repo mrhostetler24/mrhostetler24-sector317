@@ -1808,6 +1808,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   const [weekStart,setWeekStart]=useState(todayStr());
   const [assignModal,setAssignModal]=useState(null);
   const [assignTarget,setAssignTarget]=useState('');
+  const [editShiftModal,setEditShiftModal]=useState(null); // {id,staffId,start,end,date,role}
   const today=todayStr();
   function timeToMin(t){if(!t)return 0;const p=(t+'').split(':').map(Number);return p[0]*60+(p[1]||0);}
   function fmtDur(s,e){const m=timeToMin(e)-timeToMin(s);if(m<=0)return '';return Math.floor(m/60)+' hr'+(m%60?' '+m%60+' min':'');}
@@ -1902,6 +1903,12 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         {eligible.length===0?<p style={{color:"var(--muted)",fontSize:".85rem"}}>No eligible staff available at this time.</p>:<div className="f"><label>Assign to</label><select value={assignTarget} onChange={e=>setAssignTarget(e.target.value)} style={{width:'100%'}}><option value="">— select staff —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}</select></div>}
         <div className="ma"><button className="btn btn-s" onClick={()=>{setAssignModal(null);setAssignTarget('')}}>Cancel</button><button className="btn btn-ok" disabled={!assignTarget||shiftOpBusy} onClick={async()=>{if(!assignTarget||shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{staffId:assignTarget,conflicted:false,conflictNote:null,open:false});setShifts(p=>p.map(x=>x.id===s.id?{...x,staffId:assignTarget,conflicted:false,conflictNote:null,open:false}:x));onAlert('Shift assigned to '+(users.find(u=>u.id===assignTarget)?.name??'staff'));setAssignModal(null);setAssignTarget('');}catch(e){onAlert('Error assigning shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Confirm'}</button></div>
       </div></div>);})()}
+      {editShiftModal&&<div className="mo" onClick={()=>setEditShiftModal(null)}><div className="mc" style={{maxWidth:380}} onClick={e=>e.stopPropagation()}>
+        <div className="mt2">Edit Shift — {fmt(editShiftModal.date)}</div>
+        <div className="f"><label>Assigned Staff</label><select value={editShiftModal.staffId} onChange={e=>setEditShiftModal(p=>({...p,staffId:e.target.value}))} style={{width:'100%'}}><option value="">— Unassigned —</option>{users.filter(u=>u.access!=='customer'&&u.active!==false).map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}</select></div>
+        <div className="g2"><div className="f"><label>Start</label><input type="time" value={editShiftModal.start} onChange={e=>setEditShiftModal(p=>({...p,start:e.target.value}))}/></div><div className="f"><label>End</label><input type="time" value={editShiftModal.end} onChange={e=>setEditShiftModal(p=>({...p,end:e.target.value}))}/></div></div>
+        <div className="ma"><button className="btn btn-s" onClick={()=>setEditShiftModal(null)}>Cancel</button><button className="btn btn-ok" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const changes={start:editShiftModal.start,end:editShiftModal.end,staffId:editShiftModal.staffId||null,open:!editShiftModal.staffId};const updated=await updateShift(editShiftModal.id,changes);setShifts(p=>p.map(x=>x.id===editShiftModal.id?updated:x));setEditShiftModal(null);}catch(e){onAlert('Error saving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Save'}</button></div>
+      </div></div>}
       <div className="tabs">
         <button className={`tab${tab==="mine"?" on":""}`} onClick={()=>setTab("mine")}>My Shifts</button>
         <button className={`tab${tab==="available"?" on":""}`} onClick={()=>setTab("available")}>Available ({avail.length})</button>
@@ -2025,7 +2032,10 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
                   :<span style={{fontSize:".85rem",color:"var(--txt)"}}>{m?.name}</span>}
                 {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.7rem'}}>Conflict</span>}
               </div>
-              <button className="btn btn-d btn-sm" style={{flexShrink:0}} onClick={()=>setShifts(p=>p.filter(x=>x.id!==s.id))}>Remove</button>
+              <div style={{display:'flex',gap:'.35rem',flexShrink:0}}>
+                {s.date>=today&&<button className="btn btn-s btn-sm" onClick={()=>setEditShiftModal({id:s.id,staffId:s.staffId||'',start:s.start,end:s.end,date:s.date,role:s.role})}>Edit</button>}
+                <button className="btn btn-d btn-sm" onClick={()=>setShifts(p=>p.filter(x=>x.id!==s.id))}>Remove</button>
+              </div>
             </div>;
           })}
         </>}
