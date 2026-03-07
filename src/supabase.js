@@ -579,14 +579,14 @@ const mergePlayersIntoReservations = (resRows, playerRows) => {
     ...toReservation(r),
     players: all
       .filter(p => p.reservation_id === r.id)
-      .map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name })),
+      .map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, team: p.team ?? null })),
   }))
 }
 
 const rpcRowsToReservations = rows =>
   rows.map(row => ({
     ...toReservation(row),
-    players: (row.players ?? []).map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name })),
+    players: (row.players ?? []).map(p => ({ id: p.id, userId: p.user_id ?? null, name: p.name, team: p.team ?? null })),
   }))
 
 export async function fetchAvailabilityReservations() {

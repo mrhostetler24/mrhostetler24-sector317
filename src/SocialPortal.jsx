@@ -283,16 +283,17 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const versRuns = myRuns.filter(rn => versResIds.has(rn.reservationId))
 
   const teamLetter = n => n === 1 ? 'A' : n === 2 ? 'B' : null
-  const versWins = versRuns.filter(rn => {
+  // Count sessions (unique reservations) won/lost — each session has multiple runs per team
+  const versSessionResults = new Map()
+  versRuns.forEach(rn => {
+    if (!rn.winningTeam || versSessionResults.has(rn.reservationId)) return
     const res = myResMap[rn.reservationId]
     const pl = res?.players?.find(p => p.userId === user.id)
-    return pl?.team && rn.winningTeam && teamLetter(pl.team) === rn.winningTeam
-  }).length
-  const versLosses = versRuns.filter(rn => {
-    const res = myResMap[rn.reservationId]
-    const pl = res?.players?.find(p => p.userId === user.id)
-    return pl?.team && rn.winningTeam && teamLetter(pl.team) !== rn.winningTeam
-  }).length
+    if (!pl?.team) return
+    versSessionResults.set(rn.reservationId, teamLetter(pl.team) === rn.winningTeam ? 'win' : 'loss')
+  })
+  const versWins   = [...versSessionResults.values()].filter(v => v === 'win').length
+  const versLosses = [...versSessionResults.values()].filter(v => v === 'loss').length
 
   const operatorSince = myRes.length
     ? fmtMonthYear(myRes.reduce((min, r) => r.date < min ? r.date : min, myRes[0].date))
