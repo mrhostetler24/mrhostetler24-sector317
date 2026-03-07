@@ -386,15 +386,11 @@ export async function deleteUser(id) {
 }
 
 export async function signWaiver(userId, signedName, waiverDocId) {
-  const { data: current, error: fetchErr } = await supabase
-    .from('users').select('waivers').eq('id', userId).single()
-  if (fetchErr) throw fetchErr
-  const updated = [...(current.waivers ?? []), {
-    signedAt:    new Date().toISOString(),
-    signedName,
-    waiverDocId,
-  }]
-  return updateUser(userId, { waivers: updated, needsRewaiverDocId: null })
+  // Use the SECURITY DEFINER RPC so staff can write to rows they don't own (RLS blocks direct update)
+  const { error } = await supabase.rpc('kiosk_sign_waiver', {
+    p_user_id: userId, p_signed_name: signedName, p_waiver_doc_id: waiverDocId,
+  })
+  if (error) throw error
 }
 
 

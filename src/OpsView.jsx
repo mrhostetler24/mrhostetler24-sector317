@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   fetchReservations,
   createReservation,
@@ -1155,15 +1155,26 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
   const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
   const today=todayStr();
-  const getType=id=>resTypes.find(t=>t.id===id);
-  const todayRes=reservations.filter(r=>r.date===viewDate&&r.status!=="cancelled");
-  const todayTmpls=sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(viewDate));
-  const slotTimes=[...new Set([...todayTmpls.map(t=>t.startTime),...todayRes.map(r=>r.startTime)])].sort();
-  const slotIsHistory=time=>{const[h,m]=time.split(':').map(Number);return clock.getHours()*60+clock.getMinutes()>=h*60+m+75;};
-  const slotIsHistoryForView=time=>{if(viewDate<today)return true;if(viewDate>today)return false;return slotIsHistory(time);};
-  const activeSlots=slotTimes.filter(t=>!slotIsHistoryForView(t));
-  const historySlots=[...slotTimes.filter(slotIsHistoryForView)].reverse();
-  const playerWaiverOk=player=>{if(!player.userId)return false;return hasValidWaiver(users.find(u=>u.id===player.userId),activeWaiverDoc);};
+  const getType=useCallback(id=>resTypes.find(t=>t.id===id),[resTypes]);
+  const todayRes=useMemo(()=>reservations.filter(r=>r.date===viewDate&&r.status!=="cancelled"),[reservations,viewDate]);
+  const todayTmpls=useMemo(()=>sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(viewDate)),[sessionTemplates,viewDate]);
+  const slotTimes=useMemo(()=>[...new Set([...todayTmpls.map(t=>t.startTime),...todayRes.map(r=>r.startTime)])].sort(),[todayTmpls,todayRes]);
+  const slotIsHistory=useCallback(time=>{const[h,m]=time.split(':').map(Number);return clock.getHours()*60+clock.getMinutes()>=h*60+m+75;},[clock]);
+  const slotIsHistoryForView=useCallback(time=>{if(viewDate<today)return true;if(viewDate>today)return false;return slotIsHistory(time);},[viewDate,today,slotIsHistory]);
+  const activeSlots=useMemo(()=>slotTimes.filter(t=>!slotIsHistoryForView(t)),[slotTimes,slotIsHistoryForView]);
+  const historySlots=useMemo(()=>[...slotTimes.filter(slotIsHistoryForView)].reverse(),[slotTimes,slotIsHistoryForView]);
+  // Precompute lane layout once per slot — not on every button-click re-render
+  const slotLaneData=useMemo(()=>{
+    const data={};
+    slotTimes.forEach(time=>{
+      const{lanes:rawLanes}=buildLanes(viewDate,time,reservations,resTypes,sessionTemplates);
+      data[time]=applyLaneOverrides(rawLanes,laneOverrides,resTypes);
+    });
+    return data;
+  },[slotTimes,viewDate,reservations,resTypes,sessionTemplates,laneOverrides]);
+  // O(1) user lookup instead of linear scan on every player row
+  const userMap=useMemo(()=>new Map(users.map(u=>[u.id,u])),[users]);
+  const playerWaiverOk=useCallback(player=>{if(!player.userId)return false;return hasValidWaiver(userMap.get(player.userId),activeWaiverDoc);},[userMap,activeWaiverDoc]);
   const sBadge=status=>{
     const map={confirmed:{bg:"rgba(58,125,255,.12)",color:"#60a5fa",bdr:"rgba(58,125,255,.25)"},ready:{bg:"rgba(212,236,70,.12)",color:"#d4ec46",bdr:"rgba(212,236,70,.3)"},arrived:{bg:"rgba(212,236,70,.12)",color:"#d4ec46",bdr:"rgba(212,236,70,.3)"},"no-show":{bg:"rgba(220,38,38,.12)",color:"#f87171",bdr:"rgba(220,38,38,.25)"},sent:{bg:"rgba(100,130,240,.18)",color:"#8096f0",bdr:"rgba(100,130,240,.35)"},completed:{bg:"rgba(21,128,61,.12)",color:"#4ade80",bdr:"rgba(21,128,61,.25)"}};
     const label={confirmed:"Confirmed",ready:"Arrived",arrived:"Arrived","no-show":"No Show",sent:"Sent",completed:"Completed"};
@@ -1214,8 +1225,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         const time=entry;const isHist=historySlots.includes(time);
         const slotResItems=todayRes.filter(r=>r.startTime===time);
         const tmpl=todayTmpls.find(t=>t.startTime===time);
-        const {lanes:rawLanes}=buildLanes(viewDate,time,reservations,resTypes,sessionTemplates);
-        const lanes=applyLaneOverrides(rawLanes,laneOverrides,resTypes);
+        const lanes=slotLaneData[time]||[];
         const activeLanes=lanes.filter(l=>l.type!==null);
         const laneReady=lane=>lane.reservations.length>0&&lane.reservations.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
         const allLanesReady=activeLanes.length>0?activeLanes.every(laneReady):slotResItems.length>0&&slotResItems.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
@@ -1512,7 +1522,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         playerName={signingFor.player.name}
         waiverDoc={activeWaiverDoc}
         onClose={()=>setSigningFor(null)}
-        onSign={async(name)=>{const{player}=signingFor;if(!player.userId)return;const ts=new Date().toISOString();setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:name,waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));try{await signWaiver(player.userId,name,activeWaiverDoc?.id);}catch(e){}showMsg("Waiver signed for "+player.name);setSigningFor(null);}}
+        onSign={async(name)=>{const{player}=signingFor;if(!player.userId)return;try{await signWaiver(player.userId,name,activeWaiverDoc?.id);const ts=new Date().toISOString();setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:name,waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));showMsg("Waiver signed for "+player.name);setSigningFor(null);}catch(e){alert("Waiver save failed: "+e.message);}}}
       />}
       {sendConfirm&&(
         <div className="mo"><div className="mc">
