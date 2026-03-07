@@ -583,8 +583,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
               return(
                 <button key={t} type="button" onClick={()=>setSetting(laneIdx,'winnerTeam',t)}
                   style={{flex:1,padding:'.5rem',borderRadius:8,fontWeight:sel?700:500,fontSize:'.85rem',
-                    border:`2px solid ${sel?tCol:'var(--bdr)'}`,background:sel?tBg:'var(--bg)',
-                    color:sel?tCol:'var(--txt)',cursor:'pointer',textAlign:'center',lineHeight:1.3}}>
+                    border:`2px solid ${sel?tCol:tCol+'66'}`,background:sel?tBg:tBg.replace('.15','.06'),
+                    color:tCol,cursor:'pointer',textAlign:'center',lineHeight:1.3,
+                    opacity:sel?1:.7}}>
                   <div style={{fontWeight:700}}>{isBlue?'Blue Team':'Red Team'}</div>
                   <div style={{fontSize:'.72rem',opacity:.8}}>{tRole}</div>
                 </button>);
