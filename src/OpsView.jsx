@@ -1120,15 +1120,15 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [addingTo,setAddingTo]=useState(null);
   const [addingToTeam,setAddingToTeam]=useState(null);
   const [versusTeams,setVersusTeams]=useState(()=>{
-    // Seed from persisted team assignments in reservation_players
+    // Seed ALL players at mount time so positional fallback is never used during render.
+    // Removing a player later will orphan their entry but never shift other players' assignments.
     const init={};
     for(const res of reservations){
-      for(const player of (res.players||[])){
-        if(player.team!=null){
-          if(!init[res.id])init[res.id]={};
-          init[res.id][player.id]=player.team;
-        }
-      }
+      const players=res.players||[];
+      players.forEach((player,idx)=>{
+        if(!init[res.id])init[res.id]={};
+        init[res.id][player.id]=player.team!=null?player.team:(idx<6?1:2);
+      });
     }
     return init;
   });
