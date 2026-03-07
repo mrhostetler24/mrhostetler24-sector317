@@ -237,11 +237,17 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],...env,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
     setSaving(laneIdx);
     try{
-      // Persist team assignments to reservation_players
-      const players=res.players||[];
-      await Promise.all(players.map(player=>{
-        const team=versusTeams[res.id]?.[player.id]??(players.findIndex(p=>p.id===player.id)<6?1:2);
-        return updateReservationPlayer(player.id,{team});
+      // Persist each player's original group (run 1 team) to reservation_players.team.
+      // v_player_runs attributes scores via: run1 sr.team=rp.team, run2 sr.team!=rp.team.
+      // Priority: explicit run-1 assignment > open-screen versusTeams > half-split fallback.
+      const allLanePlayers=lane.reservations.flatMap(r=>r.players||[]);
+      await Promise.all(allLanePlayers.map(player=>{
+        const r1=runTeams[1]?.[laneIdx]?.[player.id];
+        const resForPlayer=lane.reservations.find(r=>(r.players||[]).some(p=>p.id===player.id));
+        const vt=versusTeams[resForPlayer?.id]?.[player.id];
+        const half=Math.ceil(allLanePlayers.length/2);
+        const fallback=allLanePlayers.findIndex(p=>p.id===player.id)<half?1:2;
+        return updateReservationPlayer(player.id,{team:r1??vt??fallback});
       }));
       const r1=await createRun({...base,team:1,role:'hunter',targetsEliminated:false,objectiveComplete:s.winnerTeam===1,score:huntersScore});
       const r2=await createRun({...base,team:2,role:'coyote',targetsEliminated:false,objectiveComplete:s.winnerTeam!==2,score:coyotesScore});
