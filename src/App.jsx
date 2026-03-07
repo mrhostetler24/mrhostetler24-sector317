@@ -1902,10 +1902,6 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         {eligible.length===0?<p style={{color:"var(--muted)",fontSize:".85rem"}}>No eligible staff available at this time.</p>:<div className="f"><label>Assign to</label><select value={assignTarget} onChange={e=>setAssignTarget(e.target.value)} style={{width:'100%'}}><option value="">— select staff —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}</select></div>}
         <div className="ma"><button className="btn btn-s" onClick={()=>{setAssignModal(null);setAssignTarget('')}}>Cancel</button><button className="btn btn-ok" disabled={!assignTarget||shiftOpBusy} onClick={async()=>{if(!assignTarget||shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{staffId:assignTarget,conflicted:false,conflictNote:null,open:false});setShifts(p=>p.map(x=>x.id===s.id?{...x,staffId:assignTarget,conflicted:false,conflictNote:null,open:false}:x));onAlert('Shift assigned to '+(users.find(u=>u.id===assignTarget)?.name??'staff'));setAssignModal(null);setAssignTarget('');}catch(e){onAlert('Error assigning shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Confirm'}</button></div>
       </div></div>);})()}
-      {avail.length>0&&tab!=="available"&&<div style={{background:'var(--okB)',color:'#fff',borderRadius:8,padding:'.6rem 1rem',marginBottom:'.75rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap'}}>
-        <span style={{fontFamily:'var(--fd)',fontWeight:700,fontSize:'.92rem'}}>📋 {avail.length} shift{avail.length!==1?'s':''} available to pick up</span>
-        <button onClick={()=>setTab("available")} style={{background:'rgba(255,255,255,.2)',color:'#fff',border:'1px solid rgba(255,255,255,.4)',borderRadius:6,padding:'.25rem .75rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:700,fontSize:'.85rem'}}>View →</button>
-      </div>}
       <div className="tabs">
         <button className={`tab${tab==="mine"?" on":""}`} onClick={()=>setTab("mine")}>My Shifts</button>
         <button className={`tab${tab==="available"?" on":""}`} onClick={()=>setTab("available")}>Available ({avail.length})</button>
@@ -1952,17 +1948,15 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         </div>;})}
       </>}
       {tab==="available"&&<>
-        <DateNav selected={selectedDay} today={today} onChange={setSelectedDay}/>
-        {!dayAvail.length&&<div className="empty"><div className="ei">📋</div><p>No available shifts on this date.</p></div>}
-        {dayAvail.map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
+        {!avail.length&&<div className="empty"><div className="ei">📋</div><p>No available shifts.</p></div>}
+        {[...avail].sort((a,b)=>a.date.localeCompare(b.date)||timeToMin(a.start)-timeToMin(b.start)).map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
           <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--okB)",minWidth:160,flexShrink:0}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
           <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
             <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
             {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
             {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
-            {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.65rem',flexShrink:0}}>conflicted</span>}
           </div>
-          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){await updateShift(s.id,{isModified:true});setShifts(p=>p.map(x=>x.id===s.id?{...claimed,isModified:true}:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
+          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){setShifts(p=>p.map(x=>x.id===s.id?claimed:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
         </div>)}
         {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>{const d=prompt("Date (YYYY-MM-DD):");const st=prompt("Start (HH:MM):");const en=prompt("End (HH:MM):");if(d&&st&&en)setShifts(p=>[...p,{id:Date.now(),staffId:null,date:d,start:st,end:en,open:true}]);}}>+ Post Open Shift</button>}
       </>}
