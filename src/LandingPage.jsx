@@ -334,7 +334,7 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
       <nav className={`lp-nav${scrolled ? " scrolled" : ""}`}>
         <img src="/logo.png" className="lp-logo" alt="Sector 317" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} />
         <div className="lp-nav-links">
-          {[["missions","Missions"],["how","How It Works"],["hours","Join Us"],["faq","FAQ"]].map(([id,label]) => (
+          {[["missions","Missions"],["how","How It Works"],["shop","Shop"],["hours","Join Us"],["faq","FAQ"]].map(([id,label]) => (
             <button key={id} className="lp-navlink" onClick={() => goTo(id)}>{label}</button>
           ))}
           <a className="lp-navlink" href="/leaderboard.html" target="_blank" rel="noreferrer" style={{textDecoration:"none"}}>Leaderboard</a>
@@ -349,7 +349,7 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
       </nav>
       {/* MOBILE MENU */}
       <div className={`lp-mobile-menu${menuOpen?" open":""}`}>
-        {[["missions","Missions"],["how","How It Works"],["hours","Join Us"],["faq","FAQ"]].map(([id,label]) => (
+        {[["missions","Missions"],["how","How It Works"],["shop","Shop"],["hours","Join Us"],["faq","FAQ"]].map(([id,label]) => (
           <button key={id} className="lp-mobile-navlink" onClick={() => goTo(id)}>{label}</button>
         ))}
         <a className="lp-mobile-navlink" href="/leaderboard.html" target="_blank" rel="noreferrer">Leaderboard</a>
@@ -511,6 +511,28 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
                 <div className="lp-sdesc">{d}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SHOP */}
+      <section className="lp-section" id="shop" style={{background:"linear-gradient(135deg,#151609 0%,#111209 100%)"}}>
+        <div className="lp-con">
+          <div className="lp-reveal">
+            <div className="lp-ey left">Gear Up</div>
+            <div className="lp-h">The <span>Armory</span></div>
+          </div>
+          <p className="lp-reveal" style={{fontFamily:"'Barlow',sans-serif",fontSize:"1rem",color:"rgba(232,228,220,.65)",lineHeight:1.8,maxWidth:580,marginBottom:"2.5rem"}}>
+            Rep the mission. Sector 317 gear, apparel, and accessories — available for in-store pickup or shipped to your door. Browse the full catalog inside your account.
+          </p>
+          <div className="lp-reveal" style={{display:"flex",gap:"1rem",flexWrap:"wrap",alignItems:"center"}}>
+            <button
+              onClick={onEnterApp}
+              style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:"1rem",fontWeight:800,letterSpacing:".15em",textTransform:"uppercase",background:"#c8e03a",color:"#111209",border:"none",borderRadius:3,padding:".75rem 2.2rem",cursor:"pointer",transition:"all .25s",clipPath:"polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)"}}
+              onMouseOver={e=>{e.currentTarget.style.background="#d4ec46";e.currentTarget.style.boxShadow="0 0 32px rgba(200,224,58,.45)";}}
+              onMouseOut={e=>{e.currentTarget.style.background="#c8e03a";e.currentTarget.style.boxShadow="none";}}
+            >Browse the Armory →</button>
+            <span style={{fontFamily:"'Barlow',sans-serif",fontSize:".8rem",color:"rgba(232,228,220,.35)",letterSpacing:".04em"}}>Sign in or create a free account to shop</span>
           </div>
         </div>
       </section>

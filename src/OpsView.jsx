@@ -22,6 +22,7 @@ import {
   calcWarOutcome,
   WAR_BONUS,
 } from './scoreUtils.js'
+import { MerchStaffSales } from './MerchPortal.jsx'
 
 // ── Shared utilities (mirrored from App.jsx) ─────────────────────────────────
 const fmtMoney = n => `$${Number(n).toFixed(2)}`
@@ -1655,17 +1656,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
           <div className="ma"><button className="btn btn-s" onClick={()=>setSendConfirm(null)}>No, Go Back</button><button className="btn btn-p" disabled={statusBusy===sendConfirm} onClick={()=>doSendGroup(sendConfirm)}>{statusBusy===sendConfirm?"Sending…":"Yes, Send Group"}</button></div>
         </div></div>
       )}
-      {showMerch&&(
-        <div className="mo"><div className="mc">
-          <div className="mt2">🛍 Merchandise &amp; Equipment</div>
-          <div style={{textAlign:"center",padding:"2rem 1rem",color:"var(--muted)"}}>
-            <div style={{fontSize:"2rem",marginBottom:".75rem",opacity:.4}}>🏪</div>
-            <div style={{fontSize:".95rem"}}>Inventory management coming soon.</div>
-            <div style={{fontSize:".8rem",marginTop:".5rem"}}>T-shirts, swag, and equipment purchases will be processed here.</div>
-          </div>
-          <div className="ma"><button className="btn btn-p" onClick={()=>setShowMerch(false)}>Close</button></div>
-        </div></div>
-      )}
+      {showMerch&&<MerchStaffSales currentUser={currentUser} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={showMsg} onClose={()=>setShowMerch(false)}/>}
       {showLaneOverride&&<LaneOverrideModal
         time={showLaneOverride.time}
         rawLanes={showLaneOverride.rawLanes}

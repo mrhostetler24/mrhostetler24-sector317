@@ -4,6 +4,7 @@ import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, fmt, fmtMoney, fmtPhone, fmt12,
 import { AuthBadge, Toast, Toggle, WaiverTooltip, RunsCell, WaiverModal, WaiverViewModal, PhoneInput, PlayerPhoneInput, genDefaultLeaderboardName, validateLbName, DateNav } from './ui.jsx';
 import BookingWizard from './BookingWizard.jsx';
 import LandingPage from "./LandingPage.jsx";
+import MerchPortal from "./MerchPortal.jsx";
 import OpsView from "./OpsView.jsx";
 import KioskPage from "./KioskPage.jsx";
 import StaffingScheduler from "./StaffingScheduler.jsx";
@@ -1138,7 +1139,7 @@ function PaymentReceiptModal({payment,onClose}){
   );
 }
 
-function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onPayCreate,onFinalize,onSignWaiver,autoBook=false,onAutoBookDone,payments=[],runs=[]}){
+function CustomerPortal({user,reservations,setReservations,resTypes,sessionTemplates,users,setUsers,waiverDocs,activeWaiverDoc,onBook,onPayCreate,onFinalize,onSignWaiver,autoBook=false,onAutoBookDone,payments=[],setPayments,runs=[],onAlert}){
   const [tab,setTab]=useState("social");
   const [resSub,setResSub]=useState("upcoming");
   const [expandedPastId,setExpandedPastId]=useState(null);
@@ -1429,6 +1430,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
           <button className={`tab${tab==="payments"?" on":""}`} onClick={()=>setTab("payments")}>Payments</button>
           <button className={`tab${tab==="leaderboard"?" on":""}`} onClick={()=>setTab("leaderboard")}>Leaderboard</button>
+          <button className={`tab${tab==="shop"?" on":""}`} onClick={()=>setTab("shop")}>🛍 Shop</button>
         </div>
         {tab==="reservations"&&<button className="btn btn-p" onClick={()=>setShowBook(true)}>+ Book Mission</button>}
       </div>
@@ -1612,6 +1614,9 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         onEditProfile={()=>setShowAccount(true)}
         onFriendsChanged={()=>setFriendsVersion(v=>v+1)}
       />}
+
+      {/* ── SHOP TAB ── */}
+      {tab==="shop"&&<MerchPortal surface="storefront" currentUser={user} setPayments={setPayments} onAlert={onAlert} onSignIn={null}/>}
     </div>
   );
 }
@@ -2025,6 +2030,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         {isAdmin&&<button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>}
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
+        {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>🛍 Merchandise</button>}
         <button className="btn btn-p btn-sm" style={{marginLeft:"auto"}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
 
@@ -2361,6 +2367,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <div className="ph"><div className="ph-left"><div className="pt">Schedule</div></div><button className="btn btn-p" onClick={()=>setModal("shift")}>+ Add Shift</button></div>
         <SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)} tabOverride={schedTabOverride} onTabOverrideConsumed={()=>setSchedTabOverride(null)}/>
       </>}
+
+      {tab==="merchandise"&&isManager&&<MerchPortal surface="admin" currentUser={user} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={onAlert}/>}
 
       {tab==="customers"&&isManager&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Customers</div><div className="ps">All customers — social auth and phone-only</div></div></div>
@@ -3036,7 +3044,7 @@ useEffect(() => {
         </div>
       </nav>
       <div className="main">
-        {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} runs={runs}/>}
+        {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} setPayments={setPayments} runs={runs} onAlert={handleAlert}/>}
         {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
         {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs} staffRoles={staffRoles}/>}
       </div>

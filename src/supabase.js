@@ -536,6 +536,7 @@ const toPayment = p => p ? ({
   id:            p.id,
   userId:        p.user_id,
   reservationId: p.reservation_id,
+  merchOrderId:  p.merch_order_id ?? null,
   customerName:  p.customer_name,
   amount:        Number(p.amount),
   status:        p.status,
@@ -546,7 +547,8 @@ const toPayment = p => p ? ({
 export async function createPayment(payment) {
   const { data, error } = await supabase.from('payments').insert({
     user_id:        payment.userId,
-    reservation_id: payment.reservationId,
+    reservation_id: payment.reservationId ?? null,
+    merch_order_id: payment.merchOrderId ?? null,
     customer_name:  payment.customerName,
     amount:         payment.amount,
     status:         payment.status ?? 'paid',
@@ -1664,3 +1666,297 @@ export const fetchSentRequests = (userId) =>
     .select('id, to_user_id, created_at')
     .eq('from_user_id', userId)
     .order('created_at', { ascending: false })
+
+// ============================================================
+// MERCHANDISE
+// ============================================================
+
+const toMerchCategory = r => r ? ({
+  id: r.id, name: r.name, slug: r.slug, sortOrder: r.sort_order,
+  active: r.active, storefrontVisible: r.storefront_visible, staffVisible: r.staff_visible,
+  createdAt: r.created_at,
+}) : null
+
+const toMerchProduct = r => r ? ({
+  id: r.id, categoryId: r.category_id, categoryName: r.category_name,
+  type: r.type, name: r.name, description: r.description, sku: r.sku,
+  basePrice: Number(r.base_price), imageUrl: r.image_url,
+  storefrontVisible: r.storefront_visible, staffVisible: r.staff_visible,
+  shippable: r.shippable, pickupOnly: r.pickup_only, returnable: r.returnable,
+  returnWindowDays: r.return_window_days, restockable: r.restockable,
+  returnPolicyNote: r.return_policy_note, active: r.active, archived: r.archived,
+  sortOrder: r.sort_order, createdAt: r.created_at,
+  variants: (r.variants || []).map(v => ({
+    id: v.id, label: v.label, sku: v.sku,
+    priceOverride: v.price_override != null ? Number(v.price_override) : null,
+    shippingCharge: Number(v.shipping_charge || 0),
+    active: v.active, storefrontVisible: v.storefront_visible, staffVisible: v.staff_visible,
+    sortOrder: v.sort_order, inventory: Number(v.inventory || 0),
+  })),
+}) : null
+
+const toMerchOrder = r => r ? ({
+  id: r.id, userId: r.user_id, customerName: r.customer_name,
+  status: r.status, total: Number(r.total), fulfillmentType: r.fulfillment_type,
+  shippingAddress: r.shipping_address, shippingCharge: Number(r.shipping_charge || 0),
+  discountId: r.discount_id, discountAmount: Number(r.discount_amount || 0),
+  notes: r.notes, createdAt: r.created_at,
+  items: (r.items || []).map(toMerchOrderItem),
+  giftCodes: (r.gift_codes || []).map(toMerchGiftCode),
+}) : null
+
+const toMerchOrderItem = r => r ? ({
+  id: r.id, orderId: r.order_id, productId: r.product_id, variantId: r.variant_id,
+  quantity: r.quantity, unitPrice: Number(r.unit_price), discountAmount: Number(r.discount_amount || 0),
+  createdAt: r.created_at,
+}) : null
+
+const toMerchDiscount = r => r ? ({
+  id: r.id, code: r.code, description: r.description, discountType: r.discount_type,
+  amount: Number(r.amount), appliesTo: r.applies_to, categoryId: r.category_id,
+  productId: r.product_id, active: r.active, usageLimit: r.usage_limit,
+  usageCount: r.usage_count, startsAt: r.starts_at, endsAt: r.ends_at,
+  channel: r.channel, createdAt: r.created_at,
+}) : null
+
+const toMerchGiftCode = r => r ? ({
+  id: r.id, orderItemId: r.order_item_id, productId: r.product_id, code: r.code,
+  type: r.type, originalValue: Number(r.original_value), currentBalance: Number(r.current_balance),
+  status: r.status, redeemedAt: r.redeemed_at, redeemedBy: r.redeemed_by,
+  expiresAt: r.expires_at, notes: r.notes, createdAt: r.created_at,
+}) : null
+
+const toMerchReturn = r => r ? ({
+  id: r.id, orderId: r.order_id, orderItemId: r.order_item_id, quantity: r.quantity,
+  reason: r.reason, disposition: r.disposition, notes: r.notes,
+  createdBy: r.created_by, createdAt: r.created_at,
+}) : null
+
+const toStockLocation = r => r ? ({
+  id: r.id, name: r.name, levelLabels: r.level_labels || {}, isDefault: r.is_default,
+  active: r.active, createdAt: r.created_at,
+}) : null
+
+const toMerchInventory = r => r ? ({
+  id: r.id, variantId: r.variant_id, locationId: r.location_id, quantity: r.quantity,
+}) : null
+
+const toMerchInvTx = r => r ? ({
+  id: r.id, variantId: r.variant_id, locationId: r.location_id,
+  transactionType: r.transaction_type, quantityChange: r.quantity_change,
+  orderId: r.order_id, notes: r.notes, createdBy: r.created_by, createdAt: r.created_at,
+}) : null
+
+// ─── Catalog reads ────────────────────────────────────────────
+export async function fetchMerchCatalog(channel = 'all') {
+  const { data, error } = await supabase.rpc('get_merch_catalog', { p_channel: channel })
+  if (error) throw error
+  return (data || []).map(toMerchProduct)
+}
+
+export async function fetchMerchCategories() {
+  const { data, error } = await supabase.from('merch_categories').select('*').order('sort_order')
+  if (error) throw error
+  return (data || []).map(toMerchCategory)
+}
+
+export async function fetchStockLocations() {
+  const { data, error } = await supabase.from('merch_stock_locations').select('*').order('name')
+  if (error) throw error
+  return (data || []).map(toStockLocation)
+}
+
+export async function fetchMerchInventory(opts = {}) {
+  let q = supabase.from('merch_inventory').select('*')
+  if (opts.variantId) q = q.eq('variant_id', opts.variantId)
+  if (opts.locationId) q = q.eq('location_id', opts.locationId)
+  const { data, error } = await q
+  if (error) throw error
+  return (data || []).map(toMerchInventory)
+}
+
+export async function fetchMerchInventoryTransactions(opts = {}) {
+  let q = supabase.from('merch_inventory_transactions').select('*').order('created_at', { ascending: false })
+  if (opts.variantId) q = q.eq('variant_id', opts.variantId)
+  if (opts.limit) q = q.limit(opts.limit)
+  const { data, error } = await q
+  if (error) throw error
+  return (data || []).map(toMerchInvTx)
+}
+
+export async function fetchMerchOrders(opts = {}) {
+  let q = supabase.from('merch_orders')
+    .select('*, items:merch_order_items(*), gift_codes:merch_gift_codes(*)')
+    .order('created_at', { ascending: false })
+  if (opts.userId) q = q.eq('user_id', opts.userId)
+  if (opts.status) q = q.eq('status', opts.status)
+  const { data, error } = await q
+  if (error) throw error
+  return (data || []).map(toMerchOrder)
+}
+
+export async function fetchMerchDiscounts() {
+  const { data, error } = await supabase.from('merch_discounts').select('*').order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []).map(toMerchDiscount)
+}
+
+export async function fetchMerchGiftCodes(opts = {}) {
+  let q = supabase.from('merch_gift_codes').select('*').order('created_at', { ascending: false })
+  if (opts.status) q = q.eq('status', opts.status)
+  const { data, error } = await q
+  if (error) throw error
+  return (data || []).map(toMerchGiftCode)
+}
+
+export async function fetchMerchReturns() {
+  const { data, error } = await supabase.from('merch_returns').select('*').order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []).map(toMerchReturn)
+}
+
+// ─── Direct mutations (manager/admin via RLS) ─────────────────
+export async function upsertMerchCategory(cat) {
+  const row = {
+    name: cat.name, slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+    sort_order: cat.sortOrder ?? 0, active: cat.active ?? true,
+    storefront_visible: cat.storefrontVisible ?? true, staff_visible: cat.staffVisible ?? true,
+  }
+  if (cat.id) row.id = cat.id
+  const { data, error } = await supabase.from('merch_categories').upsert(row).select().single()
+  if (error) throw error
+  return toMerchCategory(data)
+}
+
+export async function upsertMerchProduct(product) {
+  const row = {
+    category_id: product.categoryId || null, type: product.type,
+    name: product.name, description: product.description || null,
+    sku: product.sku || null, base_price: product.basePrice ?? 0,
+    image_url: product.imageUrl || null,
+    storefront_visible: product.storefrontVisible ?? true, staff_visible: product.staffVisible ?? true,
+    shippable: product.shippable ?? true, pickup_only: product.pickupOnly ?? false,
+    returnable: product.returnable ?? true, return_window_days: product.returnWindowDays ?? 30,
+    restockable: product.restockable ?? true, return_policy_note: product.returnPolicyNote || null,
+    active: product.active ?? true, archived: product.archived ?? false, sort_order: product.sortOrder ?? 0,
+  }
+  if (product.id) row.id = product.id
+  const { data, error } = await supabase.from('merch_products').upsert(row).select().single()
+  if (error) throw error
+  return data.id
+}
+
+export async function upsertMerchVariant(variant) {
+  const row = {
+    product_id: variant.productId, label: variant.label,
+    sku: variant.sku || null, price_override: variant.priceOverride ?? null,
+    shipping_charge: variant.shippingCharge ?? 0,
+    active: variant.active ?? true, storefront_visible: variant.storefrontVisible ?? true,
+    staff_visible: variant.staffVisible ?? true, sort_order: variant.sortOrder ?? 0,
+  }
+  if (variant.id) row.id = variant.id
+  const { data, error } = await supabase.from('merch_variants').upsert(row).select().single()
+  if (error) throw error
+  return data.id
+}
+
+export async function deleteMerchVariant(id) {
+  const { error } = await supabase.from('merch_variants').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function upsertMerchDiscount(discount) {
+  const row = {
+    code: discount.code.toUpperCase(), description: discount.description || null,
+    discount_type: discount.discountType, amount: discount.amount,
+    applies_to: discount.appliesTo || 'all',
+    category_id: discount.categoryId || null, product_id: discount.productId || null,
+    active: discount.active ?? true, usage_limit: discount.usageLimit || null,
+    starts_at: discount.startsAt || null, ends_at: discount.endsAt || null,
+    channel: discount.channel || 'both',
+  }
+  if (discount.id) row.id = discount.id
+  const { data, error } = await supabase.from('merch_discounts').upsert(row).select().single()
+  if (error) throw error
+  return toMerchDiscount(data)
+}
+
+export async function upsertStockLocation(loc) {
+  const row = {
+    name: loc.name, level_labels: loc.levelLabels || {},
+    is_default: loc.isDefault ?? false, active: loc.active ?? true,
+  }
+  if (loc.id) row.id = loc.id
+  const { data, error } = await supabase.from('merch_stock_locations').upsert(row).select().single()
+  if (error) throw error
+  return toStockLocation(data)
+}
+
+export async function upsertBundleComponents(bundleProductId, components) {
+  await supabase.from('merch_bundle_components').delete().eq('bundle_product_id', bundleProductId)
+  if (!components.length) return
+  const { error } = await supabase.from('merch_bundle_components').insert(
+    components.map(c => ({ bundle_product_id: bundleProductId, component_variant_id: c.variantId, quantity: c.quantity }))
+  )
+  if (error) throw error
+}
+
+export async function voidGiftCode(id) {
+  const { error } = await supabase.from('merch_gift_codes').update({ status: 'voided' }).eq('id', id)
+  if (error) throw error
+}
+
+export async function updateMerchOrderStatus(id, status) {
+  const { error } = await supabase.from('merch_orders').update({ status }).eq('id', id)
+  if (error) throw error
+}
+
+// ─── RPC wrappers ─────────────────────────────────────────────
+export async function validateMerchDiscount(code, channel = 'online') {
+  const { data, error } = await supabase.rpc('validate_merch_discount', { p_code: code, p_channel: channel })
+  if (error) throw error
+  return data ? toMerchDiscount(data) : null
+}
+
+export async function adjustMerchInventory(variantId, locationId, quantityChange, transactionType, notes, createdBy) {
+  const { error } = await supabase.rpc('adjust_merch_inventory', {
+    p_variant_id: variantId, p_location_id: locationId ?? null,
+    p_quantity_change: quantityChange, p_transaction_type: transactionType,
+    p_notes: notes ?? null, p_created_by: createdBy ?? null,
+  })
+  if (error) throw error
+}
+
+export async function createMerchOrder(params) {
+  const { data, error } = await supabase.rpc('create_merch_order', {
+    p_user_id: params.userId ?? null,
+    p_customer_name: params.customerName,
+    p_fulfillment_type: params.fulfillmentType || 'pickup',
+    p_shipping_address: params.shippingAddress ?? null,
+    p_items: params.items,
+    p_discount_id: params.discountId ?? null,
+    p_discount_amount: params.discountAmount ?? 0,
+    p_shipping_charge: params.shippingCharge ?? 0,
+    p_notes: params.notes ?? null,
+  })
+  if (error) throw error
+  return toMerchOrder(data)
+}
+
+export async function processMerchReturn(params) {
+  const { error } = await supabase.rpc('process_merch_return', {
+    p_order_id: params.orderId, p_order_item_id: params.orderItemId,
+    p_quantity: params.quantity, p_reason: params.reason,
+    p_disposition: params.disposition, p_notes: params.notes ?? null,
+    p_created_by: params.createdBy ?? null,
+  })
+  if (error) throw error
+}
+
+export async function redeemGiftCode(code, redeemedBy, amountToRedeem) {
+  const { data, error } = await supabase.rpc('redeem_gift_code', {
+    p_code: code, p_redeemed_by: redeemedBy ?? null, p_amount_to_redeem: amountToRedeem ?? null,
+  })
+  if (error) throw error
+  return data
+}
