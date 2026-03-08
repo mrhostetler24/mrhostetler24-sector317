@@ -1176,6 +1176,30 @@ export async function claimShift(shiftId) {
   return data ? toShift(data) : null
 }
 
+export async function approveShiftConflict(shiftId) {
+  const { data, error } = await supabase.rpc('approve_shift_conflict', { p_shift_id: shiftId })
+  if (error) throw error
+  return data ? toShift(data) : null
+}
+
+export async function assignShift(shiftId, staffId) {
+  const { data, error } = await supabase.rpc('assign_shift', { p_shift_id: shiftId, p_staff_id: staffId })
+  if (error) throw error
+  return data ? toShift(data) : null
+}
+
+export async function adminEditShift(shiftId, { staffId, start, end, open }) {
+  const { data, error } = await supabase.rpc('admin_edit_shift', {
+    p_shift_id: shiftId,
+    p_staff_id: staffId ?? null,
+    p_start:    start,
+    p_end:      end,
+    p_open:     open ?? false,
+  })
+  if (error) throw error
+  return data ? toShift(data) : null
+}
+
 /** Staff-safe: flag own shift as conflicted via SECURITY DEFINER RPC */
 export async function flagShiftConflict(shiftId, conflictNote) {
   const { error } = await supabase.rpc('flag_shift_conflict', {

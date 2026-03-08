@@ -13,6 +13,7 @@ import {
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
   fetchReservations, fetchAvailabilityReservations, createReservation, updateReservation, addPlayerToReservation, removePlayerFromReservation, syncReservationPlayers,
   fetchShifts, createShift, updateShift, deleteShift, claimShift, flagShiftConflict,
+  approveShiftConflict, assignShift, adminEditShift,
   createPayment, fetchPayments, mergeUsers, linkAuthToGuest,
   fetchRunsForReservations, fetchUserAuthDates, calculateRunScore,
   fetchShiftTemplates, fetchTemplateSlots, fetchSlotAssignments,
@@ -1403,7 +1404,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
                   <div style={{border:"1px solid rgba(120,120,120,.2)",borderRadius:4,padding:".5rem .75rem"}}>
                     <div style={{fontFamily:"var(--fd)",fontSize:".68rem",color:"var(--muted)",letterSpacing:".08em",marginBottom:".5rem"}}>🐺 TEAM 2 — COYOTES — UP TO {teamSize} PLAYERS</div>
                     <div className="player-inputs">{inputs.slice(teamSize).map(e=>renderPlayerRow(e,true))}</div>
-                    {li===1&&playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+                    {li===1&&playerInputs.length<maxP-1&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
                   </div>
                 </div>
               ))}
@@ -1416,7 +1417,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
               <div style={{border:"1px solid rgba(120,120,120,.2)",borderRadius:4,padding:".5rem .75rem",marginBottom:".75rem"}}>
                 <div style={{fontFamily:"var(--fd)",fontSize:".68rem",color:"var(--muted)",letterSpacing:".08em",marginBottom:".5rem"}}>🐺 TEAM 2 — COYOTES — UP TO {teamSize} PLAYERS</div>
                 <div className="player-inputs">{allInputs.slice(teamSize).map(e=>renderPlayerRow(e,true))}</div>
-                {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+                {playerInputs.length<maxP-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
               </div>
             </>:isDualLane?<>
               {/* Coop dual-lane */}
@@ -1427,12 +1428,12 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
               <div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".65rem 1rem",marginBottom:".75rem"}}>
                 <div style={{fontFamily:"var(--fd)",fontSize:".72rem",color:"var(--acc)",letterSpacing:".1em",marginBottom:".65rem"}}>🏠 LANE 2 — UP TO {capPerLane} PLAYERS</div>
                 <div className="player-inputs">{lane2Inputs.map(e=>renderPlayerRow(e,true))}</div>
-                {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+                {playerInputs.length<maxP-1&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
               </div>
             </>:<>
               {/* Coop single-lane */}
               <div className="player-inputs">{lane1Inputs.map(e=>renderPlayerRow(e,!e.isBooker))}</div>
-              {playerInputs.length<playerCount-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
+              {playerInputs.length<maxP-1&&<button className="btn btn-s btn-sm" style={{marginBottom:".75rem"}} onClick={()=>setPlayerInputs(p=>[...p,{phone:"",userId:null,name:"",status:"idle"}])}>+ Add Player Slot</button>}
             </>}
           </>;
         })()}
@@ -1904,13 +1905,13 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <div className="mt2">Assign Shift</div>
         <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>{s.role&&<><strong style={{color:"var(--txt)"}}>{s.role}</strong> · </>}{fmt(s.date)} {fmt12(s.start)}–{fmt12(s.end)}</p>
         {eligible.length===0?<p style={{color:"var(--muted)",fontSize:".85rem"}}>No eligible staff available at this time.</p>:<div className="f"><label>Assign to</label><select value={assignTarget} onChange={e=>setAssignTarget(e.target.value)} style={{width:'100%'}}><option value="">— select staff —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}</select></div>}
-        <div className="ma"><button className="btn btn-s" onClick={()=>{setAssignModal(null);setAssignTarget('')}}>Cancel</button><button className="btn btn-ok" disabled={!assignTarget||shiftOpBusy} onClick={async()=>{if(!assignTarget||shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{staffId:assignTarget,conflicted:false,conflictNote:null,open:false});setShifts(p=>p.map(x=>x.id===s.id?{...x,staffId:assignTarget,conflicted:false,conflictNote:null,open:false}:x));onAlert('Shift assigned to '+(users.find(u=>u.id===assignTarget)?.name??'staff'));setAssignModal(null);setAssignTarget('');}catch(e){onAlert('Error assigning shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Confirm'}</button></div>
+        <div className="ma"><button className="btn btn-s" onClick={()=>{setAssignModal(null);setAssignTarget('')}}>Cancel</button><button className="btn btn-ok" disabled={!assignTarget||shiftOpBusy} onClick={async()=>{if(!assignTarget||shiftOpBusy)return;setShiftOpBusy(true);try{const updated=await assignShift(s.id,assignTarget);setShifts(p=>p.map(x=>x.id===s.id?(updated||{...x,staffId:assignTarget,conflicted:false,conflictNote:null,open:false}):x));onAlert('Shift assigned to '+(users.find(u=>u.id===assignTarget)?.name??'staff'));setAssignModal(null);setAssignTarget('');}catch(e){onAlert('Error assigning shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Confirm'}</button></div>
       </div></div>);})()}
       {editShiftModal&&<div className="mo" onClick={()=>setEditShiftModal(null)}><div className="mc" style={{maxWidth:380}} onClick={e=>e.stopPropagation()}>
         <div className="mt2">Edit Shift — {fmt(editShiftModal.date)}</div>
         {(()=>{const em=editShiftModal;const eligible=users.filter(u=>{if(u.access==='customer'||u.active===false)return false;if(em.role&&u.role!==em.role)return false;return!shifts.some(x=>x.id!==em.id&&x.staffId===u.id&&x.role!=='Admin'&&x.date===em.date&&x.start<em.end&&x.end>em.start);});return(<div className="f"><label>Assigned Staff</label><select value={em.staffId} onChange={e=>setEditShiftModal(p=>({...p,staffId:e.target.value}))} style={{width:'100%'}}><option value="">— Unassigned —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}{em.staffId&&!eligible.find(u=>u.id===em.staffId)&&(()=>{const cur=users.find(u=>u.id===em.staffId);return cur?<option key={cur.id} value={cur.id}>{cur.name}{cur.role?` (${cur.role})`:''} ⚠ conflict</option>:null;})()}</select></div>);})()}
         <div className="g2"><div className="f"><label>Start</label><input type="time" value={editShiftModal.start} onChange={e=>setEditShiftModal(p=>({...p,start:e.target.value}))}/></div><div className="f"><label>End</label><input type="time" value={editShiftModal.end} onChange={e=>setEditShiftModal(p=>({...p,end:e.target.value}))}/></div></div>
-        <div className="ma"><button className="btn btn-s" onClick={()=>setEditShiftModal(null)}>Cancel</button><button className="btn btn-ok" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const changes={start:editShiftModal.start,end:editShiftModal.end,staffId:editShiftModal.staffId||null,open:!editShiftModal.staffId};const updated=await updateShift(editShiftModal.id,changes);setShifts(p=>p.map(x=>x.id===editShiftModal.id?updated:x));setEditShiftModal(null);}catch(e){onAlert('Error saving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Save'}</button></div>
+        <div className="ma"><button className="btn btn-s" onClick={()=>setEditShiftModal(null)}>Cancel</button><button className="btn btn-ok" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const staffId=editShiftModal.staffId||null;const updated=await adminEditShift(editShiftModal.id,{staffId,start:editShiftModal.start,end:editShiftModal.end,open:!staffId});setShifts(p=>p.map(x=>x.id===editShiftModal.id?(updated||{...x,staffId,start:editShiftModal.start,end:editShiftModal.end,open:!staffId}):x));setEditShiftModal(null);}catch(e){onAlert('Error saving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Save'}</button></div>
       </div></div>}
       <div className="tabs">
         <button className={`tab${tab==="mine"?" on":""}`} onClick={()=>setTab("mine")}>My Shifts</button>
@@ -1952,7 +1953,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
           {orig&&<div style={{fontSize:".82rem",color:"var(--muted)"}}>Assigned: <strong style={{color:"var(--txt)"}}>{orig.name}</strong></div>}
           {s.conflictNote&&<div style={{fontSize:".82rem",color:"var(--warnL)",fontStyle:'italic'}}>"{s.conflictNote}"</div>}
           <div style={{display:"flex",gap:".4rem",flexShrink:0,marginTop:'.15rem'}}>
-            <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await updateShift(s.id,{conflicted:false,conflictNote:null,staffId:null,open:true});setShifts(p=>p.map(x=>x.id===s.id?{...x,conflicted:false,conflictNote:null,staffId:null,open:true}:x));onAlert('Conflict approved — shift released to Available pool');}catch(e){onAlert('Error approving conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Approve</button>
+            <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const updated=await approveShiftConflict(s.id);setShifts(p=>p.map(x=>x.id===s.id?(updated||{...x,conflicted:false,conflictNote:null,staffId:null,open:true}):x));onAlert('Conflict approved — shift released to Available pool');}catch(e){onAlert('Error approving conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Approve</button>
             <button className="btn btn-s btn-sm" disabled={shiftOpBusy} onClick={()=>setAssignModal({shift:s})}>Assign</button>
           </div>
         </div>;})}
@@ -4235,10 +4236,6 @@ useEffect(() => {
           <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);}}>Sign Out</button>
         </div>
       </nav>
-      {effectivePortal==="staff"&&(()=>{const bannerAvail=shifts.filter(s=>(!s.staffId&&(s.open||s.templateSlotId))||(s.conflicted&&s.staffId&&s.staffId!==effectiveUser?.id));if(!bannerAvail.length)return null;return(<div style={{background:'var(--acc)',color:'#111209',padding:'.45rem 1.25rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap',fontSize:'.88rem',fontFamily:'var(--fd)',fontWeight:300}}>
-        <span>📋 {bannerAvail.length} shift{bannerAvail.length!==1?'s':''} available to pick up</span>
-        <button onClick={()=>setStaffNavTarget('available')} style={{background:'rgba(0,0,0,.15)',color:'#111209',border:'1px solid rgba(0,0,0,.2)',borderRadius:6,padding:'.2rem .65rem',cursor:'pointer',fontFamily:'var(--fd)',fontWeight:400,fontSize:'.82rem'}}>View →</button>
-      </div>);})()}
       <div className="main">
         {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} runs={runs}/>}
         {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
