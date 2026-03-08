@@ -1390,7 +1390,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                   let lnT1=0,lnT2=0;
                   if(laneIsVs){const tm=calcResVsTeams(lane.reservations);lane.reservations.forEach(r=>{const n=(r.players||[]).length;if(tm[r.id]===1)lnT1+=n;else lnT2+=n;});}
                   const vsUnbalanced=laneIsVs&&(lnT1>6||lnT2>6);
-                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<lanes.length-1?"1px solid var(--bdr)":"none",minWidth:0,background:vsUnbalanced?"rgba(220,60,60,.13)":lnReady?"rgba(40,200,100,.06)":laneIsFull?"rgba(220,60,60,.1)":"transparent"}}>
+                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<lanes.length-1?"1px solid var(--bdr)":"none",minWidth:0,background:lnReady?"rgba(40,200,100,.06)":laneIsFull?"rgba(220,60,60,.1)":"transparent"}}>
                     <div style={{fontSize:".65rem",color:lnReady?"#2dc86e":"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",marginBottom:".3rem"}}>{laneIsFull&&!lnReady&&!vsUnbalanced&&<><strong style={{color:"var(--acc)"}}>FULL!</strong>{" — "}</>}Lane {lane.laneNum} · {lane.mode} · {lane.type}{lnReady&&<strong style={{marginLeft:".35rem"}}> ✓ READY</strong>}</div>
                     {vsUnbalanced&&<div style={{background:"#f59e0b",color:"#000",fontWeight:800,fontSize:".78rem",textTransform:"uppercase",letterSpacing:".07em",borderRadius:5,padding:".35rem .6rem",marginBottom:".4rem",textAlign:"center",lineHeight:1.2}}>⚠ UNBALANCED MATCH<br/><span style={{fontWeight:600,fontSize:".7rem"}}>T1: {lnT1} · T2: {lnT2}</span></div>}
                     {lane.reservations.map(res=>{
