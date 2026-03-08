@@ -1159,6 +1159,15 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
   useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
   const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  const today=todayStr();
+  const getType=useCallback(id=>resTypes.find(t=>t.id===id),[resTypes]);
+  const todayRes=useMemo(()=>reservations.filter(r=>r.date===viewDate&&r.status!=="cancelled"),[reservations,viewDate]);
+  const todayTmpls=useMemo(()=>sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(viewDate)),[sessionTemplates,viewDate]);
+  const slotTimes=useMemo(()=>[...new Set([...todayTmpls.map(t=>t.startTime),...todayRes.map(r=>r.startTime)])].sort(),[todayTmpls,todayRes]);
+  const slotIsHistory=useCallback(time=>{const[h,m]=time.split(':').map(Number);return clock.getHours()*60+clock.getMinutes()>=h*60+m+75;},[clock]);
+  const slotIsHistoryForView=useCallback(time=>{if(viewDate<today)return true;if(viewDate>today)return false;return slotIsHistory(time);},[viewDate,today,slotIsHistory]);
+  const activeSlots=useMemo(()=>slotTimes.filter(t=>!slotIsHistoryForView(t)),[slotTimes,slotIsHistoryForView]);
+  const historySlots=useMemo(()=>[...slotTimes.filter(slotIsHistoryForView)].reverse(),[slotTimes,slotIsHistoryForView]);
   // ── Walk-in derived state (memoized so phone keystrokes don't retrigger) ──
   const wiDate=wi.date||viewDate;
   const wiTime=useMemo(()=>showWI==="custom"?wi.customTime:showWI,[showWI,wi.customTime]);
@@ -1168,7 +1177,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const wiAllLanes=useMemo(()=>wiTime?buildLanes(wiDate,wiTime,reservations,resTypes,sessionTemplates).lanes:[],[wiDate,wiTime,reservations,resTypes,sessionTemplates]);
   const wiDateTmpls=useMemo(()=>sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(wiDate)),[sessionTemplates,wiDate]);
   const wiDateAllSlots=useMemo(()=>[...new Set([...wiDateTmpls.map(t=>t.startTime),...reservations.filter(r=>r.date===wiDate&&r.status!=="cancelled").map(r=>r.startTime)])].sort(),[wiDateTmpls,reservations,wiDate]);
-  const wiAvailSlots=useMemo(()=>wiDate===todayStr()?wiDateAllSlots.filter(t=>!slotIsHistory(t)):wiDateAllSlots,[wiDate,wiDateAllSlots]);
+  const wiAvailSlots=useMemo(()=>wiDate===today?wiDateAllSlots.filter(t=>!slotIsHistory(t)):wiDateAllSlots,[wiDate,today,wiDateAllSlots,slotIsHistory]);
   const wiExtraAvail=useMemo(()=>{
     if(!wiTime||!wi.typeId)return[];
     return wiAvailSlots.filter(st=>{
@@ -1194,15 +1203,6 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
     wiAvailSlots.forEach(st=>{const lns=buildLanes(wiDate,st,reservations,resTypes,sessionTemplates).lanes;m[st]=lns.length===0||lns.some(l=>l.type===null)||lns.some(l=>l.type==="open"&&l.playerCount<laneCapacity(l.mode));});
     return m;
   },[wiAvailSlots,wiDate,reservations,resTypes,sessionTemplates]);
-  const today=todayStr();
-  const getType=useCallback(id=>resTypes.find(t=>t.id===id),[resTypes]);
-  const todayRes=useMemo(()=>reservations.filter(r=>r.date===viewDate&&r.status!=="cancelled"),[reservations,viewDate]);
-  const todayTmpls=useMemo(()=>sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(viewDate)),[sessionTemplates,viewDate]);
-  const slotTimes=useMemo(()=>[...new Set([...todayTmpls.map(t=>t.startTime),...todayRes.map(r=>r.startTime)])].sort(),[todayTmpls,todayRes]);
-  const slotIsHistory=useCallback(time=>{const[h,m]=time.split(':').map(Number);return clock.getHours()*60+clock.getMinutes()>=h*60+m+75;},[clock]);
-  const slotIsHistoryForView=useCallback(time=>{if(viewDate<today)return true;if(viewDate>today)return false;return slotIsHistory(time);},[viewDate,today,slotIsHistory]);
-  const activeSlots=useMemo(()=>slotTimes.filter(t=>!slotIsHistoryForView(t)),[slotTimes,slotIsHistoryForView]);
-  const historySlots=useMemo(()=>[...slotTimes.filter(slotIsHistoryForView)].reverse(),[slotTimes,slotIsHistoryForView]);
   // Precompute lane layout once per slot — not on every button-click re-render
   const slotLaneData=useMemo(()=>{
     const data={};
