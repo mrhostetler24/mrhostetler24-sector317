@@ -4,6 +4,7 @@ import {
   createReservation,
   updateReservation,
   addPlayerToReservation,
+  fetchPlayersForReservation,
   removePlayerFromReservation,
   fetchUserByPhone,
   createGuestUser,
@@ -1155,6 +1156,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [scoringSlot,setScoringSlot]=useState(null);
   const [viewDate,setViewDate]=useState(todayStr());
   const dateInputRef=useRef(null);
+  const wiPhoneRef=useRef(null);
   const activeWorkRef=useRef(false);
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
   useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
@@ -1264,16 +1266,14 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         return !existing?.players?.some(p=>p.userId===effectiveUserId);
       });
       const results=await Promise.allSettled(targets.map(async resId=>{
-        const p=await addPlayerToReservation(resId,{name,userId:effectiveUserId});
-        setReservations(prev=>{
-          const already=prev.find(r=>r.id===resId);
-          if(!already)return[...prev,]; // reservation not yet in local state — skip UI update
-          return prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),p]}:r);
-        });
+        await addPlayerToReservation(resId,{name,userId:effectiveUserId});
+        const freshPlayers=await fetchPlayersForReservation(resId);
+        setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:freshPlayers}:r));
         return resId;
       }));
       const failed=results.filter(r=>r.status==='rejected').length;
       setWiAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
+      setTimeout(()=>wiPhoneRef.current?.focus(),50);
       if(failed>0){
         showMsg(`Added to ${targets.length-failed} of ${targets.length} sessions — ${failed} failed`);
       }else{
@@ -1284,7 +1284,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const doWiRemovePlayer=async(userId)=>{
     const toRemove=wiNewResIds.flatMap(resId=>{const res=reservations.find(r=>r.id===resId);return(res?.players||[]).filter(p=>p.userId===userId).map(p=>({playerId:p.id,resId}));});
     try{
-      await Promise.allSettled(toRemove.map(({playerId,resId})=>removePlayerFromReservation(playerId).then(()=>{setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:(r.players||[]).filter(p=>p.id!==playerId)}:r));})));
+      await Promise.allSettled(toRemove.map(({playerId,resId})=>removePlayerFromReservation(playerId).then(async()=>{const freshPlayers=await fetchPlayersForReservation(resId);setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:freshPlayers}:r));})));
     }catch(e){showMsg("Error: "+e.message);}
   };
   const doCreateWalkIn=async()=>{const time=showWI==="custom"?wi.customTime:showWI;const name=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();if(!name||!wi.typeId||!time)return;const rt=getType(wi.typeId);const isPriv=rt?.style==="private";const isOpen=rt?.style==="open";const playerCount=isPriv?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):wi.playerCount;const doSplit=isOpen&&wi.splitA>0&&wi.splitA<playerCount;const bookDate=wi.date||viewDate;const allSlots=[{time,addSecondLane:wi.addSecondLane},...(wi.extraSlots||[])];const base={typeId:wi.typeId,date:bookDate,status:"confirmed",paid:true};setWiSaving(true);try{let userId=wi.foundUserId||null;if(!userId){const phone=cleanPh(wi.phone);const newUser=await createGuestUser({name,phone:phone.length===10?phone:null,createdByUserId:currentUser?.id??null});userId=newUser.id;setUsers(p=>[...p,newUser]);}const autoAddBooker=async(resId)=>{try{return await addPlayerToReservation(resId,{name,userId});}catch(e){return null;}};const newReses=[];const primaryIds=[];for(const {time:t,addSecondLane:sl} of allSlots){if(doSplit){const sB=playerCount-wi.splitA;const rA=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:wi.splitA,amount:rt.price*wi.splitA});const rB=await createReservation({...base,startTime:t,userId,customerName:name,playerCount:sB,amount:rt.price*sB});const bp=await autoAddBooker(rA.id);newReses.push({...rA,players:bp?[bp]:[]},{...rB,players:[]});primaryIds.push(rA.id);}else{const lanePrice=isPriv?rt.price*(sl?2:1):rt.price*playerCount;const newRes=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:isPriv?rt.price:lanePrice});const bp=await autoAddBooker(newRes.id);newReses.push({...newRes,players:bp?[bp]:[]});primaryIds.push(newRes.id);if(isPriv&&sl){const newRes2=await createReservation({...base,startTime:t,userId,customerName:name,playerCount,amount:rt.price});newReses.push({...newRes2,players:[]});primaryIds.push(newRes2.id);}}}setReservations(p=>[...p,...newReses]);setWiNewResIds(primaryIds);setWiStep("players");}catch(e){showMsg("Error: "+e.message);}setWiSaving(false);};
@@ -1579,11 +1579,11 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                   ?<div style={{background:"rgba(45,200,110,.08)",border:"1px solid rgba(45,200,110,.3)",borderRadius:6,padding:".7rem 1rem",marginBottom:"1rem",textAlign:"center",fontSize:".9rem",color:"var(--okB)"}}>✓ Session is full ({wiMaxPlayers} / {wiMaxPlayers} players)</div>
                   :<div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".6rem .75rem",marginBottom:"1rem"}}>
                     <div style={{display:"flex",gap:".4rem",alignItems:"center",marginBottom:".35rem"}}>
-                      <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input type="tel" maxLength={10} value={wiAddInput.phone} onChange={e=>setWiAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doWiLookupPlayer()} placeholder="Phone" autoFocus style={{fontSize:".9rem"}}/></div>
+                      <div className="phone-wrap" style={{flex:1}}><span className="phone-prefix">+1</span><input ref={wiPhoneRef} type="tel" maxLength={10} value={wiAddInput.phone} onChange={e=>setWiAddInput({phone:cleanPh(e.target.value),lookupStatus:"idle",foundUserId:null,name:""})} onKeyDown={e=>e.key==="Enter"&&doWiLookupPlayer()} placeholder="Phone" autoFocus style={{fontSize:".9rem"}}/></div>
                       {(wiAddInput.lookupStatus==="idle"||wiAddInput.lookupStatus==="searching")&&<button className="btn btn-s" disabled={cleanPh(wiAddInput.phone).length<10||wiAddInput.lookupStatus==="searching"} onClick={doWiLookupPlayer}>{wiAddInput.lookupStatus==="searching"?"…":"Search →"}</button>}
                       {wiAddInput.lookupStatus!=="idle"&&wiAddInput.lookupStatus!=="searching"&&<button className="btn btn-s" onClick={()=>setWiAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""})}>✕</button>}
                     </div>
-                    {wiAddInput.lookupStatus==="found"&&wiAddInput.foundUserId&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:".5rem",marginBottom:".35rem"}}><span style={{color:"#2dc86e",fontWeight:600,fontSize:".85rem"}}>✓ {wiAddInput.name}</span><button className="btn btn-p" style={{padding:".3rem .8rem",fontSize:".85rem"}} onClick={doWiAddPlayer}>Add</button></div>}
+                    {wiAddInput.lookupStatus==="found"&&wiAddInput.foundUserId&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:".5rem",marginBottom:".35rem"}}><span style={{fontSize:".85rem",color:"var(--muted)"}}>Found: <strong style={{color:"var(--txt)"}}>{wiAddInput.name}</strong></span><button className="btn btn-p" style={{padding:".3rem .8rem",fontSize:".85rem"}} autoFocus onClick={doWiAddPlayer}>+ Add to Session</button></div>}
                     {(wiAddInput.lookupStatus==="notfound"||wiAddInput.lookupStatus==="named")&&<div style={{display:"flex",gap:".4rem",alignItems:"center"}}><input placeholder="Player name" value={wiAddInput.name} onChange={e=>setWiAddInput(p=>({...p,name:e.target.value,lookupStatus:e.target.value.trim()?"named":"notfound"}))} onKeyDown={e=>e.key==="Enter"&&wiAddInput.name.trim()&&doWiAddPlayer()} autoFocus style={{flex:1,background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".4rem .6rem",color:"var(--txt)",fontSize:".9rem"}}/><button className="btn btn-p" disabled={!wiAddInput.name.trim()} onClick={doWiAddPlayer}>Add</button></div>}
                     {wiAddInput.lookupStatus==="notfound"&&<div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>No account found — type a name to add as a guest.</div>}
                   </div>}
