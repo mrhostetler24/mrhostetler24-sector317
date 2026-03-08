@@ -1388,7 +1388,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                   const lnReady=laneReady(lane);
                   const laneIsVs=lane.mode==='versus';
                   let lnT1=0,lnT2=0;
-                  if(laneIsVs){const tm=calcResVsTeams(lane.reservations);lane.reservations.forEach(r=>{(r.players||[]).forEach(p=>{const t=versusTeams?.[r.id]?.[p.id]??p.team??tm[r.id]??1;if(t===1)lnT1++;else lnT2++;});});}
+                  if(laneIsVs){const tm=calcResVsTeams(lane.reservations);lane.reservations.forEach(r=>{(r.players||[]).forEach(p=>{const t=p.team??tm[r.id]??1;if(t===1)lnT1++;else lnT2++;});});}
                   const vsUnbalanced=laneIsVs&&Math.abs(lnT1-lnT2)>1;
                   return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<lanes.length-1?"1px solid var(--bdr)":"none",minWidth:0,background:lnReady?"rgba(40,200,100,.06)":laneIsFull?"rgba(220,60,60,.1)":"transparent",...(vsUnbalanced?{outline:"3px solid #f59e0b",outlineOffset:"-3px"}:{})}}>
                     {vsUnbalanced&&<div style={{color:"#f59e0b",fontWeight:800,fontSize:".72rem",textTransform:"uppercase",letterSpacing:".07em",lineHeight:1.3,marginBottom:".3rem"}}>⚠ Unbalanced Match<br/><span style={{fontWeight:600,fontSize:".68rem"}}>T1: {lnT1} · T2: {lnT2}</span></div>}
