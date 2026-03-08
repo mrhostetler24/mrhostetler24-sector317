@@ -508,6 +508,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   // ── UPGRADE move: pick a new private slot ──────────────────────────────
   if(isUpgrade&&upgradeChoice==="move"){
     const moveSlotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
+    const moveSlotStatuses=useMemo(()=>moveSlotsForDate.map(t=>({tmpl:t,st:getSlotStatus(selDate,t.startTime,privateType?.id,reservations,resTypes,sessionTemplates)})),[moveSlotsForDate,selDate,privateType,reservations,resTypes,sessionTemplates]);
     return <div className="mo"><div className="mc" style={{maxWidth:560}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
         <div className="mt2">Pick a New Slot — Private {rt?.mode==="coop"?"Co-Op":"Versus"}</div>
@@ -520,7 +521,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
       </>}
       {selDate&&!selTime&&<>
         <p style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".6rem"}}>Available times on <strong>{fmt(selDate)}</strong></p>
-        <div className="slot-grid">{moveSlotsForDate.map(t=>{const st=getSlotStatus(selDate,t.startTime,privateType.id,reservations,resTypes,sessionTemplates);return <div key={t.id} className={`slot-card${!st.available?" unavail":""}`} onClick={()=>st.available&&setSelTime(t.startTime)}><div className="slot-time">{fmt12(t.startTime)}</div>{st.available?<div className="slot-info" style={{color:"var(--okB)"}}>Available</div>:<div className="slot-reason">{st.reason}</div>}</div>;})}</div>
+        <div className="slot-grid">{moveSlotStatuses.map(({tmpl:t,st})=><div key={t.id} className={`slot-card${!st.available?" unavail":""}`} onClick={()=>st.available&&setSelTime(t.startTime)}><div className="slot-time">{fmt12(t.startTime)}</div>{st.available?<div className="slot-info" style={{color:"var(--okB)"}}>Available</div>:<div className="slot-reason">{st.reason}</div>}</div>)}</div>
         <button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>setSelDate(null)}>← Change Date</button>
       </>}
       {selDate&&selTime&&<>
@@ -551,6 +552,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   // ── RESCHEDULE ─────────────────────────────────────────────────────────
   if(isReschedule){
     const reschedSlots=selDate?getSessionsForDate(selDate,sessionTemplates):[];
+    const reschedSlotStatuses=useMemo(()=>reschedSlots.map(t=>({tmpl:t,st:getSlotStatus(selDate,t.startTime,rt?.id,reservations,resTypes,sessionTemplates)})),[reschedSlots,selDate,rt,reservations,resTypes,sessionTemplates]);
     const resDateTime=new Date(`${res.date}T${res.startTime}`);
     const hoursUntil=(resDateTime-Date.now())/(1000*60*60);
     const isWithin24h=hoursUntil>0&&hoursUntil<24;
@@ -570,8 +572,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
       </>}
       {selDate&&!selTime&&<>
         <p style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".6rem"}}>Available times on <strong>{fmt(selDate)}</strong>:</p>
-        <div className="slot-grid">{reschedSlots.map(t=>{
-          const st=getSlotStatus(selDate,t.startTime,rt.id,reservations,resTypes,sessionTemplates);
+        <div className="slot-grid">{reschedSlotStatuses.map(({tmpl:t,st})=>{
           const isCurrent=selDate===res.date&&t.startTime===res.startTime;
           return <div key={t.id} className={`slot-card${isCurrent?" added":!st.available?" unavail":""}`} onClick={()=>!isCurrent&&st.available&&setSelTime(t.startTime)}>
             <div className="slot-time">{fmt12(t.startTime)}</div>
@@ -629,7 +630,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const isPrivate=selStyle==="private";
   const isVersusOpen=selMode==="versus"&&selStyle==="open";
   // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
-  const firstSlotStatus=selSlots.length>0&&selType?getSlotStatus(selDate,selSlots[0].startTime,selType.id,reservations,resTypes,sessionTemplates):null;
+  const firstSlotStatus=useMemo(()=>selSlots.length>0&&selType?getSlotStatus(selDate,selSlots[0].startTime,selType.id,reservations,resTypes,sessionTemplates):null,[selSlots,selType,selDate,reservations,resTypes,sessionTemplates]);
   const openMaxFromLane=firstSlotStatus?.spotsLeft??laneCapacity(selMode||"coop");
   const spotsLocked=isVersusOpen&&openMaxFromLane>0&&openMaxFromLane<4;
   const minP=isVersusOpen?(spotsLocked?openMaxFromLane:4):1;
