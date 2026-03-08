@@ -1386,8 +1386,12 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                   const players=lane.reservations.flatMap(r=>r.players||[]);const wOkCount=players.filter(playerWaiverOk).length;
                   const laneIsFull=lane.type==="private"||(lane.type==="open"&&lane.playerCount>=laneCapacity(lane.mode));
                   const lnReady=laneReady(lane);
-                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<lanes.length-1?"1px solid var(--bdr)":"none",minWidth:0,background:lnReady?"rgba(40,200,100,.06)":laneIsFull?"rgba(220,60,60,.1)":"transparent"}}>
-                    <div style={{fontSize:".65rem",color:lnReady?"#2dc86e":"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",marginBottom:".3rem"}}>{laneIsFull&&!lnReady&&<><strong style={{color:"var(--acc)"}}>FULL!</strong>{" — "}</>}Lane {lane.laneNum} · {lane.mode} · {lane.type}{lnReady&&<strong style={{marginLeft:".35rem"}}> ✓ READY</strong>}</div>
+                  const laneIsVs=lane.mode==='versus';
+                  let lnT1=0,lnT2=0;
+                  if(laneIsVs){const tm=calcResVsTeams(lane.reservations);lane.reservations.forEach(r=>{const n=(r.players||[]).length;if(tm[r.id]===1)lnT1+=n;else lnT2+=n;});}
+                  const vsUnbalanced=laneIsVs&&(lnT1>6||lnT2>6);
+                  return <div key={lane.laneNum} style={{flex:1,padding:".65rem 1rem",borderRight:li<lanes.length-1?"1px solid var(--bdr)":"none",minWidth:0,background:vsUnbalanced?"rgba(220,60,60,.13)":lnReady?"rgba(40,200,100,.06)":laneIsFull?"rgba(220,60,60,.1)":"transparent"}}>
+                    <div style={{fontSize:".65rem",color:lnReady?"#2dc86e":"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",marginBottom:".3rem"}}>{vsUnbalanced&&<><strong style={{color:"var(--danger)",fontSize:".75rem",letterSpacing:".04em"}}>⚠ UNBALANCED T1:{lnT1} T2:{lnT2}</strong>{" — "}</>}{laneIsFull&&!lnReady&&!vsUnbalanced&&<><strong style={{color:"var(--acc)"}}>FULL!</strong>{" — "}</>}Lane {lane.laneNum} · {lane.mode} · {lane.type}{lnReady&&<strong style={{marginLeft:".35rem"}}> ✓ READY</strong>}</div>
                     {lane.reservations.map(res=>{
                       const rt=getType(res.typeId);const rPlayers=res.players||[];const rWok=rPlayers.filter(playerWaiverOk).length;
                       return <div key={res.id} style={{marginBottom:".25rem"}}>
