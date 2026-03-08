@@ -1159,6 +1159,41 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
   useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
   const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  // ── Walk-in derived state (memoized so phone keystrokes don't retrigger) ──
+  const wiDate=wi.date||viewDate;
+  const wiTime=useMemo(()=>showWI==="custom"?wi.customTime:showWI,[showWI,wi.customTime]);
+  const wiRt=useMemo(()=>resTypes.find(rt=>rt.id===wi.typeId),[resTypes,wi.typeId]);
+  const wiIsPriv=wiRt?.style==="private";
+  const wiIsOpen=wiRt?.style==="open";
+  const wiAllLanes=useMemo(()=>wiTime?buildLanes(wiDate,wiTime,reservations,resTypes,sessionTemplates).lanes:[],[wiDate,wiTime,reservations,resTypes,sessionTemplates]);
+  const wiDateTmpls=useMemo(()=>sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(wiDate)),[sessionTemplates,wiDate]);
+  const wiDateAllSlots=useMemo(()=>[...new Set([...wiDateTmpls.map(t=>t.startTime),...reservations.filter(r=>r.date===wiDate&&r.status!=="cancelled").map(r=>r.startTime)])].sort(),[wiDateTmpls,reservations,wiDate]);
+  const wiAvailSlots=useMemo(()=>wiDate===todayStr()?wiDateAllSlots.filter(t=>!slotIsHistory(t)):wiDateAllSlots,[wiDate,wiDateAllSlots]);
+  const wiExtraAvail=useMemo(()=>{
+    if(!wiTime||!wi.typeId)return[];
+    return wiAvailSlots.filter(st=>{
+      if(st===wiTime)return false;
+      const el=buildLanes(wiDate,st,reservations,resTypes,sessionTemplates).lanes;
+      if(wiIsPriv)return el.filter(l=>l.type===null).length>0;
+      if(wiIsOpen&&wiRt?.mode){const c=openPlayCapacity(wiRt.mode,el);return c.total>=wi.playerCount;}
+      return false;
+    });
+  },[wiTime,wi.typeId,wiAvailSlots,wiDate,reservations,resTypes,sessionTemplates,wiIsPriv,wiIsOpen,wiRt,wi.playerCount]);
+  const filteredWiResTypes=useMemo(()=>{
+    const freeLanes=wiAllLanes.filter(l=>l.type===null).length;
+    return resTypes.filter(rt=>{
+      if(!rt.active||!rt.availableForBooking)return false;
+      if(!wiTime)return true;
+      if(rt.style==="private")return freeLanes>0;
+      if(rt.style==="open"){const c=openPlayCapacity(rt.mode,wiAllLanes);return c.total>0;}
+      return true;
+    });
+  },[resTypes,wiTime,wiAllLanes]);
+  const wiSlotCapMap=useMemo(()=>{
+    const m={};
+    wiAvailSlots.forEach(st=>{const lns=buildLanes(wiDate,st,reservations,resTypes,sessionTemplates).lanes;m[st]=lns.length===0||lns.some(l=>l.type===null)||lns.some(l=>l.type==="open"&&l.playerCount<laneCapacity(l.mode));});
+    return m;
+  },[wiAvailSlots,wiDate,reservations,resTypes,sessionTemplates]);
   const today=todayStr();
   const getType=useCallback(id=>resTypes.find(t=>t.id===id),[resTypes]);
   const todayRes=useMemo(()=>reservations.filter(r=>r.date===viewDate&&r.status!=="cancelled"),[reservations,viewDate]);
@@ -1458,42 +1493,15 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
       })}
       {showWI&&(()=>{
         const wiName=wi.foundUserId?(users.find(u=>u.id===wi.foundUserId)?.name||wi.customerName):wi.customerName.trim();
-        const wiRt=getType(wi.typeId);
-        const wiIsPriv=wiRt?.style==="private";
-        const wiIsOpen=wiRt?.style==="open";
-        const wiDate=wi.date||viewDate;
-        const wiTime=showWI==="custom"?wi.customTime:showWI;
-        const wiAllLanes=wiTime?buildLanes(wiDate,wiTime,reservations,resTypes,sessionTemplates).lanes:[];
         const wiFreeLanes=wiAllLanes.filter(l=>l.type===null).length;
         const offerSecondLane=wiIsPriv&&wiFreeLanes>=2;
-        // Slot picker options for this date
-        const wiDateTmpls=sessionTemplates.filter(tmpl=>tmpl.active&&tmpl.dayOfWeek===getDayName(wiDate));
-        const wiDateRes=reservations.filter(res=>res.date===wiDate&&res.status!=="cancelled");
-        const wiDateAllSlots=[...new Set([...wiDateTmpls.map(tmpl=>tmpl.startTime),...wiDateRes.map(res=>res.startTime)])].sort();
-        const wiAvailSlots=wiDate===today?wiDateAllSlots.filter(t=>!slotIsHistory(t)):wiDateAllSlots;
-        // Extra timeslots available (same date, same type, has capacity, not the primary)
         const wiExtraSlots=wi.extraSlots||[];
         const wiExtraTimes=wiExtraSlots.map(s=>s.time);
-        const wiExtraAvail=wiTime&&wi.typeId?wiAvailSlots.filter(st=>{
-          if(st===wiTime)return false;
-          const el=buildLanes(wiDate,st,reservations,resTypes,sessionTemplates).lanes;
-          if(wiIsPriv)return el.filter(l=>l.type===null).length>0;
-          if(wiIsOpen&&wiRt?.mode){const c=openPlayCapacity(wiRt.mode,el);return c.total>=wi.playerCount;}
-          return false;
-        }):[];
         // Capacity check for current type+playerCount
         const wiCap=wiIsOpen&&wiRt?.mode&&wiTime?openPlayCapacity(wiRt.mode,wiAllLanes):null;
         const wiCapStatus=!wiCap?"ok":wi.playerCount>wiCap.total?"full":wi.playerCount>wiCap.maxSingle?"split":"ok";
         const splitB=wi.splitA>0?wi.playerCount-wi.splitA:0;
         const splitValid=wiCapStatus==="split"&&wi.splitA>0&&wi.splitA<wi.playerCount&&wi.splitA<=(wiCap?.blocks[0]||0)&&splitB<=(wiCap?.blocks[1]||0);
-        // Filter types by what the slot can still accommodate
-        const filteredResTypes=resTypes.filter(rt=>{
-          if(!rt.active||!rt.availableForBooking)return false;
-          if(!wiTime)return true;
-          if(rt.style==="private")return wiFreeLanes>0;
-          if(rt.style==="open"){const c=openPlayCapacity(rt.mode,wiAllLanes);return c.total>0;}
-          return true;
-        });
         const slotCount=1+(wiExtraTimes.length||0);
         const wiAmt=wiRt?(wiIsPriv?wiRt.price*((wi.addSecondLane?2:1)+wiExtraSlots.reduce((s,es)=>s+(es.addSecondLane?2:1),0)):wiRt.price*wi.playerCount*slotCount):0;
         const wiOpenMax=wiIsOpen&&wiRt?Math.max(1,wiCap?Math.min(wiCap.maxSingle,laneCapacity(wiRt.mode)):laneCapacity(wiRt.mode)):20;
@@ -1521,9 +1529,9 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                   <input type="date" value={wiDate} min={today} onChange={e=>setWi(p=>({...p,date:e.target.value,customTime:"",extraSlots:[],splitA:0}))} style={{fontSize:".82rem",padding:".25rem .5rem",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,color:"var(--txt)"}}/>
                 </div>
                 {wiAvailSlots.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",padding:".65rem",background:"var(--bg2)",border:"1px dashed var(--bdr)",borderRadius:6,textAlign:"center"}}>No slots available for this date.</div>}
-                {wiAvailSlots.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:".4rem"}}>{wiAvailSlots.map(st=>{const sel=wi.customTime===st;const lns=buildLanes(wiDate,st,reservations,resTypes,sessionTemplates).lanes;const hasCapacity=lns.length===0||lns.some(l=>l.type===null)||lns.some(l=>l.type==="open"&&l.playerCount<laneCapacity(l.mode));return<button key={st} type="button" disabled={!hasCapacity} onClick={()=>hasCapacity&&setWi(p=>({...p,customTime:st,extraSlots:[],splitA:0}))} style={{padding:".4rem .9rem",borderRadius:20,fontSize:".9rem",fontWeight:sel?700:500,border:`2px solid ${sel?"var(--acc)":"var(--bdr)"}`,background:sel?"var(--accD)":"var(--bg2)",color:sel?"var(--accB)":!hasCapacity?"var(--muted)":"var(--txt)",cursor:hasCapacity?"pointer":"not-allowed",opacity:!hasCapacity&&!sel?.5:1}}>{fmt12(st)}{!hasCapacity?" ✕":""}</button>;})}</div>}
+                {wiAvailSlots.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:".4rem"}}>{wiAvailSlots.map(st=>{const sel=wi.customTime===st;const hasCapacity=wiSlotCapMap[st]??true;return<button key={st} type="button" disabled={!hasCapacity} onClick={()=>hasCapacity&&setWi(p=>({...p,customTime:st,extraSlots:[],splitA:0}))} style={{padding:".4rem .9rem",borderRadius:20,fontSize:".9rem",fontWeight:sel?700:500,border:`2px solid ${sel?"var(--acc)":"var(--bdr)"}`,background:sel?"var(--accD)":"var(--bg2)",color:sel?"var(--accB)":!hasCapacity?"var(--muted)":"var(--txt)",cursor:hasCapacity?"pointer":"not-allowed",opacity:!hasCapacity&&!sel?.5:1}}>{fmt12(st)}{!hasCapacity?" ✕":""}</button>;})}</div>}
               </div>}
-              <div className="f"><label>Type</label><div style={{display:"flex",flexWrap:"wrap",gap:".4rem"}}>{filteredResTypes.map(rt=>{const sel=wi.typeId===rt.id;return(<button key={rt.id} type="button" onClick={()=>setWi(p=>({...p,typeId:rt.id,splitA:0,extraSlots:[],playerCount:1}))} style={{padding:".55rem 1.2rem",borderRadius:20,fontSize:".9rem",fontWeight:sel?700:500,border:`2px solid ${sel?"var(--acc)":"var(--bdr)"}`,background:sel?"var(--accD)":"var(--bg2)",color:sel?"var(--accB)":"var(--txt)",cursor:"pointer",textTransform:"uppercase",letterSpacing:".04em"}}>{rt.name}</button>);})} {filteredResTypes.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",padding:".4rem 0",fontStyle:"italic"}}>{wiTime?"No types available for this slot.":"Select a time first."}</div>}</div></div>
+              <div className="f"><label>Type</label><div style={{display:"flex",flexWrap:"wrap",gap:".4rem"}}>{filteredWiResTypes.map(rt=>{const sel=wi.typeId===rt.id;return(<button key={rt.id} type="button" onClick={()=>setWi(p=>({...p,typeId:rt.id,splitA:0,extraSlots:[],playerCount:1}))} style={{padding:".55rem 1.2rem",borderRadius:20,fontSize:".9rem",fontWeight:sel?700:500,border:`2px solid ${sel?"var(--acc)":"var(--bdr)"}`,background:sel?"var(--accD)":"var(--bg2)",color:sel?"var(--accB)":"var(--txt)",cursor:"pointer",textTransform:"uppercase",letterSpacing:".04em"}}>{rt.name}</button>);})} {filteredWiResTypes.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",padding:".4rem 0",fontStyle:"italic"}}>{wiTime?"No types available for this slot.":"Select a time first."}</div>}</div></div>
               {offerSecondLane&&<div style={{background:"rgba(40,200,100,.08)",border:"1px solid rgba(40,200,100,.3)",borderRadius:8,padding:".65rem .9rem",marginBottom:".5rem",display:"flex",alignItems:"center",gap:".75rem",cursor:"pointer"}} onClick={()=>setWi(p=>({...p,addSecondLane:!p.addSecondLane}))}><input type="checkbox" checked={wi.addSecondLane} readOnly style={{width:18,height:18,cursor:"pointer",accentColor:"var(--acc)"}}/><div style={{flex:1}}><div style={{fontWeight:700,color:"#2dc86e",fontSize:".9rem"}}>{wi.addSecondLane?"Both lanes reserved":"Reserve both lanes"}</div><div style={{fontSize:".8rem",color:"var(--muted)"}}>{wi.addSecondLane?"Uncheck to book single lane only.":"Check to book both lanes — "+( wiRt?.mode==="versus"?"up to 24":"up to 12")+" players total."}</div></div><span style={{fontWeight:700,color:"var(--accB)",whiteSpace:"nowrap"}}>+{fmtMoney(wiRt?.price||0)}</span></div>}
               {!wiIsPriv&&<div className="f"><label>Player Count</label><div style={{display:"flex",alignItems:"center",gap:"1rem"}}><span style={{fontSize:"2.2rem",fontWeight:800,color:wi.typeId?"var(--txt)":"var(--muted)",minWidth:48,textAlign:"center",lineHeight:1,flexShrink:0}}>{wi.playerCount}</span><div style={{flex:1,display:"flex",flexDirection:"column",gap:".25rem"}}><input type="range" min={1} max={wiOpenMax} value={Math.min(wi.playerCount,wiOpenMax)} disabled={!wi.typeId} onChange={e=>setWi(p=>({...p,playerCount:+e.target.value,splitA:0,extraSlots:[]}))} style={{width:"100%",accentColor:"var(--acc)",height:6,cursor:wi.typeId?"pointer":"not-allowed",opacity:wi.typeId?1:.35}}/><div style={{display:"flex",justifyContent:"space-between",fontSize:".72rem",color:"var(--muted)"}}><span>1</span>{wi.typeId&&wiTime&&wiIsOpen&&wiRt&&<span style={{color:wiOpenMax<3?"var(--warn)":"var(--muted)",fontWeight:600}}>{wiOpenMax} max</span>}</div></div></div>{!wi.typeId&&<div style={{fontSize:".78rem",color:"var(--muted)",marginTop:".3rem"}}>Select a type first.</div>}</div>}
               {wiShowPrivateUpsell&&<div style={{background:"rgba(58,125,255,.08)",border:"1px solid rgba(58,125,255,.3)",borderRadius:7,padding:".75rem 1rem",marginBottom:".5rem"}}><div style={{fontWeight:700,color:"#60a5fa",fontSize:".9rem",marginBottom:".25rem"}}>💡 Private Play May Be a Better Deal</div><div style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".55rem"}}>{wi.playerCount} players at open play ({fmtMoney(wiOpenPerSession)}/session) meets or exceeds a private {wiRt?.mode} lane ({fmtMoney(wiPrivateRt.price)}/session) — your group gets the whole lane.</div><button type="button" className="btn btn-p" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>setWi(p=>({...p,typeId:wiPrivateRt.id,splitA:0,extraSlots:[],playerCount:1}))}>Switch to {wiPrivateRt.name} →</button></div>}
