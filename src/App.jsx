@@ -625,7 +625,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const allDates=get60Dates(sessionTemplates);
   const availMap=useMemo(()=>{if(!selType)return{};const m={};allDates.forEach(d=>{m[d]=dateHasAvailability(d,selType.id,_allRes,resTypes,sessionTemplates);});return m;},[selType,_allRes,resTypes,sessionTemplates]);
   const slotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
-  const slotStatuses=slotsForDate.map(t=>({tmpl:t,status:selType?getSlotStatus(selDate,t.startTime,selType.id,_allRes,resTypes,sessionTemplates):{available:false},added:selSlots.some(s=>s.startTime===t.startTime)}));
+  const slotStatuses=useMemo(()=>slotsForDate.map(t=>({tmpl:t,status:selType?getSlotStatus(selDate,t.startTime,selType.id,_allRes,resTypes,sessionTemplates):{available:false},added:selSlots.some(s=>s.startTime===t.startTime)})),[selDate,selType,_allRes,resTypes,sessionTemplates,selSlots,slotsForDate]);
   const isPrivate=selStyle==="private";
   const isVersusOpen=selMode==="versus"&&selStyle==="open";
   // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
@@ -791,17 +791,12 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
           {/* ── ADDITIONAL TIME SLOTS — always shown when slots are selected, independent of second-lane prompt ── */}
           {selSlots.length>0&&!addingMore&&(()=>{
             const addedTimes=new Set(selSlots.map(s=>s.startTime));
-            const adjAvail=slotsForDate.filter(t=>{
-              if(addedTimes.has(t.startTime)) return false;
-              const st=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
-              return st.available;
-            });
+            const adjAvail=slotsForDate.filter(t=>!addedTimes.has(t.startTime)).map(t=>({tmpl:t,st:getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates)})).filter(({st})=>st.available);
             if(!adjAvail.length) return null;
             return <div style={{background:"rgba(200,224,58,.04)",border:"1px solid rgba(200,224,58,.15)",borderRadius:6,padding:".65rem .85rem",marginTop:".5rem"}}>
               <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--muted)",marginBottom:".45rem"}}>ADDITIONAL TIME IN STRUCTURE</div>
               <div style={{display:"flex",gap:".4rem",flexWrap:"wrap"}}>
-                {adjAvail.map(t=>{
-                  const tst=getSlotStatus(selDate,t.startTime,selType?.id,reservations,resTypes,sessionTemplates);
+                {adjAvail.map(({tmpl:t,st:tst})=>{
                   const adjHasTwoLanes=isPrivate&&(tst.lanes||[]).filter(l=>l.type===null).length>1;
                   return <button key={t.startTime} className="btn btn-s btn-sm" onClick={()=>{
                     addSlot(t.startTime);
