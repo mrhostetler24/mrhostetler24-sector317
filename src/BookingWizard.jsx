@@ -18,6 +18,9 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const [paymentSuccess,setPaymentSuccess]=useState(false);
   const [paying,setPaying]=useState(false);
   const [payError,setPayError]=useState(null);
+  const [cardNumber,setCardNumber]=useState('');
+  const [cardExpiry,setCardExpiry]=useState('');
+  const [nameOnCard,setNameOnCard]=useState('');
   // For multi-slot bookings: track which slots each player is assigned to
   // slotAssignments[playerIndex] = Set of startTime strings
   const [slotAssignments,setSlotAssignments]=useState({});
@@ -217,8 +220,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
-          <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
-          <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+          <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={e=>setCardNumber(e.target.value)}/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM / YY" value={cardExpiry} onChange={e=>setCardExpiry(e.target.value)}/></div></div>
+          <div className="g2"><div className="f"><label>Name on Card</label><input placeholder="Full name" value={nameOnCard} onChange={e=>setNameOnCard(e.target.value)}/></div><div className="f"><label>CVV</label><input placeholder="•••"/></div></div>
           {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
         </>}
         {paymentSuccess&&<div style={{background:"rgba(100,200,100,.1)",border:"1px solid rgba(100,200,100,.35)",borderRadius:6,padding:".85rem 1rem",marginTop:".5rem",display:"flex",alignItems:"center",gap:".75rem"}}>
@@ -293,8 +296,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>Private ({lanesBooked>1?`${lanesBooked} lanes · `:""}max {maxP} players) — Flat</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span></div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div></div>
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
-          <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••"/></div><div className="f"><label>Expiry</label><input placeholder="MM / YY"/></div></div>
-          <div className="g2"><div className="f"><label>CVV</label><input placeholder="•••"/></div><div className="f"><label>ZIP</label><input placeholder="46032"/></div></div>
+          <div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={e=>setCardNumber(e.target.value)}/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM / YY" value={cardExpiry} onChange={e=>setCardExpiry(e.target.value)}/></div></div>
+          <div className="g2"><div className="f"><label>Name on Card</label><input placeholder="Full name" value={nameOnCard} onChange={e=>setNameOnCard(e.target.value)}/></div><div className="f"><label>CVV</label><input placeholder="•••"/></div></div>
           {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
         </>}
         {paymentSuccess&&<div style={{background:"rgba(100,200,100,.1)",border:"1px solid rgba(100,200,100,.35)",borderRadius:6,padding:".85rem 1rem",marginTop:".5rem",display:"flex",alignItems:"center",gap:".75rem"}}>
@@ -428,7 +431,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
                 await new Promise(res=>setTimeout(res,1200));
                 // e.g. real: const txn = await processGoDaddyPayment(cardToken, total); if(!txn.ok) throw new Error(txn.declineReason);
                 // ── Step 2: payment confirmed — create reservation(s) + payment record
-                const pgId=crypto.randomUUID();const bks=[];const isD=lanesBooked>1;if(isD){const uTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();uTimes.forEach(st=>{selSlots.filter(s=>s.startTime===st).forEach((sl,i)=>bks.push({typeId:selType.id,date:selDate,startTime:sl.startTime,playerCount:perLaneCap,amount:pricePerSlot,laneIdx:i}));});}else{selSlots.forEach(s=>bks.push({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,laneIdx:0}));}const ids=await onPayCreate({bookings:bks,userId:currentUser.id,customerName:currentUser.name,paymentGroupId:pgId,totalTransactionAmount:total,totalPlayerCount:effPlayerCount});setPendingResIds(ids);setPaymentSuccess(true);setStep(s=>s+1);}catch(e){setPayError(e.message||"Payment declined. Please check your card details and try again.");}finally{setPaying(false);}}}>{paying?"Processing…":`Pay ${fmtMoney(total)} & Confirm Reservation →`}</button>
+                const pgId=crypto.randomUUID();const bks=[];const isD=lanesBooked>1;if(isD){const uTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();uTimes.forEach(st=>{selSlots.filter(s=>s.startTime===st).forEach((sl,i)=>bks.push({typeId:selType.id,date:selDate,startTime:sl.startTime,playerCount:perLaneCap,amount:pricePerSlot,laneIdx:i}));});}else{selSlots.forEach(s=>bks.push({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,laneIdx:0}));}const rawDigits=cardNumber.replace(/\D/g,'');const cardLast4=rawDigits.length>=4?rawDigits.slice(-4):null;const ids=await onPayCreate({bookings:bks,userId:currentUser.id,customerName:currentUser.name,paymentGroupId:pgId,totalTransactionAmount:total,totalPlayerCount:effPlayerCount,cardLast4,cardExpiry:cardExpiry.trim()||null,cardHolder:nameOnCard.trim()||currentUser.name});setPendingResIds(ids);setPaymentSuccess(true);setStep(s=>s+1);}catch(e){setPayError(e.message||"Payment declined. Please check your card details and try again.");}finally{setPaying(false);}}}>{paying?"Processing…":`Pay ${fmtMoney(total)} & Confirm Reservation →`}</button>
               :<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>
             }</>
           :<button className="btn btn-p" onClick={async()=>{

@@ -985,8 +985,8 @@ function ReceiptModal({res,resTypes,user,onClose}){
       <div class="row"><span class="lbl">Customer</span><span class="val">${res.customerName||user.name}</span></div>
       <div class="row"><span class="lbl">Session Type</span><span class="val">${rt?.name||"—"}</span></div>
       <div class="row"><span class="lbl">Mode</span><span class="val" style="text-transform:capitalize">${rt?.mode||"—"} · ${rt?.style||"—"}</span></div>
-      <div class="row"><span class="lbl">Date</span><span class="val">${new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</span></div>
-      <div class="row"><span class="lbl">Time</span><span class="val">${fmt12(res.startTime)}</span></div>
+      <div class="row"><span class="lbl">Reservation Date</span><span class="val">${new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</span></div>
+      <div class="row"><span class="lbl">Reservation Time</span><span class="val">${fmt12(res.startTime)}</span></div>
       <div class="row"><span class="lbl">Players</span><span class="val">${res.playerCount}</span></div>
       <div class="row"><span class="lbl">Status</span><span class="val">${res.status.charAt(0).toUpperCase()+res.status.slice(1)}<span class="status-badge">${res.paid?"PAID":"PENDING"}</span></span></div>
       <div class="total-row"><span>Amount Charged</span><span>${fmtMoney(res.amount)}</span></div>
@@ -1021,8 +1021,8 @@ function ReceiptModal({res,resTypes,user,onClose}){
           ["Customer", res.customerName||user.name],
           ["Session Type", rt?.name||"—"],
           ["Mode", rt?<span style={{textTransform:"capitalize"}}>{rt.mode} · {rt.style}</span>:"—"],
-          ["Date", new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"})],
-          ["Time", fmt12(res.startTime)],
+          ["Reservation Date", new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"})],
+          ["Reservation Time", fmt12(res.startTime)],
           ["Players", res.playerCount],
           ["Status", <span style={{display:"flex",alignItems:"center",gap:".4rem"}}><span className={`badge ${res.status==="confirmed"?"b-ok":res.status==="completed"?"b-done":res.status==="no-show"?"b-noshow":"b-cancel"}`}>{res.status}</span>{res.paid&&<span style={{fontSize:".68rem",background:"var(--okD)",color:"var(--okB)",padding:".1rem .45rem",borderRadius:20,fontWeight:700,letterSpacing:".06em"}}>PAID</span>}</span>],
         ].map(([lbl,val])=>(
@@ -1073,9 +1073,12 @@ function PaymentReceiptModal({payment,onClose}){
       <div class="row"><span class="lbl">Customer</span><span class="val">${s.customerName||'—'}</span></div>
       <div class="row"><span class="lbl">Session Type</span><span class="val">${s.sessionType||'—'}</span></div>
       <div class="row"><span class="lbl">Mode</span><span class="val" style="text-transform:capitalize">${s.mode||'—'} · ${s.style||'—'}</span></div>
-      <div class="row"><span class="lbl">Date</span><span class="val">${new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</span></div>
-      <div class="row"><span class="lbl">Time</span><span class="val">${fmt12(s.startTime)}</span></div>
+      <div class="row"><span class="lbl">Reservation Date</span><span class="val">${s.date?new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}):'—'}</span></div>
+      <div class="row"><span class="lbl">Reservation Time</span><span class="val">${fmt12(s.startTime)}</span></div>
       <div class="row"><span class="lbl">Players</span><span class="val">${s.playerCount}</span></div>
+      <div class="row"><span class="lbl">Purchase Date</span><span class="val">${payment.createdAt?new Date(payment.createdAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}):'—'}</span></div>
+      <div class="row"><span class="lbl">Purchase Time</span><span class="val">${payment.createdAt?new Date(payment.createdAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}):'—'}</span></div>
+      ${s.cardLast4?`<div class="row"><span class="lbl">Card</span><span class="val">•••• •••• •••• ${s.cardLast4}${s.cardExpiry?' · Exp '+s.cardExpiry:''}</span></div><div class="row"><span class="lbl">Cardholder</span><span class="val">${s.cardHolder||'—'}</span></div>`:''}
       <div class="row"><span class="lbl">Status</span><span class="val">${payment.status.toUpperCase()}</span></div>
       <div class="total-row"><span>Amount Charged</span><span>${fmtMoney(payment.amount)}</span></div>
       <div class="footer">
@@ -1106,10 +1109,13 @@ function PaymentReceiptModal({payment,onClose}){
         ["Customer",s.customerName||"—"],
         ["Session Type",s.sessionType||"—"],
         ["Mode",s.mode?<span style={{textTransform:"capitalize"}}>{s.mode} · {s.style}</span>:"—"],
-        ["Date",s.date?new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"}):"—"],
-        ["Time",fmt12(s.startTime)],
+        ["Reservation Date",s.date?new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"}):"—"],
+        ["Reservation Time",fmt12(s.startTime)],
         ["Players",s.playerCount],
-        ["Status",<span style={{display:"flex",alignItems:"center",gap:".4rem"}}><span className="badge b-ok">{payment.status}</span><span style={{fontSize:".68rem",background:"var(--okD)",color:"var(--okB)",padding:".1rem .45rem",borderRadius:20,fontWeight:700,letterSpacing:".06em"}}>PAID</span></span>],
+        ["Purchase Date",payment.createdAt?new Date(payment.createdAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—"],
+        ["Purchase Time",payment.createdAt?new Date(payment.createdAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}):"—"],
+        ...(s.cardLast4?[["Card","•••• •••• •••• "+s.cardLast4+(s.cardExpiry?" · Exp "+s.cardExpiry:"")],["Cardholder",s.cardHolder||"—"]]:payment.createdAt?[]:[] ),
+        ["Status",<span className="badge b-ok" style={{textTransform:"uppercase"}}>{payment.status}</span>],
       ].map(([lbl,val])=>(
         <div key={lbl} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:".45rem 0",borderBottom:"1px solid var(--bdr)",fontSize:".85rem"}}>
           <span style={{color:"var(--muted)"}}>{lbl}</span>
@@ -1500,18 +1506,19 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
       {tab==="payments"&&(()=>{
         const isAdmin=["staff","manager","admin"].includes(user.access);
         const myPayments=isAdmin?payments:payments.filter(p=>p.userId===user.id);
-        return <div className="tw"><table><thead><tr><th>Date</th><th>Reference</th>{isAdmin&&<th>Customer</th>}<th>Session</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-          <tbody>{myPayments.map(p=>(
+        return <div className="tw"><table><thead><tr><th>Purchase Date</th><th>Reference</th>{isAdmin&&<th>Customer</th>}<th>Session</th><th>Card</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody>{myPayments.map(p=>{const s=p.snapshot||{};return(
             <tr key={p.id}>
-              <td>{p.createdAt?new Date(p.createdAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):fmt(p.snapshot?.date||"")}</td>
-              <td style={{fontFamily:"monospace",fontSize:".78rem"}}>{p.snapshot?.refNum||p.id.slice(0,8).toUpperCase()}</td>
+              <td><div>{p.createdAt?new Date(p.createdAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):fmt(s.date||"")}</div><div style={{fontSize:".72rem",color:"var(--muted)"}}>{p.createdAt?new Date(p.createdAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}):""}</div></td>
+              <td style={{fontFamily:"monospace",fontSize:".78rem"}}>{s.refNum||p.id.slice(0,8).toUpperCase()}</td>
               {isAdmin&&<td style={{fontSize:".85rem"}}>{p.customerName}</td>}
-              <td><div style={{fontSize:".85rem",fontWeight:600}}>{p.snapshot?.sessionType||"—"}</div><div style={{fontSize:".72rem",color:"var(--muted)",textTransform:"capitalize"}}>{p.snapshot?.mode} · {p.snapshot?.style}</div></td>
+              <td><div style={{fontSize:".85rem",fontWeight:600}}>{s.sessionType||"—"}</div><div style={{fontSize:".72rem",color:"var(--muted)",textTransform:"capitalize"}}>{s.mode} · {s.style}</div><div style={{fontSize:".72rem",color:"var(--muted)"}}>{s.date?new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})+" · "+fmt12(s.startTime):""}</div></td>
+              <td style={{fontSize:".82rem"}}>{s.cardLast4?<><div>{"•••• "+s.cardLast4}</div><div style={{fontSize:".72rem",color:"var(--muted)"}}>{s.cardHolder||""}{s.cardExpiry?" · "+s.cardExpiry:""}</div></>:<span style={{color:"var(--muted)"}}>—</span>}</td>
               <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(p.amount)}</td>
               <td><span style={{fontSize:".72rem",background:"var(--okD)",color:"var(--okB)",padding:".15rem .5rem",borderRadius:20,fontWeight:700,letterSpacing:".05em",textTransform:"uppercase"}}>{p.status}</span></td>
               <td><button className="btn btn-s btn-sm" onClick={()=>setViewPayment(p)}>🧾 Receipt</button></td>
             </tr>
-          ))}</tbody></table>
+          )})}</tbody></table>
           {!myPayments.length&&<div className="empty"><div className="ei">💳</div><p>No payment history yet.</p></div>}
         </div>;
       })()}
@@ -2811,6 +2818,10 @@ useEffect(() => {
             status:       newRes.status,
             paid:         newRes.paid,
             refNum:       newRes.id.replace(/-/g,'').slice(0,12).toUpperCase(),
+            transactionAt:new Date().toISOString(),
+            cardLast4:    b.cardLast4??null,
+            cardExpiry:   b.cardExpiry??null,
+            cardHolder:   b.cardHolder??null,
           };
           const pmt=await createPayment({userId:currentUser.id,reservationId:newRes.id,customerName:newRes.customerName,amount:totalAmt,status:'paid',snapshot});
           setPayments(prev=>[pmt,...prev]);
@@ -2821,7 +2832,7 @@ useEffect(() => {
   };
 
   // Creates reservations + payment immediately at Pay click (no players yet)
-  const handlePayCreate=async({bookings,userId,customerName,paymentGroupId,totalTransactionAmount,totalPlayerCount})=>{
+  const handlePayCreate=async({bookings,userId,customerName,paymentGroupId,totalTransactionAmount,totalPlayerCount,cardLast4,cardExpiry,cardHolder})=>{
     const created=[];
     for(const b of bookings){
       const newRes=await createReservation({typeId:b.typeId,userId,customerName,date:b.date,startTime:b.startTime,playerCount:b.playerCount,amount:b.amount,status:"confirmed",paid:true,players:[]});
@@ -2831,7 +2842,7 @@ useEffect(() => {
     if(created.length>0&&!paymentGroups.current[paymentGroupId]){
       try{
         const rt=resTypes.find(x=>x.id===bookings[0].typeId);
-        const snapshot={customerName,sessionType:rt?.name??'—',mode:rt?.mode??'—',style:rt?.style??'—',date:bookings[0].date,startTime:bookings[0].startTime,playerCount:totalPlayerCount,amount:totalTransactionAmount,status:'confirmed',paid:true,refNum:created[0].resId.replace(/-/g,'').slice(0,12).toUpperCase()};
+        const snapshot={customerName,sessionType:rt?.name??'—',mode:rt?.mode??'—',style:rt?.style??'—',date:bookings[0].date,startTime:bookings[0].startTime,playerCount:totalPlayerCount,amount:totalTransactionAmount,status:'confirmed',paid:true,refNum:created[0].resId.replace(/-/g,'').slice(0,12).toUpperCase(),transactionAt:new Date().toISOString(),cardLast4:cardLast4??null,cardExpiry:cardExpiry??null,cardHolder:cardHolder??null};
         const pmt=await createPayment({userId,reservationId:created[0].resId,customerName,amount:totalTransactionAmount,status:'paid',snapshot});
         setPayments(prev=>[pmt,...prev]);
         paymentGroups.current[paymentGroupId]=true;
@@ -2974,7 +2985,7 @@ useEffect(() => {
           </div>
         </nav>
         <div className="content">
-          <OpsView reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} activeWaiverDoc={activeWaiver} currentUser={liveUser}/>
+          <OpsView reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} activeWaiverDoc={activeWaiver} currentUser={liveUser} setPayments={setPayments}/>
         </div>
       </div>
     </>);
