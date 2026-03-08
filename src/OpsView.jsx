@@ -160,6 +160,9 @@ const DIFF_OPTIONS=[
 const MAX_TENTHS=6000; // 10 minutes in tenths of a second
 const fmtTenths=t=>{const min=Math.floor(t/600),sec=Math.floor((t%600)/10),tenth=t%10;return`${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${tenth}`;};
 const dfltLane=()=>({uiVisual:'Standard',visual:'V',uiAudio:'TUNES',audio:'T',cranked:false,targetsEliminated:false,objectiveComplete:false,objectiveId:null,difficulty:'NONE',winnerTeam:null});
+// Assigns each reservation in a slot to a team (1 or 2), keeping each group together.
+// Reservations are processed in booking order; each goes to the smaller team.
+function calcResVsTeams(reses){const sorted=[...reses].sort((a,b)=>(a.createdAt??a.id)<(b.createdAt??b.id)?-1:1);let t1=0,t2=0;const map={};for(const r of sorted){const n=(r.players||[]).length||r.playerCount||1;const team=t1<=t2?1:2;map[r.id]=team;if(team===1)t1+=n;else t2+=n;}return map;}
 
 function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit}){
   const [run,setRun]=useState(1);
@@ -178,11 +181,11 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       if(rt?.mode!=='versus')return;
       const allPlayers=lane.reservations.flatMap(r=>r.players||[]);
       const laneSnap={};
-      allPlayers.forEach((p,idx)=>{
+      const laneResTeams=calcResVsTeams(lane.reservations);
+      allPlayers.forEach(p=>{
         const ownerRes=lane.reservations.find(r=>(r.players||[]).some(pl=>pl.id===p.id));
         const vt=versusTeams?.[ownerRes?.id]?.[p.id];
-        // Fall back to player.team from DB, then positional
-        laneSnap[p.id]=vt!=null?vt:p.team!=null?p.team:(idx<6?1:2);
+        laneSnap[p.id]=vt!=null?vt:p.team!=null?p.team:(laneResTeams[ownerRes?.id]??1);
       });
       snap[li]=laneSnap;
     });
@@ -228,8 +231,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     if(rt[pid]!=null)return rt[pid];
     const vt=versusTeams[res.id];
     if(vt&&vt[pid]!=null)return vt[pid];
-    const players=res.players||[];
-    return players.findIndex(p=>p.id===pid)<6?1:2;
+    const pObj=(res.players||[]).find(p=>p.id===pid);
+    if(pObj?.team!=null)return pObj.team;
+    return calcResVsTeams(lanes[laneIdx].reservations)[res.id]??1;
   };
   const setPlayerTeam=(laneIdx,pid,team)=>setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),[pid]:team}}}));
 
@@ -264,8 +268,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         const r1=runTeams[1]?.[laneIdx]?.[player.id];
         const resForPlayer=lane.reservations.find(r=>(r.players||[]).some(p=>p.id===player.id));
         const vt=versusTeams[resForPlayer?.id]?.[player.id];
-        const half=Math.ceil(allLanePlayers.length/2);
-        const fallback=allLanePlayers.findIndex(p=>p.id===player.id)<half?1:2;
+        const fallback=calcResVsTeams(lane.reservations)[resForPlayer?.id]??1;
         return updateReservationPlayer(player.id,{team:r1??vt??fallback});
       }));
       const r1=await createRun({...base,team:1,role:'hunter',targetsEliminated:false,objectiveComplete:s.winnerTeam===1,score:huntersScore});
@@ -489,7 +492,8 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const ov=runTeams[run]?.[laneIdx]?.[pid];if(ov!==undefined)return ov;
       const vt=vtForPid(pid);if(vt!==undefined)return vt;
       const pObj=allPlayers.find(p=>p.id===pid);if(pObj?.team!=null)return pObj.team;
-      const idx=allPlayers.findIndex(p=>p.id===pid);return idx<6?1:2;
+      const ownerRes=allRes.find(r=>(r.players||[]).some(p=>p.id===pid));
+      return calcResVsTeams(allRes)[ownerRes?.id]??1;
     };
     // Row tint: Blue(1)/Red(2) — locked to run 1 identity, never changes in run 2.
     // In run 2, invert the run 2 assignment (doLogRun flipped T1↔T2) to recover run 1 color.
@@ -1009,13 +1013,14 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
 
   const moveRes=(resId,toLaneNum)=>setPending(p=>({...p,[resId]:toLaneNum}));
 
-  const getTeam=(resId,pid,players)=>{
+  const getTeam=(resId,pid)=>{
     if(pendingTeams[resId]?.[pid]!==undefined)return pendingTeams[resId][pid];
-    const idx=(players||[]).findIndex(p=>p.id===pid);
-    return idx<6?1:2;
+    const res=reservations.find(r=>r.id===resId);
+    if(res){const slotReses=reservations.filter(r=>r.date===res.date&&r.startTime===res.startTime&&r.status!=='cancelled');return calcResVsTeams(slotReses)[resId]??1;}
+    return 1;
   };
-  const toggleTeam=(resId,pid,players)=>{
-    const cur=getTeam(resId,pid,players);
+  const toggleTeam=(resId,pid)=>{
+    const cur=getTeam(resId,pid);
     setPendingTeams(p=>({...p,[resId]:{...(p[resId]||{}),[pid]:cur===1?2:1}}));
   };
   const setAllTeam=(resId,players,team)=>{
@@ -1058,8 +1063,8 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
                           ))}
                         </div>
                         {isVs&&players.length>0&&(()=>{
-                          const t1=players.filter(p=>getTeam(res.id,p.id,players)===1);
-                          const t2=players.filter(p=>getTeam(res.id,p.id,players)===2);
+                          const t1=players.filter(p=>getTeam(res.id,p.id)===1);
+                          const t2=players.filter(p=>getTeam(res.id,p.id)===2);
                           return(
                             <div style={{display:"flex",gap:".4rem"}}>
                               {[{num:1,label:"Hunters",list:t1},{num:2,label:"Coyotes",list:t2}].map(({num,label,list})=>(
@@ -1072,7 +1077,7 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
                                   {list.map(pl=>(
                                     <div key={pl.id} style={{display:"flex",alignItems:"center",gap:".3rem",padding:".2rem 0"}}>
                                       <span style={{flex:1,fontSize:".8rem",color:"var(--txt)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pl.name}</span>
-                                      <button style={{fontSize:".65rem",padding:".1rem .35rem",border:`1px solid ${num===1?"var(--acc)":"var(--warn)"}`,borderRadius:4,background:"none",color:num===1?"var(--accB)":"var(--warnL)",cursor:"pointer"}} onClick={()=>toggleTeam(res.id,pl.id,players)}>{num===1?"↓T2":"↑T1"}</button>
+                                      <button style={{fontSize:".65rem",padding:".1rem .35rem",border:`1px solid ${num===1?"var(--acc)":"var(--warn)"}`,borderRadius:4,background:"none",color:num===1?"var(--accB)":"var(--warnL)",cursor:"pointer"}} onClick={()=>toggleTeam(res.id,pl.id)}>{num===1?"↓T2":"↑T1"}</button>
                                     </div>
                                   ))}
                                 </div>
@@ -1414,7 +1419,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                     {/* ── Players — always visible ── */}
                     <div style={{borderTop:"1px solid var(--bdr)",padding:".65rem 1rem"}}>
                       {rt?.mode==="versus"?(()=>{
-                        const getTeam=pid=>{if(versusTeams[res.id]?.[pid]!==undefined)return versusTeams[res.id][pid];const idx=players.findIndex(p=>p.id===pid);return idx<6?1:2;};
+                        const getTeam=pid=>{if(versusTeams[res.id]?.[pid]!==undefined)return versusTeams[res.id][pid];const pObj=players.find(p=>p.id===pid);if(pObj?.team!=null)return pObj.team;const slotReses=reservations.filter(r=>r.date===res.date&&r.startTime===res.startTime&&r.status!=='cancelled');return calcResVsTeams(slotReses)[res.id]??1;};
                         const t1=players.filter(p=>getTeam(p.id)===1);
                         const t2=players.filter(p=>getTeam(p.id)===2);
                         const switchT=pid=>setVersusTeams(prev=>({...prev,[res.id]:{...(prev[res.id]||{}),[pid]:getTeam(pid)===1?2:1}}));
