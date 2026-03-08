@@ -1562,7 +1562,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
             {wiStep==="players"&&(()=>{
               const primaryRes=reservations.find(r=>r.id===wiNewResIds[0]);
               const currentPlayers=primaryRes?.players||[];
-              const wiMaxPlayers=wiIsPriv?(wiRt?.maxPlayers||laneCapacity(wiRt?.mode||"coop")):null;
+              const wiMaxPlayers=wiIsPriv?(wiRt?.maxPlayers||laneCapacity(wiRt?.mode||"coop")):(wi.playerCount||null);
               const atCapacity=wiMaxPlayers!==null&&currentPlayers.length>=wiMaxPlayers;
               return<>
                 <div className="mt2">Add Players</div>
