@@ -1836,7 +1836,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
     setBlockSaving(true);
     try{
       const conflictingShifts=shifts.filter(s=>{
-        if(s.staffId!==currentUser.id||s.conflicted)return false;
+        if(s.staffId!==currentUser.id||s.conflicted||s.role==='Admin')return false;
         if(s.date<blockDraft.startDate||s.date>blockDraft.endDate)return false;
         if(blockDraft.isFullDay)return true;
         const bs=timeToMin(blockDraft.startTime),be=timeToMin(blockDraft.endTime);
@@ -1879,7 +1879,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   const conflicts=shifts.filter(s=>s.conflicted);
   const avail=shifts.filter(s=>{
     if(!((!s.staffId&&(s.open||s.templateSlotId))||(s.conflicted&&s.staffId&&s.staffId!==currentUser.id)))return false;
-    return!shifts.some(x=>x.staffId===currentUser.id&&x.date===s.date&&x.start<s.end&&x.end>s.start);
+    return!shifts.some(x=>x.staffId===currentUser.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start);
   });
   const dayShifts=[...shifts].filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
   const dayAvail=avail.filter(s=>s.date===selectedDay).sort((a,b)=>timeToMin(a.start)-timeToMin(b.start));
@@ -1900,7 +1900,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <div className="f"><label>Reason</label><input value={cNote} onChange={e=>setCNote(e.target.value)} placeholder="e.g. family commitment, medical" required/></div>
         <div className="ma"><button className="btn btn-s" onClick={()=>setConflictModal(null)}>Cancel</button><button className="btn btn-warn" disabled={shiftOpBusy||!cNote.trim()} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await flagShiftConflict(conflictModal.id,cNote||null);setShifts(p=>p.map(s=>s.id===conflictModal.id?{...s,conflicted:true,conflictNote:cNote}:s));onAlert(currentUser.name+' flagged a conflict for '+fmt(conflictModal.date));setConflictModal(null);}catch(e){onAlert('Error flagging conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Flag →</button></div>
       </div></div>}
-      {assignModal&&(()=>{const s=assignModal.shift;const eligible=users.filter(u=>{if(u.access==='customer')return false;if(s.role&&u.role!==s.role)return false;return!shifts.some(x=>x.id!==s.id&&x.staffId===u.id&&x.date===s.date&&x.startTime<s.endTime&&x.endTime>s.startTime);});return(<div className="mo" onClick={()=>{setAssignModal(null);setAssignTarget('')}}><div className="mc" style={{maxWidth:360}} onClick={e=>e.stopPropagation()}>
+      {assignModal&&(()=>{const s=assignModal.shift;const eligible=users.filter(u=>{if(u.access==='customer')return false;if(s.role&&u.role!==s.role)return false;return!shifts.some(x=>x.id!==s.id&&x.staffId===u.id&&x.role!=='Admin'&&x.date===s.date&&x.startTime<s.endTime&&x.endTime>s.startTime);});return(<div className="mo" onClick={()=>{setAssignModal(null);setAssignTarget('')}}><div className="mc" style={{maxWidth:360}} onClick={e=>e.stopPropagation()}>
         <div className="mt2">Assign Shift</div>
         <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>{s.role&&<><strong style={{color:"var(--txt)"}}>{s.role}</strong> · </>}{fmt(s.date)} {fmt12(s.start)}–{fmt12(s.end)}</p>
         {eligible.length===0?<p style={{color:"var(--muted)",fontSize:".85rem"}}>No eligible staff available at this time.</p>:<div className="f"><label>Assign to</label><select value={assignTarget} onChange={e=>setAssignTarget(e.target.value)} style={{width:'100%'}}><option value="">— select staff —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}</select></div>}
@@ -1908,7 +1908,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
       </div></div>);})()}
       {editShiftModal&&<div className="mo" onClick={()=>setEditShiftModal(null)}><div className="mc" style={{maxWidth:380}} onClick={e=>e.stopPropagation()}>
         <div className="mt2">Edit Shift — {fmt(editShiftModal.date)}</div>
-        {(()=>{const em=editShiftModal;const eligible=users.filter(u=>{if(u.access==='customer'||u.active===false)return false;if(em.role&&u.role!==em.role)return false;return!shifts.some(x=>x.id!==em.id&&x.staffId===u.id&&x.date===em.date&&x.start<em.end&&x.end>em.start);});return(<div className="f"><label>Assigned Staff</label><select value={em.staffId} onChange={e=>setEditShiftModal(p=>({...p,staffId:e.target.value}))} style={{width:'100%'}}><option value="">— Unassigned —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}{em.staffId&&!eligible.find(u=>u.id===em.staffId)&&(()=>{const cur=users.find(u=>u.id===em.staffId);return cur?<option key={cur.id} value={cur.id}>{cur.name}{cur.role?` (${cur.role})`:''} ⚠ conflict</option>:null;})()}</select></div>);})()}
+        {(()=>{const em=editShiftModal;const eligible=users.filter(u=>{if(u.access==='customer'||u.active===false)return false;if(em.role&&u.role!==em.role)return false;return!shifts.some(x=>x.id!==em.id&&x.staffId===u.id&&x.role!=='Admin'&&x.date===em.date&&x.start<em.end&&x.end>em.start);});return(<div className="f"><label>Assigned Staff</label><select value={em.staffId} onChange={e=>setEditShiftModal(p=>({...p,staffId:e.target.value}))} style={{width:'100%'}}><option value="">— Unassigned —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}{em.staffId&&!eligible.find(u=>u.id===em.staffId)&&(()=>{const cur=users.find(u=>u.id===em.staffId);return cur?<option key={cur.id} value={cur.id}>{cur.name}{cur.role?` (${cur.role})`:''} ⚠ conflict</option>:null;})()}</select></div>);})()}
         <div className="g2"><div className="f"><label>Start</label><input type="time" value={editShiftModal.start} onChange={e=>setEditShiftModal(p=>({...p,start:e.target.value}))}/></div><div className="f"><label>End</label><input type="time" value={editShiftModal.end} onChange={e=>setEditShiftModal(p=>({...p,end:e.target.value}))}/></div></div>
         <div className="ma"><button className="btn btn-s" onClick={()=>setEditShiftModal(null)}>Cancel</button><button className="btn btn-ok" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const changes={start:editShiftModal.start,end:editShiftModal.end,staffId:editShiftModal.staffId||null,open:!editShiftModal.staffId};const updated=await updateShift(editShiftModal.id,changes);setShifts(p=>p.map(x=>x.id===editShiftModal.id?updated:x));setEditShiftModal(null);}catch(e){onAlert('Error saving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Save'}</button></div>
       </div></div>}
@@ -1966,7 +1966,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
             {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
             {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
           </div>
-          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;if(shifts.some(x=>x.staffId===currentUser.id&&x.date===s.date&&x.start<s.end&&x.end>s.start)){onAlert('You already have a shift at this time.');return;}setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){setShifts(p=>p.map(x=>x.id===s.id?claimed:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
+          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;if(shifts.some(x=>x.staffId===currentUser.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start)){onAlert('You already have a shift at this time.');return;}setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){setShifts(p=>p.map(x=>x.id===s.id?claimed:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
         </div>)}
         {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>{const d=prompt("Date (YYYY-MM-DD):");const st=prompt("Start (HH:MM):");const en=prompt("End (HH:MM):");if(d&&st&&en)setShifts(p=>[...p,{id:Date.now(),staffId:null,date:d,start:st,end:en,open:true}]);}}>+ Post Open Shift</button>}
       </>}
