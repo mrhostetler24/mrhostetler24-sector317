@@ -824,18 +824,24 @@ export async function fetchRunsForReservation(reservationId) {
 /** Fetch all runs for a list of reservation IDs (bulk load for mission board) */
 export async function fetchRunsForReservations(reservationIds) {
   if (!reservationIds.length) return []
+  // Chunk the .in() filter — large ID lists exceed URL length limits and fail silently
+  const ID_CHUNK = 150
   const BATCH = 1000
-  let all = [], from = 0
-  while (true) {
-    const { data, error } = await supabase
-      .from('session_runs').select('*')
-      .in('reservation_id', reservationIds)
-      .order('reservation_id').order('run_number')
-      .range(from, from + BATCH - 1)
-    if (error) throw error
-    all = all.concat(data)
-    if (data.length < BATCH) break
-    from += BATCH
+  let all = []
+  for (let i = 0; i < reservationIds.length; i += ID_CHUNK) {
+    const chunk = reservationIds.slice(i, i + ID_CHUNK)
+    let from = 0
+    while (true) {
+      const { data, error } = await supabase
+        .from('session_runs').select('*')
+        .in('reservation_id', chunk)
+        .order('reservation_id').order('run_number')
+        .range(from, from + BATCH - 1)
+      if (error) throw error
+      all = all.concat(data)
+      if (data.length < BATCH) break
+      from += BATCH
+    }
   }
   return all.map(toRun)
 }
