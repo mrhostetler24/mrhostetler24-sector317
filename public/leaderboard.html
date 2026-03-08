@@ -272,10 +272,59 @@
       .col-best { display:none; }
       td.col-hide,th.col-hide { display:none; }
     }
-    @media(max-width:500px){
-      .layout { flex-direction:column; }
-      .sidebar { width:100%; height:auto; flex-direction:row; flex-wrap:wrap; }
-      .board-panel { height:calc(100vh - 160px); }
+    @media(max-width:520px){
+      html, body { height:auto; overflow-x:hidden; overflow-y:auto; }
+
+      .layout { flex-direction:column; min-height:100vh; }
+
+      /* Sidebar → compact stacked top nav */
+      .sidebar {
+        width:100%; height:auto; flex-shrink:0;
+        border-right:none; border-bottom:2px solid var(--bdr);
+        overflow-y:visible;
+      }
+
+      .sidebar-brand {
+        display:flex; align-items:center; gap:.75rem;
+        padding:.75rem 1rem; text-align:left;
+        border-bottom:1px solid rgba(200,224,58,.08);
+      }
+      .sidebar-brand .logo { height:34px; margin-bottom:0; flex-shrink:0; }
+      .sidebar-brand .lb-title { font-size:1.25rem; }
+      .sidebar-brand .lb-sub { display:none; }
+
+      .sidebar-section { padding:.6rem .9rem; }
+      .s-label { margin-bottom:.4rem; }
+      .mode-explain { display:none; }
+      .mode-btn { padding:.5rem .4rem; font-size:.82rem; }
+
+      /* Period tabs → horizontal scrollable row */
+      .tabs-list {
+        flex-direction:row; overflow-x:auto; gap:.3rem;
+        padding-bottom:.15rem; -webkit-overflow-scrolling:touch;
+      }
+      .tabs-list::-webkit-scrollbar { display:none; }
+      .tab { white-space:nowrap; padding:.45rem .7rem; font-size:.82rem; }
+
+      /* Footer hidden on phone — no screen real estate */
+      .sidebar-footer { display:none; }
+
+      /* Board → natural page scroll, no fixed-height internal scroll */
+      .board-panel { height:auto; min-height:0; overflow:visible; border-top:none; }
+      .board-content { flex:none; min-height:0; }
+      .board-fixed { position:static; }
+      .board-scroll { overflow:visible; height:auto; flex:none; }
+
+      /* Tighter table for small screens */
+      .col-rank  { width:46px; }
+      .col-score { width:88px; }
+      .col-best  { display:none; }
+      td.col-hide, th.col-hide { display:none; }
+      td { padding:.65rem .55rem; font-size:.82rem; }
+      th { padding:.45rem .55rem; }
+      .score-main { font-size:1rem; }
+      .player-name { font-size:.92rem; }
+      .player-meta { font-size:.68rem; }
     }
   </style>
 </head>
@@ -643,10 +692,14 @@ function resetIdle(){
   idleTimer = setTimeout(activateKiosk, IDLE_ACTIVATE_MS)
 }
 
-document.addEventListener('mousemove',  resetIdle, {passive:true})
-document.addEventListener('touchstart', resetIdle, {passive:true})
-document.addEventListener('keydown',    resetIdle, {passive:true})
-document.addEventListener('click',      resetIdle, {passive:true})
+const IS_PHONE = window.matchMedia('(max-width:520px)').matches
+
+if(!IS_PHONE){
+  document.addEventListener('mousemove',  resetIdle, {passive:true})
+  document.addEventListener('touchstart', resetIdle, {passive:true})
+  document.addEventListener('keydown',    resetIdle, {passive:true})
+  document.addEventListener('click',      resetIdle, {passive:true})
+}
 
 function activateKiosk(){
   kioskActive = true
@@ -720,8 +773,8 @@ async function kioskAdvanceTab(){
   if(kioskActive) kioskPauseTop(PAUSE_TOP)
 }
 
-// Start idle countdown on page load
-idleTimer = setTimeout(activateKiosk, IDLE_ACTIVATE_MS)
+// Start idle countdown on page load — skip on phones
+if(!IS_PHONE) idleTimer = setTimeout(activateKiosk, IDLE_ACTIVATE_MS)
 
 // ── Initial load ─────────────────────────────────────────────────
 loadBoard('alltime','avg')
