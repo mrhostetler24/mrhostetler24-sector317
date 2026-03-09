@@ -60,6 +60,7 @@ const toUser = r => r ? ({
   hideHomeBase:       r.hide_home_base  ?? false,
   hideBio:            r.hide_bio        ?? false,
   socialLinks:        r.social_links    ?? [],
+  credits:            r.credits         ?? 0,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -332,6 +333,20 @@ export async function updateUserAdmin(id, { name, phone, access, role, active, l
   if (error) throw error
   const row = Array.isArray(data) ? data[0] : data
   return toUser(row)
+}
+
+// Admin: set a customer's credit balance (calls SECURITY DEFINER RPC)
+export async function setUserCredits(userId, credits) {
+  const { error } = await supabase.rpc('admin_set_user_credits', { p_user_id: userId, p_credits: Math.max(0, credits) })
+  if (error) throw error
+}
+
+// Deduct credits from a user's balance at checkout (calls SECURITY DEFINER RPC)
+// Returns new balance
+export async function deductUserCredits(userId, amount) {
+  const { data, error } = await supabase.rpc('deduct_user_credits', { p_user_id: userId, p_amount: amount })
+  if (error) throw error
+  return data ?? 0
 }
 
 export async function updateUser(id, changes) {

@@ -9,7 +9,7 @@ import {
   upsertMerchDiscount, upsertStockLocation, upsertBundleComponents,
   adjustMerchInventory, validateMerchDiscount, createMerchOrder,
   processMerchReturn, voidGiftCode, updateMerchOrderStatus,
-  fetchUserByPhone, createGuestUser, createPayment,
+  fetchUserByPhone, createGuestUser, createPayment, deductUserCredits,
 } from './supabase.js'
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -960,6 +960,7 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
   const [cardLast4, setCardLast4] = useState('')
   const [cardExpiry, setCardExpiry] = useState('')
   const [cardHolder, setCardHolder] = useState('')
+  const [applyCredits, setApplyCredits] = useState(false)
   const [saving, setSaving] = useState(false)
   const [completedPayment, setCompletedPayment] = useState(null)
 
@@ -985,6 +986,9 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
       : Math.min(appliedDiscount.amount, cartTotal)
   }, [appliedDiscount, cartTotal])
   const finalTotal = Math.max(cartTotal - discountAmount, 0)
+  const customerCredits = (foundUserId && users ? (users.find(u => u.id === foundUserId)?.credits ?? 0) : 0)
+  const staffCreditsApplied = applyCredits ? Math.min(customerCredits, finalTotal) : 0
+  const staffAmountDue = finalTotal - staffCreditsApplied
 
   const addToCart = (item) => {
     setCart(prev => {
@@ -1059,6 +1063,12 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
       })
 
       if (setPayments) setPayments(prev => [payment, ...prev])
+      if (staffCreditsApplied > 0) {
+        try {
+          const newBal = await deductUserCredits(userId, staffCreditsApplied)
+          if (setUsers) setUsers(prev => prev.map(u => u.id === userId ? { ...u, credits: newBal } : u))
+        } catch (credErr) { console.warn('Credits deduction error:', credErr.message) }
+      }
       setCompletedPayment(payment)
       setStep('receipt')
 
@@ -1071,7 +1081,7 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
   const reset = () => {
     setCart([]); setSearch(''); setCatFilter(''); setDiscountCode(''); setAppliedDiscount(null); setDiscountErr('')
     setCustomerPhone(''); setCustomerName(''); setFoundUserId(null); setLookupStatus('idle')
-    setCardLast4(''); setCardExpiry(''); setCardHolder('')
+    setCardLast4(''); setCardExpiry(''); setCardHolder(''); setApplyCredits(false)
     setCompletedPayment(null); setStep('browse')
   }
 
@@ -1135,8 +1145,18 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
         {step === 'payment' && (
           <div style={{ maxWidth: 440 }}>
             <div style={{ fontWeight: 700, marginBottom: '1rem' }}>Payment</div>
+            {customerCredits > 0 && (
+              <div style={{ background: 'rgba(100,180,100,.08)', border: '1px solid rgba(100,180,100,.3)', borderRadius: 6, padding: '.6rem .85rem', marginBottom: '.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', cursor: 'pointer' }} onClick={() => setApplyCredits(a => !a)}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '.5rem', cursor: 'pointer', fontSize: '.85rem' }}>
+                  <input type="checkbox" checked={applyCredits} readOnly style={{ accentColor: 'var(--ok)' }} />
+                  Apply store credits ({fmtMoney(customerCredits)} available)
+                </label>
+                {staffCreditsApplied > 0 && <span style={{ color: 'var(--ok)', fontWeight: 700 }}>-{fmtMoney(staffCreditsApplied)}</span>}
+              </div>
+            )}
             <div style={{ background: 'rgba(184,150,12,.08)', border: '1px solid var(--warn)', borderRadius: 6, padding: '.75rem 1rem', fontSize: '.9rem', color: 'var(--warnL)', marginBottom: '1rem', textAlign: 'center' }}>
-              💳 Present terminal to customer for <strong>{fmtMoney(finalTotal)}</strong>
+              💳 Present terminal to customer for <strong>{fmtMoney(staffAmountDue)}</strong>
+              {staffCreditsApplied > 0 && <span style={{ fontSize: '.78rem', display: 'block', color: 'var(--muted)', marginTop: '.2rem' }}>({fmtMoney(staffCreditsApplied)} covered by credits)</span>}
             </div>
             <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', marginBottom: '1rem' }}>
               <div style={{ fontSize: '.68rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '.5rem' }}>Card Details (after terminal approval)</div>
@@ -1250,6 +1270,7 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
   const [cardLast4, setCardLast4] = useState('')
   const [cardExpiry, setCardExpiry] = useState('')
   const [cardHolder, setCardHolder] = useState('')
+  const [applyCredits, setApplyCredits] = useState(false)
   const [saving, setSaving] = useState(false)
   const [completedPayment, setCompletedPayment] = useState(null)
 
@@ -1279,6 +1300,9 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
       : Math.min(appliedDiscount.amount, cartTotal)
   }, [appliedDiscount, cartTotal])
   const finalTotal = Math.max(cartTotal + shippingCharge - discountAmount, 0)
+  const storefrontCreditBalance = currentUser?.credits ?? 0
+  const storefrontCreditsApplied = applyCredits ? Math.min(storefrontCreditBalance, finalTotal) : 0
+  const storefrontAmountDue = finalTotal - storefrontCreditsApplied
 
   const addToCart = (item) => {
     const product = catalog.find(p => p.id === item.productId)
@@ -1338,6 +1362,10 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
       })
 
       if (setPayments) setPayments(prev => [payment, ...prev])
+      if (storefrontCreditsApplied > 0) {
+        try { await deductUserCredits(currentUser.id, storefrontCreditsApplied) }
+        catch (credErr) { console.warn('Credits deduction error:', credErr.message) }
+      }
       setCompletedPayment(payment)
       setStep('receipt')
     } catch (e) { onAlert?.('Checkout error: ' + e.message) }
@@ -1428,8 +1456,17 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
             </div>
             {discountAmount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.85rem', color: 'var(--ok)', marginBottom: '.3rem' }}><span>Discount</span><span>-{fmtMoney(discountAmount)}</span></div>}
             {shippingCharge > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.85rem', marginBottom: '.3rem' }}><span>Shipping</span><span>{fmtMoney(shippingCharge)}</span></div>}
+            {storefrontCreditBalance > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '.85rem', marginBottom: '.3rem', cursor: 'pointer', color: applyCredits ? 'var(--ok)' : 'var(--muted)' }} onClick={() => setApplyCredits(a => !a)}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '.4rem', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={applyCredits} readOnly style={{ accentColor: 'var(--ok)' }} />
+                  Credits ({fmtMoney(storefrontCreditBalance)})
+                </label>
+                <span>{applyCredits ? `-${fmtMoney(storefrontCreditsApplied)}` : ''}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', borderTop: '2px solid var(--bdr)', paddingTop: '.5rem', marginBottom: '1rem' }}>
-              <span>Total</span><span style={{ color: 'var(--acc)' }}>{fmtMoney(finalTotal)}</span>
+              <span>Total</span><span style={{ color: 'var(--acc)' }}>{fmtMoney(storefrontAmountDue)}</span>
             </div>
             <button className="btn btn-p" style={{ width: '100%' }} onClick={() => setStep('checkout')}>Continue to Checkout →</button>
           </div>
@@ -1448,31 +1485,45 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
               ))}
             </div>
           )}
-          <div style={{ background: 'rgba(184,150,12,.08)', border: '1px solid var(--warn)', borderRadius: 6, padding: '.75rem 1rem', fontSize: '.9rem', color: 'var(--warnL)', marginBottom: '1rem', textAlign: 'center' }}>
-            💳 Present terminal to customer for <strong>{fmtMoney(finalTotal)}</strong>
-          </div>
-          <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', marginBottom: '1rem' }}>
-            <div style={{ fontSize: '.68rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '.5rem' }}>Card Details (after terminal approval)</div>
-            <div style={{ display: 'flex', gap: '.5rem', marginBottom: '.4rem' }}>
-              <div style={{ flex: 1 }}><label style={{ fontSize: '.72rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Last 4 Digits</label>
-                <input type="text" inputMode="numeric" maxLength={4} value={cardLast4}
-                  onChange={e => setCardLast4(e.target.value.replace(/\D/g, ''))}
-                  style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.88rem' }} />
+          {storefrontCreditsApplied > 0 && (
+            <div style={{ background: 'rgba(100,180,100,.08)', border: '1px solid rgba(100,180,100,.3)', borderRadius: 6, padding: '.6rem .85rem', marginBottom: '.75rem', fontSize: '.85rem', color: 'var(--ok)' }}>
+              ✓ {fmtMoney(storefrontCreditsApplied)} store credits applied
+            </div>
+          )}
+          {storefrontAmountDue > 0 && (
+            <div style={{ background: 'rgba(184,150,12,.08)', border: '1px solid var(--warn)', borderRadius: 6, padding: '.75rem 1rem', fontSize: '.9rem', color: 'var(--warnL)', marginBottom: '1rem', textAlign: 'center' }}>
+              💳 Present terminal to customer for <strong>{fmtMoney(storefrontAmountDue)}</strong>
+            </div>
+          )}
+          {storefrontAmountDue > 0 && (
+            <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', marginBottom: '1rem' }}>
+              <div style={{ fontSize: '.68rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '.5rem' }}>Card Details (after terminal approval)</div>
+              <div style={{ display: 'flex', gap: '.5rem', marginBottom: '.4rem' }}>
+                <div style={{ flex: 1 }}><label style={{ fontSize: '.72rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Last 4 Digits</label>
+                  <input type="text" inputMode="numeric" maxLength={4} value={cardLast4}
+                    onChange={e => setCardLast4(e.target.value.replace(/\D/g, ''))}
+                    style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.88rem' }} />
+                </div>
+                <div style={{ flex: 1 }}><label style={{ fontSize: '.72rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Expiry (MM/YY)</label>
+                  <input type="text" maxLength={5} placeholder="MM/YY" value={cardExpiry}
+                    onChange={e => setCardExpiry(e.target.value)}
+                    style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.88rem' }} />
+                </div>
               </div>
-              <div style={{ flex: 1 }}><label style={{ fontSize: '.72rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Expiry (MM/YY)</label>
-                <input type="text" maxLength={5} placeholder="MM/YY" value={cardExpiry}
-                  onChange={e => setCardExpiry(e.target.value)}
+              <div><label style={{ fontSize: '.72rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Name on Card</label>
+                <input type="text" value={cardHolder} placeholder={currentUser?.name || 'Cardholder name'}
+                  onChange={e => setCardHolder(e.target.value)}
                   style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.88rem' }} />
               </div>
             </div>
-            <div><label style={{ fontSize: '.72rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Name on Card</label>
-              <input type="text" value={cardHolder} placeholder={currentUser?.name || 'Cardholder name'}
-                onChange={e => setCardHolder(e.target.value)}
-                style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.88rem' }} />
+          )}
+          {storefrontAmountDue === 0 && storefrontCreditsApplied > 0 && (
+            <div style={{ background: 'rgba(100,180,100,.1)', border: '1px solid rgba(100,180,100,.3)', borderRadius: 5, padding: '.6rem .85rem', fontSize: '.82rem', color: 'var(--ok)', marginBottom: '1rem' }}>
+              ✓ Covered in full by store credits — no card required.
             </div>
-          </div>
+          )}
           <button className="btn btn-p" style={{ width: '100%' }} disabled={saving} onClick={doCheckout}>
-            {saving ? 'Processing…' : `Complete Purchase · ${fmtMoney(finalTotal)}`}
+            {saving ? 'Processing…' : `Complete Purchase · ${fmtMoney(storefrontAmountDue)}`}
           </button>
         </div>
       )}

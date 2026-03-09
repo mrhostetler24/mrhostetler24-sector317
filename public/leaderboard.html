@@ -237,18 +237,8 @@
     .t-legend   { background:rgba(245,200,66,.1);   color:var(--gold);   border:1px solid rgba(245,200,66,.35); box-shadow:0 0 10px rgba(245,200,66,.12); }
 
     /* Rank icons (before player name) */
-    .tier-icon { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; opacity:.9; }
-    .tier-icon svg { display:block; }
-    .ti-recruit  { color:#e8e8e8; }
-    .ti-initiate { color:#8b95c9; }
-    .ti-operator { color:#4db6ac; }
-    .ti-striker  { color:#85b07a; }
-    .ti-vanguard { color:#5a9a6a; }
-    .ti-sentinel { color:#6b9dcf; }
-    .ti-enforcer { color:#c94a5a; }
-    .ti-apex     { color:var(--bronze); }
-    .ti-elite    { color:var(--silver); }
-    .ti-legend   { color:var(--gold); filter:drop-shadow(0 0 5px rgba(245,200,66,.35)); }
+    .tier-icon { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:28px; height:18px; }
+    .tier-icon img { display:block; max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; opacity:.9; }
 
     /* Score bar */
     .score-bar-wrap { height:2px; background:rgba(200,224,58,.07); border-radius:1px; margin-top:.4rem; }
@@ -450,37 +440,11 @@ function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function delay(ms){ return new Promise(r=>setTimeout(r,ms)) }
 
 // ── Tier rank icons ───────────────────────────────────────────────
-const TIER_SVGS = (()=>{
-  // Normalized 5-point star path (outer r=1, top at 12-o'clock)
-  const SP = 'M0,-1 .23,-.32 .95,-.31 .36,.12 .59,.81 0,.38 -.59,.81 -.36,.12 -.95,-.31 -.23,-.32Z'
-  const star = (cx,cy,sz) => `<path d="${SP}" fill="currentColor" transform="translate(${cx},${cy}) scale(${sz})"/>`
-  // Filled chevron polygon — peak at (10,py), ends at y=ey, arm half-width hw
-  // Angled end-caps come naturally from the filled parallelogram arms (no stroke tricks needed)
-  const cf = (py,ey,hw) => { const ht=ey-py,len=Math.hypot(10,ht),nx=ht/len*hw,ny=10/len*hw,iy=ey+ny,ipy=iy-ht*(10-nx)/10,f=v=>+v.toFixed(1); return `<polygon points="0,${ey} 10,${py} 20,${ey} ${f(20-nx)},${f(iy)} 10,${f(ipy)} ${f(nx)},${f(iy)}" fill="currentColor"/>` }
-  const s = (w,h,vw,vh,c) => `<svg width="${w}" height="${h}" viewBox="0 0 ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg">${c}</svg>`
-  return {
-    // 1. Single filled chevron
-    recruit:  s(14,12,20,17, cf(2,14,3.5)),
-    // 2. Two filled chevrons
-    initiate: s(14,17,20,24, cf(2,9,3.5)+cf(13,20,3.5)),
-    // 3. Two filled chevrons + star
-    operator: s(14,18,20,26, cf(2,8,3.0)+cf(10.5,16.5,3.0)+star(10,22,3.2)),
-    // 4. Single vertical bar
-    striker:  s(10,20,12,24, '<rect x="3" y="1" width="6" height="22" fill="currentColor"/>'),
-    // 5. Two vertical bars
-    vanguard: s(16,20,20,24, '<rect x="1" y="1" width="6" height="22" fill="currentColor"/><rect x="13" y="1" width="6" height="22" fill="currentColor"/>'),
-    // 6. Shield
-    sentinel: s(16,20,20,24, '<path d="M10,2 L18,5 L18,12 Q18,21 10,23 Q2,21 2,12 L2,5 Z" stroke="currentColor" stroke-width="2.8" fill="none" stroke-linejoin="miter"/>'),
-    // 7. Eagle wings
-    enforcer: s(22,14,28,18, '<path d="M14,9 C11,6 6,5 0,7 C3,10 9,10 14,10Z" fill="currentColor"/><path d="M14,9 C17,6 22,5 28,7 C25,10 19,10 14,10Z" fill="currentColor"/><ellipse cx="14" cy="12" rx="2.5" ry="3.5" fill="currentColor"/>'),
-    // 8. Single star
-    apex:     s(16,16,20,20, star(10,10,8.5)),
-    // 9. Two stars side by side
-    elite:    s(22,14,28,18, star(7,9,5.5)+star(21,9,5.5)),
-    // 10. Crown — sharp polygon body with 3 stars (large center, 2 smaller sides)
-    legend:   s(28,22,56,44, '<path d="M 0,40 L 0,28 L 12,16 L 22,30 L 28,10 L 34,30 L 44,16 L 56,28 L 56,40 Z" fill="currentColor"/>'+star(12,12,5)+star(28,6,6)+star(44,12,5)),
-  }
-})()
+const TIER_SHINE = {
+  apex:    'drop-shadow(0 0 3px rgba(205,127,50,.55)) drop-shadow(0 0 7px rgba(205,127,50,.35)) drop-shadow(0 0 1px rgba(255,210,130,.6)) brightness(1.08) contrast(1.04)',
+  elite:   'drop-shadow(0 0 3px rgba(200,210,220,.6)) drop-shadow(0 0 7px rgba(184,191,199,.35)) drop-shadow(0 0 1px rgba(240,245,255,.55)) brightness(1.13) contrast(1.03)',
+  legend:  'drop-shadow(0 0 4px rgba(245,200,66,.65)) drop-shadow(0 0 9px rgba(245,200,66,.35)) drop-shadow(0 0 2px rgba(255,230,120,.55)) brightness(1.1) contrast(1.04)',
+}
 
 function getTierHtml(runs){
   const n = runs ?? 0
@@ -495,16 +459,18 @@ function getTierHtml(runs){
   else if(n >= 10) { cls='operator'; name='OPERATOR' }
   else if(n >= 4)  { cls='initiate'; name='INITIATE' }
   else             { cls='recruit';  name='RECRUIT'  }
+  const shine = TIER_SHINE[cls] ? ` style="filter:${TIER_SHINE[cls]}"` : ''
   return {
     badge: `<span class="tier t-${cls}">${name}</span>`,
-    icon:  `<span class="tier-icon ti-${cls}">${TIER_SVGS[cls]}</span>`,
+    icon:  `<span class="tier-icon"><img src="/${cls}.png" alt="${cls}"${shine}></span>`,
   }
 }
 
+// ── Career runs map (player_id → career total runs, for accurate tier icons) ──
+let careerRunsMap = {}
+
 // ── Fetch ────────────────────────────────────────────────────────
-async function fetchBoard(period, mode){
-  const {view} = VIEW_MAP[mode][period]
-  const url = `${SUPABASE_URL}/rest/v1/${view}?select=*&limit=100&order=leaderboard_score.desc`
+async function fetchJSON(url){
   const res = await fetch(url,{headers:{apikey:SUPABASE_ANON,Authorization:`Bearer ${SUPABASE_ANON}`,Accept:'application/json'}})
   const ct  = (res.headers.get('content-type')||'').toLowerCase()
   const raw = await res.text()
@@ -517,6 +483,23 @@ async function fetchBoard(period, mode){
   }
   if(!ct.includes('application/json')) throw new Error(`Expected JSON but got ${ct||'unknown'}`)
   try{ return JSON.parse(raw) } catch(e){ throw new Error(`JSON parse error: ${raw.slice(0,200)}`) }
+}
+
+async function fetchBoard(period, mode){
+  const {view} = VIEW_MAP[mode][period]
+  const rows = await fetchJSON(`${SUPABASE_URL}/rest/v1/${view}?select=*&limit=100&order=leaderboard_score.desc`)
+  // For period views, fetch career run totals so tier icons reflect career rank, not period rank
+  if(period !== 'alltime' && rows.length > 0){
+    const ids = rows.map(r=>r.player_id).join(',')
+    try{
+      const career = await fetchJSON(`${SUPABASE_URL}/rest/v1/v_leaderboard_cumulative?select=player_id,total_runs_played&player_id=in.(${ids})`)
+      careerRunsMap = {}
+      ;(Array.isArray(career)?career:[]).forEach(r=>{ careerRunsMap[r.player_id]=r.total_runs_played })
+    } catch(e){ careerRunsMap = {} }
+  } else {
+    careerRunsMap = {}
+  }
+  return rows
 }
 
 // ── Build row HTML ───────────────────────────────────────────────
@@ -540,7 +523,7 @@ function buildRowsHtml(rows, period, mode, maxScore){
     const pct       = Math.max(2, Math.round(score / max * 100))
     const scoreVal  = score.toFixed(mode==='avg'?1:0)
     const bestScore = r.best_run != null ? Number(r.best_run).toFixed(1) : null
-    const {badge, icon} = getTierHtml(r.total_runs_played ?? runCount)
+    const {badge, icon} = getTierHtml(careerRunsMap[r.player_id] ?? r.total_runs_played ?? runCount)
     return `<tr>
       <td class="rank-cell ${rc}">${rankDisp(rank)}</td>
       <td>

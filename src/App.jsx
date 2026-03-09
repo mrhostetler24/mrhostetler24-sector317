@@ -11,7 +11,7 @@ import StaffingScheduler from "./StaffingScheduler.jsx";
 import SocialPortal from "./SocialPortal.jsx";
 import {
   supabase,
-  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateOwnProfile, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver,
+  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateOwnProfile, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver, setUserCredits, deductUserCredits,
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   fetchStaffRoles,
   fetchResTypes, upsertResType, deleteResType,
@@ -1137,6 +1137,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [lbPeriod,setLbPeriod]=useState("alltime");
   const [lbMode,setLbMode]=useState("avg");
   const [lbData,setLbData]=useState([]);
+  const [lbCareerMap,setLbCareerMap]=useState({});
   const [lbLoading,setLbLoading]=useState(false);
   const [friendIds,setFriendIds]=useState(new Set());
   const [friendsVersion,setFriendsVersion]=useState(0);
@@ -1178,7 +1179,21 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     const q=lbPlayerFilter==="friends"&&friendIds.size>0
       ?supabase.from(view).select('*').in('player_id',[...friendIds,user.id]).order('leaderboard_score',{ascending:false})
       :supabase.from(view).select('*').order('leaderboard_score',{ascending:false}).limit(200);
-    q.then(({data,error})=>{if(error){setLbError(error.message);setLbData([]);}else{setLbData(data??[]);}})
+    q.then(async ({data,error})=>{
+      if(error){setLbError(error.message);setLbData([]);}
+      else{
+        const rows=data??[];
+        setLbData(rows);
+        if(lbPeriod!=='alltime'&&rows.length>0){
+          const ids=rows.map(r=>r.player_id);
+          const {data:career}=await supabase.from('v_leaderboard_cumulative').select('player_id,total_runs_played').in('player_id',ids);
+          const map={};(career??[]).forEach(r=>{map[r.player_id]=r.total_runs_played;});
+          setLbCareerMap(map);
+        } else {
+          setLbCareerMap({});
+        }
+      }
+    })
       .catch(e=>setLbError(e.message))
       .finally(()=>setLbLoading(false));
   },[tab,lbMode,lbPeriod,lbPlayerFilter,friendIds]);// eslint-disable-line react-hooks/exhaustive-deps
@@ -1393,7 +1408,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           return <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:`3px solid ${col}`,borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
             <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase"}}>Rank</div>
             <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
-              <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:16,flexShrink:0}}><img src={`/${current.key}.png`} style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}} alt={current.key}/></span>
+              <img src={`/${current.key}.png`} alt={current.key} style={{height:16,width:"auto",maxWidth:32,display:"block",flexShrink:0,objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}}/>
               <span style={{fontFamily:"var(--fd)",fontSize:"1rem",letterSpacing:".06em",textTransform:"uppercase",color:col}}>{current.name}</span>
             </div>
             <div style={{fontSize:".75rem",color:"var(--muted)"}}>
@@ -1529,7 +1544,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           const runCount=lbMode==='avg'?(r.runs_in_avg??r.total_runs??0):(r.total_runs??r.total_runs_played??0);
           const runsLbl=lbMode==='avg'?`${runCount} runs avg`:`${runCount} total runs`;
           const isMe=r.player_id===user.id;
-          const tierRunCount=r.total_runs_played??runCount;
+          const tierRunCount=lbCareerMap[r.player_id]??r.total_runs_played??runCount;
           const {current:tier}=getTierInfo(tierRunCount);
           const tierCol=TIER_COLORS[tier.key];
           return <tr key={r.player_id+(pinned?'-pin':'')} style={pinned||isMe?{background:"var(--accD)"}:{}}>
@@ -1538,7 +1553,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             </td>
             <td>
               <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
-                <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:16,flexShrink:0,opacity:.9}}><img src={`/${tier.key}.png`} style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}} alt={tier.key}/></span>
+                <img src={`/${tier.key}.png`} alt={tier.key} style={{height:16,width:"auto",maxWidth:32,display:"block",flexShrink:0,objectFit:"contain",opacity:.9,...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}}/>
                 <div>
                   <div style={{fontFamily:"var(--fc)",fontWeight:700,fontSize:"1rem",color:isMe?"var(--accB)":"var(--txt)"}}>{r.player_name??'Unknown'}{isMe&&<span style={{fontSize:".7rem",color:"var(--acc2)",marginLeft:".5rem"}}>← you</span>}</div>
                   <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:".1rem"}}><span style={{fontFamily:"var(--fd)",letterSpacing:".05em",color:tierCol,textTransform:"uppercase",marginRight:".35rem"}}>{tier.name}</span>{runsLbl} · ⏱ avg {avgT}</div>
@@ -1842,7 +1857,12 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           hideFromLeaderboard:editUser.hideFromLeaderboard??false,
         }:{}),
       });
-      setUsers(p=>p.map(u=>u.id===updated.id?updated:u));
+      // Update credits separately (bypasses admin_update_user RPC field list)
+      const origUser=users.find(u=>u.id===editUser.id);
+      if(editUser.access==="customer"&&editUser.credits!==(origUser?.credits??0)){
+        await setUserCredits(editUser.id, editUser.credits??0);
+      }
+      setUsers(p=>p.map(u=>u.id===updated.id?{...updated,credits:editUser.credits??0}:u));
       setModal(null);setEditUser(null);showToast("Saved");
     }catch(e){showToast("Error: "+e.message);}
     finally{setUserSaving(false);}
@@ -2005,6 +2025,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               <input type="checkbox" checked={editUser.hideFromLeaderboard??false} onChange={e=>setEditUser(p=>({...p,hideFromLeaderboard:e.target.checked}))} style={{accentColor:"var(--accB)",width:15,height:15,flexShrink:0}}/>
               Hide from all leaderboards
             </label>
+            <div className="f">
+              <label>Store Credits ($)</label>
+              <input type="number" min="0" step="0.01" value={editUser.credits??0} onChange={e=>setEditUser(p=>({...p,credits:Math.max(0,parseFloat(e.target.value)||0)}))} style={{width:120}}/>
+            </div>
           </>;
         })()}
         <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditUser(null);}}>Cancel</button><button className="btn btn-p" disabled={userSaving} onClick={()=>{if(editUser)doSaveUser();else{setUsers(p=>[...p,{...newUser,id:Date.now()}]);setModal(null);setEditUser(null);showToast("Saved");}}}>{userSaving?"Saving…":"Save"}</button></div>
@@ -2444,7 +2468,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               const cTierCol=TIER_COLORS[cTier.key];
               return <tr key={c.id} style={{background:isDup?"rgba(184,150,12,.04)":""}}>
                 <td><strong>{c.name}</strong>{isStaff&&<span className="badge" style={{marginLeft:".4rem",fontSize:".6rem",background:"var(--acc2)",color:"var(--accB)",border:"1px solid var(--acc)"}}>{c.access==='admin'?'Admin':c.access==='manager'?'Mgr':'Staff'}</span>}{isDup&&<span className="badge b-warn" style={{marginLeft:".4rem",fontSize:".6rem"}}>⚠ dup</span>}</td>
-                <td><span style={{display:"inline-flex",alignItems:"center",gap:".4rem"}}><span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:22,height:15,flexShrink:0}}><img src={`/${cTier.key}.png`} style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",...(TIER_SHINE[cTier.key]?{filter:TIER_SHINE[cTier.key]}:{})}} alt={cTier.key}/></span><span style={{fontFamily:"monospace",fontSize:".85rem",color:"var(--txt)"}}>{c.leaderboardName||genDefaultLeaderboardName(c.name,c.phone)}</span></span></td>
+                <td><span style={{display:"inline-flex",alignItems:"center",gap:".4rem"}}><img src={`/${cTier.key}.png`} alt={cTier.key} style={{height:15,width:"auto",maxWidth:28,display:"block",flexShrink:0,objectFit:"contain",...(TIER_SHINE[cTier.key]?{filter:TIER_SHINE[cTier.key]}:{})}}/><span style={{fontFamily:"monospace",fontSize:".85rem",color:"var(--txt)"}}>{c.leaderboardName||genDefaultLeaderboardName(c.name,c.phone)}</span></span></td>
                 <td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(c.phone)}</td>
                 <td><AuthBadge provider={c.authProvider}/></td>
                 <td>{cr.length}</td>
@@ -2857,7 +2881,7 @@ useEffect(() => {
   };
 
   // Creates reservations + payment immediately at Pay click (no players yet)
-  const handlePayCreate=async({bookings,userId,customerName,paymentGroupId,totalTransactionAmount,totalPlayerCount,cardLast4,cardExpiry,cardHolder})=>{
+  const handlePayCreate=async({bookings,userId,customerName,paymentGroupId,totalTransactionAmount,totalPlayerCount,cardLast4,cardExpiry,cardHolder,creditsApplied=0})=>{
     const created=[];
     for(const b of bookings){
       const newRes=await createReservation({typeId:b.typeId,userId,customerName,date:b.date,startTime:b.startTime,playerCount:b.playerCount,amount:b.amount,status:"confirmed",paid:true,players:[]});
@@ -2871,6 +2895,12 @@ useEffect(() => {
         const pmt=await createPayment({userId,reservationId:created[0].resId,customerName,amount:totalTransactionAmount,status:'paid',snapshot});
         setPayments(prev=>[pmt,...prev]);
         paymentGroups.current[paymentGroupId]=true;
+        if(creditsApplied>0){
+          try{
+            const newBal=await deductUserCredits(userId,creditsApplied);
+            setUsers(prev=>prev.map(u=>u.id===userId?{...u,credits:newBal}:u));
+          }catch(credErr){console.warn("Credits deduction error:",credErr.message);}
+        }
       }catch(pmtErr){console.warn("Payment record error:",pmtErr.message);}
     }
     return created;
