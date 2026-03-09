@@ -985,9 +985,7 @@ function ReceiptModal({res,resTypes,user,onClose}){
       <div class="row"><span class="lbl">Reference #</span><span class="val" style="font-family:monospace">${refNum}</span></div>
       <div class="row"><span class="lbl">Customer</span><span class="val">${res.customerName||user.name}</span></div>
       <div class="row"><span class="lbl">Session Type</span><span class="val">${rt?.name||"—"}</span></div>
-      <div class="row"><span class="lbl">Mode</span><span class="val" style="text-transform:capitalize">${rt?.mode||"—"} · ${rt?.style||"—"}</span></div>
-      <div class="row"><span class="lbl">Reservation Date</span><span class="val">${new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</span></div>
-      <div class="row"><span class="lbl">Reservation Time</span><span class="val">${fmt12(res.startTime)}</span></div>
+      <div class="row"><span class="lbl">Reservation</span><span class="val">${new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · ${fmt12(res.startTime)}</span></div>
       <div class="row"><span class="lbl">Players</span><span class="val">${res.playerCount}</span></div>
       <div class="row"><span class="lbl">Status</span><span class="val">${res.status.charAt(0).toUpperCase()+res.status.slice(1)}<span class="status-badge">${res.paid?"PAID":"PENDING"}</span></span></div>
       <div class="total-row"><span>Amount Charged</span><span>${fmtMoney(res.amount)}</span></div>
@@ -1021,9 +1019,7 @@ function ReceiptModal({res,resTypes,user,onClose}){
           ["Reference #", <span style={{fontFamily:"monospace",fontSize:".85rem"}}>{refNum}</span>],
           ["Customer", res.customerName||user.name],
           ["Session Type", rt?.name||"—"],
-          ["Mode", rt?<span style={{textTransform:"capitalize"}}>{rt.mode} · {rt.style}</span>:"—"],
-          ["Reservation Date", new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"})],
-          ["Reservation Time", fmt12(res.startTime)],
+          ["Reservation", new Date(res.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"})+" · "+fmt12(res.startTime)],
           ["Players", res.playerCount],
           ["Status", <span style={{display:"flex",alignItems:"center",gap:".4rem"}}><span className={`badge ${res.status==="confirmed"?"b-ok":res.status==="completed"?"b-done":res.status==="no-show"?"b-noshow":"b-cancel"}`}>{res.status}</span>{res.paid&&<span style={{fontSize:".68rem",background:"var(--okD)",color:"var(--okB)",padding:".1rem .45rem",borderRadius:20,fontWeight:700,letterSpacing:".06em"}}>PAID</span>}</span>],
         ].map(([lbl,val])=>(
@@ -1073,12 +1069,9 @@ function PaymentReceiptModal({payment,onClose}){
       <div class="row"><span class="lbl">Reference #</span><span class="val" style="font-family:monospace">${s.refNum}</span></div>
       <div class="row"><span class="lbl">Customer</span><span class="val">${s.customerName||'—'}</span></div>
       <div class="row"><span class="lbl">Session Type</span><span class="val">${s.sessionType||'—'}</span></div>
-      <div class="row"><span class="lbl">Mode</span><span class="val" style="text-transform:capitalize">${s.mode||'—'} · ${s.style||'—'}</span></div>
-      <div class="row"><span class="lbl">Reservation Date</span><span class="val">${s.date?new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"}):'—'}</span></div>
-      <div class="row"><span class="lbl">Reservation Time</span><span class="val">${fmt12(s.startTime)}</span></div>
+      <div class="row"><span class="lbl">Reservation</span><span class="val">${s.date?new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})+(s.startTime?' · '+fmt12(s.startTime):''):'—'}</span></div>
       <div class="row"><span class="lbl">Players</span><span class="val">${s.playerCount}</span></div>
-      <div class="row"><span class="lbl">Purchase Date</span><span class="val">${payment.createdAt?new Date(payment.createdAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}):'—'}</span></div>
-      <div class="row"><span class="lbl">Purchase Time</span><span class="val">${payment.createdAt?new Date(payment.createdAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}):'—'}</span></div>
+      <div class="row"><span class="lbl">Purchased</span><span class="val">${payment.createdAt?new Date(payment.createdAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})+' · '+new Date(payment.createdAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}):'—'}</span></div>
       ${s.cardLast4?`<div class="row"><span class="lbl">Card</span><span class="val">•••• •••• •••• ${s.cardLast4}${s.cardExpiry?' · Exp '+s.cardExpiry:''}</span></div><div class="row"><span class="lbl">Cardholder</span><span class="val">${s.cardHolder||'—'}</span></div>`:''}
       <div class="row"><span class="lbl">Status</span><span class="val">${payment.status.toUpperCase()}</span></div>
       <div class="total-row"><span>Amount Charged</span><span>${fmtMoney(payment.amount)}</span></div>
@@ -1109,13 +1102,10 @@ function PaymentReceiptModal({payment,onClose}){
         ["Reference #",<span style={{fontFamily:"monospace",fontSize:".85rem"}}>{s.refNum}</span>],
         ["Customer",s.customerName||"—"],
         ["Session Type",s.sessionType||"—"],
-        ["Mode",s.mode?<span style={{textTransform:"capitalize"}}>{s.mode} · {s.style}</span>:"—"],
-        ["Reservation Date",s.date?new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"}):"—"],
-        ["Reservation Time",fmt12(s.startTime)],
+        ["Reservation",s.date?(new Date(s.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",year:"numeric",month:"short",day:"numeric"})+(s.startTime?" · "+fmt12(s.startTime):"")):"—"],
         ["Players",s.playerCount],
-        ["Purchase Date",payment.createdAt?new Date(payment.createdAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—"],
-        ["Purchase Time",payment.createdAt?new Date(payment.createdAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true}):"—"],
-        ...(s.cardLast4?[["Card","•••• •••• •••• "+s.cardLast4+(s.cardExpiry?" · Exp "+s.cardExpiry:"")],["Cardholder",s.cardHolder||"—"]]:payment.createdAt?[]:[] ),
+        ["Purchased",payment.createdAt?(new Date(payment.createdAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})+" · "+new Date(payment.createdAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true})):"—"],
+        ...(s.cardLast4?[["Card","•••• •••• •••• "+s.cardLast4+(s.cardExpiry?" · Exp "+s.cardExpiry:"")],["Cardholder",s.cardHolder||"—"]]:[] ),
         ["Status",<span className="badge b-ok" style={{textTransform:"uppercase"}}>{payment.status}</span>],
       ].map(([lbl,val])=>(
         <div key={lbl} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:".45rem 0",borderBottom:"1px solid var(--bdr)",fontSize:".85rem"}}>

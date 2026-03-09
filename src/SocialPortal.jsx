@@ -442,10 +442,15 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       setFriendships(friendList)
       setReceivedRequests(recv ?? [])
       setSentRequests(sent ?? [])
-      // Fetch run counts for friends (for rank icon display)
+      // Fetch run counts for friends + request users (for rank icon display)
       const friendIds = friendList.map(f => f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1)
+      const reqIds = [
+        ...(recv ?? []).map(r => r.from_user_id),
+        ...(sent ?? []).map(r => r.to_user_id),
+      ]
+      const allIds = [...new Set([...friendIds, ...reqIds])]
       const runsMap = {}
-      await Promise.all(friendIds.map(async id => {
+      await Promise.all(allIds.map(async id => {
         const { data } = await getFriendProfile(id)
         const row = Array.isArray(data) ? data[0] : data
         if (row) runsMap[id] = row.total_runs ?? 0
@@ -852,6 +857,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 return (
                   <div key={req.from_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
                     <MiniAvatar url={sender.avatarUrl} hidden={sender.hideAvatar} initials={getInitials(sender.leaderboardName || sender.name)} />
+                    <TierIcon runs={friendRunsMap[req.from_user_id]} />
                     <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {sender.leaderboardName || sender.name || 'Operative'}
                     </span>
@@ -956,6 +962,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 return (
                   <div key={req.to_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
                     <MiniAvatar url={recipient.avatarUrl} hidden={recipient.hideAvatar} initials={getInitials(recipient.leaderboardName || recipient.name)} />
+                    <TierIcon runs={friendRunsMap[req.to_user_id]} />
                     <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {recipient.leaderboardName || recipient.name || 'Operative'}
                     </span>
