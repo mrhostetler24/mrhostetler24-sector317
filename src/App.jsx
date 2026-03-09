@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import './app.css';
-import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, getDayName, cleanPh, todayStr, addDaysStr, sortTemplates, hasValidWaiver, latestWaiverDate, latestWaiverEntry, TIER_THRESHOLDS, TIER_COLORS, TIER_SVGS, getTierInfo, getTierSvg1x, getSessionsForDate, buildLanes, laneCapacity, openPlayCapacity, getSlotStatus, dateHasAvailability, get60Dates, getInitials } from './utils.js';
+import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, getDayName, cleanPh, todayStr, addDaysStr, sortTemplates, hasValidWaiver, latestWaiverDate, latestWaiverEntry, TIER_THRESHOLDS, TIER_COLORS, TIER_SHINE, getTierInfo, getSessionsForDate, buildLanes, laneCapacity, openPlayCapacity, getSlotStatus, dateHasAvailability, get60Dates, getInitials } from './utils.js';
 import { AuthBadge, Toast, Toggle, WaiverTooltip, RunsCell, WaiverModal, WaiverViewModal, PhoneInput, PlayerPhoneInput, genDefaultLeaderboardName, validateLbName, DateNav } from './ui.jsx';
 import BookingWizard from './BookingWizard.jsx';
 import LandingPage from "./LandingPage.jsx";
@@ -1393,7 +1393,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           return <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:`3px solid ${col}`,borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
             <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase"}}>Rank</div>
             <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
-              <span style={{color:col,display:"inline-flex",alignItems:"center",flexShrink:0}} dangerouslySetInnerHTML={{__html:getTierSvg1x(current.key)}}/>
+              <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:16,flexShrink:0}}><img src={`/${current.key}.png`} style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}} alt={current.key}/></span>
               <span style={{fontFamily:"var(--fd)",fontSize:"1rem",letterSpacing:".06em",textTransform:"uppercase",color:col}}>{current.name}</span>
             </div>
             <div style={{fontSize:".75rem",color:"var(--muted)"}}>
@@ -1538,7 +1538,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             </td>
             <td>
               <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
-                <span style={{color:tierCol,display:"inline-flex",alignItems:"center",flexShrink:0,opacity:.9}} dangerouslySetInnerHTML={{__html:getTierSvg1x(tier.key)}}/>
+                <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:16,flexShrink:0,opacity:.9}}><img src={`/${tier.key}.png`} style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}} alt={tier.key}/></span>
                 <div>
                   <div style={{fontFamily:"var(--fc)",fontWeight:700,fontSize:"1rem",color:isMe?"var(--accB)":"var(--txt)"}}>{r.player_name??'Unknown'}{isMe&&<span style={{fontSize:".7rem",color:"var(--acc2)",marginLeft:".5rem"}}>← you</span>}</div>
                   <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:".1rem"}}><span style={{fontFamily:"var(--fd)",letterSpacing:".05em",color:tierCol,textTransform:"uppercase",marginRight:".35rem"}}>{tier.name}</span>{runsLbl} · ⏱ avg {avgT}</div>

@@ -45,24 +45,11 @@ export const TIER_THRESHOLDS=[
   {key:'legend',   name:'Legend',   min:100},
 ];
 export const TIER_COLORS={recruit:'#e8e8e8',initiate:'#8b95c9',operator:'#4db6ac',striker:'#85b07a',vanguard:'#5a9a6a',sentinel:'#6b9dcf',enforcer:'#c94a5a',apex:'#cd7f32',elite:'#b8bfc7',legend:'#f5c842'};
-export const TIER_SVGS=(()=>{
-  const SP='M0,-1 .23,-.32 .95,-.31 .36,.12 .59,.81 0,.38 -.59,.81 -.36,.12 -.95,-.31 -.23,-.32Z';
-  const star=(cx,cy,sz)=>`<path d="${SP}" fill="currentColor" transform="translate(${cx},${cy}) scale(${sz})"/>`;
-  const cf=(py,ey,hw)=>{const ht=ey-py,len=Math.hypot(10,ht),nx=ht/len*hw,ny=10/len*hw,iy=ey+ny,ipy=iy-ht*(10-nx)/10,f=v=>+v.toFixed(1);return`<polygon points="0,${ey} 10,${py} 20,${ey} ${f(20-nx)},${f(iy)} 10,${f(ipy)} ${f(nx)},${f(iy)}" fill="currentColor"/>`;};
-  const s=(w,h,vw,vh,c)=>`<svg width="${w*2}" height="${h*2}" viewBox="0 0 ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg">${c}</svg>`;
-  return{
-    recruit: s(14,12,20,17,cf(2,14,3.5)),
-    initiate:s(14,17,20,24,cf(2,9,3.5)+cf(13,20,3.5)),
-    operator:s(14,18,20,26,cf(2,8,3.0)+cf(10.5,16.5,3.0)+star(10,22,3.2)),
-    striker: s(10,20,12,24,'<rect x="3" y="1" width="6" height="22" fill="currentColor"/>'),
-    vanguard:s(16,20,20,24,'<rect x="1" y="1" width="6" height="22" fill="currentColor"/><rect x="13" y="1" width="6" height="22" fill="currentColor"/>'),
-    sentinel:s(16,20,20,24,'<path d="M10,2 L18,5 L18,12 Q18,21 10,23 Q2,21 2,12 L2,5 Z" stroke="currentColor" stroke-width="2.8" fill="none" stroke-linejoin="miter"/>'),
-    enforcer:s(22,14,28,18,'<path d="M14,9 C11,6 6,5 0,7 C3,10 9,10 14,10Z" fill="currentColor"/><path d="M14,9 C17,6 22,5 28,7 C25,10 19,10 14,10Z" fill="currentColor"/><ellipse cx="14" cy="12" rx="2.5" ry="3.5" fill="currentColor"/>'),
-    apex:    s(16,16,20,20,star(10,10,8.5)),
-    elite:   s(22,14,28,18,star(7,9,5.5)+star(21,9,5.5)),
-    legend:  s(28,22,56,44,'<path d="M 0,40 L 0,28 L 12,16 L 22,30 L 28,10 L 34,30 L 44,16 L 56,28 L 56,40 Z" fill="currentColor"/>'+star(12,12,5)+star(28,6,6)+star(44,12,5)),
-  };
-})();
+export const TIER_SHINE={
+  apex:  'drop-shadow(0 0 3px rgba(205,127,50,.55)) drop-shadow(0 0 7px rgba(205,127,50,.35)) drop-shadow(0 0 1px rgba(255,210,130,.6)) brightness(1.08) contrast(1.04)',
+  elite: 'drop-shadow(0 0 3px rgba(200,210,220,.6)) drop-shadow(0 0 7px rgba(184,191,199,.35)) drop-shadow(0 0 1px rgba(240,245,255,.55)) brightness(1.13) contrast(1.03)',
+  legend:'drop-shadow(0 0 4px rgba(245,200,66,.65)) drop-shadow(0 0 9px rgba(245,200,66,.35)) drop-shadow(0 0 2px rgba(255,230,120,.55)) brightness(1.1) contrast(1.04)',
+};
 export function getTierInfo(runs){
   const n=runs??0;
   let idx=0;
@@ -73,10 +60,6 @@ export function getTierInfo(runs){
   const sessionsToNext=next?Math.ceil(runsToNext/2):0;
   return{current,next,runsToNext,sessionsToNext};
 }
-export function getTierSvg1x(key){
-  return TIER_SVGS[key].replace(/ width="(\d+)"/,(m,v)=>` width="${v/2}"`).replace(/ height="(\d+)"/,(m,v)=>` height="${v/2}"`);
-}
-
 // ── Session / lane helpers ────────────────────────────────────────
 export function getSessionsForDate(date,templates) { return templates.filter(t=>t.active&&t.dayOfWeek===getDayName(date)); }
 
