@@ -157,6 +157,15 @@ function TierChip({ runs }) {
   )
 }
 
+function TierIcon({ runs }) {
+  const { current: tier } = getTierInfo(runs ?? 0)
+  const col = TIER_COLORS[tier.key]
+  return (
+    <span title={tier.name} style={{ color: col, display: 'inline-flex', alignItems: 'center', lineHeight: 1, flexShrink: 0 }}
+      dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
+  )
+}
+
 // ── Friend Profile Modal ──────────────────────────────────────────────────────
 function FriendProfileModal({ userId, onClose }) {
   const [profile, setProfile] = useState(null)
@@ -263,6 +272,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [recentlyMet, setRecentlyMet]         = useState([])
   const [friendLoading, setFriendLoading]     = useState(false)
   const [friendError, setFriendError]         = useState(null)
+  const [friendRunsMap, setFriendRunsMap]     = useState({})
   const [searchQuery, setSearchQuery]         = useState('')
   const [searchResults, setSearchResults]     = useState([])
   const [searching, setSearching]             = useState(false)
@@ -321,9 +331,19 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       ])
       const err = e1 || e2 || e3
       if (err) { setFriendError(err.message); return }
-      setFriendships(fs ?? [])
+      const friendList = fs ?? []
+      setFriendships(friendList)
       setReceivedRequests(recv ?? [])
       setSentRequests(sent ?? [])
+      // Fetch run counts for friends (for rank icon display)
+      const friendIds = friendList.map(f => f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1)
+      const runsMap = {}
+      await Promise.all(friendIds.map(async id => {
+        const { data } = await getFriendProfile(id)
+        const row = Array.isArray(data) ? data[0] : data
+        if (row) runsMap[id] = row.total_runs ?? 0
+      }))
+      setFriendRunsMap(runsMap)
     } catch (e) {
       setFriendError(e.message)
     } finally {
@@ -337,7 +357,10 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
 
   useEffect(() => {
     if (tab !== 'connect') return
-    getRecentlyMet().then(({ data }) => setRecentlyMet(data ?? []))
+    getRecentlyMet().then(({ data, error }) => {
+      if (error) { console.error('getRecentlyMet error:', error); return }
+      setRecentlyMet(data ?? [])
+    })
   }, [tab])
 
   // Debounced search
@@ -377,7 +400,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   }
 
   async function handleSendRequest(toId) {
-    await sendFriendRequest(toId)
+    const { error } = await sendFriendRequest(toId)
+    if (error) { await loadFriends(); return } // conflict or already exists — reload true state
     setSentRequests(prev => [...prev, { to_user_id: toId, created_at: new Date().toISOString() }])
   }
 
@@ -733,6 +757,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   onClick={() => setProfileModal(otherId)}
                 >
                   <MiniAvatar url={friend.avatarUrl} hidden={friend.hideAvatar} />
+                  <TierIcon runs={friendRunsMap[otherId]} />
                   <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {friend.leaderboardName || friend.name || 'Operative'}
                   </span>
@@ -778,11 +803,11 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 return (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
                     <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} />
+                    <TierIcon runs={p.total_runs} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leaderboard_name}</div>
                       {p.phone_last4 && <div style={{ fontSize: '.73rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>}
                     </div>
-                    <TierChip runs={p.total_runs} />
                     {isFriend ? (
                       <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Friends</span>
                     ) : isPending ? (
@@ -831,11 +856,11 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               return (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
                   <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} />
+                  <TierIcon runs={p.total_runs} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leaderboard_name}</div>
                     {p.phone_last4 && <div style={{ fontSize: '.73rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>}
                   </div>
-                  <TierChip runs={p.total_runs} />
                   {isFriend ? (
                     <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Friends</span>
                   ) : isPending ? (
