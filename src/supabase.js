@@ -1655,11 +1655,25 @@ export const fetchFriends = (userId) =>
     .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
     .order('created_at', { ascending: false })
 
-export const fetchReceivedRequests = (userId) =>
-  supabase.rpc('get_pending_friend_requests', { p_for_user: userId })
+export const fetchReceivedRequests = async (userId) => {
+  const r = await supabase.rpc('get_pending_friend_requests', { p_for_user: userId })
+  if (!r.error) return r
+  // RPC not deployed yet — fall back to direct query
+  return supabase.from('friend_requests')
+    .select('id, from_user_id, created_at')
+    .eq('to_user_id', userId)
+    .order('created_at', { ascending: false })
+}
 
-export const fetchSentRequests = (userId) =>
-  supabase.rpc('get_sent_friend_requests', { p_for_user: userId })
+export const fetchSentRequests = async (userId) => {
+  const r = await supabase.rpc('get_sent_friend_requests', { p_for_user: userId })
+  if (!r.error) return r
+  // RPC not deployed yet — fall back to direct query
+  return supabase.from('friend_requests')
+    .select('id, to_user_id, created_at')
+    .eq('from_user_id', userId)
+    .order('created_at', { ascending: false })
+}
 
 // ============================================================
 // MERCHANDISE
