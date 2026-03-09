@@ -1175,11 +1175,13 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     if(tab!=='leaderboard') return;
     setLbLoading(true);setLbError(null);
     const {view}=LB_VIEW_MAP[lbMode][lbPeriod];
-    supabase.from(view).select('*').order('leaderboard_score',{ascending:false}).limit(200)
-      .then(({data,error})=>{if(error){setLbError(error.message);setLbData([]);}else{setLbData(data??[]);}})
+    const q=lbPlayerFilter==="friends"&&friendIds.size>0
+      ?supabase.from(view).select('*').in('player_id',[...friendIds,user.id]).order('leaderboard_score',{ascending:false})
+      :supabase.from(view).select('*').order('leaderboard_score',{ascending:false}).limit(200);
+    q.then(({data,error})=>{if(error){setLbError(error.message);setLbData([]);}else{setLbData(data??[]);}})
       .catch(e=>setLbError(e.message))
       .finally(()=>setLbLoading(false));
-  },[tab,lbMode,lbPeriod]);// eslint-disable-line react-hooks/exhaustive-deps
+  },[tab,lbMode,lbPeriod,lbPlayerFilter,friendIds]);// eslint-disable-line react-hooks/exhaustive-deps
   const today=todayStr();
   const myRes=reservations.filter(r=>r.userId===user.id);
   const upcoming=myRes.filter(r=>r.date>=today&&r.status!=="cancelled").sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
@@ -1584,7 +1586,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
               <th>Operative</th>
               <th style={{textAlign:"right"}}>Score</th>
             </tr></thead><tbody>
-              {(lbPlayerFilter==="friends"?lbData.filter(r=>r.player_id===user.id||friendIds.has(r.player_id)):lbData).map(r=>renderLbRow(r))}
+              {lbData.map(r=>renderLbRow(r))}
             </tbody></table>
             {!lbData.length&&<div className="empty"><div className="ei">🎯</div><p>No scores yet — be the first!</p></div>}
             {lbPlayerFilter==="friends"&&friendIds.size===0&&<div className="empty" style={{marginTop:".75rem"}}><div className="ei">👥</div><p style={{color:"var(--muted)",fontSize:".9rem",marginBottom:".5rem"}}>Well, this is awkward... You have no friends.</p><p style={{color:"var(--muted)",fontSize:".78rem"}}>Add some <button className="btn btn-s btn-sm" style={{display:"inline",padding:"1px 10px",fontSize:".78rem",verticalAlign:"middle"}} onClick={()=>setTab("social")}>HERE</button></p></div>}
