@@ -83,8 +83,7 @@ function fmtShortDate(dateStr) {
   if (!dateStr) return null
   const [y, mo, d] = dateStr.split('-').map(Number)
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const thisYear = new Date().getFullYear()
-  return y === thisYear ? `${months[mo-1]} ${d}` : `${months[mo-1]} ${d}, ${y}`
+  return `${months[mo-1]} ${d}, ${y}`
 }
 
 function fmtSec(s) {
@@ -374,6 +373,9 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [receivedRequests, setReceivedRequests] = useState([])
   const [sentRequests, setSentRequests]       = useState([])
   const [recentlyMet, setRecentlyMet]         = useState([])
+  const [recentlyMetOffset, setRecentlyMetOffset] = useState(0)
+  const [recentlyMetHasMore, setRecentlyMetHasMore] = useState(false)
+  const [recentlyMetLoading, setRecentlyMetLoading] = useState(false)
   const [friendLoading, setFriendLoading]     = useState(false)
   const [friendError, setFriendError]         = useState(null)
   const [friendRunsMap, setFriendRunsMap]     = useState({})
@@ -462,9 +464,17 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
 
   useEffect(() => {
     if (tab !== 'connect') return
-    getRecentlyMet().then(({ data, error }) => {
+    setRecentlyMet([])
+    setRecentlyMetOffset(0)
+    setRecentlyMetHasMore(false)
+    setRecentlyMetLoading(true)
+    getRecentlyMet(20, 0).then(({ data, error }) => {
+      setRecentlyMetLoading(false)
       if (error) { console.error('getRecentlyMet error:', error); return }
-      setRecentlyMet(data ?? [])
+      const rows = data ?? []
+      setRecentlyMet(rows)
+      setRecentlyMetHasMore(rows.length === 20)
+      setRecentlyMetOffset(rows.length)
     })
   }, [tab])
 
@@ -841,7 +851,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 const sender = resolveUser(req.from_user_id)
                 return (
                   <div key={req.from_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
-                    <MiniAvatar url={sender.avatarUrl} hidden={sender.hideAvatar} />
+                    <MiniAvatar url={sender.avatarUrl} hidden={sender.hideAvatar} initials={getInitials(sender.leaderboardName || sender.name)} />
                     <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {sender.leaderboardName || sender.name || 'Operative'}
                     </span>
@@ -872,7 +882,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)', cursor: 'pointer' }}
                   onClick={() => setProfileModal(otherId)}
                 >
-                  <MiniAvatar url={friend.avatarUrl} hidden={friend.hideAvatar} />
+                  <MiniAvatar url={friend.avatarUrl} hidden={friend.hideAvatar} initials={getInitials(friend.leaderboardName || friend.name)} />
                   <TierIcon runs={friendRunsMap[otherId]} />
                   <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {friend.leaderboardName || friend.name || 'Operative'}
@@ -918,7 +928,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                                   receivedRequests.some(r => r.from_user_id === p.id)
                 return (
                   <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
-                    <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} />
+                    <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} initials={getInitials(p.leaderboard_name)} />
                     <TierIcon runs={p.total_runs} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leaderboard_name}</div>
@@ -945,7 +955,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 const recipient = resolveUser(req.to_user_id)
                 return (
                   <div key={req.to_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
-                    <MiniAvatar url={recipient.avatarUrl} hidden={recipient.hideAvatar} />
+                    <MiniAvatar url={recipient.avatarUrl} hidden={recipient.hideAvatar} initials={getInitials(recipient.leaderboardName || recipient.name)} />
                     <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {recipient.leaderboardName || recipient.name || 'Operative'}
                     </span>
@@ -965,6 +975,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 No operatives from recent sessions to show yet.
               </div>
             )}
+            {recentlyMetLoading && recentlyMet.length === 0 && <div style={{ fontSize: '.78rem', color: 'var(--muted)' }}>Loading…</div>}
             {recentlyMet.map(p => {
               const isFriend  = friendIds.has(p.id)
               const isPending = sentRequests.some(r => r.to_user_id === p.id) ||
@@ -991,6 +1002,24 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 </div>
               )
             })}
+            {recentlyMetHasMore && (
+              <button
+                className="btn btn-s btn-sm"
+                disabled={recentlyMetLoading}
+                style={{ marginTop: '.75rem', width: '100%' }}
+                onClick={() => {
+                  setRecentlyMetLoading(true)
+                  getRecentlyMet(20, recentlyMetOffset).then(({ data, error }) => {
+                    setRecentlyMetLoading(false)
+                    if (error) { console.error('getRecentlyMet error:', error); return }
+                    const rows = data ?? []
+                    setRecentlyMet(prev => [...prev, ...rows])
+                    setRecentlyMetHasMore(rows.length === 20)
+                    setRecentlyMetOffset(prev => prev + rows.length)
+                  })
+                }}
+              >{recentlyMetLoading ? 'Loading…' : 'Load more'}</button>
+            )}
           </div>
 
         </div>

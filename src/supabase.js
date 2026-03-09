@@ -1646,7 +1646,7 @@ export const acceptFriendRequest = (fromId)  => supabase.rpc('accept_friend_requ
 export const rejectFriendRequest = (fromId)  => supabase.rpc('reject_friend_request', { p_from: fromId })
 export const removeFriend        = (otherId) => supabase.rpc('remove_friend',          { p_other: otherId })
 export const searchPlayers       = (query)   => supabase.rpc('search_players',         { p_query: query })
-export const getRecentlyMet      = ()        => supabase.rpc('get_recently_met')
+export const getRecentlyMet      = (limit = 20, offset = 0) => supabase.rpc('get_recently_met', { p_limit: limit, p_offset: offset })
 export const getFriendProfile    = (userId)  => supabase.rpc('get_friend_profile',     { p_user_id: userId })
 export const getFriendExtended   = (userId)  => supabase.rpc('get_friend_extended',    { p_user_id: userId })
 
