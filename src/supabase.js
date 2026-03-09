@@ -1650,10 +1650,7 @@ export const getRecentlyMet      = ()        => supabase.rpc('get_recently_met')
 export const getFriendProfile    = (userId)  => supabase.rpc('get_friend_profile',     { p_user_id: userId })
 
 export const fetchFriends = (userId) =>
-  supabase.from('friendships')
-    .select('user_id_1, user_id_2, created_at')
-    .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
-    .order('created_at', { ascending: false })
+  supabase.rpc('get_friends', { p_user_id: userId })
 
 export const fetchReceivedRequests = async (userId) => {
   const r = await supabase.rpc('get_pending_friend_requests', { p_for_user: userId })
