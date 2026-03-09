@@ -153,28 +153,19 @@ const TIER_COLORS = {
   striker: '#85b07a', vanguard: '#5a9a6a', sentinel: '#6b9dcf',
   enforcer: '#c94a5a', apex: '#cd7f32', elite: '#b8bfc7', legend: '#f5c842',
 }
-const TIER_SVGS = (() => {
-  const SP = 'M0,-1 .23,-.32 .95,-.31 .36,.12 .59,.81 0,.38 -.59,.81 -.36,.12 -.95,-.31 -.23,-.32Z'
-  const star = (cx, cy, sz) => `<path d="${SP}" fill="currentColor" transform="translate(${cx},${cy}) scale(${sz})"/>`
-  const cf = (py, ey, hw) => {
-    const ht = ey - py, len = Math.hypot(10, ht), nx = ht / len * hw, ny = 10 / len * hw
-    const iy = ey + ny, ipy = iy - ht * (10 - nx) / 10, f = v => +v.toFixed(1)
-    return `<polygon points="0,${ey} 10,${py} 20,${ey} ${f(20 - nx)},${f(iy)} 10,${f(ipy)} ${f(nx)},${f(iy)}" fill="currentColor"/>`
-  }
-  const s = (w, h, vw, vh, c) => `<svg width="${w * 2}" height="${h * 2}" viewBox="0 0 ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg">${c}</svg>`
-  return {
-    recruit:  s(14, 12, 20, 17, cf(2, 14, 3.5)),
-    initiate: s(14, 17, 20, 24, cf(2, 9, 3.5) + cf(13, 20, 3.5)),
-    operator: s(14, 18, 20, 26, cf(2, 8, 3.0) + cf(10.5, 16.5, 3.0) + star(10, 22, 3.2)),
-    striker:  s(10, 20, 12, 24, '<rect x="3" y="1" width="6" height="22" fill="currentColor"/>'),
-    vanguard: s(16, 20, 20, 24, '<rect x="1" y="1" width="6" height="22" fill="currentColor"/><rect x="13" y="1" width="6" height="22" fill="currentColor"/>'),
-    sentinel: s(16, 20, 20, 24, '<path d="M10,2 L18,5 L18,12 Q18,21 10,23 Q2,21 2,12 L2,5 Z" stroke="currentColor" stroke-width="2.8" fill="none" stroke-linejoin="miter"/>'),
-    enforcer: s(22, 14, 28, 18, '<path d="M14,9 C11,6 6,5 0,7 C3,10 9,10 14,10Z" fill="currentColor"/><path d="M14,9 C17,6 22,5 28,7 C25,10 19,10 14,10Z" fill="currentColor"/><ellipse cx="14" cy="12" rx="2.5" ry="3.5" fill="currentColor"/>'),
-    apex:     s(16, 16, 20, 20, star(10, 10, 8.5)),
-    elite:    s(22, 14, 28, 18, star(7, 9, 5.5) + star(21, 9, 5.5)),
-    legend:   s(28, 22, 56, 44, '<path d="M 0,40 L 0,28 L 12,16 L 22,30 L 28,10 L 34,30 L 44,16 L 56,28 L 56,40 Z" fill="currentColor"/>' + star(12, 12, 5) + star(28, 6, 6) + star(44, 12, 5)),
-  }
-})()
+const TIER_SHINE = {
+  apex:   'drop-shadow(0 0 3px rgba(205,127,50,.55)) drop-shadow(0 0 7px rgba(205,127,50,.35)) drop-shadow(0 0 1px rgba(255,210,130,.6)) brightness(1.08) contrast(1.04)',
+  elite:  'drop-shadow(0 0 3px rgba(200,210,220,.6)) drop-shadow(0 0 7px rgba(184,191,199,.35)) drop-shadow(0 0 1px rgba(240,245,255,.55)) brightness(1.13) contrast(1.03)',
+  legend: 'drop-shadow(0 0 4px rgba(245,200,66,.65)) drop-shadow(0 0 9px rgba(245,200,66,.35)) drop-shadow(0 0 2px rgba(255,230,120,.55)) brightness(1.1) contrast(1.04)',
+}
+function TierImg({ tierKey, height = 16 }) {
+  const filter = TIER_SHINE[tierKey]
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: height * 1.5, height, flexShrink: 0 }}>
+      <img src={`/${tierKey}.png`} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', ...(filter ? { filter } : {}) }} alt={tierKey} />
+    </span>
+  )
+}
 
 function getTierInfo(runs) {
   const n = runs ?? 0
@@ -187,12 +178,6 @@ function getTierInfo(runs) {
   const runsToNext = next ? next.min - n : 0
   const sessionsToNext = next ? Math.ceil(runsToNext / 2) : 0
   return { current, next, runsToNext, sessionsToNext }
-}
-
-function getTierSvg1x(key) {
-  return TIER_SVGS[key]
-    .replace(/ width="(\d+)"/, (m, v) => ` width="${v / 2}"`)
-    .replace(/ height="(\d+)"/, (m, v) => ` height="${v / 2}"`)
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -295,7 +280,7 @@ function TierChip({ runs }) {
       color: col, fontFamily: 'var(--fd)', textTransform: 'uppercase', letterSpacing: '.05em',
       whiteSpace: 'nowrap', flexShrink: 0,
     }}>
-      <span style={{ color: col, display: 'inline-flex', lineHeight: 1 }} dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
+      <TierImg tierKey={tier.key} height={12} />
       {tier.name}
     </span>
   )
@@ -303,11 +288,7 @@ function TierChip({ runs }) {
 
 function TierIcon({ runs }) {
   const { current: tier } = getTierInfo(runs ?? 0)
-  const col = TIER_COLORS[tier.key]
-  return (
-    <span title={tier.name} style={{ color: col, display: 'inline-flex', alignItems: 'center', lineHeight: 1, flexShrink: 0 }}
-      dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
-  )
+  return <TierImg tierKey={tier.key} />
 }
 
 // ── Friend Profile Modal ──────────────────────────────────────────────────────
@@ -394,7 +375,7 @@ function FriendProfileModal({ userId, users, onClose }) {
               <div style={{ fontFamily: 'var(--fd)', fontSize: '1.2rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.leaderboard_name}</div>
               {profile.real_name && <div style={{ fontSize: '.82rem', color: 'var(--muted)', marginTop: '.1rem' }}>{profile.real_name}</div>}
               <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginTop: '.35rem' }}>
-                <span style={{ color: tierCol, display: 'inline-flex', alignItems: 'center' }} dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
+                <TierImg tierKey={tier.key} />
                 <span style={{ fontFamily: 'var(--fd)', fontSize: '.75rem', color: tierCol, textTransform: 'uppercase', letterSpacing: '.06em' }}>{tier.name}</span>
               </div>
             </div>
@@ -894,7 +875,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               const col = TIER_COLORS[tier.key]
               return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem', marginTop: '.45rem', flexWrap: 'wrap' }}>
-                  <span style={{ color: col, display: 'inline-flex', alignItems: 'center' }} dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
+                  <TierImg tierKey={tier.key} />
                   <span style={{ fontFamily: 'var(--fd)', fontSize: '.78rem', color: col, textTransform: 'uppercase', letterSpacing: '.06em' }}>{tier.name}</span>
                   <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>· {careerRuns} career run{careerRuns !== 1 ? 's' : ''}</span>
                 </div>

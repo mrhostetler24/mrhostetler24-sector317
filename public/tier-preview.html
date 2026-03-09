@@ -8,14 +8,14 @@
   h1 { color:#c8e03a; margin-bottom:2rem; font-size:1.2rem; letter-spacing:.2em; text-transform:uppercase; }
   .grid { display:flex; flex-direction:column; gap:1.2rem; }
   .row { display:flex; align-items:center; gap:1.5rem; padding:.9rem 1.2rem; background:#1a1a1a; border-radius:6px; border:1px solid #2a2a2a; }
-  .icons { display:flex; align-items:center; gap:1rem; }
-  .icon-wrap { display:flex; flex-direction:column; align-items:center; gap:.3rem; }
+  .icons { display:flex; align-items:center; gap:1.25rem; }
+  .icon-wrap { display:flex; flex-direction:column; align-items:center; gap:.4rem; }
   .size-label { font-size:.55rem; color:#555; letter-spacing:.1em; }
   .info { flex:1; }
   .tier-name { font-size:1rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
   .tier-range { font-size:.75rem; color:#666; margin-top:.2rem; }
 
-  /* Tier colors */
+  /* Tier colors (for name text + badge) */
   .c-recruit  { color:#e8e8e8; }
   .c-initiate { color:#8b95c9; }
   .c-operator { color:#4db6ac; }
@@ -25,7 +25,7 @@
   .c-enforcer { color:#c94a5a; }
   .c-apex     { color:#cd7f32; }
   .c-elite    { color:#b8bfc7; }
-  .c-legend   { color:#f5c842; filter:drop-shadow(0 0 4px rgba(245,200,66,.5)); }
+  .c-legend   { color:#f5c842; }
 
   /* Badge styles */
   .badge { font-size:.6rem; font-weight:800; letter-spacing:.1em; padding:.1rem .45rem; border-radius:0; white-space:nowrap; }
@@ -40,88 +40,95 @@
   .b-elite    { background:rgba(184,191,199,.08); color:#b8bfc7; border:1px solid rgba(184,191,199,.3); }
   .b-legend   { background:rgba(245,200,66,.1);   color:#f5c842; border:1px solid rgba(245,200,66,.4); box-shadow:0 0 8px rgba(245,200,66,.15); }
 
-  .divider { width:1px; height:40px; background:#2a2a2a; margin:0 .5rem; }
+  /* PNG icon sizing */
+  img.tier-icon { display:block; object-fit:contain; }
+
+  /* Metallic shine — layered drop-shadows + brightness for glow effect */
+  img.shine-apex {
+    filter:
+      drop-shadow(0 0 3px rgba(205,127,50,.55))
+      drop-shadow(0 0 7px rgba(205,127,50,.35))
+      drop-shadow(0 0 1px rgba(255,210,130,.6))
+      brightness(1.08) contrast(1.04);
+  }
+  img.shine-elite {
+    filter:
+      drop-shadow(0 0 3px rgba(200,210,220,.6))
+      drop-shadow(0 0 7px rgba(184,191,199,.35))
+      drop-shadow(0 0 1px rgba(240,245,255,.55))
+      brightness(1.13) contrast(1.03);
+  }
+  img.shine-legend {
+    filter:
+      drop-shadow(0 0 4px rgba(245,200,66,.65))
+      drop-shadow(0 0 9px rgba(245,200,66,.35))
+      drop-shadow(0 0 2px rgba(255,230,120,.55))
+      brightness(1.1) contrast(1.04);
+  }
+
+  .divider { width:1px; align-self:stretch; background:#2a2a2a; margin:0 .5rem; }
   .example-row { display:flex; align-items:center; gap:.5rem; padding:.45rem .75rem; background:#0e0e0e; border-radius:4px; border:1px solid #222; flex:1; max-width:300px; }
   .player-name { font-size:.85rem; color:#e0e0e0; }
 </style>
 </head>
 <body>
-<h1>Sector 317 — Tier Icon Preview</h1>
-<div class="grid" id="grid"></div>
+<h1>Sector 317 — Tier Icon Preview (PNG)</h1>
+<div class="grid">
 
 <script>
-const SP = 'M0,-1 .23,-.32 .95,-.31 .36,.12 .59,.81 0,.38 -.59,.81 -.36,.12 -.95,-.31 -.23,-.32Z'
-const star = (cx,cy,sz) => `<path d="${SP}" fill="currentColor" transform="translate(${cx},${cy}) scale(${sz})"/>`
-const cf = (py,ey,hw) => { const ht=ey-py,len=Math.hypot(10,ht),nx=ht/len*hw,ny=10/len*hw,iy=ey+ny,ipy=iy-ht*(10-nx)/10,f=v=>+v.toFixed(1); return `<polygon points="0,${ey} 10,${py} 20,${ey} ${f(20-nx)},${f(iy)} 10,${f(ipy)} ${f(nx)},${f(iy)}" fill="currentColor"/>` }
-const s = (w,h,vw,vh,c) => `<svg width="${w}" height="${h}" viewBox="0 0 ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg">${c}</svg>`
-
-const SVGS = {
-  recruit:  s(14,12,20,17, cf(2,14,3.5)),
-  initiate: s(14,17,20,24, cf(2,9,3.5)+cf(13,20,3.5)),
-  operator: s(14,18,20,26, cf(2,8,3.0)+cf(10.5,16.5,3.0)+star(10,22,3.2)),
-  striker:  s(10,20,12,24, '<rect x="3" y="1" width="6" height="22" fill="currentColor"/>'),
-  vanguard: s(16,20,20,24, '<rect x="1" y="1" width="6" height="22" fill="currentColor"/><rect x="13" y="1" width="6" height="22" fill="currentColor"/>'),
-  sentinel: s(16,20,20,24, '<path d="M10,2 L18,5 L18,12 Q18,21 10,23 Q2,21 2,12 L2,5 Z" stroke="currentColor" stroke-width="2.8" fill="none" stroke-linejoin="miter"/>'),
-  enforcer: s(22,14,28,18, '<path d="M14,9 C11,6 6,5 0,7 C3,10 9,10 14,10Z" fill="currentColor"/><path d="M14,9 C17,6 22,5 28,7 C25,10 19,10 14,10Z" fill="currentColor"/><ellipse cx="14" cy="12" rx="2.5" ry="3.5" fill="currentColor"/>'),
-  apex:     s(16,16,20,20, star(10,10,8.5)),
-  elite:    s(22,14,28,18, star(7,9,5.5)+star(21,9,5.5)),
-  legend:   s(28,22,56,44, '<path d="M 0,40 L 0,28 L 12,16 L 22,30 L 28,10 L 34,30 L 44,16 L 56,28 L 56,40 Z" fill="currentColor"/>'+star(12,12,5)+star(28,6,6)+star(44,12,5)),
-}
-
-// Scale SVG paths for larger preview sizes (2×, 3×)
-function scaleSvg(key, scale) {
-  const orig = SVGS[key]
-  // Parse w, h, vw, vh from original, multiply rendered size only
-  const m = orig.match(/width="(\d+)" height="(\d+)"/)
-  if (!m) return orig
-  const w = parseInt(m[1]) * scale
-  const h = parseInt(m[2]) * scale
-  return orig.replace(/width="\d+"/, `width="${w}"`).replace(/height="\d+"/, `height="${h}"`)
-}
-
 const TIERS = [
-  { key:'recruit',  name:'Recruit',  range:'0–3 runs',   desc:'Single chevron up' },
-  { key:'initiate', name:'Initiate', range:'4–9 runs',   desc:'Two chevrons up' },
-  { key:'operator', name:'Operator', range:'10–17 runs', desc:'Two chevrons + star' },
-  { key:'striker',  name:'Striker',  range:'18–27 runs', desc:'Vertical bar' },
-  { key:'vanguard', name:'Vanguard', range:'28–39 runs', desc:'Two vertical bars' },
-  { key:'sentinel', name:'Sentinel', range:'40–55 runs', desc:'Shield' },
-  { key:'enforcer', name:'Enforcer', range:'56–70 runs', desc:'Eagle wings' },
-  { key:'apex',     name:'Apex',     range:'71–85 runs', desc:'Single star' },
-  { key:'elite',    name:'Elite',    range:'86–99 runs', desc:'Two stars' },
-  { key:'legend',   name:'Legend',   range:'100+ runs',  desc:'Crown' },
+  { key:'recruit',  name:'Recruit',  range:'0–3 runs',   shine:false },
+  { key:'initiate', name:'Initiate', range:'4–9 runs',   shine:false },
+  { key:'operator', name:'Operator', range:'10–17 runs', shine:false },
+  { key:'striker',  name:'Striker',  range:'18–27 runs', shine:false },
+  { key:'vanguard', name:'Vanguard', range:'28–39 runs', shine:false },
+  { key:'sentinel', name:'Sentinel', range:'40–55 runs', shine:false },
+  { key:'enforcer', name:'Enforcer', range:'56–70 runs', shine:false },
+  { key:'apex',     name:'Apex',     range:'71–85 runs', shine:true  },
+  { key:'elite',    name:'Elite',    range:'86–99 runs', shine:true  },
+  { key:'legend',   name:'Legend',   range:'100+ runs',  shine:true  },
 ]
 
-const grid = document.getElementById('grid')
+const grid = document.querySelector('.grid')
+
 TIERS.forEach(t => {
+  const shineClass = t.shine ? ` shine-${t.key}` : ''
+  // box(w,h) — image fits within the box, aspect ratio preserved
+  const box = (w, h) => `
+    <div style="width:${w}px;height:${h}px;display:flex;align-items:center;justify-content:center;">
+      <img src="${t.key}.png" class="tier-icon${shineClass}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;" alt="${t.name}">
+    </div>`
+
   grid.innerHTML += `
   <div class="row">
     <div class="icons">
       <div class="icon-wrap">
-        <span class="c-${t.key}">${SVGS[t.key]}</span>
+        ${box(30, 20)}
         <span class="size-label">1×</span>
       </div>
       <div class="icon-wrap">
-        <span class="c-${t.key}">${scaleSvg(t.key, 2)}</span>
+        ${box(52, 36)}
         <span class="size-label">2×</span>
       </div>
       <div class="icon-wrap">
-        <span class="c-${t.key}">${scaleSvg(t.key, 3)}</span>
+        ${box(84, 56)}
         <span class="size-label">3×</span>
       </div>
     </div>
     <div class="divider"></div>
     <div class="info">
       <div class="tier-name c-${t.key}">${t.name}</div>
-      <div class="tier-range">${t.range} · ${t.desc}</div>
+      <div class="tier-range">${t.range}</div>
     </div>
     <div class="example-row">
-      <span class="c-${t.key}" style="display:inline-flex;align-items:center">${SVGS[t.key]}</span>
+      ${box(26, 18)}
       <span class="player-name">PlayerName</span>
       <span class="badge b-${t.key}">${t.name.toUpperCase()}</span>
     </div>
   </div>`
 })
 </script>
+
+</div>
 </body>
 </html>
