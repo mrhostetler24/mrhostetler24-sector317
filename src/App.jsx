@@ -1352,7 +1352,10 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           <button className="btn btn-p" disabled={saveGroupBusy} onClick={saveGroup}>{saveGroupBusy?"Saving…":"Save Team"}</button>
         </div>
       </div></div>}
-      <div className="hero"><h2>Welcome, Operative {user.name.split(" ")[0]}</h2><p>Manage your missions, group roster, and waiver status.</p></div>
+      <div className="hero">
+        <div><h2>Welcome, Operative {user.name.split(" ")[0]}</h2><p>Manage your missions, group roster, and waiver status.</p></div>
+        <button className="btn btn-p" style={{flexShrink:0}} onClick={()=>setShowBook(true)}>+ Book Mission</button>
+      </div>
       {/* ── Top info row: Leaderboard Name · Tier Rank · Waiver — three columns ── */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:".75rem",marginBottom:"1.5rem"}}>
         {/* Leaderboard Name card */}
@@ -1414,15 +1417,12 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         </div>
       </div>
       {/* Primary Tab Bar */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.1rem",flexWrap:"wrap",gap:".75rem"}}>
-        <div className="tabs" style={{marginBottom:0,borderBottom:"none"}}>
-          <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
-          <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
-          <button className={`tab${tab==="payments"?" on":""}`} onClick={()=>setTab("payments")}>Payments</button>
-          <button className={`tab${tab==="leaderboard"?" on":""}`} onClick={()=>setTab("leaderboard")}>Leaderboard</button>
-          <button className={`tab${tab==="shop"?" on":""}`} onClick={()=>setTab("shop")}>Shop</button>
-        </div>
-        {tab==="reservations"&&<button className="btn btn-p" onClick={()=>setShowBook(true)}>+ Book Mission</button>}
+      <div className="tabs" style={{marginBottom:"1.1rem",borderBottom:"1px solid var(--bdr)"}}>
+        <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
+        <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
+        <button className={`tab${tab==="payments"?" on":""}`} onClick={()=>setTab("payments")}>Payments</button>
+        <button className={`tab${tab==="leaderboard"?" on":""}`} onClick={()=>setTab("leaderboard")}>Leaderboard</button>
+        <button className={`tab${tab==="shop"?" on":""}`} onClick={()=>setTab("shop")}>Shop</button>
       </div>
 
       {/* ── RESERVATIONS TAB ── */}
