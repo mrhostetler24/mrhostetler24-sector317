@@ -403,8 +403,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   async function handleSendRequest(toId) {
     if (sendingTo) return
     setSendingTo(toId)
-    const { data, error } = await sendFriendRequest(toId)
-    console.log('[sendFriendRequest]', { toId, data, error })
+    const { error } = await sendFriendRequest(toId)
     if (!error) {
       setSentRequests(prev =>
         prev.some(r => r.to_user_id === toId)
