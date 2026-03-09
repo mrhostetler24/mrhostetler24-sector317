@@ -2422,7 +2422,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 <button className="btn btn-sm btn-s" disabled={page>=totalPages} onClick={()=>setCustPage(p=>p+1)}>Next →</button>
               </div>
             </div>);
-          if(filtered.length===0&&q) return <div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Runs</th><th>Spent</th><th>Waiver</th><th></th></tr></thead><tbody><tr><td colSpan={9} style={{textAlign:"center",padding:"1.5rem",color:"var(--muted)"}}>
+          if(filtered.length===0&&q) return <div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Runs</th><th>Rank</th><th>Spent</th><th>Waiver</th><th></th></tr></thead><tbody><tr><td colSpan={10} style={{textAlign:"center",padding:"1.5rem",color:"var(--muted)"}}>
             No customers found for <strong style={{color:"var(--txt)"}}>&ldquo;{custSearch}&rdquo;</strong>
             <button className="btn btn-p btn-sm" style={{marginLeft:"1rem"}} onClick={()=>{
               const isPhone=digits.length>=7;
@@ -2431,13 +2431,17 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               setModal("user");
             }}>+ Create Customer</button>
           </td></tr></tbody></table></div>;
-          return <>{pager}<div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Runs</th><th>Spent</th><th>Waiver</th><th></th></tr></thead>
+          return <>{pager}<div className="tw"><table><thead><tr><th>Name</th><th>Leaderboard Name</th><th>Mobile</th><th>Auth</th><th>Bookings</th><th>Runs</th><th>Rank</th><th>Spent</th><th>Waiver</th><th></th></tr></thead>
             <tbody>{pageItems.map(c=>{
               const cr=reservations.filter(r=>r.userId===c.id);
               const valid=hasValidWaiver(c,activeWaiverDoc);
               const wd=latestWaiverDate(c);
               const isDup=dupAlerts.some(d=>d.phoneOnlyUser.id===c.id||d.authUser.id===c.id);
               const isStaff=c.access!=='customer';
+              const cResIds=new Set(reservations.filter(r=>r.userId===c.id||r.players?.some(p=>p.userId===c.id)).map(r=>r.id));
+              const cTotalRuns=runs.filter(r=>cResIds.has(r.reservationId)).length;
+              const{current:cTier}=getTierInfo(cTotalRuns);
+              const cTierCol=TIER_COLORS[cTier.key];
               return <tr key={c.id} style={{background:isDup?"rgba(184,150,12,.04)":""}}>
                 <td><strong>{c.name}</strong>{isStaff&&<span className="badge" style={{marginLeft:".4rem",fontSize:".6rem",background:"var(--acc2)",color:"var(--accB)",border:"1px solid var(--acc)"}}>{c.access==='admin'?'Admin':c.access==='manager'?'Mgr':'Staff'}</span>}{isDup&&<span className="badge b-warn" style={{marginLeft:".4rem",fontSize:".6rem"}}>⚠ dup</span>}</td>
                 <td style={{fontFamily:"monospace",fontSize:".8rem",color:"var(--muted)"}}>{c.leaderboardName||genDefaultLeaderboardName(c.name,c.phone)}</td>
@@ -2445,6 +2449,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 <td><AuthBadge provider={c.authProvider}/></td>
                 <td>{cr.length}</td>
                 <td><RunsCell runs={runs} reservations={reservations} resTypes={resTypes} userId={c.id}/></td>
+                <td><span style={{display:"inline-flex",alignItems:"center",gap:".35rem"}}><span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:16,flexShrink:0}}><img src={`/${cTier.key}.png`} style={{maxWidth:"100%",maxHeight:"100%",width:"auto",height:"auto",objectFit:"contain",...(TIER_SHINE[cTier.key]?{filter:TIER_SHINE[cTier.key]}:{})}} alt={cTier.key}/></span><span style={{fontSize:".75rem",fontFamily:"var(--fd)",color:cTierCol,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{cTier.name}</span></span></td>
                 <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(cr.reduce((s,r)=>s+r.amount,0))}</td>
                 <td>{valid?<span className="badge b-ok">Valid</span>:wd?<span className="badge b-warn">Exp.</span>:<span className="badge b-cancel">None</span>}</td>
                 <td style={{display:"flex",gap:".25rem",flexWrap:"wrap"}}><button className="btn btn-sm btn-s" onClick={()=>{setEditUser({...c});setModal("user");}}>Edit</button><button className="btn btn-sm btn-warn" onClick={()=>setMergeTarget(c)}>Merge</button><button className={`btn btn-sm ${c.active?"btn-d":"btn-ok"}`} onClick={async()=>{

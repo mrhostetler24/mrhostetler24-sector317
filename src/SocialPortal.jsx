@@ -874,10 +874,10 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               const { current: tier } = getTierInfo(careerRuns)
               const col = TIER_COLORS[tier.key]
               return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem', marginTop: '.45rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem', marginTop: '.45rem', flexWrap: 'wrap', lineHeight: 1 }}>
                   <TierImg tierKey={tier.key} />
-                  <span style={{ fontFamily: 'var(--fd)', fontSize: '.78rem', color: col, textTransform: 'uppercase', letterSpacing: '.06em' }}>{tier.name}</span>
-                  <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>· {careerRuns} career run{careerRuns !== 1 ? 's' : ''}</span>
+                  <span style={{ fontFamily: 'var(--fd)', fontSize: '.78rem', color: col, textTransform: 'uppercase', letterSpacing: '.06em', lineHeight: 1 }}>{tier.name}</span>
+                  <span style={{ fontSize: '.72rem', color: 'var(--muted)', lineHeight: 1 }}>· {careerRuns} career run{careerRuns !== 1 ? 's' : ''}</span>
                 </div>
               )
             })()}
