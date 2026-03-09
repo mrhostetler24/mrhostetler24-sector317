@@ -516,22 +516,22 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
       </section>
 
       {/* SHOP */}
-      <section className="lp-section" id="shop" style={{background:"linear-gradient(135deg,#151609 0%,#111209 100%)"}}>
-        <div className="lp-con">
+      <section className="lp-section" id="shop" style={{background:"linear-gradient(135deg,#151609 0%,#111209 100%)",textAlign:"center"}}>
+        <div className="lp-con" style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
           <div className="lp-reveal">
-            <div className="lp-ey left">Gear Up</div>
-            <div className="lp-h">The <span>Armory</span></div>
+            <div className="lp-ey" style={{textAlign:"center"}}>Gear Up</div>
+            <div className="lp-h" style={{textAlign:"center"}}>The <span>Armory</span></div>
           </div>
-          <p className="lp-reveal" style={{fontFamily:"'Barlow',sans-serif",fontSize:"1rem",color:"rgba(232,228,220,.65)",lineHeight:1.8,maxWidth:580,marginBottom:"2.5rem"}}>
-            Rep the mission. Sector 317 gear, apparel, and accessories — available for in-store pickup or shipped to your door. Browse the full catalog inside your account.
+          <p className="lp-reveal" style={{fontFamily:"'Barlow',sans-serif",fontSize:"1rem",color:"rgba(232,228,220,.65)",lineHeight:1.8,maxWidth:620,marginBottom:"2.5rem"}}>
+            Official Sector 317 apparel, patches, and operator gear—plus the equipment you need for the field. From masks and markers to ammo and accessories. Pickup in store or ship it to your door. Browse the full arsenal below.
           </p>
-          <div className="lp-reveal" style={{display:"flex",gap:"1rem",flexWrap:"wrap",alignItems:"center"}}>
+          <div className="lp-reveal" style={{display:"flex",flexDirection:"column",alignItems:"center",gap:".75rem"}}>
             <button
               onClick={onEnterApp}
               style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:"1rem",fontWeight:800,letterSpacing:".15em",textTransform:"uppercase",background:"#c8e03a",color:"#111209",border:"none",borderRadius:3,padding:".75rem 2.2rem",cursor:"pointer",transition:"all .25s",clipPath:"polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)"}}
               onMouseOver={e=>{e.currentTarget.style.background="#d4ec46";e.currentTarget.style.boxShadow="0 0 32px rgba(200,224,58,.45)";}}
               onMouseOut={e=>{e.currentTarget.style.background="#c8e03a";e.currentTarget.style.boxShadow="none";}}
-            >Browse the Armory →</button>
+            >Shop Merch &amp; Gear →</button>
             <span style={{fontFamily:"'Barlow',sans-serif",fontSize:".8rem",color:"rgba(232,228,220,.35)",letterSpacing:".04em"}}>Sign in or create a free account to shop</span>
           </div>
         </div>
