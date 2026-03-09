@@ -23,6 +23,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const [cardNumber,setCardNumber]=useState('');
   const [cardExpiry,setCardExpiry]=useState('');
   const [nameOnCard,setNameOnCard]=useState('');
+  const handleCardNumber=e=>{const d=e.target.value.replace(/\D/g,'').slice(0,16);setCardNumber(d.match(/.{1,4}/g)?.join(' ')??d);};
+  const handleCardExpiry=e=>{const d=e.target.value.replace(/\D/g,'').slice(0,4);setCardExpiry(d.length>2?d.slice(0,2)+'/'+d.slice(2):d);};
   // For multi-slot bookings: track which slots each player is assigned to
   // slotAssignments[playerIndex] = Set of startTime strings
   const [slotAssignments,setSlotAssignments]=useState({});
@@ -228,8 +230,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         </div>
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
-          {amountDue>0&&<><div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={e=>setCardNumber(e.target.value)}/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM / YY" value={cardExpiry} onChange={e=>setCardExpiry(e.target.value)}/></div></div>
-          <div className="g2"><div className="f"><label>Name on Card</label><input placeholder="Full name" value={nameOnCard} onChange={e=>setNameOnCard(e.target.value)}/></div><div className="f"><label>CVV</label><input placeholder="•••"/></div></div></>}
+          {amountDue>0&&<><div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={handleCardNumber} maxLength={19} inputMode="numeric"/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM/YY" value={cardExpiry} onChange={handleCardExpiry} maxLength={5} inputMode="numeric"/></div></div>
+          <div className="g2"><div className="f"><label>Name on Card</label><input placeholder="Full name" value={nameOnCard} onChange={e=>setNameOnCard(e.target.value)}/></div><div className="f"><label>CVV</label><input placeholder="•••" maxLength={4} inputMode="numeric"/></div></div></>}
           {amountDue===0&&creditBalance>0&&creditsApplied>0&&<div style={{background:"rgba(100,180,100,.1)",border:"1px solid rgba(100,180,100,.3)",borderRadius:5,padding:".6rem .85rem",fontSize:".82rem",color:"var(--okB)"}}>✓ Covered in full by store credits — no card required.</div>}
           {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
         </>}
@@ -308,8 +310,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         </div>
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
-          {amountDue>0&&<><div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={e=>setCardNumber(e.target.value)}/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM / YY" value={cardExpiry} onChange={e=>setCardExpiry(e.target.value)}/></div></div>
-          <div className="g2"><div className="f"><label>Name on Card</label><input placeholder="Full name" value={nameOnCard} onChange={e=>setNameOnCard(e.target.value)}/></div><div className="f"><label>CVV</label><input placeholder="•••"/></div></div></>}
+          {amountDue>0&&<><div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={handleCardNumber} maxLength={19} inputMode="numeric"/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM/YY" value={cardExpiry} onChange={handleCardExpiry} maxLength={5} inputMode="numeric"/></div></div>
+          <div className="g2"><div className="f"><label>Name on Card</label><input placeholder="Full name" value={nameOnCard} onChange={e=>setNameOnCard(e.target.value)}/></div><div className="f"><label>CVV</label><input placeholder="•••" maxLength={4} inputMode="numeric"/></div></div></>}
           {amountDue===0&&creditBalance>0&&creditsApplied>0&&<div style={{background:"rgba(100,180,100,.1)",border:"1px solid rgba(100,180,100,.3)",borderRadius:5,padding:".6rem .85rem",fontSize:".82rem",color:"var(--okB)"}}>✓ Covered in full by store credits — no card required.</div>}
           {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
         </>}
