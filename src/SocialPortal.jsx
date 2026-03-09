@@ -444,6 +444,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   useEffect(() => {
     if (tab !== 'connect') return
     getRecentlyMet().then(({ data, error }) => {
+      console.log('[recentlyMet] data:', data, 'error:', error)
       if (error) { console.error('getRecentlyMet error:', error); return }
       setRecentlyMet(data ?? [])
     })
