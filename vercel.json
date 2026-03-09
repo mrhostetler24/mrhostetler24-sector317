@@ -1,6 +1,7 @@
 {
   "crons": [
-    { "path": "/api/auto-stamp", "schedule": "0 3 * * *" }
+    { "path": "/api/auto-stamp",      "schedule": "0 3 * * *"  },
+    { "path": "/api/send-reminders",  "schedule": "0 10 * * *" }
   ],
   "redirects": [
     {

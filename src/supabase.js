@@ -1985,3 +1985,37 @@ export async function redeemGiftCode(code, redeemedBy, amountToRedeem) {
   if (error) throw error
   return data
 }
+
+// ============================================================
+// EMAIL PREFERENCES
+// ============================================================
+
+export async function fetchEmailPreferences(userId) {
+  const { data, error } = await supabase
+    .from('email_preferences')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  // Return defaults if no row exists yet
+  return data ?? {
+    user_id:      userId,
+    bookings:     true,
+    match_summary: true,
+    social:       true,
+    merchandise:  true,
+    marketing:    true,
+  }
+}
+
+export async function updateEmailPreferences(userId, prefs) {
+  const { error } = await supabase.rpc('update_email_preferences', {
+    p_user_id:    userId,
+    p_bookings:   prefs.bookings    ?? true,
+    p_match:      prefs.match_summary ?? true,
+    p_social:     prefs.social      ?? true,
+    p_merchandise: prefs.merchandise ?? true,
+    p_marketing:  prefs.marketing   ?? true,
+  })
+  if (error) throw error
+}

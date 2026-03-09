@@ -8,6 +8,7 @@ import {
   removeFriend, searchPlayers, getRecentlyMet, getFriendProfile, getFriendExtended,
   fetchFriends, fetchReceivedRequests, fetchSentRequests,
 } from './supabase.js'
+import { emailFriendRequest, emailFriendAccepted } from './emails.js'
 
 // ── Social platforms ──────────────────────────────────────────────────────────
 const PLATFORMS = [
@@ -631,6 +632,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     await acceptFriendRequest(fromId)
     await loadFriends()
     onFriendsChanged?.()
+    emailFriendAccepted(fromId, { acceptorName: user.name, acceptorLeaderboardName: user.leaderboardName })
   }
 
   async function handleIgnore(fromId) {
@@ -655,6 +657,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           ? prev
           : [...prev, { to_user_id: toId, created_at: new Date().toISOString() }]
       )
+      emailFriendRequest(toId, { senderName: user.name, senderLeaderboardName: user.leaderboardName })
     } else {
       // 409 = request already exists in other direction — reload to surface incoming request
       await loadFriends()

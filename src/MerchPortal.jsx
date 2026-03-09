@@ -11,6 +11,7 @@ import {
   processMerchReturn, voidGiftCode, updateMerchOrderStatus,
   fetchUserByPhone, createGuestUser, createPayment, deductUserCredits,
 } from './supabase.js'
+import { emailMerchPurchase } from './emails.js'
 
 // ─── Helpers ─────────────────────────────────────────────────
 const fmtMoney = n => '$' + Number(n || 0).toFixed(2)
@@ -1071,6 +1072,15 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
       }
       setCompletedPayment(payment)
       setStep('receipt')
+      emailMerchPurchase(userId, {
+        orderRef: snapshot.refNum,
+        items: cart.map(i => ({ name: i.productName + (i.variantLabel ? ' — ' + i.variantLabel : ''), qty: i.qty, price: i.price })),
+        total: order.total,
+        creditsApplied: staffCreditsApplied,
+        fulfillmentType: 'pickup',
+        shippingAddress: null,
+        cardLast4: snapshot.cardLast4,
+      })
 
       // Refresh catalog inventory
       fetchMerchCatalog('staff').then(setCatalog).catch(() => {})
@@ -1368,6 +1378,15 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
       }
       setCompletedPayment(payment)
       setStep('receipt')
+      emailMerchPurchase(currentUser.id, {
+        orderRef: snapshot.refNum,
+        items: cart.map(i => ({ name: i.productName + (i.variantLabel ? ' — ' + i.variantLabel : ''), qty: i.qty, price: i.price })),
+        total: order.total,
+        creditsApplied: storefrontCreditsApplied,
+        fulfillmentType,
+        shippingAddress: fulfillmentType === 'ship' ? shippingAddress : null,
+        cardLast4: snapshot.cardLast4,
+      })
     } catch (e) { onAlert?.('Checkout error: ' + e.message) }
     setSaving(false)
   }
