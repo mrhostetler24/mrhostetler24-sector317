@@ -399,6 +399,7 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
       <section style={{background:"linear-gradient(135deg,#1a1b13 0%,#111209 100%)",borderTop:"1px solid rgba(200,224,58,.15)",borderBottom:"1px solid rgba(200,224,58,.15)",padding:"5rem 2rem",textAlign:"center"}}>
         <div style={{maxWidth:560,margin:"0 auto"}}>
            <div className="lp-h" style={{textAlign:"center"}}>What is <br/>
+           <div className="lp-soc-title">So what is</div>
            <span>Sector 317</span></div>
           <div style={{fontFamily:"'Black Ops One',sans-serif",fontSize:"clamp(1.6rem,4vw,2.4rem)",color:"#d4ec46",letterSpacing:".06em",textTransform:"uppercase",marginBottom:".6rem",lineHeight:1.1}}>
             What is Sector 317?
