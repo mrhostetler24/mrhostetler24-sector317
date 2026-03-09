@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { get60Dates, getSessionsForDate, dateHasAvailability, getSlotStatus, openPlayCapacity, fmt12, fmt, fmtMoney, addDaysStr, todayStr, laneCapacity, hasValidWaiver } from './utils.js';
+import { get60Dates, getSessionsForDate, dateHasAvailability, getSlotStatus, openPlayCapacity, fmt12, fmt, fmtMoney, addDaysStr, todayStr, laneCapacity, hasValidWaiver, getInitials } from './utils.js';
 import { PlayerPhoneInput, DateNav } from './ui.jsx';
 import { emailBookingConfirmation } from './emails.js';
 
