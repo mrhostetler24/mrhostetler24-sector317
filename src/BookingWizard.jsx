@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { get60Dates, getSessionsForDate, dateHasAvailability, getSlotStatus, openPlayCapacity, fmt12, fmt, addDaysStr, todayStr, laneCapacity } from './utils.js';
+import { get60Dates, getSessionsForDate, dateHasAvailability, getSlotStatus, openPlayCapacity, fmt12, fmt, fmtMoney, addDaysStr, todayStr, laneCapacity } from './utils.js';
 import { PlayerPhoneInput, DateNav } from './ui.jsx';
 
 function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,currentUser,users,activeWaiverDoc,onBook,onPayCreate,onFinalize,onClose}){
