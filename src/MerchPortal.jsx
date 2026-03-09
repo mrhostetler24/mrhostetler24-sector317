@@ -219,8 +219,9 @@ function MerchReceiptModal({ payment, onClose }) {
 // ================================================================
 // MERCH ADMIN
 // ================================================================
-function MerchAdmin({ currentUser, onAlert }) {
-  const [tab, setTab] = useState('products')
+function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAlert }) {
+  const [tab, setTab] = useState(isAdmin ? 'products' : 'inventory')
+  const [saleOpen, setSaleOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [catalog, setCatalog] = useState([])
   const [categories, setCategories] = useState([])
@@ -269,7 +270,7 @@ function MerchAdmin({ currentUser, onAlert }) {
     ['discounts', '🏷 Discounts'],
     ['returns', '↩ Returns'],
     ['gift-codes', '🎁 Gift Codes'],
-    ['settings', '⚙ Settings'],
+    ...(isAdmin ? [['settings', '⚙ Settings']] : []),
   ]
 
   const filteredProducts = useMemo(() =>
@@ -294,6 +295,7 @@ function MerchAdmin({ currentUser, onAlert }) {
             style={{ fontSize: '.8rem' }} onClick={() => setTab(key)}>{label}</button>
         ))}
         <button className="btn btn-sm btn-s" style={{ fontSize: '.8rem', marginLeft: 'auto' }} onClick={loadAll}>↻ Refresh</button>
+        {!isAdmin && <button className="btn btn-sm btn-p" style={{ fontSize: '.8rem' }} onClick={() => setSaleOpen(true)}>+ New Sale</button>}
       </div>
 
       {/* ── Products Tab ────────────────────────────── */}
@@ -301,7 +303,7 @@ function MerchAdmin({ currentUser, onAlert }) {
         <div style={{ display: 'flex', gap: '.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <input placeholder="Search name or SKU…" value={search} onChange={e => setSearch(e.target.value)}
             style={{ flex: 1, minWidth: 180, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.4rem .75rem', color: 'var(--txt)', fontSize: '.88rem' }} />
-          <button className="btn btn-p btn-sm" onClick={() => setEditProduct({})}>+ New Product</button>
+          {isAdmin && <button className="btn btn-p btn-sm" onClick={() => setEditProduct({})}>+ New Product</button>}
         </div>
         {filteredProducts.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>No products yet. Create one to get started.</div>}
         {filteredProducts.map(p => (
@@ -313,9 +315,9 @@ function MerchAdmin({ currentUser, onAlert }) {
               {p.categoryName && <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>{p.categoryName}</span>}
               <span style={{ fontSize: '.9rem', fontWeight: 700, color: 'var(--acc)' }}>{fmtMoney(p.basePrice)}</span>
               {!p.active && <span className="badge b-d" style={{ fontSize: '.6rem' }}>Inactive</span>}
-              <div style={{ display: 'flex', gap: '.4rem' }}>
+              {isAdmin && <div style={{ display: 'flex', gap: '.4rem' }}>
                 <button className="btn btn-sm btn-s" onClick={e => { e.stopPropagation(); setEditProduct(p) }}>Edit</button>
-              </div>
+              </div>}
             </div>
             {expandedProduct === p.id && (
               <div style={{ borderTop: '1px solid var(--bdr)', padding: '1rem' }}>
@@ -335,13 +337,13 @@ function MerchAdmin({ currentUser, onAlert }) {
                     {v.sku && <span style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{v.sku}</span>}
                     <span style={{ color: 'var(--acc)', fontWeight: 700 }}>{v.priceOverride != null ? fmtMoney(v.priceOverride) : 'Base'}</span>
                     {p.type === 'physical' && <span style={{ minWidth: 60, textAlign: 'right', color: v.inventory <= 0 ? 'var(--danger)' : v.inventory < 5 ? 'var(--warn)' : 'var(--ok)' }}>{v.inventory} in stock</span>}
-                    {p.type === 'physical' && <button className="btn btn-sm btn-s" style={{ fontSize: '.7rem' }}
+                    {p.type === 'physical' && isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.7rem' }}
                       onClick={() => setAdjustModal({ variant: v, productName: p.name, locationId: null })}>Adjust</button>}
-                    <button className="btn btn-sm btn-s" style={{ fontSize: '.7rem' }} onClick={() => setEditVariant({ ...v, productId: p.id })}>Edit</button>
+                    {isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.7rem' }} onClick={() => setEditVariant({ ...v, productId: p.id })}>Edit</button>}
                   </div>
                 ))}
-                <button className="btn btn-sm btn-s" style={{ marginTop: '.5rem', fontSize: '.75rem' }}
-                  onClick={() => setEditVariant({ productId: p.id })}>+ Add Variant</button>
+                {isAdmin && <button className="btn btn-sm btn-s" style={{ marginTop: '.5rem', fontSize: '.75rem' }}
+                  onClick={() => setEditVariant({ productId: p.id })}>+ Add Variant</button>}
               </div>
             )}
           </div>
@@ -361,8 +363,16 @@ function MerchAdmin({ currentUser, onAlert }) {
                   <span style={{ minWidth: 80, textAlign: 'center', fontWeight: 700, color: v.inventory <= 0 ? 'var(--danger)' : v.inventory < 5 ? 'var(--warn)' : 'var(--ok)' }}>
                     {v.inventory} in stock
                   </span>
-                  <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
-                    onClick={() => setAdjustModal({ variant: v, productName: p.name, locationId: null })}>Adjust</button>
+                  {isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
+                    onClick={() => setAdjustModal({ variant: v, productName: p.name, locationId: null })}>Adjust</button>}
+                  {!isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
+                    onClick={async () => {
+                      if (!confirm(`Flag "${v.label}" for reorder?`)) return
+                      try {
+                        await adjustMerchInventory(v.id, null, 0, 'reorder_flag', 'Flagged for reorder', currentUser?.id)
+                        onAlert?.('Flagged for reorder.')
+                      } catch (e) { onAlert?.('Error: ' + e.message) }
+                    }}>Flag Reorder</button>}
                 </div>
               ))}
               {p.variants.length === 0 && <div style={{ fontSize: '.85rem', color: 'var(--muted)' }}>No variants defined.</div>}
@@ -425,9 +435,9 @@ function MerchAdmin({ currentUser, onAlert }) {
 
       {/* ── Discounts Tab ───────────────────────────── */}
       {tab === 'discounts' && (<>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        {isAdmin && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
           <button className="btn btn-p btn-sm" onClick={() => setEditDiscount({})}>+ New Discount</button>
-        </div>
+        </div>}
         {discounts.length === 0 && <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>No discounts configured.</div>}
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.85rem' }}>
           <thead><tr style={{ color: 'var(--muted)', fontSize: '.75rem', textAlign: 'left' }}>
@@ -446,7 +456,7 @@ function MerchAdmin({ currentUser, onAlert }) {
                 <td style={{ padding: '.5rem', color: 'var(--acc)' }}>{d.discountType === 'percent' ? `${d.amount}%` : fmtMoney(d.amount)}</td>
                 <td style={{ padding: '.5rem', color: 'var(--muted)' }}>{d.usageCount}{d.usageLimit ? `/${d.usageLimit}` : ''}</td>
                 <td style={{ padding: '.5rem' }}><span className={`badge ${d.active ? 'b-ok' : 'b-d'}`} style={{ fontSize: '.65rem' }}>{d.active ? 'Active' : 'Inactive'}</span></td>
-                <td style={{ padding: '.5rem' }}><button className="btn btn-sm btn-s" style={{ fontSize: '.7rem' }} onClick={() => setEditDiscount(d)}>Edit</button></td>
+                <td style={{ padding: '.5rem' }}>{isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.7rem' }} onClick={() => setEditDiscount(d)}>Edit</button>}</td>
               </tr>
             ))}
           </tbody>
@@ -487,7 +497,7 @@ function MerchAdmin({ currentUser, onAlert }) {
                 <td style={{ padding: '.5rem', color: gc.currentBalance > 0 ? 'var(--ok)' : 'var(--muted)' }}>{fmtMoney(gc.currentBalance)}</td>
                 <td style={{ padding: '.5rem' }}><span className={`badge ${gc.status === 'active' ? 'b-ok' : gc.status === 'redeemed' ? 'b-coop' : 'b-d'}`} style={{ fontSize: '.65rem' }}>{gc.status}</span></td>
                 <td style={{ padding: '.5rem' }}>
-                  {gc.status === 'active' && <button className="btn btn-sm btn-d" style={{ fontSize: '.7rem' }}
+                  {isAdmin && gc.status === 'active' && <button className="btn btn-sm btn-d" style={{ fontSize: '.7rem' }}
                     onClick={async () => { if (!confirm('Void this code?')) return; try { await voidGiftCode(gc.id); setGiftCodes(prev => prev.map(x => x.id === gc.id ? { ...x, status: 'voided' } : x)) } catch (e) { onAlert?.('Error: ' + e.message) } }}>Void</button>}
                 </td>
               </tr>
@@ -600,6 +610,9 @@ function MerchAdmin({ currentUser, onAlert }) {
           onComplete={async () => { await loadAll(); setReturnModal(null); onAlert?.('Return processed.') }}
           onAlert={onAlert} />
       )}
+
+      {saleOpen && <MerchStaffSales currentUser={currentUser} users={users} setUsers={setUsers}
+        setPayments={setPayments} onAlert={onAlert} onClose={() => setSaleOpen(false)} />}
     </div>
   )
 }
@@ -1474,12 +1487,13 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
 // ================================================================
 // MAIN EXPORT
 // ================================================================
-export default function MerchPortal({ surface, currentUser, users, setUsers, setPayments, onAlert, onClose, onSignIn }) {
+export default function MerchPortal({ surface, currentUser, users, setUsers, setPayments, onAlert, onClose, onSignIn, isAdmin: isAdminProp }) {
   const s = surface || (
     currentUser?.access === 'admin' || currentUser?.access === 'manager' ? 'admin' :
     currentUser?.access === 'staff' ? 'staff' : 'storefront'
   )
-  if (s === 'admin') return <MerchAdmin currentUser={currentUser} onAlert={onAlert} />
+  const isAdmin = isAdminProp ?? currentUser?.access === 'admin'
+  if (s === 'admin') return <MerchAdmin currentUser={currentUser} isAdmin={isAdmin} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={onAlert} />
   if (s === 'staff') return (
     <MerchStaffSales currentUser={currentUser} users={users} setUsers={setUsers}
       setPayments={setPayments} onAlert={onAlert} onClose={onClose} />

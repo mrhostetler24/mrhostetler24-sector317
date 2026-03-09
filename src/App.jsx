@@ -2030,7 +2030,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         {isAdmin&&<button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>}
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
-        {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>🛍 Merchandise</button>}
+        {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merchandise</button>}
         <button className="btn btn-p btn-sm" style={{marginLeft:"auto"}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
 
@@ -2368,7 +2368,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={msg=>onAlert(msg)} tabOverride={schedTabOverride} onTabOverrideConsumed={()=>setSchedTabOverride(null)}/>
       </>}
 
-      {tab==="merchandise"&&isManager&&<MerchPortal surface="admin" currentUser={user} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={onAlert}/>}
+      {tab==="merchandise"&&isManager&&<MerchPortal surface="admin" currentUser={user} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={onAlert} isAdmin={isAdmin}/>}
 
       {tab==="customers"&&isManager&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Customers</div><div className="ps">All customers — social auth and phone-only</div></div></div>
