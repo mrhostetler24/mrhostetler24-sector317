@@ -1613,22 +1613,32 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   );
 }
 
-function StaffPortal({user,reservations,setReservations,resTypes,users,waiverDocs,activeWaiverDoc,shifts,setShifts,onSignWaiver,onAddPlayer,onAlert,navTarget,onNavConsumed}){
+function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,waiverDocs,activeWaiverDoc,shifts,setShifts,runs=[],onSignWaiver,onAddPlayer,onAlert,navTarget,onNavConsumed}){
   const [tab,setTab]=useState("today");
   const [schedTabOverride,setSchedTabOverride]=useState(null);
+  const [showAccount,setShowAccount]=useState(false);
+  const [careerRuns,setCareerRuns]=useState(null);
+  const [friendsVersion,setFriendsVersion]=useState(0);
   const today=todayStr();
   const todayRes=[...reservations].filter(r=>r.date===today&&r.status!=="cancelled").sort((a,b)=>a.startTime.localeCompare(b.startTime));
   const upcoming=[...reservations].filter(r=>r.date>today&&r.status!=="cancelled").sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)).slice(0,25);
   useEffect(()=>{
     if(navTarget){setTab("schedule");setSchedTabOverride(navTarget);onNavConsumed?.();}
   },[navTarget]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{
+    if(tab!=='social')return;
+    supabase.from('v_leaderboard_cumulative').select('total_runs_played').eq('player_id',user.id).maybeSingle()
+      .then(({data})=>setCareerRuns(data?.total_runs_played??0)).catch(()=>setCareerRuns(0));
+  },[tab]); // eslint-disable-line react-hooks/exhaustive-deps
   return(
     <div className="content">
+      {showAccount&&<AccountPanel user={user} users={users} setUsers={setUsers} onClose={()=>setShowAccount(false)}/>}
       <div className="hero"><h2>Staff — {user.name}</h2><p>{user.role||"Staff"} · Check-in, waiver management, and schedule.</p></div>
       <div className="tabs">
         <button className={`tab${tab==="today"?" on":""}`} onClick={()=>setTab("today")}>Today ({todayRes.length})</button>
         <button className={`tab${tab==="upcoming"?" on":""}`} onClick={()=>setTab("upcoming")}>Upcoming</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>My Schedule</button>
+        <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
       </div>
       {(tab==="today"||tab==="upcoming")&&<>
         {!(tab==="today"?todayRes:upcoming).length&&<div className="empty"><div className="ei">{tab==="today"?"🎯":"📅"}</div><p>No {tab==="today"?"sessions today":"upcoming sessions"}.</p></div>}
@@ -1638,6 +1648,7 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,waiverDoc
           </table></div>}
       </>}
       {tab==="schedule"&&<SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={false} onAlert={onAlert} tabOverride={schedTabOverride} onTabOverrideConsumed={()=>setSchedTabOverride(null)}/>}
+      {tab==="social"&&<SocialPortal user={user} users={users} setUsers={setUsers} reservations={reservations} resTypes={resTypes} runs={runs} careerRuns={careerRuns} onEditProfile={()=>setShowAccount(true)} onFriendsChanged={()=>setFriendsVersion(v=>v+1)}/>}
     </div>
   );
 }
@@ -1777,6 +1788,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dashViewTab,setDashViewTab]=useState("bookings");
   const [acknowledgedFlags,setAcknowledgedFlags]=useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("ack-flags")||"[]"))}catch{return new Set()}});
   const [dismissedDups,setDismissedDups]=useState([]);
+  const [careerRuns,setCareerRuns]=useState(null);
+  const [friendsVersion,setFriendsVersion]=useState(0);
+  useEffect(()=>{
+    if(tab!=='social')return;
+    supabase.from('v_leaderboard_cumulative').select('total_runs_played').eq('player_id',user.id).maybeSingle()
+      .then(({data})=>setCareerRuns(data?.total_runs_played??0)).catch(()=>setCareerRuns(0));
+  },[tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showWidgetMenu,setShowWidgetMenu]=useState(false);
   const [dashWidgets,setDashWidgets]=useState(()=>isAdmin
     ?{revenue:true,bookings:true,players:true,utilization:true,newUsers:true,leadTime:true,envCoop:true,envVs:true,avgRunTime:true}
@@ -2023,6 +2041,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
         {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merchandise</button>}
+        <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
         <button className="btn btn-p btn-sm" style={{marginLeft:"auto"}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
 
@@ -2361,6 +2380,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       </>}
 
       {tab==="merchandise"&&isManager&&<MerchPortal surface="admin" currentUser={user} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={onAlert} isAdmin={isAdmin}/>}
+
+      {tab==="social"&&<SocialPortal user={user} users={users} setUsers={setUsers} reservations={reservations} resTypes={resTypes} runs={runs} careerRuns={careerRuns} onEditProfile={()=>setShowAccountFor(user)} onFriendsChanged={()=>setFriendsVersion(v=>v+1)}/>}
 
       {tab==="customers"&&isManager&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Customers</div><div className="ps">All customers — social auth and phone-only</div></div></div>
@@ -3037,7 +3058,7 @@ useEffect(() => {
       </nav>
       <div className="main">
         {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} setPayments={setPayments} runs={runs} onAlert={handleAlert}/>}
-        {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
+        {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} runs={runs} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
         {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs} staffRoles={staffRoles}/>}
       </div>
     </div>
