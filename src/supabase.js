@@ -335,9 +335,12 @@ export async function updateUserAdmin(id, { name, phone, access, role, active, l
   return toUser(row)
 }
 
-// Admin: set a customer's credit balance (calls SECURITY DEFINER RPC)
-export async function setUserCredits(userId, credits) {
-  const { error } = await supabase.rpc('admin_set_user_credits', { p_user_id: userId, p_credits: Math.max(0, credits) })
+// Admin applies credits to a customer (additive, logs to store_credit_ledger)
+export async function applyStoreCredit(customerId, appliedByUserId, amount, reason) {
+  const { error } = await supabase.rpc('apply_store_credit', {
+    p_customer_id: customerId, p_applied_by: appliedByUserId,
+    p_amount: amount, p_reason: reason,
+  })
   if (error) throw error
 }
 

@@ -480,7 +480,7 @@ const MAX_BIO = 250
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function SocialPortal({ user, users, setUsers, reservations, resTypes, runs, careerRuns, onEditProfile, onFriendsChanged }) {
   const [tab, setTab]                         = useState('profile')
-  const [profileStatsSub, setProfileStatsSub] = useState('coop')
+  const [profileStatsSub, setProfileStatsSub] = useState('all')
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarKey, setAvatarKey]             = useState(() => Date.now())
   const [editing, setEditing]                 = useState(false)

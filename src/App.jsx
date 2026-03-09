@@ -11,7 +11,7 @@ import StaffingScheduler from "./StaffingScheduler.jsx";
 import SocialPortal from "./SocialPortal.jsx";
 import {
   supabase,
-  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateOwnProfile, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver, setUserCredits, deductUserCredits,
+  fetchAllUsers, fetchUserByPhone, createUser, createGuestUser, updateUser, updateOwnProfile, updateUserAdmin, linkOAuthUser, deleteUser, signWaiver, applyStoreCredit, deductUserCredits,
   fetchWaiverDocs, upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   fetchStaffRoles,
   fetchResTypes, upsertResType, deleteResType,
@@ -1432,6 +1432,11 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             <button className={`btn btn-sm ${valid?"btn-s":"btn-p"}`} onClick={()=>setWOpen(true)}>{valid?"Re-sign":"Sign Now"}</button>
           </div>
         </div>
+        {(user.credits??0)>0&&<div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:"3px solid var(--ok)",borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
+          <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase"}}>Store Credits</div>
+          <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",color:"var(--okB)",fontWeight:700}}>{fmtMoney(user.credits)}</div>
+          <div style={{fontSize:".75rem",color:"var(--muted)"}}>Available for bookings &amp; merchandise</div>
+        </div>}
       </div>
       {/* Primary Tab Bar */}
       <div className="tabs" style={{marginBottom:"1.1rem",borderBottom:"1px solid var(--bdr)"}}>
@@ -1548,7 +1553,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           const {current:tier}=getTierInfo(tierRunCount);
           const tierCol=TIER_COLORS[tier.key];
           return <tr key={r.player_id+(pinned?'-pin':'')} style={pinned||isMe?{background:"var(--accD)"}:{}}>
-            <td style={{textAlign:"center",fontFamily:"var(--fd)",fontSize:"1rem",width:52,color:rank===1?"var(--gold)":rank===2?"var(--silver)":rank===3?"var(--bronze)":"var(--muted)"}}>
+            <td style={{textAlign:"center",fontFamily:"var(--fd)",fontSize:"1rem",whiteSpace:"nowrap",paddingRight:".5rem",color:rank===1?"var(--gold)":rank===2?"var(--silver)":rank===3?"var(--bronze)":"var(--muted)"}}>
               {rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":`#${rank}`}
             </td>
             <td>
@@ -1597,7 +1602,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                 :"You don't appear on this leaderboard yet — complete a scored run to get ranked."}
             </div>}
             <table><thead><tr>
-              <th style={{textAlign:"center",width:52}}>Rank</th>
+              <th style={{textAlign:"center",whiteSpace:"nowrap"}}>Rank</th>
               <th>Operative</th>
               <th style={{textAlign:"right"}}>Score</th>
             </tr></thead><tbody>
@@ -1838,6 +1843,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [newST,setNewST]=useState({dayOfWeek:"Monday",startTime:"18:00",maxSessions:2,active:true});
   const [editUser,setEditUser]=useState(null);
   const [userSaving,setUserSaving]=useState(false);
+  const [applyCreditFor,setApplyCreditFor]=useState(null);
+  const [applyCreditAmt,setApplyCreditAmt]=useState('');
+  const [applyCreditReason,setApplyCreditReason]=useState('');
+  const [applyCreditBusy,setApplyCreditBusy]=useState(false);
   const [newUser,setNewUser]=useState({name:"",phone:"",access:"staff",role:null,active:true,waivers:[],needsRewaiverDocId:null});
   const doSaveUser=async()=>{
     if(!editUser)return;
@@ -1857,12 +1866,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           hideFromLeaderboard:editUser.hideFromLeaderboard??false,
         }:{}),
       });
-      // Update credits separately (bypasses admin_update_user RPC field list)
-      const origUser=users.find(u=>u.id===editUser.id);
-      if(editUser.access==="customer"&&editUser.credits!==(origUser?.credits??0)){
-        await setUserCredits(editUser.id, editUser.credits??0);
-      }
-      setUsers(p=>p.map(u=>u.id===updated.id?{...updated,credits:editUser.credits??0}:u));
+      setUsers(p=>p.map(u=>u.id===updated.id?updated:u));
       setModal(null);setEditUser(null);showToast("Saved");
     }catch(e){showToast("Error: "+e.message);}
     finally{setUserSaving(false);}
@@ -2025,13 +2029,36 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               <input type="checkbox" checked={editUser.hideFromLeaderboard??false} onChange={e=>setEditUser(p=>({...p,hideFromLeaderboard:e.target.checked}))} style={{accentColor:"var(--accB)",width:15,height:15,flexShrink:0}}/>
               Hide from all leaderboards
             </label>
-            <div className="f">
-              <label>Store Credits ($)</label>
-              <input type="number" min="0" step="0.01" value={editUser.credits??0} onChange={e=>setEditUser(p=>({...p,credits:Math.max(0,parseFloat(e.target.value)||0)}))} style={{width:120}}/>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".5rem .75rem",marginBottom:".5rem"}}>
+              <span style={{fontSize:".82rem",color:"var(--muted)"}}>Store Credits: <strong style={{color:"var(--accB)"}}>{fmtMoney(editUser.credits??0)}</strong></span>
+              <button className="btn btn-ok btn-sm" onClick={()=>{setApplyCreditFor(editUser);setApplyCreditAmt('');setApplyCreditReason('');}}>Apply Credit</button>
             </div>
           </>;
         })()}
         <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditUser(null);}}>Cancel</button><button className="btn btn-p" disabled={userSaving} onClick={()=>{if(editUser)doSaveUser();else{setUsers(p=>[...p,{...newUser,id:Date.now()}]);setModal(null);setEditUser(null);showToast("Saved");}}}>{userSaving?"Saving…":"Save"}</button></div>
+      </div></div>}
+      {applyCreditFor&&<div className="mo"><div className="mc" style={{maxWidth:400}}>
+        <div className="mt2">Apply Store Credit</div>
+        <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>Customer: <strong style={{color:"var(--txt)"}}>{applyCreditFor.name}</strong><br/>Current balance: <strong style={{color:"var(--accB)"}}>{fmtMoney(applyCreditFor.credits??0)}</strong></p>
+        <div className="f"><label>Amount ($)</label><input type="number" min="0.01" step="0.01" placeholder="0.00" value={applyCreditAmt} onChange={e=>setApplyCreditAmt(e.target.value)}/></div>
+        <div className="f"><label>Reason</label><input value={applyCreditReason} onChange={e=>setApplyCreditReason(e.target.value)} placeholder="e.g. compensation, promotional, referral"/></div>
+        <div className="ma">
+          <button className="btn btn-s" onClick={()=>setApplyCreditFor(null)}>Cancel</button>
+          <button className="btn btn-ok" disabled={applyCreditBusy||!applyCreditAmt||parseFloat(applyCreditAmt)<=0||!applyCreditReason.trim()}
+            onClick={async()=>{
+              setApplyCreditBusy(true);
+              try{
+                const amt=parseFloat(applyCreditAmt);
+                await applyStoreCredit(applyCreditFor.id,currentUser.id,amt,applyCreditReason.trim());
+                const newCredits=(applyCreditFor.credits??0)+amt;
+                setUsers(p=>p.map(u=>u.id===applyCreditFor.id?{...u,credits:newCredits}:u));
+                if(editUser?.id===applyCreditFor.id) setEditUser(p=>({...p,credits:newCredits}));
+                showToast(`${fmtMoney(amt)} credit applied to ${applyCreditFor.name}`);
+                setApplyCreditFor(null);
+              }catch(e){showToast('Error: '+e.message);}
+              finally{setApplyCreditBusy(false);}
+            }}>{applyCreditBusy?'Applying…':'Apply Credit →'}</button>
+        </div>
       </div></div>}
       {modal==="shift"&&<div className="mo"><div className="mc"><div className="mt2">Schedule Shift</div>
         <div className="f"><label>Staff Member</label><select value={newShift.staffId} onChange={e=>setNewShift(p=>({...p,staffId:e.target.value}))}><option value="">Select…</option>{users.filter(u=>u.access!=="customer"&&u.active).map(s=><option key={s.id} value={s.id}>{s.name} — {s.role}</option>)}</select></div>
