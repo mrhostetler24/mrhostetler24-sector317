@@ -1202,6 +1202,15 @@ export async function approveShiftConflict(shiftId) {
   return data ? toShift(data) : null
 }
 
+export async function declineShiftConflict(shiftId) {
+  const { data, error } = await supabase
+    .from('shifts')
+    .update({ conflicted: false, conflict_note: null })
+    .eq('id', shiftId).select().single()
+  if (error) throw error
+  return data ? toShift(data) : null
+}
+
 export async function assignShift(shiftId, staffId) {
   const { data, error } = await supabase.rpc('assign_shift', { p_shift_id: shiftId, p_staff_id: staffId })
   if (error) throw error

@@ -20,11 +20,11 @@ import {
   fetchSessionTemplates, upsertSessionTemplate, deleteSessionTemplate,
   fetchReservations, fetchAvailabilityReservations, createReservation, updateReservation, addPlayerToReservation, removePlayerFromReservation, syncReservationPlayers,
   fetchShifts, createShift, updateShift, deleteShift, claimShift, flagShiftConflict,
-  approveShiftConflict, assignShift, adminEditShift,
+  approveShiftConflict, declineShiftConflict, assignShift, adminEditShift,
   createPayment, fetchPayments, mergeUsers, linkAuthToGuest,
   fetchRunsForReservations, fetchUserAuthDates, calculateRunScore,
   fetchShiftTemplates, fetchTemplateSlots, fetchSlotAssignments,
-  fetchStaffBlocks, createStaffBlock, updateStaffBlock, deleteStaffBlock,
+  fetchStaffBlocks, fetchAllStaffBlocks, createStaffBlock, updateStaffBlock, deleteStaffBlock,
 
   fetchUserRoles,
   fetchFriends,
@@ -623,6 +623,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   const [assignModal,setAssignModal]=useState(null);
   const [assignTarget,setAssignTarget]=useState('');
   const [editShiftModal,setEditShiftModal]=useState(null); // {id,staffId,start,end,date,role}
+  const [allStaffBlocks,setAllStaffBlocks]=useState([]);
   const today=todayStr();
   function timeToMin(t){if(!t)return 0;const p=(t+'').split(':').map(Number);return p[0]*60+(p[1]||0);}
   function fmtDur(s,e){const m=timeToMin(e)-timeToMin(s);if(m<=0)return '';return Math.floor(m/60)+' hr'+(m%60?' '+m%60+' min':'');}
@@ -635,6 +636,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
       fetchStaffBlocks(currentUser.id).then(b=>{setStaffBlocks(b);setBlocksLoaded(true);}).catch(()=>{});
     }
     fetchUserRoles().then(setUserRoles).catch(()=>{});
+    if(isManager) fetchAllStaffBlocks().then(setAllStaffBlocks).catch(()=>{});
   },[]);// eslint-disable-line react-hooks/exhaustive-deps
   function blockIsResolved(block){
     if(block.status!=='pending')return false;
@@ -715,7 +717,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <div className="f"><label>Reason</label><input value={cNote} onChange={e=>setCNote(e.target.value)} placeholder="e.g. family commitment, medical" required/></div>
         <div className="ma"><button className="btn btn-s" onClick={()=>setConflictModal(null)}>Cancel</button><button className="btn btn-warn" disabled={shiftOpBusy||!cNote.trim()} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{await flagShiftConflict(conflictModal.id,cNote||null);setShifts(p=>p.map(s=>s.id===conflictModal.id?{...s,conflicted:true,conflictNote:cNote}:s));onAlert(currentUser.name+' flagged a conflict for '+fmt(conflictModal.date));setConflictModal(null);}catch(e){onAlert('Error flagging conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Flag →</button></div>
       </div></div>}
-      {assignModal&&(()=>{const s=assignModal.shift;const eligible=users.filter(u=>{if(u.access==='customer')return false;if(s.role&&u.role!==s.role&&!userRoles.some(r=>r.userId===u.id&&r.role===s.role))return false;return!shifts.some(x=>x.id!==s.id&&x.staffId===u.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start);});return(<div className="mo" onClick={()=>{setAssignModal(null);setAssignTarget('')}}><div className="mc" style={{maxWidth:360}} onClick={e=>e.stopPropagation()}>
+      {assignModal&&(()=>{const s=assignModal.shift;const eligible=users.filter(u=>{if(u.id===s.staffId)return false;if(u.access==='customer')return false;if(s.role&&u.role!==s.role&&!userRoles.some(r=>r.userId===u.id&&r.role===s.role))return false;return!shifts.some(x=>x.id!==s.id&&x.staffId===u.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start);});return(<div className="mo" onClick={()=>{setAssignModal(null);setAssignTarget('')}}><div className="mc" style={{maxWidth:360}} onClick={e=>e.stopPropagation()}>
         <div className="mt2">Assign Shift</div>
         <p style={{color:"var(--muted)",fontSize:".85rem",marginBottom:"1rem"}}>{s.role&&<><strong style={{color:"var(--txt)"}}>{s.role}</strong> · </>}{fmt(s.date)} {fmt12(s.start)}–{fmt12(s.end)}</p>
         {eligible.length===0?<p style={{color:"var(--muted)",fontSize:".85rem"}}>No eligible staff available at this time.</p>:<div className="f"><label>Assign to</label><select value={assignTarget} onChange={e=>setAssignTarget(e.target.value)} style={{width:'100%'}}><option value="">— select staff —</option>{eligible.map(u=><option key={u.id} value={u.id}>{u.name}{u.role?` (${u.role})`:''}</option>)}</select></div>}
@@ -733,7 +735,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         {isManager&&<button className={`tab${tab==="conflict"?" on":""}`} onClick={()=>setTab("conflict")}>Conflicts {conflicts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".62rem",marginLeft:".25rem"}}>{conflicts.length}</span>}</button>}
         {isManager&&<button className={`tab${tab==="all"?" on":""}`} onClick={()=>setTab("all")}>All Staff</button>}
         {isManager&&<button className={`tab${tab==="templates"?" on":""}`} onClick={()=>setTab("templates")}>Templates</button>}
-        <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending').length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending').length}</span>}</button>
+        <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending'&&!blockIsResolved(b)).length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending'&&!blockIsResolved(b)).length}</span>}</button>
       </div>
       {tab==="mine"&&<>
         {isAdmin&&<div style={{marginBottom:'.5rem'}}>
@@ -769,6 +771,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
           {s.conflictNote&&<div style={{fontSize:".82rem",color:"var(--warnL)",fontStyle:'italic'}}>"{s.conflictNote}"</div>}
           <div style={{display:"flex",gap:".4rem",flexShrink:0,marginTop:'.15rem'}}>
             <button className="btn btn-ok btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const updated=await approveShiftConflict(s.id);setShifts(p=>p.map(x=>x.id===s.id?(updated||{...x,conflicted:false,conflictNote:null,staffId:null,open:true}):x));onAlert('Conflict approved — shift released to Available pool');}catch(e){onAlert('Error approving conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Approve</button>
+            <button className="btn btn-d btn-sm" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const updated=await declineShiftConflict(s.id);setShifts(p=>p.map(x=>x.id===s.id?(updated||{...x,conflicted:false,conflictNote:null}):x));onAlert('Conflict declined — '+(orig?.name??'staff')+' remains on shift');}catch(e){onAlert('Error declining conflict: '+e.message);}finally{setShiftOpBusy(false);}}}>Decline</button>
             <button className="btn btn-s btn-sm" disabled={shiftOpBusy} onClick={()=>setAssignModal({shift:s})}>Assign</button>
           </div>
         </div>;})}
@@ -787,7 +790,9 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
             </div>
             {blockConflict
               ?<button className="btn btn-warn btn-sm" style={{flexShrink:0}} onClick={()=>setTab('blocks')}>Edit my blocks</button>
-              :<button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;if(shifts.some(x=>x.staffId===currentUser.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start)){onAlert('You already have a shift at this time.');return;}setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){setShifts(p=>p.map(x=>x.id===s.id?claimed:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}> Claim</button>
+              :isManager
+                ?<button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={()=>setAssignModal({shift:s})}>Assign</button>
+                :<button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;if(shifts.some(x=>x.staffId===currentUser.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start)){onAlert('You already have a shift at this time.');return;}setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){setShifts(p=>p.map(x=>x.id===s.id?claimed:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}> Claim</button>
             }
           </div>;
         })}
@@ -838,6 +843,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <div className="tabs" style={{marginBottom:'1rem'}}>
           <button className={`tab${allStaffSub==='roster'?' on':''}`} onClick={()=>setAllStaffSub('roster')}>Daily Roster</button>
           <button className={`tab${allStaffSub==='week'?' on':''}`} onClick={()=>setAllStaffSub('week')}>Week View</button>
+          <button className={`tab${allStaffSub==='employee-blocks'?' on':''}`} onClick={()=>setAllStaffSub('employee-blocks')}>Employee Blocks</button>
         </div>
         {allStaffSub==='roster'&&<>
           <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap',marginBottom:'.5rem'}}>
@@ -908,6 +914,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
             </table>
           </div>
         </>}
+        {allStaffSub==='employee-blocks'&&(()=>{const staffUsers=users.filter(u=>u.access!=='customer'&&u.access!=='kiosk'&&u.active!==false).sort((a,b)=>a.name.localeCompare(b.name));const anyBlocks=allStaffBlocks.length>0;return<>{!anyBlocks&&<div className="empty"><div className="ei">📅</div><p>No staff availability blocks on record.</p></div>}{staffUsers.map(u=>{const ub=allStaffBlocks.filter(b=>b.staffId===u.id).sort((a,b2)=>a.startDate.localeCompare(b2.startDate));if(!ub.length)return null;return<div key={u.id} style={{marginBottom:'1.25rem'}}><div style={{fontFamily:'var(--fd)',fontSize:'.88rem',fontWeight:700,color:'var(--accB)',marginBottom:'.4rem',letterSpacing:'.04em',textTransform:'uppercase'}}>{u.name}</div>{ub.map(b=>{const dr=b.startDate===b.endDate?fmt(b.startDate):fmt(b.startDate)+' – '+fmt(b.endDate);const tr=(!b.startTime||!b.endTime)?'All day':fmt12(b.startTime)+' – '+fmt12(b.endTime);return<div key={b.id} className="shift-card" style={{marginBottom:'.3rem',padding:'.45rem .85rem'}}><div style={{flex:1}}><div style={{fontSize:'.86rem',fontWeight:600,color:'var(--txt)'}}>{dr}</div><div style={{fontSize:'.78rem',color:'var(--muted)'}}>{tr}{b.label?' · '+b.label:''}</div></div><span className={`badge ${b.status==='pending'?'b-conflict':'b-ok'}`} style={{fontSize:'.65rem',flexShrink:0}}>{b.status==='pending'?'Pending':'Confirmed'}</span></div>;})}</div>;})}</>;})()}
       </div>}
       {tab==="templates"&&isManager&&<StaffingScheduler currentUser={currentUser} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={onAlert} initialView="templates" embedded={true}/>}
     </div>
