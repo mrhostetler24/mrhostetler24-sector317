@@ -117,8 +117,10 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   const [slotAssignments, setSlotAssignments] = useState([])    // {id,slotId,weekNumber,staffId}
   const [scheduleBlocks,  setScheduleBlocks]  = useState([])
   const [userRoles,       setUserRoles]       = useState([])
+  const [staffBlocks,     setStaffBlocks]     = useState([])    // personal availability blocks
   const [templatesLoaded, setTemplatesLoaded] = useState(false)
   const [tmplLoading,     setTmplLoading]     = useState(false)
+  const [conflictDataLoaded, setConflictDataLoaded] = useState(false)
 
   // ── Stamp state ────────────────────────────────────────────────────────────
   const [stampPreview, setStampPreview] = useState(null)  // { shifts[], templateName }
@@ -185,6 +187,35 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     })
   }
 
+  // Returns staff eligible to cover a concrete shift (conflicts/roster reassignment).
+  // Filters: role capability, no overlapping shift, no personal availability block.
+  function getEligibleForShift(shift) {
+    const shiftRole = shift.role ?? null
+    const s0 = timeToMinutes(shift.startTime)
+    const e0 = timeToMinutes(shift.endTime)
+    return staffUsers.filter(u => {
+      // Role capability: primary role or cross-training
+      if (shiftRole) {
+        const hasPrimary  = u.role === shiftRole
+        const hasTraining = userRoles.some(r => r.userId === u.id && r.role === shiftRole)
+        if (!hasPrimary && !hasTraining) return false
+      }
+      // Personal availability block
+      if (isStaffBlocked(u.id, shift.date, shift.startTime, shift.endTime, staffBlocks)) return false
+      // Already assigned to another overlapping shift on the same date
+      const hasOverlap = shifts.some(x =>
+        x.id !== shift.id &&
+        x.staffId === u.id &&
+        x.date === shift.date &&
+        x.role !== 'Admin' &&
+        shift.role !== 'Admin' &&
+        timeToMinutes(x.startTime) < e0 &&
+        timeToMinutes(x.endTime) > s0
+      )
+      return !hasOverlap
+    })
+  }
+
   function getUserById(id) {
     return users.find(u => u.id === id) ?? null
   }
@@ -193,6 +224,19 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
   useEffect(() => {
     if (view === 'templates' && !templatesLoaded && !tmplLoading) {
       loadTemplateData()
+    }
+  }, [view]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Conflict view data loading (staff blocks + user roles) ─────────────────
+  useEffect(() => {
+    if (view === 'conflicts' && !conflictDataLoaded) {
+      Promise.all([fetchAllStaffBlocks(), userRoles.length ? Promise.resolve(userRoles) : fetchUserRoles()])
+        .then(([blocks, roles]) => {
+          setStaffBlocks(blocks)
+          setUserRoles(roles)
+          setConflictDataLoaded(true)
+        })
+        .catch(() => {})
     }
   }, [view]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -609,6 +653,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
     const st = shiftStatus(shift)
 
     if (isThisOne) {
+      const eligible = getEligibleForShift(shift)
       return (
         <div style={{ display: 'flex', gap: '.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <select
@@ -617,7 +662,7 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
             style={{ fontSize: '.8rem', padding: '.25rem .45rem', background: 'var(--surf2)', color: 'var(--txt)', border: '1px solid var(--bdr)', borderRadius: 4 }}
           >
             <option value="">— select staff —</option>
-            {staffUsers.map(u => (
+            {eligible.map(u => (
               <option key={u.id} value={u.id}>
                 {u.name}{u.role ? ` · ${u.role}` : ''}
               </option>
