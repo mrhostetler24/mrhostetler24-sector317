@@ -3,11 +3,73 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  uploadAvatar, updateOwnAvatar, updateSocialProfile,
+  uploadAvatar, updateOwnAvatar, updateSocialProfile, updateSocialLinks,
   sendFriendRequest, cancelFriendRequest, acceptFriendRequest, rejectFriendRequest,
   removeFriend, searchPlayers, getRecentlyMet, getFriendProfile, getFriendExtended,
   fetchFriends, fetchReceivedRequests, fetchSentRequests,
 } from './supabase.js'
+
+// ── Social platforms ──────────────────────────────────────────────────────────
+const PLATFORMS = [
+  { key: 'twitch',    label: 'Twitch',       color: '#9146FF', abbr: 'TV',  noLink: false, placeholder: 'https://twitch.tv/username' },
+  { key: 'discord',   label: 'Discord',      color: '#5865F2', abbr: 'DC',  noLink: true,  placeholder: 'Username (e.g. coolplayer)' },
+  { key: 'steam',     label: 'Steam',        color: '#1b2838', abbr: 'STM', noLink: false, placeholder: 'https://steamcommunity.com/id/username' },
+  { key: 'xbox',      label: 'Xbox',         color: '#107C10', abbr: 'XB',  noLink: true,  placeholder: 'Gamertag' },
+  { key: 'psn',       label: 'PlayStation',  color: '#003087', abbr: 'PS',  noLink: true,  placeholder: 'PSN ID' },
+  { key: 'reddit',    label: 'Reddit',       color: '#FF4500', abbr: 'RD',  noLink: false, placeholder: 'https://reddit.com/u/username' },
+  { key: 'youtube',   label: 'YouTube',      color: '#FF0000', abbr: 'YT',  noLink: false, placeholder: 'https://youtube.com/@channel' },
+  { key: 'tiktok',    label: 'TikTok',       color: '#010101', abbr: 'TT',  noLink: false, placeholder: 'https://tiktok.com/@username' },
+  { key: 'kick',      label: 'Kick',         color: '#53FC18', abbr: 'KK',  noLink: false, placeholder: 'https://kick.com/username', darkText: true },
+  { key: 'instagram', label: 'Instagram',    color: '#E1306C', abbr: 'IG',  noLink: false, placeholder: 'https://instagram.com/username' },
+  { key: 'snapchat',  label: 'Snapchat',     color: '#FFFC00', abbr: 'SC',  noLink: false, placeholder: 'https://snapchat.com/add/username', darkText: true },
+  { key: 'bereal',    label: 'BeReal',       color: '#111111', abbr: 'BR',  noLink: true,  placeholder: 'Username' },
+  { key: 'pinterest', label: 'Pinterest',    color: '#E60023', abbr: 'PT',  noLink: false, placeholder: 'https://pinterest.com/username' },
+  { key: 'twitter',   label: 'X (Twitter)',  color: '#000000', abbr: 'X',   noLink: false, placeholder: 'https://x.com/username' },
+  { key: 'facebook',  label: 'Facebook',     color: '#1877F2', abbr: 'FB',  noLink: false, placeholder: 'https://facebook.com/username' },
+  { key: 'linkedin',  label: 'LinkedIn',     color: '#0A66C2', abbr: 'in',  noLink: false, placeholder: 'https://linkedin.com/in/username' },
+  { key: 'telegram',  label: 'Telegram',     color: '#2AABEE', abbr: 'TG',  noLink: false, placeholder: 'https://t.me/username' },
+  { key: 'whatsapp',  label: 'WhatsApp',     color: '#25D366', abbr: 'WA',  noLink: false, placeholder: 'https://wa.me/1234567890', darkText: true },
+  { key: 'signal',    label: 'Signal',       color: '#3A76F0', abbr: 'SG',  noLink: true,  placeholder: 'Username' },
+  { key: 'website',   label: 'Website',      color: '#555555', abbr: 'WEB', noLink: false, placeholder: 'https://yourwebsite.com' },
+]
+
+function PlatformIcon({ platformKey, size = 40 }) {
+  const p = PLATFORMS.find(pl => pl.key === platformKey)
+  if (!p) return null
+  return (
+    <div style={{ width: size, height: size, borderRadius: Math.round(size * 0.2), background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <span style={{ color: p.darkText ? '#111' : '#fff', fontWeight: 700, fontSize: Math.round(size * 0.28), fontFamily: 'var(--fd)', letterSpacing: '.02em', lineHeight: 1 }}>{p.abbr}</span>
+    </div>
+  )
+}
+
+function SocialLinksList({ links, editable, onDelete }) {
+  if (!links?.length) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '.45rem' }}>
+      {links.map(link => {
+        const p = PLATFORMS.find(pl => pl.key === link.platform)
+        if (!p) return null
+        return (
+          <div key={link.platform} style={{ display: 'flex', alignItems: 'center', gap: '.65rem' }}>
+            <PlatformIcon platformKey={link.platform} size={30} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: '.05rem' }}>{p.label}</div>
+              {p.noLink ? (
+                <div style={{ fontSize: '.88rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{link.value}</div>
+              ) : (
+                <a href={link.value} target="_blank" rel="noopener noreferrer" style={{ fontSize: '.88rem', color: 'var(--acc)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textDecoration: 'none' }}>{link.value}</a>
+              )}
+            </div>
+            {editable && (
+              <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '.85rem', padding: '2px 6px', flexShrink: 0, lineHeight: 1 }} onClick={() => onDelete(link.platform)}>✕</button>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 // ── Tier data ────────────────────────────────────────────────────────────────
 const TIER_THRESHOLDS = [
@@ -218,7 +280,7 @@ const FP_SECTION = { fontSize: '.65rem', color: 'var(--muted)', fontFamily: 'var
 const VIZ_COLORS = { V: '#9ca3af', C: '#a78bfa', R: '#f472b6', S: '#60a5fa', B: '#4b5563' }
 const AUD_COLORS = { T: 'var(--accB)', C: '#f97316', O: '#6b7280' }
 
-function FriendProfileModal({ userId, onClose }) {
+function FriendProfileModal({ userId, users, onClose }) {
   const [profile, setProfile] = useState(null)
   const [ext, setExt]         = useState(null)
   const [loading, setLoading] = useState(true)
@@ -350,6 +412,19 @@ function FriendProfileModal({ userId, onClose }) {
             </div>
           </>)}
 
+          {/* ── Social Links ── */}
+          {(() => {
+            const friendUser = (users ?? []).find(u => u.id === userId)
+            const links = friendUser?.socialLinks ?? []
+            if (!links.length) return null
+            return (<>
+              <div style={FP_SECTION}>Social Profiles</div>
+              <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem' }}>
+                <SocialLinksList links={links} editable={false} />
+              </div>
+            </>)
+          })()}
+
         </>)}
       </div>
     </div>
@@ -367,6 +442,13 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [editing, setEditing]                 = useState(false)
   const [editDraft, setEditDraft]             = useState({})
   const [editSaving, setEditSaving]           = useState(false)
+
+  // Social links state
+  const [socialLinks, setSocialLinks]         = useState(() => user.socialLinks ?? [])
+  const [linkPickerOpen, setLinkPickerOpen]   = useState(false)
+  const [linkPlatform, setLinkPlatform]       = useState(null)
+  const [linkInputVal, setLinkInputVal]       = useState('')
+  const [linkSaving, setLinkSaving]           = useState(false)
 
   // Friends state
   const [friendships, setFriendships]         = useState([])
@@ -605,6 +687,20 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     }
   }
 
+  async function saveSocialLinks(newLinks) {
+    setLinkSaving(true)
+    try {
+      const { error } = await updateSocialLinks(newLinks)
+      if (error) throw new Error(error.message)
+      setSocialLinks(newLinks)
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, socialLinks: newLinks } : u))
+    } catch (err) {
+      alert('Save failed: ' + err.message)
+    } finally {
+      setLinkSaving(false)
+    }
+  }
+
   const activeStats = profileStatsSub === 'coop' ? computeStats(coopRuns)
     : profileStatsSub === 'versus' ? computeStats(versRuns)
     : computeStats(myRuns)
@@ -617,7 +713,76 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   return (
     <>
       {profileModal && (
-        <FriendProfileModal userId={profileModal} onClose={() => setProfileModal(null)} />
+        <FriendProfileModal userId={profileModal} users={users} onClose={() => setProfileModal(null)} />
+      )}
+
+      {/* Platform picker modal */}
+      {linkPickerOpen && (
+        <div className="mo" onClick={e => e.target === e.currentTarget && setLinkPickerOpen(false)}>
+          <div className="mc" style={{ maxWidth: 480 }}>
+            <div className="mt2">Link a Social Profile</div>
+            <p style={{ fontSize: '.82rem', color: 'var(--muted)', marginBottom: '1rem' }}>Select a platform to link</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '.55rem' }}>
+              {PLATFORMS.filter(p => !socialLinks.some(l => l.platform === p.key)).map(p => (
+                <button
+                  key={p.key}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.3rem', padding: '.4rem', borderRadius: 6 }}
+                  onClick={() => { setLinkPlatform(p); setLinkPickerOpen(false); setLinkInputVal('') }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surf2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  <PlatformIcon platformKey={p.key} size={42} />
+                  <span style={{ fontSize: '.62rem', color: 'var(--muted)', textAlign: 'center', lineHeight: 1.2 }}>{p.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="ma" style={{ marginTop: '1.25rem' }}>
+              <button className="btn btn-s" onClick={() => setLinkPickerOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Platform input modal */}
+      {linkPlatform && (
+        <div className="mo" onClick={e => e.target === e.currentTarget && setLinkPlatform(null)}>
+          <div className="mc" style={{ maxWidth: 400 }}>
+            <div className="mt2" style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
+              <PlatformIcon platformKey={linkPlatform.key} size={30} />
+              <span>{linkPlatform.label}</span>
+            </div>
+            <p style={{ fontSize: '.82rem', color: 'var(--muted)', marginBottom: '.75rem' }}>
+              {linkPlatform.noLink ? 'Enter your username or ID' : 'Enter your profile link'}
+            </p>
+            <input
+              className="inp"
+              style={{ width: '100%', boxSizing: 'border-box' }}
+              placeholder={linkPlatform.placeholder}
+              value={linkInputVal}
+              onChange={e => setLinkInputVal(e.target.value)}
+              autoFocus
+              onKeyDown={async e => {
+                if (e.key === 'Enter' && linkInputVal.trim() && !linkSaving) {
+                  const newLinks = [...socialLinks, { platform: linkPlatform.key, value: linkInputVal.trim() }]
+                  await saveSocialLinks(newLinks)
+                  setLinkPlatform(null); setLinkInputVal('')
+                }
+              }}
+            />
+            <div className="ma" style={{ marginTop: '1rem', gap: '.5rem' }}>
+              <button className="btn btn-s" onClick={() => { setLinkPlatform(null); setLinkInputVal('') }}>Cancel</button>
+              <button
+                className="btn btn-p"
+                disabled={!linkInputVal.trim() || linkSaving}
+                onClick={async () => {
+                  const newLinks = [...socialLinks, { platform: linkPlatform.key, value: linkInputVal.trim() }]
+                  await saveSocialLinks(newLinks)
+                  setLinkPlatform(null); setLinkInputVal('')
+                }}
+              >{linkSaving ? 'Saving…' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Sub-tabs ── */}
@@ -806,6 +971,22 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               </div>
             </div>
           )}
+        </div>
+
+        {/* Social Links */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.65rem' }}>
+            <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase' }}>Social Links</div>
+            {socialLinks.length < PLATFORMS.length && (
+              <button className="btn btn-s btn-sm" style={{ fontSize: '.72rem', padding: '2px 10px' }} onClick={() => setLinkPickerOpen(true)}>
+                {socialLinks.length === 0 ? '+ Link a Profile' : '+ Link Another'}
+              </button>
+            )}
+          </div>
+          {socialLinks.length === 0
+            ? <div style={{ fontSize: '.82rem', color: 'var(--muted)', fontStyle: 'italic' }}>No social profiles linked yet.</div>
+            : <SocialLinksList links={socialLinks} editable onDelete={async key => { const n = socialLinks.filter(l => l.platform !== key); await saveSocialLinks(n) }} />
+          }
         </div>
 
         {/* Match Stats */}
