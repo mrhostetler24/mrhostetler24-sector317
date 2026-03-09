@@ -712,7 +712,6 @@ export async function createReservation(res) {
     amount:        res.amount,
     status:        res.status ?? 'confirmed',
     paid:          res.paid ?? false,
-    players:       res.players ?? [],
   }).select().single()
   if (error) throw error
   return toReservation(data)
