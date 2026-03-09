@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { get60Dates, getSessionsForDate, dateHasAvailability, getSlotStatus, openPlayCapacity, fmt12, fmt, fmtMoney, addDaysStr, todayStr, laneCapacity, hasValidWaiver, getInitials } from './utils.js';
 import { PlayerPhoneInput, DateNav } from './ui.jsx';
 import { emailBookingConfirmation } from './emails.js';
+import { processPayment } from './payments.js';
 
 function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,currentUser,users,activeWaiverDoc,onBook,onPayCreate,onFinalize,onClose}){
   const _allRes=allReservations??reservations;
@@ -441,12 +442,11 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         {step<steps.length
           ?<>{!paymentSuccess&&step===5
               ?<button className="btn btn-p" disabled={paying} onClick={async()=>{setPaying(true);setPayError(null);try{
-                // ── Step 1: process payment (simulated). Replace this block with real processor call.
-                // Throw here on decline — nothing will be written to the DB.
-                await new Promise(res=>setTimeout(res,amountDue>0?1200:300));
-                // e.g. real: const txn = await processGoDaddyPayment(cardToken, amountDue); if(!txn.ok) throw new Error(txn.declineReason);
+                // ── Step 1: process payment
+                const txn=await processPayment({amount:amountDue,mode:'card_not_present',card:{number:cardNumber,expiry:cardExpiry,name:nameOnCard}});
+                if(!txn.ok)throw new Error('Payment declined');
                 // ── Step 2: payment confirmed — create reservation(s) + payment record
-                const pgId=crypto.randomUUID();const bks=[];const isD=lanesBooked>1;if(isD){const uTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();uTimes.forEach(st=>{selSlots.filter(s=>s.startTime===st).forEach((sl,i)=>bks.push({typeId:selType.id,date:selDate,startTime:sl.startTime,playerCount:perLaneCap,amount:pricePerSlot,laneIdx:i}));});}else{selSlots.forEach(s=>bks.push({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,laneIdx:0}));}const rawDigits=cardNumber.replace(/\D/g,'');const cardLast4=rawDigits.length>=4?rawDigits.slice(-4):null;const ids=await onPayCreate({bookings:bks,userId:currentUser.id,customerName:currentUser.name,paymentGroupId:pgId,totalTransactionAmount:total,totalPlayerCount:effPlayerCount,cardLast4,cardExpiry:cardExpiry.trim()||null,cardHolder:nameOnCard.trim()||currentUser.name,creditsApplied});setPendingResIds(ids);setPaymentSuccess(true);const _bkUserId=bookingForOther?(player1Input.userId??currentUser.id):currentUser.id;emailBookingConfirmation(_bkUserId,{sessionType:selType?.name,date:selDate,startTime:[...new Set(selSlots.map(s=>s.startTime))].sort()[0],playerCount:effPlayerCount,amountPaid:total,creditsApplied,cardLast4,refNum:ids[0]?.resId?.replace(/-/g,'').slice(0,12).toUpperCase()});setStep(s=>s+1);}catch(e){setPayError(e.message||"Payment declined. Please check your card details and try again.");}finally{setPaying(false);}}}>{paying?"Processing…":amountDue>0?`Pay ${fmtMoney(amountDue)} & Confirm Reservation →`:`Confirm Reservation (Credits Applied) →`}</button>
+                const pgId=crypto.randomUUID();const bks=[];const isD=lanesBooked>1;if(isD){const uTimes=[...new Set(selSlots.map(s=>s.startTime))].sort();uTimes.forEach(st=>{selSlots.filter(s=>s.startTime===st).forEach((sl,i)=>bks.push({typeId:selType.id,date:selDate,startTime:sl.startTime,playerCount:perLaneCap,amount:pricePerSlot,laneIdx:i}));});}else{selSlots.forEach(s=>bks.push({typeId:selType.id,date:selDate,startTime:s.startTime,playerCount:effPlayerCount,amount:pricePerSlot,laneIdx:0}));}const ids=await onPayCreate({bookings:bks,userId:currentUser.id,customerName:currentUser.name,paymentGroupId:pgId,totalTransactionAmount:total,totalPlayerCount:effPlayerCount,cardLast4:txn.last4,cardExpiry:txn.expiry,cardHolder:txn.holder||currentUser.name,creditsApplied});setPendingResIds(ids);setPaymentSuccess(true);const _bkUserId=bookingForOther?(player1Input.userId??currentUser.id):currentUser.id;emailBookingConfirmation(_bkUserId,{sessionType:selType?.name,date:selDate,startTime:[...new Set(selSlots.map(s=>s.startTime))].sort()[0],playerCount:effPlayerCount,amountPaid:total,creditsApplied,cardLast4:txn.last4,refNum:ids[0]?.resId?.replace(/-/g,'').slice(0,12).toUpperCase()});setStep(s=>s+1);}catch(e){setPayError(e.message||"Payment declined. Please check your card details and try again.");}finally{setPaying(false);}}}>{paying?"Processing…":amountDue>0?`Pay ${fmtMoney(amountDue)} & Confirm Reservation →`:`Confirm Reservation (Credits Applied) →`}</button>
               :<button className="btn btn-p" disabled={!canNext[step]} onClick={()=>setStep(s=>s+1)}>Continue →</button>
             }</>
           :<button className="btn btn-p" onClick={async()=>{

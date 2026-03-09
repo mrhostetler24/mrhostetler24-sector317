@@ -12,6 +12,7 @@ import {
   fetchUserByPhone, createGuestUser, createPayment, deductUserCredits,
 } from './supabase.js'
 import { emailMerchPurchase } from './emails.js'
+import { processPayment } from './payments.js'
 
 // ─── Helpers ─────────────────────────────────────────────────
 const fmtMoney = n => '$' + Number(n || 0).toFixed(2)
@@ -1046,16 +1047,17 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
         discountAmount, shippingCharge: 0, notes: null,
       })
 
-      const rawLast4 = cardLast4.replace(/\D/g, '')
+      const txn = await processPayment({ amount: staffAmountDue, mode: 'card_present', card: { last4: cardLast4, expiry: cardExpiry, holder: cardHolder } })
+      if (!txn.ok) throw new Error('Terminal declined')
       const snapshot = {
         type: 'merch', customerName: customerName.trim(),
         items: cart.map(i => ({ name: i.productName, variant: i.variantLabel, qty: i.qty, unitPrice: i.price })),
         discount: discountAmount || undefined, shipping: 0, fulfillmentType: 'pickup',
         refNum: order.id.replace(/-/g, '').slice(0, 12).toUpperCase(),
         transactionAt: new Date().toISOString(),
-        cardLast4: rawLast4.length === 4 ? rawLast4 : null,
-        cardExpiry: cardExpiry.trim() || null,
-        cardHolder: cardHolder.trim() || customerName.trim(),
+        cardLast4: txn.last4,
+        cardExpiry: txn.expiry,
+        cardHolder: txn.holder || customerName.trim(),
         giftCodes: (order.giftCodes || []).map(g => ({ code: g.code, type: g.type })),
       }
 
@@ -1354,7 +1356,8 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
         discountAmount, shippingCharge, notes: null,
       })
 
-      const rawLast4 = cardLast4.replace(/\D/g, '')
+      const txn = await processPayment({ amount: storefrontAmountDue, mode: 'card_not_present', card: { last4: cardLast4, expiry: cardExpiry, holder: cardHolder } })
+      if (!txn.ok) throw new Error('Payment declined')
       const snapshot = {
         type: 'merch', customerName: currentUser.name,
         items: cart.map(i => ({ name: i.productName, variant: i.variantLabel, qty: i.qty, unitPrice: i.price })),
@@ -1362,9 +1365,9 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
         fulfillmentType,
         refNum: order.id.replace(/-/g, '').slice(0, 12).toUpperCase(),
         transactionAt: new Date().toISOString(),
-        cardLast4: rawLast4.length === 4 ? rawLast4 : null,
-        cardExpiry: cardExpiry.trim() || null,
-        cardHolder: cardHolder.trim() || currentUser.name,
+        cardLast4: txn.last4,
+        cardExpiry: txn.expiry,
+        cardHolder: txn.holder || currentUser.name,
         giftCodes: (order.giftCodes || []).map(g => ({ code: g.code, type: g.type })),
       }
 
