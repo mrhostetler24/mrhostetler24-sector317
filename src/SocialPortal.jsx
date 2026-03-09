@@ -403,14 +403,17 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   async function handleSendRequest(toId) {
     if (sendingTo) return
     setSendingTo(toId)
-    await sendFriendRequest(toId)
-    // Optimistically mark as pending regardless of result:
-    // 409 means request already exists (sent or received) → still pending
-    setSentRequests(prev =>
-      prev.some(r => r.to_user_id === toId)
-        ? prev
-        : [...prev, { to_user_id: toId, created_at: new Date().toISOString() }]
-    )
+    const { error } = await sendFriendRequest(toId)
+    if (!error) {
+      setSentRequests(prev =>
+        prev.some(r => r.to_user_id === toId)
+          ? prev
+          : [...prev, { to_user_id: toId, created_at: new Date().toISOString() }]
+      )
+    } else {
+      // 409 = request already exists in other direction — reload to surface incoming request
+      await loadFriends()
+    }
     setSendingTo(null)
   }
 
