@@ -1702,7 +1702,6 @@ const toMerchOrder = r => r ? ({
   discountId: r.discount_id, discountAmount: Number(r.discount_amount || 0),
   notes: r.notes, createdAt: r.created_at,
   items: (r.items || []).map(toMerchOrderItem),
-  giftCodes: (r.gift_codes || []).map(toMerchGiftCode),
 }) : null
 
 const toMerchOrderItem = r => r ? ({
@@ -1786,7 +1785,7 @@ export async function fetchMerchInventoryTransactions(opts = {}) {
 
 export async function fetchMerchOrders(opts = {}) {
   let q = supabase.from('merch_orders')
-    .select('*, items:merch_order_items(*), gift_codes:merch_gift_codes(*)')
+    .select('*, items:merch_order_items(*)')
     .order('created_at', { ascending: false })
   if (opts.userId) q = q.eq('user_id', opts.userId)
   if (opts.status) q = q.eq('status', opts.status)
