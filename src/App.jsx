@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
+import { isStaffBlocked } from './stampUtils.js';
 import './app.css';
 import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, getDayName, cleanPh, todayStr, addDaysStr, sortTemplates, hasValidWaiver, latestWaiverDate, latestWaiverEntry, TIER_THRESHOLDS, TIER_COLORS, TIER_SHINE, getTierInfo, getSessionsForDate, buildLanes, laneCapacity, openPlayCapacity, getSlotStatus, dateHasAvailability, get60Dates, getInitials } from './utils.js';
 import { AuthBadge, Toast, Toggle, WaiverTooltip, RunsCell, WaiverModal, WaiverViewModal, PhoneInput, PlayerPhoneInput, genDefaultLeaderboardName, validateLbName, DateNav } from './ui.jsx';
@@ -150,6 +151,30 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
     return m;
   },[rt,reservations,resTypes,sessionTemplates]);
 
+  // Set of "date:startTime" where currentUser already has a non-cancelled booking (excluding the one being rescheduled)
+  const userBookedTimes=useMemo(()=>{
+    const s=new Set();
+    (reservations??[]).forEach(r=>{
+      if(r.id!==res.id&&r.userId===currentUser?.id&&r.status!=='cancelled')
+        s.add(r.date+':'+r.startTime);
+    });
+    return s;
+  },[reservations,res.id,currentUser]);
+
+  // Availability map accounting for user's existing bookings (for date picker)
+  const reschedAvailMapForUser=useMemo(()=>{
+    if(!rt) return {};
+    const m={};
+    allDates.forEach(d=>{
+      if(!reschedAvailMap[d]){m[d]=false;return;}
+      m[d]=getSessionsForDate(d,sessionTemplates).some(t=>
+        !userBookedTimes.has(d+':'+t.startTime)&&
+        getSlotStatus(d,t.startTime,rt.id,reservations,resTypes,sessionTemplates).available
+      );
+    });
+    return m;
+  },[rt,reschedAvailMap,allDates,sessionTemplates,userBookedTimes,reservations,resTypes]);
+
   const slotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
 
   const isReschedule=mode==="reschedule";
@@ -280,15 +305,18 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
       {!selDate&&<>
         <p style={{fontSize:".82rem",color:"var(--muted)",marginBottom:".6rem"}}>Pick a new date:</p>
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
-        {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=new Date(dates[0]+"T12:00:00").getDay();return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");const avail=reschedAvailMap[d];const isCurrent=d===res.date;const dayLocked=isWithin24h&&d!==res.date;return <div key={d} className={`date-cell${isCurrent?" sel":""}${(!avail||dayLocked)?" na":""}`} onClick={()=>avail&&!dayLocked&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
+        {(()=>{const grouped={};allDates.slice(0,42).forEach(d=>{const mo=new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"long",year:"numeric"});(grouped[mo]=grouped[mo]||[]).push(d);});return Object.entries(grouped).map(([mo,dates])=>{const offset=new Date(dates[0]+"T12:00:00").getDay();return <div key={mo}><div className="cal-month">{mo}</div><div className="date-grid">{Array.from({length:offset}).map((_,i)=><div key={i}/>)}{dates.map(d=>{const dt=new Date(d+"T12:00:00");const avail=reschedAvailMapForUser[d];const isCurrent=d===res.date;const dayLocked=isWithin24h&&d!==res.date;return <div key={d} className={`date-cell${isCurrent?" sel":""}${(!avail||dayLocked)?" na":""}`} onClick={()=>avail&&!dayLocked&&setSelDate(d)}><div className="dc-day">{dt.toLocaleDateString("en-US",{weekday:"short"})}</div><div className="dc-num">{dt.getDate()}</div></div>;})}</div></div>;});})()}
       </>}
       {selDate&&!selTime&&<>
         <p style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".6rem"}}>Available times on <strong>{fmt(selDate)}</strong>:</p>
         <div className="slot-grid">{reschedSlotStatuses.map(({tmpl:t,st})=>{
           const isCurrent=selDate===res.date&&t.startTime===res.startTime;
-          return <div key={t.id} className={`slot-card${isCurrent?" added":!st.available?" unavail":""}`} onClick={()=>!isCurrent&&st.available&&setSelTime(t.startTime)}>
+          const userHasHere=!isCurrent&&userBookedTimes.has(selDate+':'+t.startTime);
+          const isAvail=!isCurrent&&!userHasHere&&st.available;
+          return <div key={t.id} className={`slot-card${isCurrent?" added":(!isAvail&&!isCurrent)?" unavail":""}`} onClick={()=>isAvail&&setSelTime(t.startTime)}>
             <div className="slot-time">{fmt12(t.startTime)}</div>
             {isCurrent?<div className="slot-info" style={{color:"var(--muted)"}}>Current</div>
+             :userHasHere?<div className="slot-reason">Already booked</div>
              :st.available?<div className="slot-info" style={{color:"var(--okB)"}}>{(()=>{const cap=rt?.mode==="versus"?12:6;const spots=st.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";})()}</div>
              :<div className="slot-reason">{st.reason}</div>}
           </div>;
@@ -602,10 +630,10 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
     if(tabOverride){setTab(tabOverride);onTabOverrideConsumed?.();}
   },[tabOverride]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(()=>{
-    if(tab==='blocks'&&!blocksLoaded){
+    if(!blocksLoaded){
       fetchStaffBlocks(currentUser.id).then(b=>{setStaffBlocks(b);setBlocksLoaded(true);}).catch(()=>{});
     }
-  },[tab]);
+  },[]);// eslint-disable-line react-hooks/exhaustive-deps
   function blockIsResolved(block){
     if(block.status!=='pending')return false;
     return !shifts.some(s=>{
@@ -702,6 +730,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <button className={`tab${tab==="available"?" on":""}`} onClick={()=>setTab("available")}>Available ({avail.length})</button>
         {isManager&&<button className={`tab${tab==="conflict"?" on":""}`} onClick={()=>setTab("conflict")}>Conflicts {conflicts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".62rem",marginLeft:".25rem"}}>{conflicts.length}</span>}</button>}
         {isManager&&<button className={`tab${tab==="all"?" on":""}`} onClick={()=>setTab("all")}>All Staff</button>}
+        {isManager&&<button className={`tab${tab==="templates"?" on":""}`} onClick={()=>setTab("templates")}>Templates</button>}
         <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending').length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending').length}</span>}</button>
       </div>
       {tab==="mine"&&<>
@@ -744,15 +773,22 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
       </>}
       {tab==="available"&&<>
         {!avail.length&&<div className="empty"><div className="ei">📋</div><p>No available shifts.</p></div>}
-        {[...avail].sort((a,b)=>a.date.localeCompare(b.date)||timeToMin(a.start)-timeToMin(b.start)).map(s=><div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
-          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--okB)",minWidth:160,flexShrink:0}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
-          <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
-            <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
-            {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
-            {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
-          </div>
-          <button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;if(shifts.some(x=>x.staffId===currentUser.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start)){onAlert('You already have a shift at this time.');return;}setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){setShifts(p=>p.map(x=>x.id===s.id?claimed:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}>&#32;Claim</button>
-        </div>)}
+        {[...avail].sort((a,b)=>a.date.localeCompare(b.date)||timeToMin(a.start)-timeToMin(b.start)).map(s=>{
+          const blockConflict=isStaffBlocked(currentUser.id,s.date,s.start,s.end,staffBlocks);
+          return <div key={s.id} className="shift-card available" style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,color:"var(--okB)",minWidth:160,flexShrink:0}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
+            <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
+              <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
+              {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
+              {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
+              {blockConflict&&<span style={{fontSize:".78rem",color:"var(--warnL)",fontStyle:'italic',whiteSpace:'nowrap'}}>Conflicts with your Blocks</span>}
+            </div>
+            {blockConflict
+              ?<button className="btn btn-warn btn-sm" style={{flexShrink:0}} onClick={()=>setTab('blocks')}>Edit my blocks</button>
+              :<button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;if(shifts.some(x=>x.staffId===currentUser.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start)){onAlert('You already have a shift at this time.');return;}setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){setShifts(p=>p.map(x=>x.id===s.id?claimed:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}> Claim</button>
+            }
+          </div>;
+        })}
         {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>{const d=prompt("Date (YYYY-MM-DD):");const st=prompt("Start (HH:MM):");const en=prompt("End (HH:MM):");if(d&&st&&en)setShifts(p=>[...p,{id:Date.now(),staffId:null,date:d,start:st,end:en,open:true}]);}}>+ Post Open Shift</button>}
       </>}
       {tab==="blocks"&&<div>
@@ -871,6 +907,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
           </div>
         </>}
       </div>}
+      {tab==="templates"&&isManager&&<StaffingScheduler currentUser={currentUser} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={onAlert} initialView="templates" embedded={true}/>}
     </div>
   );
 }
