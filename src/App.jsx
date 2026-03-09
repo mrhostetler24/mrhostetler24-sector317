@@ -642,6 +642,8 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
     if(block.status!=='pending')return false;
     return !shifts.some(s=>{
       if(s.staffId!==currentUser.id)return false;
+      if(s.role==='Admin')return false;       // Admin shifts were never flagged — don't count them
+      if(s.conflicted)return false;           // still-conflicted shifts are in-flight, not blocking resolution
       if(s.date<block.startDate||s.date>block.endDate)return false;
       if(!block.startTime||!block.endTime)return true;
       const bs=timeToMin(block.startTime),be=timeToMin(block.endTime);
