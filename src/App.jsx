@@ -2033,6 +2033,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       </div></div>}
       <div className="tabs">
         <button className={`tab${tab==="dashboard"?" on":""}`} onClick={()=>setTab("dashboard")}>Dashboard</button>
+        <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
         <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
         {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
         {isAdmin&&<button className={`tab${tab==="types"?" on":""}`} onClick={()=>setTab("types")}>Res. Types</button>}
@@ -2041,7 +2042,6 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
         {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merchandise</button>}
-        <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
         <button className="btn btn-p btn-sm" style={{marginLeft:"auto"}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
 
