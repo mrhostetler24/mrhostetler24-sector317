@@ -1648,6 +1648,7 @@ export const removeFriend        = (otherId) => supabase.rpc('remove_friend',   
 export const searchPlayers       = (query)   => supabase.rpc('search_players',         { p_query: query })
 export const getRecentlyMet      = ()        => supabase.rpc('get_recently_met')
 export const getFriendProfile    = (userId)  => supabase.rpc('get_friend_profile',     { p_user_id: userId })
+export const getFriendExtended   = (userId)  => supabase.rpc('get_friend_extended',    { p_user_id: userId })
 
 export const fetchFriends = (userId) =>
   supabase.rpc('get_friends', { p_user_id: userId })

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   uploadAvatar, updateOwnAvatar, updateSocialProfile,
   sendFriendRequest, cancelFriendRequest, acceptFriendRequest, rejectFriendRequest,
-  removeFriend, searchPlayers, getRecentlyMet, getFriendProfile,
+  removeFriend, searchPlayers, getRecentlyMet, getFriendProfile, getFriendExtended,
   fetchFriends, fetchReceivedRequests, fetchSentRequests,
 } from './supabase.js'
 
@@ -167,87 +167,172 @@ function TierIcon({ runs }) {
 }
 
 // ── Friend Profile Modal ──────────────────────────────────────────────────────
+function EnvBar({ label, pct, color }) {
+  if (!pct) return null
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+      <div style={{ width: 56, color: 'var(--muted)', fontSize: '.75rem', textAlign: 'right', flexShrink: 0 }}>{label}</div>
+      <div style={{ flex: 1, background: 'rgba(255,255,255,.07)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3 }} />
+      </div>
+      <div style={{ width: 30, fontFamily: 'var(--fd)', fontSize: '.75rem', color: 'var(--txt)' }}>{pct}%</div>
+    </div>
+  )
+}
+
+function RankCard({ label, rank, score }) {
+  const isTop3 = rank && rank <= 3
+  return (
+    <div style={{ flex: 1, textAlign: 'center', padding: '.5rem .2rem', background: 'var(--surf2)', borderRadius: 5, border: '1px solid var(--bdr)' }}>
+      <div style={{ fontSize: '.58rem', color: 'var(--muted)', fontFamily: 'var(--fc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.3rem' }}>{label}</div>
+      {rank
+        ? <div style={{ fontFamily: 'var(--fd)', fontSize: '1.05rem', color: isTop3 ? '#f5c842' : 'var(--txt)', lineHeight: 1 }}>#{rank}</div>
+        : <div style={{ color: 'var(--muted)', fontSize: '.85rem', lineHeight: 1 }}>—</div>
+      }
+      {rank && score != null && (
+        <div style={{ fontSize: '.62rem', color: 'var(--muted)', marginTop: '.2rem' }}>{Number(score).toFixed(1)}</div>
+      )}
+    </div>
+  )
+}
+
+const FP_SECTION = { fontSize: '.65rem', color: 'var(--muted)', fontFamily: 'var(--fc)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '.5rem', marginTop: '1rem' }
+const VIZ_COLORS = { V: '#9ca3af', C: '#a78bfa', R: '#f472b6', S: '#60a5fa', B: '#4b5563' }
+const AUD_COLORS = { T: 'var(--accB)', C: '#f97316', O: '#6b7280' }
+
 function FriendProfileModal({ userId, onClose }) {
   const [profile, setProfile] = useState(null)
+  const [ext, setExt]         = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
     setProfile(null)
-    getFriendProfile(userId).then(({ data }) => {
-      const row = Array.isArray(data) ? data[0] : data
+    setExt(null)
+    Promise.all([
+      getFriendProfile(userId),
+      getFriendExtended(userId),
+    ]).then(([{ data: pd }, { data: ed }]) => {
+      const row = Array.isArray(pd) ? pd[0] : pd
       setProfile(row ?? null)
+      setExt(ed ?? null)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [userId])
 
+  const { current: tier } = profile ? getTierInfo(profile.total_runs ?? 0) : { current: { key: 'recruit', name: 'Recruit' } }
+  const tierCol = TIER_COLORS[tier?.key] ?? 'var(--muted)'
+
+  const hasEnv = ext && (ext.viz_std || ext.viz_cosmic || ext.viz_rave || ext.viz_strobe || ext.viz_dark)
+  const hasProfile = profile && (profile.profession || profile.home_base_city || profile.home_base_state || profile.bio || profile.motto || profile.phone_last4 || profile.email)
+
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 8, padding: '1.5rem', maxWidth: 380, width: '100%', maxHeight: '82vh', overflowY: 'auto', position: 'relative' }}>
+      <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 8, padding: '1.5rem', maxWidth: 460, width: '100%', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: '.6rem', right: '.75rem', background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1 }}>✕</button>
 
-        {loading && <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '2.5rem 0' }}>Loading…</div>}
-        {!loading && !profile && <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '2.5rem 0' }}>Profile not found.</div>}
+        {loading && <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '3rem 0' }}>Loading…</div>}
+        {!loading && !profile && <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '3rem 0' }}>Profile not found.</div>}
 
-        {!loading && profile && (() => {
-          const { current: tier } = getTierInfo(profile.total_runs ?? 0)
-          const col = TIER_COLORS[tier.key]
-          return (
-            <>
-              {/* Avatar + identity */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--surf2)', border: '2px solid var(--bdr)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', flexShrink: 0 }}>
-                  {profile.avatar_url && !profile.hide_avatar
-                    ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                    : <span style={{ color: 'var(--muted)' }}>👤</span>}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--fd)', fontSize: '1.15rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.leaderboard_name}</div>
-                  {profile.real_name && <div style={{ fontSize: '.82rem', color: 'var(--muted)', marginTop: '.1rem' }}>{profile.real_name}</div>}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginTop: '.35rem', flexWrap: 'wrap' }}>
-                    <span style={{ color: col, display: 'inline-flex', alignItems: 'center' }} dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
-                    <span style={{ fontFamily: 'var(--fd)', fontSize: '.75rem', color: col, textTransform: 'uppercase', letterSpacing: '.06em' }}>{tier.name}</span>
+        {!loading && profile && (<>
+
+          {/* ── Header ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--surf2)', border: `2px solid ${tierCol}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', flexShrink: 0 }}>
+              {profile.avatar_url && !profile.hide_avatar
+                ? <img src={profile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                : <span style={{ color: 'var(--muted)' }}>👤</span>}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--fd)', fontSize: '1.2rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.leaderboard_name}</div>
+              {profile.real_name && <div style={{ fontSize: '.82rem', color: 'var(--muted)', marginTop: '.1rem' }}>{profile.real_name}</div>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginTop: '.35rem' }}>
+                <span style={{ color: tierCol, display: 'inline-flex', alignItems: 'center' }} dangerouslySetInnerHTML={{ __html: getTierSvg1x(tier.key) }} />
+                <span style={{ fontFamily: 'var(--fd)', fontSize: '.75rem', color: tierCol, textTransform: 'uppercase', letterSpacing: '.06em' }}>{tier.name}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Core Stats ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem' }}>
+            <StatCard label="Total Runs" value={profile.total_runs ?? 0} />
+            <StatCard label="Avg Score"  value={profile.avg_score != null ? Number(profile.avg_score).toFixed(1) : '—'} />
+            <StatCard label="Best Run"   value={profile.best_run   != null ? Number(profile.best_run).toFixed(1) : '—'} />
+          </div>
+
+          {/* ── Leaderboard Rankings ── */}
+          {ext && (ext.rank_all_time || ext.rank_yearly || ext.rank_monthly || ext.rank_weekly) && (<>
+            <div style={FP_SECTION}>Leaderboard Standing</div>
+            <div style={{ display: 'flex', gap: '.4rem' }}>
+              <RankCard label="All-Time"   rank={ext.rank_all_time} score={ext.score_all_time} />
+              <RankCard label="This Year"  rank={ext.rank_yearly}   score={ext.score_yearly} />
+              <RankCard label="This Month" rank={ext.rank_monthly}  score={ext.score_monthly} />
+              <RankCard label="This Week"  rank={ext.rank_weekly}   score={ext.score_weekly} />
+            </div>
+          </>)}
+
+          {/* ── Tactical Profile ── */}
+          {(hasEnv || ext?.avg_time_sec != null) && (<>
+            <div style={FP_SECTION}>Tactical Profile</div>
+            <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '.45rem' }}>
+
+              {/* Quick metrics row */}
+              <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.2rem' }}>
+                {ext.sessions != null && (
+                  <div style={{ fontSize: '.8rem' }}>
+                    <span style={{ color: 'var(--muted)' }}>Sessions </span>
+                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.sessions}</span>
                   </div>
-                </div>
+                )}
+                {ext.avg_time_sec != null && (
+                  <div style={{ fontSize: '.8rem' }}>
+                    <span style={{ color: 'var(--muted)' }}>Avg Run </span>
+                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.avg_time_sec)}</span>
+                  </div>
+                )}
+                {ext.obj_pct != null && (
+                  <div style={{ fontSize: '.8rem' }}>
+                    <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
+                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.obj_pct}%</span>
+                  </div>
+                )}
               </div>
 
-              {/* Stats */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem', marginBottom: '1rem' }}>
-                <StatCard label="Total Runs" value={profile.total_runs ?? 0} />
-                <StatCard label="Avg Score"  value={profile.avg_score != null ? Number(profile.avg_score).toFixed(1) : '—'} />
-                <StatCard label="Best Run"   value={profile.best_run   != null ? Number(profile.best_run).toFixed(1)   : '—'} />
-              </div>
+              {hasEnv && (<>
+                <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase' }}>Visuals</div>
+                <EnvBar label="Standard" pct={ext.viz_std}    color={VIZ_COLORS.V} />
+                <EnvBar label="Cosmic"   pct={ext.viz_cosmic} color={VIZ_COLORS.C} />
+                <EnvBar label="Rave"     pct={ext.viz_rave}   color={VIZ_COLORS.R} />
+                <EnvBar label="Strobe"   pct={ext.viz_strobe} color={VIZ_COLORS.S} />
+                <EnvBar label="Dark"     pct={ext.viz_dark}   color={VIZ_COLORS.B} />
+              </>)}
 
-              {/* Detail fields */}
-              {(profile.profession || profile.home_base_city || profile.home_base_state ||
-                profile.bio || profile.motto || profile.phone_last4 || profile.email) && (
-                <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', display: 'flex', flexDirection: 'column', gap: '.35rem', fontSize: '.85rem' }}>
-                  {profile.profession && (
-                    <div><span style={{ color: 'var(--muted)' }}>Profession:</span> <span style={{ color: 'var(--txt)' }}>{profile.profession}</span></div>
-                  )}
-                  {(profile.home_base_city || profile.home_base_state) && (
-                    <div><span style={{ color: 'var(--muted)' }}>Home Base:</span> <span style={{ color: 'var(--txt)' }}>{[profile.home_base_city, profile.home_base_state].filter(Boolean).join(', ')}</span></div>
-                  )}
-                  {profile.phone_last4 && (
-                    <div><span style={{ color: 'var(--muted)' }}>Phone:</span> <span style={{ color: 'var(--txt)' }}>••••{profile.phone_last4}</span></div>
-                  )}
-                  {profile.email && (
-                    <div><span style={{ color: 'var(--muted)' }}>Email:</span> <span style={{ color: 'var(--txt)', wordBreak: 'break-all' }}>{profile.email}</span></div>
-                  )}
-                  {profile.motto && (
-                    <div style={{ fontStyle: 'italic', color: 'var(--muted)' }}>"{profile.motto}"</div>
-                  )}
-                  {profile.bio && (
-                    <div style={{ marginTop: '.25rem', color: 'var(--txt)', lineHeight: 1.5 }}>{profile.bio}</div>
-                  )}
-                </div>
-              )}
-            </>
-          )
-        })()}
+              {(ext.aud_tunes || ext.aud_cranked || ext.aud_off) && (<>
+                <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.2rem' }}>Audio</div>
+                <EnvBar label="Tunes"   pct={ext.aud_tunes}   color={AUD_COLORS.T} />
+                <EnvBar label="Cranked" pct={ext.aud_cranked} color={AUD_COLORS.C} />
+                <EnvBar label="Off"     pct={ext.aud_off}     color={AUD_COLORS.O} />
+              </>)}
+            </div>
+          </>)}
+
+          {/* ── Operator Profile ── */}
+          {hasProfile && (<>
+            <div style={FP_SECTION}>Operator Profile</div>
+            <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', display: 'flex', flexDirection: 'column', gap: '.35rem', fontSize: '.85rem' }}>
+              {profile.profession && <div><span style={{ color: 'var(--muted)' }}>Profession: </span><span style={{ color: 'var(--txt)' }}>{profile.profession}</span></div>}
+              {(profile.home_base_city || profile.home_base_state) && <div><span style={{ color: 'var(--muted)' }}>Home Base: </span><span style={{ color: 'var(--txt)' }}>{[profile.home_base_city, profile.home_base_state].filter(Boolean).join(', ')}</span></div>}
+              {profile.phone_last4 && <div><span style={{ color: 'var(--muted)' }}>Phone: </span><span style={{ color: 'var(--txt)' }}>••••{profile.phone_last4}</span></div>}
+              {profile.email && <div><span style={{ color: 'var(--muted)' }}>Email: </span><span style={{ color: 'var(--txt)', wordBreak: 'break-all' }}>{profile.email}</span></div>}
+              {profile.motto && <div style={{ fontStyle: 'italic', color: 'var(--muted)', marginTop: '.1rem' }}>"{profile.motto}"</div>}
+              {profile.bio && <div style={{ color: 'var(--txt)', lineHeight: 1.5, marginTop: '.15rem' }}>{profile.bio}</div>}
+            </div>
+          </>)}
+
+        </>)}
       </div>
     </div>
   )
