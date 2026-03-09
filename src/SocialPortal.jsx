@@ -70,6 +70,23 @@ function getTierSvg1x(key) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+function getInitials(name) {
+  if (!name) return null
+  const m = name.match(/^([A-Za-z]{1,3})-\d/)  // "JJ-5555" → "JJ"
+  if (m) return m[1].toUpperCase()
+  const words = name.trim().split(/[\s_]+/).filter(Boolean)
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
+
+function fmtShortDate(dateStr) {
+  if (!dateStr) return null
+  const [y, mo, d] = dateStr.split('-').map(Number)
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const thisYear = new Date().getFullYear()
+  return y === thisYear ? `${months[mo-1]} ${d}` : `${months[mo-1]} ${d}, ${y}`
+}
+
 function fmtSec(s) {
   if (!s && s !== 0) return '—'
   const m = Math.floor(s / 60), sec = s % 60
@@ -130,12 +147,14 @@ function StatCard({ label, value, sub }) {
   )
 }
 
-function MiniAvatar({ url, hidden, size = 36 }) {
+function MiniAvatar({ url, hidden, initials, size = 36 }) {
   return (
     <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surf2)', border: '1px solid var(--bdr)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: Math.round(size * 0.4) }}>
       {url && !hidden
         ? <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-        : <span style={{ color: 'var(--muted)' }}>👤</span>}
+        : initials
+          ? <span style={{ color: 'var(--muted)', fontFamily: 'var(--fd)', fontSize: Math.round(size * 0.32), lineHeight: 1 }}>{initials}</span>
+          : <span style={{ color: 'var(--muted)' }}>👤</span>}
     </div>
   )
 }
@@ -950,13 +969,17 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               const isFriend  = friendIds.has(p.id)
               const isPending = sentRequests.some(r => r.to_user_id === p.id) ||
                                 receivedRequests.some(r => r.from_user_id === p.id)
+              const initials  = getInitials(p.leaderboard_name)
               return (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
-                  <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} />
+                  <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} initials={initials} />
                   <TierIcon runs={p.total_runs} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.leaderboard_name}</div>
-                    {p.phone_last4 && <div style={{ fontSize: '.73rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>}
+                    <div style={{ fontSize: '.73rem', color: 'var(--muted)', display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                      {p.phone_last4 && <span>••••{p.phone_last4}</span>}
+                      {p.last_together && <span>Played {fmtShortDate(p.last_together)}</span>}
+                    </div>
                   </div>
                   {isFriend ? (
                     <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Friends</span>
