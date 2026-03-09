@@ -1185,6 +1185,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [wiCardLast4,setWiCardLast4]=useState('');
   const [wiCardExpiry,setWiCardExpiry]=useState('');
   const [wiCardHolder,setWiCardHolder]=useState('');
+  const handleWiCardExpiry=e=>{const d=e.target.value.replace(/\D/g,'').slice(0,4);setWiCardExpiry(d.length>2?d.slice(0,2)+'/'+d.slice(2):d);};
   const [wiAddInput,setWiAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
   const [toast,setToast]=useState(null);
   const [showMerch,setShowMerch]=useState(false);
@@ -1603,7 +1604,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                 <div style={{fontSize:".68rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",marginBottom:".5rem"}}>Card Details (after terminal approval)</div>
                 <div style={{display:"flex",gap:".5rem",marginBottom:".4rem"}}>
                   <div style={{flex:1}}><label style={{fontSize:".72rem",color:"var(--muted)",display:"block",marginBottom:".2rem"}}>Last 4 Digits</label><input type="text" maxLength={4} placeholder="1234" value={wiCardLast4} onChange={e=>setWiCardLast4(e.target.value.replace(/\D/g,''))} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".35rem .5rem",color:"var(--txt)",fontSize:".88rem",width:"100%"}}/></div>
-                  <div style={{flex:1}}><label style={{fontSize:".72rem",color:"var(--muted)",display:"block",marginBottom:".2rem"}}>Expiry (MM/YY)</label><input type="text" maxLength={5} placeholder="MM/YY" value={wiCardExpiry} onChange={e=>setWiCardExpiry(e.target.value)} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".35rem .5rem",color:"var(--txt)",fontSize:".88rem",width:"100%"}}/></div>
+                  <div style={{flex:1}}><label style={{fontSize:".72rem",color:"var(--muted)",display:"block",marginBottom:".2rem"}}>Expiry (MM/YY)</label><input type="text" maxLength={5} placeholder="MM/YY" value={wiCardExpiry} onChange={handleWiCardExpiry} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".35rem .5rem",color:"var(--txt)",fontSize:".88rem",width:"100%"}}/></div>
                 </div>
                 <div><label style={{fontSize:".72rem",color:"var(--muted)",display:"block",marginBottom:".2rem"}}>Name on Card</label><input type="text" placeholder={wiName||"Cardholder name"} value={wiCardHolder} onChange={e=>setWiCardHolder(e.target.value)} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".35rem .5rem",color:"var(--txt)",fontSize:".88rem",width:"100%"}}/></div>
               </div>

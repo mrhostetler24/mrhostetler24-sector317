@@ -964,6 +964,7 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
   const [applyCredits, setApplyCredits] = useState(false)
   const [saving, setSaving] = useState(false)
   const [completedPayment, setCompletedPayment] = useState(null)
+  const handleCardExpiry = e => { const d = e.target.value.replace(/\D/g, '').slice(0, 4); setCardExpiry(d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d) }
 
   useEffect(() => {
     Promise.all([fetchMerchCatalog('staff'), fetchMerchCategories()])
@@ -1178,7 +1179,7 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
                 </div>
                 <div style={{ flex: 1 }}><label style={{ fontSize: '.72rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Expiry (MM/YY)</label>
                   <input type="text" maxLength={5} placeholder="MM/YY" value={cardExpiry}
-                    onChange={e => setCardExpiry(e.target.value)}
+                    onChange={handleCardExpiry}
                     style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.88rem' }} />
                 </div>
               </div>
@@ -1283,6 +1284,7 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
   const [applyCredits, setApplyCredits] = useState(false)
   const [saving, setSaving] = useState(false)
   const [completedPayment, setCompletedPayment] = useState(null)
+  const handleCardExpiry = e => { const d = e.target.value.replace(/\D/g, '').slice(0, 4); setCardExpiry(d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d) }
 
   useEffect(() => {
     Promise.all([fetchMerchCatalog('storefront'), fetchMerchCategories()])
@@ -1525,7 +1527,7 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
                 </div>
                 <div style={{ flex: 1 }}><label style={{ fontSize: '.72rem', color: 'var(--muted)', display: 'block', marginBottom: '.2rem' }}>Expiry (MM/YY)</label>
                   <input type="text" maxLength={5} placeholder="MM/YY" value={cardExpiry}
-                    onChange={e => setCardExpiry(e.target.value)}
+                    onChange={handleCardExpiry}
                     style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.88rem' }} />
                 </div>
               </div>
