@@ -276,6 +276,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [searchQuery, setSearchQuery]         = useState('')
   const [searchResults, setSearchResults]     = useState([])
   const [searching, setSearching]             = useState(false)
+  const [sendingTo, setSendingTo]             = useState(null) // userId being added
   const [profileModal, setProfileModal]       = useState(null) // userId string
   const searchTimerRef                        = useRef(null)
 
@@ -400,9 +401,15 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   }
 
   async function handleSendRequest(toId) {
+    if (sendingTo) return
+    setSendingTo(toId)
     const { error } = await sendFriendRequest(toId)
-    if (error) { await loadFriends(); return } // conflict or already exists — reload true state
-    setSentRequests(prev => [...prev, { to_user_id: toId, created_at: new Date().toISOString() }])
+    if (error) {
+      await loadFriends() // conflict — reload true state so button reflects reality
+    } else {
+      setSentRequests(prev => [...prev, { to_user_id: toId, created_at: new Date().toISOString() }])
+    }
+    setSendingTo(null)
   }
 
   async function handleCancelRequest(toId) {
@@ -813,7 +820,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                     ) : isPending ? (
                       <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Pending</span>
                     ) : (
-                      <button className="btn btn-s" onClick={() => handleSendRequest(p.id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Add</button>
+                      <button className="btn btn-s" disabled={!!sendingTo} onClick={() => handleSendRequest(p.id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>{sendingTo === p.id ? '…' : 'Add'}</button>
                     )}
                   </div>
                 )
