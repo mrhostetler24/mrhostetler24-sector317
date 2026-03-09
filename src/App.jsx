@@ -1430,7 +1430,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
           <button className={`tab${tab==="payments"?" on":""}`} onClick={()=>setTab("payments")}>Payments</button>
           <button className={`tab${tab==="leaderboard"?" on":""}`} onClick={()=>setTab("leaderboard")}>Leaderboard</button>
-          <button className={`tab${tab==="shop"?" on":""}`} onClick={()=>setTab("shop")}>🛍 Shop</button>
+          <button className={`tab${tab==="shop"?" on":""}`} onClick={()=>setTab("shop")}>Shop</button>
         </div>
         {tab==="reservations"&&<button className="btn btn-p" onClick={()=>setShowBook(true)}>+ Book Mission</button>}
       </div>

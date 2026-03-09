@@ -262,6 +262,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [sentRequests, setSentRequests]       = useState([])
   const [recentlyMet, setRecentlyMet]         = useState([])
   const [friendLoading, setFriendLoading]     = useState(false)
+  const [friendError, setFriendError]         = useState(null)
   const [searchQuery, setSearchQuery]         = useState('')
   const [searchResults, setSearchResults]     = useState([])
   const [searching, setSearching]             = useState(false)
@@ -311,15 +312,20 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
 
   const loadFriends = useCallback(async () => {
     setFriendLoading(true)
+    setFriendError(null)
     try {
-      const [{ data: fs }, { data: recv }, { data: sent }] = await Promise.all([
+      const [{ data: fs, error: e1 }, { data: recv, error: e2 }, { data: sent, error: e3 }] = await Promise.all([
         fetchFriends(user.id),
         fetchReceivedRequests(user.id),
         fetchSentRequests(user.id),
       ])
+      const err = e1 || e2 || e3
+      if (err) { setFriendError(err.message); return }
       setFriendships(fs ?? [])
       setReceivedRequests(recv ?? [])
       setSentRequests(sent ?? [])
+    } catch (e) {
+      setFriendError(e.message)
     } finally {
       setFriendLoading(false)
     }
@@ -685,6 +691,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       {tab === 'friends' && (
         <div>
           {friendLoading && <div style={{ color: 'var(--muted)', fontSize: '.85rem', marginBottom: '.75rem' }}>Loading…</div>}
+          {friendError && <div style={{ color: 'var(--danger)', fontSize: '.82rem', marginBottom: '.75rem', padding: '.5rem .75rem', background: 'var(--bg2)', borderRadius: 5, border: '1px solid var(--danger)' }}>Error loading friends: {friendError}</div>}
 
           {/* Pending received requests */}
           {receivedRequests.length > 0 && (

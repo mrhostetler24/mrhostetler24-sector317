@@ -1659,6 +1659,7 @@ export const fetchReceivedRequests = (userId) =>
   supabase.from('friend_requests')
     .select('id, from_user_id, created_at')
     .eq('to_user_id', userId)
+    .eq('status', 'pending')
     .order('created_at', { ascending: false })
 
 export const fetchSentRequests = (userId) =>
