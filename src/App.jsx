@@ -788,10 +788,10 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
               {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
               {blockConflict&&<span style={{fontSize:".78rem",color:"var(--warnL)",fontStyle:'italic',whiteSpace:'nowrap'}}>Conflicts with your Blocks</span>}
             </div>
-            {blockConflict
-              ?<button className="btn btn-warn btn-sm" style={{flexShrink:0}} onClick={()=>setTab('blocks')}>Edit my blocks</button>
-              :isManager
-                ?<button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={()=>setAssignModal({shift:s})}>Assign</button>
+            {isManager
+              ?<button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={()=>setAssignModal({shift:s})}>Assign</button>
+              :blockConflict
+                ?<button className="btn btn-warn btn-sm" style={{flexShrink:0}} onClick={()=>setTab('blocks')}>Edit my blocks</button>
                 :<button className="btn btn-ok btn-sm" style={{flexShrink:0}} disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;if(shifts.some(x=>x.staffId===currentUser.id&&x.role!=='Admin'&&x.date===s.date&&x.start<s.end&&x.end>s.start)){onAlert('You already have a shift at this time.');return;}setShiftOpBusy(true);try{const claimed=await claimShift(s.id);if(claimed){setShifts(p=>p.map(x=>x.id===s.id?claimed:x));}onAlert(currentUser.name+' picked up shift on '+fmt(s.date));}catch(e){onAlert('Error claiming shift: '+e.message);}finally{setShiftOpBusy(false);}}}> Claim</button>
             }
           </div>;
