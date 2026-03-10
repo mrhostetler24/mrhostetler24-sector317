@@ -1845,13 +1845,6 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
     supabase.from('v_leaderboard_cumulative').select('total_runs_played').eq('player_id',user.id).maybeSingle()
       .then(({data})=>setCareerRuns(data?.total_runs_played??0)).catch(()=>setCareerRuns(0));
   },[tab]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(()=>{
-    if(!editUser){setEditUserPrefs(null);return;}
-    fetchEmailPreferences(editUser.id).then(p=>setEditUserPrefs({
-      bookings:p.bookings??true,match_summary:p.match_summary??true,
-      social:p.social??true,merchandise:p.merchandise??true,marketing:p.marketing??true,
-    })).catch(()=>setEditUserPrefs({bookings:true,match_summary:true,social:true,merchandise:true,marketing:true}));
-  },[editUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showWidgetMenu,setShowWidgetMenu]=useState(false);
   const [dashWidgets,setDashWidgets]=useState(()=>isAdmin
     ?{revenue:true,bookings:true,players:true,utilization:true,newUsers:true,leadTime:true,envCoop:true,envVs:true,avgRunTime:true}
@@ -1880,6 +1873,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [newST,setNewST]=useState({dayOfWeek:"Monday",startTime:"18:00",maxSessions:2,active:true});
   const [editUser,setEditUser]=useState(null);
   const [editUserPrefs,setEditUserPrefs]=useState(null);
+  useEffect(()=>{
+    if(!editUser){setEditUserPrefs(null);return;}
+    fetchEmailPreferences(editUser.id).then(p=>setEditUserPrefs({
+      bookings:p.bookings??true,match_summary:p.match_summary??true,
+      social:p.social??true,merchandise:p.merchandise??true,marketing:p.marketing??true,
+    })).catch(()=>setEditUserPrefs({bookings:true,match_summary:true,social:true,merchandise:true,marketing:true}));
+  },[editUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [userSaving,setUserSaving]=useState(false);
   const [applyCreditFor,setApplyCreditFor]=useState(null);
   const [applyCreditAmt,setApplyCreditAmt]=useState('');
