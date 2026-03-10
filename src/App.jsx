@@ -1400,17 +1400,44 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         </div>
       </div></div>}
       <div className="hero">
-        <div><h2>Welcome, Operative {user.name.split(" ")[0]}</h2><p>Manage your missions, group roster, and waiver status.</p></div>
+        <div style={{flex:1,minWidth:0}}>
+          <h2>Welcome, Operative {user.name.split(" ")[0]}</h2>
+          <div style={{display:"flex",alignItems:"center",gap:".5rem",flexWrap:"wrap",marginTop:".3rem"}}>
+            <button
+              onClick={()=>valid?setWViewOpen(true):setWOpen(true)}
+              style={{background:valid?"rgba(200,224,58,.12)":"rgba(192,57,43,.15)",border:`1px solid ${valid?"rgba(200,224,58,.4)":"rgba(192,57,43,.5)"}`,borderRadius:20,padding:".18rem .65rem",fontSize:".75rem",fontFamily:"var(--fd)",letterSpacing:".06em",textTransform:"uppercase",color:valid?"var(--accB)":"var(--dangerL)",cursor:"pointer",fontWeight:700,flexShrink:0}}>
+              {valid?"✓ Waiver on File":"⚠ Sign Waiver"}
+            </button>
+            {!valid&&wDate&&<span style={{fontSize:".72rem",color:"var(--muted)"}}>Expired {fmtTS(wDate)}</span>}
+          </div>
+        </div>
         <button className="btn btn-p" style={{flexShrink:0}} onClick={()=>setShowBook(true)}>+ Book Mission</button>
       </div>
-      {/* ── Top info row: Leaderboard Name · Tier Rank · Waiver — three columns ── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:".75rem",marginBottom:"1.5rem"}}>
-        {/* Leaderboard Name card */}
+      {/* ── Top info row: Leaderboard + Rank combined · Store Credits ── */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:".75rem",marginBottom:"1.5rem"}}>
+        {/* Leaderboard + Rank combined card */}
         <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:"3px solid var(--acc2)",borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".45rem"}}>
-          <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--acc2)",letterSpacing:".08em",textTransform:"uppercase"}}>🏆 Leaderboard</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:".5rem",flexWrap:"wrap"}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--acc2)",letterSpacing:".08em",textTransform:"uppercase"}}>🏆 Leaderboard</div>
+            {careerRuns!==null&&(()=>{
+              const{current}=getTierInfo(careerRuns);
+              const col=TIER_COLORS[current.key];
+              return <div style={{display:"flex",alignItems:"center",gap:".35rem"}}>
+                <img src={`/${current.key}.png`} alt={current.key} style={{height:14,width:"auto",maxWidth:28,display:"block",flexShrink:0,objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}}/>
+                <span style={{fontFamily:"var(--fd)",fontSize:".82rem",letterSpacing:".06em",textTransform:"uppercase",color:col}}>{current.name}</span>
+              </div>;
+            })()}
+          </div>
           <div style={{fontSize:".88rem",color:user.hideFromLeaderboard?"var(--muted)":"var(--txt)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             {user.hideFromLeaderboard?"Hidden":user.leaderboardName||genDefaultLeaderboardName(user.name,user.phone)}
           </div>
+          {careerRuns!==null&&(()=>{
+            const{next,sessionsToNext}=getTierInfo(careerRuns);
+            return <div style={{fontSize:".72rem",color:"var(--muted)"}}>
+              {next?<>{sessionsToNext} session{sessionsToNext!==1?"s":""} to <strong style={{color:TIER_COLORS[next.key]}}>{next.name}</strong></>:"Maximum rank achieved."}
+              {" · "}{careerRuns} career run{careerRuns!==1?"s":""}
+            </div>;
+          })()}
           <label style={{display:"flex",alignItems:"center",gap:".4rem",cursor:"pointer",fontSize:".75rem",color:"var(--muted)",marginTop:".1rem",userSelect:"none"}}>
             <input type="checkbox" checked={user.hideFromLeaderboard??false} disabled={lbHideSaving}
               style={{accentColor:"var(--accB)",width:13,height:13,flexShrink:0,cursor:"pointer"}}
@@ -1430,38 +1457,6 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           </label>
           <button className="btn btn-s btn-sm" style={{marginTop:"auto",alignSelf:"flex-start"}} onClick={()=>setShowAccount(true)}>Edit Account</button>
         </div>
-
-        {/* Tier Rank card */}
-        {careerRuns!==null&&(()=>{
-          const{current,next,sessionsToNext}=getTierInfo(careerRuns);
-          const col=TIER_COLORS[current.key];
-          return <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:`3px solid ${col}`,borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
-            <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase"}}>Rank</div>
-            <div style={{display:"flex",alignItems:"center",gap:".5rem"}}>
-              <img src={`/${current.key}.png`} alt={current.key} style={{height:16,width:"auto",maxWidth:32,display:"block",flexShrink:0,objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}}/>
-              <span style={{fontFamily:"var(--fd)",fontSize:"1rem",letterSpacing:".06em",textTransform:"uppercase",color:col}}>{current.name}</span>
-            </div>
-            <div style={{fontSize:".75rem",color:"var(--muted)"}}>
-              {next
-                ?<>{sessionsToNext} session{sessionsToNext!==1?"s":""} to <strong style={{color:TIER_COLORS[next.key]}}>{next.name}</strong></>
-                :"Maximum rank achieved."}
-            </div>
-            <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".1rem"}}>{careerRuns} career run{careerRuns!==1?"s":""}</div>
-          </div>;
-        })()}
-
-        {/* Waiver Status card */}
-        <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:`3px solid ${valid?"var(--acc)":"var(--danger)"}`,borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
-          <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase"}}>Waiver</div>
-          <div style={{fontFamily:"var(--fd)",fontSize:"1rem",textTransform:"uppercase",letterSpacing:".06em",color:valid?"var(--accB)":"var(--dangerL)"}}>{valid?"✓ On File":"⚠ Required"}</div>
-          <div style={{fontSize:".75rem",color:"var(--muted)"}}>
-            {valid?`Signed ${fmtTS(wDate)} · valid 12 mo`:wDate?`Expired ${fmtTS(wDate)}`:"No waiver on file"}
-          </div>
-          <div style={{display:"flex",gap:".4rem",marginTop:"auto",flexWrap:"wrap"}}>
-            {wDate&&<button className="btn btn-s btn-sm" onClick={()=>setWViewOpen(true)}>View</button>}
-            <button className={`btn btn-sm ${valid?"btn-s":"btn-p"}`} onClick={()=>setWOpen(true)}>{valid?"Re-sign":"Sign Now"}</button>
-          </div>
-        </div>
         {(user.credits??0)>0&&<div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:"3px solid var(--ok)",borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
           <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase"}}>Store Credits</div>
           <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",color:"var(--okB)",fontWeight:700}}>{fmtMoney(user.credits)}</div>
@@ -1474,7 +1469,6 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
         <button className={`tab${tab==="payments"?" on":""}`} onClick={()=>setTab("payments")}>Payments</button>
         <button className={`tab${tab==="leaderboard"?" on":""}`} onClick={()=>setTab("leaderboard")}>Leaderboard</button>
-        <button className={`tab${tab==="shop"?" on":""}`} onClick={()=>setTab("shop")}>Shop</button>
       </div>
 
       {/* ── RESERVATIONS TAB ── */}
@@ -1657,8 +1651,6 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         onFriendsChanged={()=>setFriendsVersion(v=>v+1)}
       />}
 
-      {/* ── SHOP TAB ── */}
-      {tab==="shop"&&<MerchPortal surface="storefront" currentUser={user} setPayments={setPayments} onAlert={onAlert} onSignIn={null}/>}
     </div>
   );
 }
@@ -1683,12 +1675,13 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,
   return(
     <div className="content">
       {showAccount&&<AccountPanel user={user} users={users} setUsers={setUsers} onClose={()=>setShowAccount(false)}/>}
-      <div className="hero"><h2>Staff — {user.name}</h2><p>{user.role||"Staff"} · Check-in, waiver management, and schedule.</p></div>
+      <div className="hero"><h2>{user.name}</h2></div>
       <div className="tabs">
         <button className={`tab${tab==="today"?" on":""}`} onClick={()=>setTab("today")}>Today ({todayRes.length})</button>
         <button className={`tab${tab==="upcoming"?" on":""}`} onClick={()=>setTab("upcoming")}>Upcoming</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>My Schedule</button>
         <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
+        <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
       {(tab==="today"||tab==="upcoming")&&<>
         {!(tab==="today"?todayRes:upcoming).length&&<div className="empty"><div className="ei">{tab==="today"?"🎯":"📅"}</div><p>No {tab==="today"?"sessions today":"upcoming sessions"}.</p></div>}

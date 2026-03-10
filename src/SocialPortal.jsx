@@ -711,6 +711,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     setEditSaving(true)
     try {
       const updated = await updateSocialProfile(user.id, {
+        leaderboardName: user.leaderboardName ?? null,
+        avatarUrl:       user.avatarUrl       ?? null,
         motto:         editDraft.motto.trim()         || null,
         profession:    editDraft.profession.trim()    || null,
         homeBaseCity:  editDraft.homeBaseCity.trim()  || null,
