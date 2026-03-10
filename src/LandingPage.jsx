@@ -283,14 +283,56 @@ const CSS = `
 `;
 
 const FAQS = [
-  { q: "What does CQB stand for and what is a shoot-house?", a: "CQB stands for Close Quarters Battle. It refers to tactical combat conducted in confined spaces like buildings, hallways, and tight indoor environments.  A shoot house is a purpose-built structure designed for tactical training in close-quarters environments. It simulates real-world interior spaces like rooms and hallways so teams can practice movement, communication, and scenario-based missions. There are the same structure types used by military and law enforcement for their tactical training. We feature two separate two-story, 4,700 sq ft structures with modular interior walls that we continually reconfigure to ensure a new experience each time you return. Structures include a variety of rooms, thresholds, blind spots, stairwells, and feature breachable doors as well as various environmental controls." },
-  { q: "What do you mean when you say environmental controls?", a: "Each of our structures are packed full of awesome technology. From target sensors to livestream cameras, we track and capture all of the action to form a completely unique experience. Included in this tech package are various visual and audio controls that allow each group to define, and redefine, their desired experience. Some examples of these controls include our Standard mode (typical house lighting), Cosmic (house lights off, black lights on!), Strobe (not for the easily dizzied or epileptic), Dark (all lights off, barrel flashlights lead the way), and Cranked (loud music - the way we listened to it in high school).  If you're feeling extra frisky, ask for Rave mode (Cosmic + Strobe + Cranked - all at once)." },
-  { q: "Is this like paintball or laser tag?", a: "Neither. We use 20-round, magazine-fed markers built on an M4-like platform (a similar frame as military and law enforcement officer training weapons) firing non-lethal ammunition. Think structured scenario training, not backyard war games." },
-  { q: "Do I need any prior experience to be successful?", a: "Zero. Every session begins with a safety briefing covering core CQB concepts — room clearing, terminology, communication, threat assessment — so even complete beginners feel prepared. Our instructors walk you through everything before you breach your first structure." },
-  { q: "What do I need to bring?", a: "Just closed-toe shoes and your competitive spirit. Full loadout and protective gear are provided at no additional cost. We do recommend you wear comfortable athletic clothing — and never wear your favorite shirt. Wear your second favorite shirt." },
-  { q: "What's the age requirement?", a: "Participants must be 16 or older. Players aged 16–17 require a consenting adult participating alongside them and a guardian-signed waiver on file. The lounge is open to all ages. There are some retro gaming consoles free to play for the kids (and the kids at heart)." },
-  { q: "Can I book the entire venue for a private event?", a: null, jsx: <span>For corporate events, large parties, or custom full-venue packages, reach out at <a href="mailto:events@sector317.com">events@sector317.com</a> and we'll make it happen.</span> },
-  { q: "What's at the bar?", a: "Beer, wine, champagne, hard seltzers, mocktails, and sodas. Alcohol is not permitted during active play. Valid ID required. We also offer a limited bar menu, however, you are more than welcome to bring in outside food. Feel free to cater for your crew or order delivery straight to your table." },
+{
+q: "What does CQB stand for and what is a shoot house?",
+a: "CQB stands for Close Quarters Battle — which are tactical engagements conducted in confined environments such as buildings, hallways, and tight indoor spaces. A shoot house is a purpose-built structure designed for this type of training, simulating real-world interior layouts so teams can practice movement, communication, and scenario-based missions. These are the same types of structures used by military and law enforcement units for tactical training. At Sector 317, we feature two separate two-story structures, each over 4,700 square feet, with modular interior walls that are continually reconfigured to create a new experience each time you return. Each structure includes a variety of rooms, thresholds, blind spots, stairwells, breachable doors, and dynamic environmental controls."
+},
+
+{
+q: "What do you mean when you say environmental controls?",
+a: "Our structures are packed with technology designed to enhance your experience. From target sensors to livestream cameras, we track and capture your every action to create a completely unique and engaging mission every time. Groups can also customize the environment using a range of visual and audio settings. Modes include Standard (typical house lighting), Cosmic (house lights off with black lights), Strobe (not for the easily dizzied), Dark (lights off, barrel flashlights on), and Cranked (loud music — the way we listened to it in high school). Feeling adventurous? Ask for Rave Mode: Cosmic + Strobe + Cranked all at once."
+},
+
+{
+q: "Is this like paintball or laser tag?",
+a: "Negative. Our experience is built around structured tactical scenarios rather than open-field play. We use 20-round, magazine-fed markers built on an M4-style platform — similar to the training tools used by military and law enforcement units — firing non-lethal ammunition. Think tactical mission simulations."
+},
+
+{
+q: "Do I need any prior experience to be successful?",
+a: "Not at all. Every session begins with a safety and orientation briefing where we cover the basics to keep you and your teammates safe as well as introduce core CQB concepts such as terminology, room clearing, communication, tactical movement, and threat assessment. Even complete beginners will feel comfortable long before their first door breach. And our instructors will be there to support you along the way."
+},
+
+{
+q: "What do I need to bring?",
+a: "We require closed-toe shoes and a competitive spirit. We will provide the full tactical loadout including any protective gear — all at no cost to you. We do recommend you also wear comfortable, athletic clothing — then again, who likes to dress up anymore, anyway!"
+},
+
+{
+q: "Is it safe?",
+a: "Absolutely. Safety is our top priority. All participants receive a mandatory safety briefing and are required to wear protective gear, including helmets and face protection, while inside the structures. Our equipment uses non-lethal training rounds and every session is supervised by trained staff to ensure a controlled but still exciting experience."
+},
+
+{
+q: "What's the age requirement?",
+a: "Participants must be 16 or older. Players aged 17 and younger must have a guardian-signed waiver on file and a consenting adult participating alongside them. The lounge area is open to all ages and features retro gaming consoles, free to play for the kids — and the kids at heart."
+},
+
+{
+q: "Can I book the entire venue for a private event?",
+a: null,
+jsx: (
+<span>
+For corporate events, large parties, or full-venue experiences, reach out at{" "}
+<a href="mailto:events@sector317.com">events@sector317.com</a> and we'll help you build the perfect event.
+</span>
+)
+},
+
+{
+q: "What's at the bar?",
+a: "We offer beer, wine, champagne, hard seltzers, mocktails, and sodas. Alcohol is not permitted for those participating in active play. Valid ID is required. A limited bar menu is available, but you're also welcome to bring in outside food. Cater for your crew or have delivery sent straight to your table."
+}
 ];
 
 const SOCIAL = [

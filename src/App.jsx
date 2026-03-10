@@ -1166,6 +1166,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [lbPlayerFilter,setLbPlayerFilter]=useState("all");
   const [lbPeriod,setLbPeriod]=useState("alltime");
   const [lbMode,setLbMode]=useState("avg");
+  const [lbPage,setLbPage]=useState(1);
   const [lbData,setLbData]=useState([]);
   const [lbCareerMap,setLbCareerMap]=useState({});
   const [lbLoading,setLbLoading]=useState(false);
@@ -1204,7 +1205,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   };
   useEffect(()=>{
     if(tab!=='leaderboard') return;
-    setLbLoading(true);setLbError(null);
+    setLbLoading(true);setLbError(null);setLbPage(1);
     const {view}=LB_VIEW_MAP[lbMode][lbPeriod];
     const q=lbPlayerFilter==="friends"&&friendIds.size>0
       ?supabase.from(view).select('*').in('player_id',[...friendIds,user.id]).order('leaderboard_score',{ascending:false})
@@ -1615,26 +1616,37 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           </div>
           {lbLoading&&<div style={{textAlign:"center",padding:"2rem",color:"var(--muted)"}}>Loading…</div>}
           {lbError&&<div style={{textAlign:"center",padding:"2rem",color:"var(--dangerL)"}}>⚠ {lbError}</div>}
-          {!lbLoading&&!lbError&&<div className="tw">
-            {myRow&&<div style={{marginBottom:".75rem",borderRadius:6,overflow:"hidden",border:"1px solid var(--acc2)"}}>
-              <div style={{background:"var(--accD)",padding:".4rem 1rem",fontSize:".7rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc2)",textTransform:"uppercase"}}>Your Placement</div>
-              <table><tbody>{renderLbRow(myRow,true)}</tbody></table>
-            </div>}
-            {!myRow&&<div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".75rem 1rem",marginBottom:".75rem",fontSize:".82rem",color:"var(--muted)"}}>
-              {user.hideFromLeaderboard
-                ?"Your account is hidden from leaderboards. Uncheck \"Hide my account\" in account settings to appear."
-                :"You don't appear on this leaderboard yet — complete a scored run to get ranked."}
-            </div>}
-            <table><thead><tr>
-              <th style={{textAlign:"center",whiteSpace:"nowrap"}}>Rank</th>
-              <th>Operative</th>
-              <th style={{textAlign:"right"}}>Score</th>
-            </tr></thead><tbody>
-              {lbData.map(r=>renderLbRow(r))}
-            </tbody></table>
-            {!lbData.length&&<div className="empty"><div className="ei">🎯</div><p>No scores yet — be the first!</p></div>}
-            {lbPlayerFilter==="friends"&&friendIds.size===0&&<div className="empty" style={{marginTop:".75rem"}}><div className="ei">👥</div><p style={{color:"var(--muted)",fontSize:".9rem",marginBottom:".5rem"}}>Well, this is awkward... You have no friends.</p><p style={{color:"var(--muted)",fontSize:".78rem"}}>Add some <button className="btn btn-s btn-sm" style={{display:"inline",padding:"1px 10px",fontSize:".78rem",verticalAlign:"middle"}} onClick={()=>setTab("social")}>HERE</button></p></div>}
-          </div>}
+          {!lbLoading&&!lbError&&(()=>{
+            const LB_PAGE_SIZE=25;
+            const totalPages=Math.max(1,Math.ceil(lbData.length/LB_PAGE_SIZE));
+            const page=Math.min(lbPage,totalPages);
+            const pagedData=lbData.slice((page-1)*LB_PAGE_SIZE,page*LB_PAGE_SIZE);
+            return <div className="tw">
+              {myRow&&<div style={{marginBottom:".75rem",borderRadius:6,overflow:"hidden",border:"1px solid var(--acc2)"}}>
+                <div style={{background:"var(--accD)",padding:".4rem 1rem",fontSize:".7rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc2)",textTransform:"uppercase"}}>Your Placement</div>
+                <table><tbody>{renderLbRow(myRow,true)}</tbody></table>
+              </div>}
+              {!myRow&&<div style={{background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".75rem 1rem",marginBottom:".75rem",fontSize:".82rem",color:"var(--muted)"}}>
+                {user.hideFromLeaderboard
+                  ?"Your account is hidden from leaderboards. Uncheck \"Hide my account\" in account settings to appear."
+                  :"You don't appear on this leaderboard yet — complete a scored run to get ranked."}
+              </div>}
+              <table><thead><tr>
+                <th style={{textAlign:"center",whiteSpace:"nowrap"}}>Rank</th>
+                <th>Operative</th>
+                <th style={{textAlign:"right"}}>Score</th>
+              </tr></thead><tbody>
+                {pagedData.map(r=>renderLbRow(r))}
+              </tbody></table>
+              {!lbData.length&&<div className="empty"><div className="ei">🎯</div><p>No scores yet — be the first!</p></div>}
+              {lbPlayerFilter==="friends"&&friendIds.size===0&&<div className="empty" style={{marginTop:".75rem"}}><div className="ei">👥</div><p style={{color:"var(--muted)",fontSize:".9rem",marginBottom:".5rem"}}>Well, this is awkward... You have no friends.</p><p style={{color:"var(--muted)",fontSize:".78rem"}}>Add some <button className="btn btn-s btn-sm" style={{display:"inline",padding:"1px 10px",fontSize:".78rem",verticalAlign:"middle"}} onClick={()=>setTab("social")}>HERE</button></p></div>}
+              {totalPages>1&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:".75rem",marginTop:"1rem",flexWrap:"wrap"}}>
+                <button className="btn btn-s btn-sm" disabled={page<=1} onClick={()=>setLbPage(p=>p-1)}>← Prev</button>
+                <span style={{fontSize:".82rem",color:"var(--muted)",fontFamily:"var(--fc)"}}>Page {page} of {totalPages} · {lbData.length} operatives</span>
+                <button className="btn btn-s btn-sm" disabled={page>=totalPages} onClick={()=>setLbPage(p=>p+1)}>Next →</button>
+              </div>}
+            </div>;
+          })()}
         </>;
       })()}
 
