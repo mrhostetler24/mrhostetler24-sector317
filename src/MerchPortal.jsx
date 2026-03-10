@@ -1406,7 +1406,7 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
       <div style={{ display: 'flex', gap: '.75rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
         {step !== 'browse' && <button className="btn btn-s btn-sm" style={{ fontSize: '.8rem' }} onClick={() => setStep(step === 'checkout' ? 'cart' : 'browse')}>← Back</button>}
         <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>
-          {step === 'browse' ? '🛍 Shop' : step === 'cart' ? '🛒 Cart' : '💳 Checkout'}
+          {step === 'browse' ? 'Shop' : step === 'cart' ? 'Cart' : 'Checkout'}
         </div>
         {step === 'browse' && cart.length > 0 && (
           <button className="btn btn-p btn-sm" style={{ marginLeft: 'auto', fontSize: '.85rem' }} onClick={() => setStep('cart')}>
@@ -1426,6 +1426,16 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
             {categories.filter(c => c.storefrontVisible).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
+        {!loading && search===''&&catFilter===''&&filteredCatalog.length>0&&<>
+          <div style={{fontSize:'.72rem',fontFamily:'var(--fd)',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--muted)',marginBottom:'.65rem',fontWeight:700}}>Featured</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:'.75rem',marginBottom:'1.5rem'}}>
+            {filteredCatalog.slice(0,4).map(p=>(
+              <ProductCard key={'feat-'+p.id} product={p} channel="storefront"
+                onSelect={currentUser?()=>setVariantModal(p):()=>onSignIn?.()}/>
+            ))}
+          </div>
+          <div style={{fontSize:'.72rem',fontFamily:'var(--fd)',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--muted)',marginBottom:'.65rem',fontWeight:700}}>All Items</div>
+        </>}
         {loading ? <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>Loading…</div> : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '.75rem' }}>
             {filteredCatalog.map(p => (
@@ -1473,7 +1483,7 @@ function MerchStorefront({ currentUser, setPayments, onAlert, onSignIn }) {
             {appliedDiscount && <div style={{ fontSize: '.78rem', color: 'var(--ok)', marginBottom: '.5rem' }}>✓ {appliedDiscount.code}</div>}
             <div style={{ fontWeight: 700, marginBottom: '.75rem' }}>Fulfillment</div>
             <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1rem' }}>
-              {[['pickup','🏪 In-Store Pickup (Free)'],['ship','📦 Ship to Address']].map(([v,lbl]) => (
+              {[['pickup','In-Store Pickup (Free)'],['ship','Ship to Address']].map(([v,lbl]) => (
                 <button key={v} className={`btn btn-sm ${fulfillmentType === v ? 'btn-p' : 'btn-s'}`} style={{ fontSize: '.82rem' }}
                   onClick={() => setFulfillmentType(v)}>{lbl}</button>
               ))}

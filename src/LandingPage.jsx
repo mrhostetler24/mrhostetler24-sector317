@@ -167,7 +167,7 @@ const CSS = `
 
 /* FAQ */
 .lp-faq{background:#1a1b14;}
-.lp-faq-list{margin-top:2.5rem;max-width:820px;}
+.lp-faq-list{margin-top:2.5rem;width:100%;}
 .lp-faq-item{border-bottom:1px solid rgba(200,224,58,.09);overflow:hidden;}
 .lp-faq-q{font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#e8e4dc;padding:1.2rem 0;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:1rem;transition:color .2s;user-select:none;background:none;border:none;width:100%;text-align:left;}
 .lp-faq-q:hover{color:#c8e03a;}
