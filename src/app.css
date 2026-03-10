@@ -13,6 +13,14 @@ body{background:var(--bg2);color:var(--txt);font-family:var(--fb);min-height:100
 .nbadge{font-size:.66rem;background:var(--acc2);color:#e2dfd8;padding:.13rem .45rem;border-radius:3px;text-transform:uppercase;font-weight:700;}
 .nbtn{background:none;border:1px solid transparent;color:var(--muted);padding:.35rem .9rem;border-radius:4px;cursor:pointer;font-family:var(--fb);font-size:.8rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;transition:all .2s;}
 .nbtn:hover{color:var(--accB);border-color:var(--bdr);}
+.nav-hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;background:none;border:none;cursor:pointer;padding:.4rem;margin-left:.5rem;}
+.nav-hamburger span{display:block;width:22px;height:2px;background:var(--txt);border-radius:2px;transition:background .2s;}
+.nav-hamburger:hover span{background:var(--accB);}
+.nav-mobile-overlay{position:fixed;inset:0;z-index:199;}
+.nav-mobile-menu{position:absolute;top:100%;right:0;width:240px;background:var(--surf);border:1px solid var(--bdr);border-top:none;border-radius:0 0 8px 8px;z-index:200;padding:.4rem 0;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+.nav-mobile-row{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;font-size:.85rem;color:var(--txt);}
+.nav-mobile-action{cursor:pointer;font-weight:500;}
+.nav-mobile-action:hover{background:var(--bg2);}
 .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg2);position:relative;overflow:hidden;}
 .login-grid{position:absolute;inset:0;opacity:.04;background-image:repeating-linear-gradient(0deg,var(--acc) 0,var(--acc) 1px,transparent 1px,transparent 48px),repeating-linear-gradient(90deg,var(--acc) 0,var(--acc) 1px,transparent 1px,transparent 48px);}
 .login-card{background:var(--surf);border:2px solid var(--acc2);border-radius:8px;padding:2.5rem 2.25rem;width:390px;text-align:center;position:relative;z-index:1;}
@@ -201,11 +209,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
 
 /* ── MOBILE RESPONSIVE ── */
 @media(max-width:768px){
-  .nav{padding:0 1rem;height:58px;}
+  .nav{padding:0 1rem;height:58px;position:relative;}
   .nav-logo{height:40px;}
-  .nav-user{font-size:.68rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .nbadge{display:none;}
-  .nav-right{gap:.4rem;}
+  .nav-right-desktop{display:none;}
+  .nav-hamburger{display:flex;}
   .nbtn{padding:.28rem .6rem;font-size:.72rem;}
   .content{padding:1rem .75rem;}
   .hero{padding:1.1rem 1.25rem;margin-bottom:1.25rem;}

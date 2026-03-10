@@ -3034,6 +3034,7 @@ useEffect(() => {
   const portal=!liveUser?null:liveUser.access==="customer"?"customer":liveUser.access==="staff"?"staff":"admin";
   const [viewAs,setViewAs]=useState(null); // null | "manager" | "staff" | "customer"
   const [viewAsOpen,setViewAsOpen]=useState(false);
+  const [navMenuOpen,setNavMenuOpen]=useState(false);
   const [staffNavTarget,setStaffNavTarget]=useState(null);
   const isAdminOrManager=liveUser&&(liveUser.access==="admin"||liveUser.access==="manager");
   const canViewAs=liveUser&&(isAdminOrManager||liveUser.access==="staff");
@@ -3116,7 +3117,8 @@ useEffect(() => {
           <img src={LOGO_URI} className="nav-logo" alt="Sector 317"/>
           <span style={{fontSize:".7rem",color:"var(--muted)",marginLeft:".4rem",alignSelf:"flex-end",paddingBottom:2}}>v{APP_VERSION}</span>
         </div>
-        <div className="nav-right">
+        {/* Desktop nav-right */}
+        <div className="nav-right nav-right-desktop">
           {!viewAs&&<span className="nav-user" onClick={()=>setShowNavAccount(true)} title="Edit account settings">{liveUser.name} ⚙</span>}
           {!viewAs&&liveUser.authProvider&&<AuthBadge provider={liveUser.authProvider}/>}
           {viewAs?(
@@ -3148,6 +3150,44 @@ useEffect(() => {
           )}
           <button className="nbtn" onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);}}>Sign Out</button>
         </div>
+        {/* Mobile hamburger */}
+        <button className="nav-hamburger" onClick={()=>setNavMenuOpen(p=>!p)} aria-label="Menu">
+          <span/><span/><span/>
+        </button>
+        {/* Mobile dropdown menu */}
+        {navMenuOpen&&<>
+          <div className="nav-mobile-overlay" onClick={()=>setNavMenuOpen(false)}/>
+          <div className="nav-mobile-menu">
+            <div className="nav-mobile-row" onClick={()=>{setShowNavAccount(true);setNavMenuOpen(false);}}>
+              <span style={{fontWeight:700,fontSize:".9rem"}}>{liveUser.name}</span>
+              <span style={{fontSize:".75rem",color:"var(--muted)"}}>⚙ Account</span>
+            </div>
+            {liveUser.authProvider&&<div className="nav-mobile-row" style={{gap:".5rem"}}>
+              <AuthBadge provider={liveUser.authProvider}/>
+              <span style={{fontSize:".78rem",color:"var(--muted)"}}>{liveUser.authProvider}</span>
+            </div>}
+            <div className="nav-mobile-row" style={{justifyContent:"space-between"}}>
+              <span style={{fontSize:".78rem",color:"var(--muted)"}}>Role</span>
+              <span className={`nbadge al-${liveUser.access}`}>{ACCESS_LEVELS[liveUser.access]?.label}</span>
+            </div>
+            {viewAs&&<div className="nav-mobile-row" style={{justifyContent:"space-between"}}>
+              <span style={{fontSize:".78rem",color:"var(--accB)",fontWeight:600}}>Viewing as {ACCESS_LEVELS[viewAs]?.label}</span>
+              <button className="nbtn" style={{padding:".15rem .6rem",fontSize:".72rem",border:"1px solid var(--bdr)",borderRadius:4}} onClick={()=>{setViewAs(null);setViewAsOpen(false);setNavMenuOpen(false);}}>Back</button>
+            </div>}
+            {!viewAs&&canViewAs&&<>
+              <div style={{fontSize:".65rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".08em",padding:".5rem 1rem .2rem",fontWeight:700}}>Preview As</div>
+              {(liveUser.access==="admin"?["manager","staff","customer"]:liveUser.access==="manager"?["staff","customer"]:["customer"]).map(role=>(
+                <div key={role} className="nav-mobile-row nav-mobile-action" onClick={()=>{setViewAs(role);setNavMenuOpen(false);}}>
+                  {ACCESS_LEVELS[role]?.label}
+                </div>
+              ))}
+            </>}
+            <div style={{borderTop:"1px solid var(--bdr)",margin:".4rem 0"}}/>
+            <div className="nav-mobile-row nav-mobile-action" style={{color:"var(--dangerL)"}} onClick={async()=>{await supabase.auth.signOut();setCurrentUser(null);setPendingUser(null);setShowLanding(true);setNavMenuOpen(false);}}>
+              Sign Out
+            </div>
+          </div>
+        </>}
       </nav>
       <div className="main">
         {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} setPayments={setPayments} runs={runs} onAlert={handleAlert}/>}
