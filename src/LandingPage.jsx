@@ -396,14 +396,46 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
         </div>
       </div>
 {/* What is Sector 317? */}
-      <section style={{background:"linear-gradient(135deg,#1a1b13 0%,#111209 100%)",borderTop:"1px solid rgba(200,224,58,.15)",borderBottom:"1px solid rgba(200,224,58,.15)",padding:"5rem 2rem",textAlign:"center"}}>
-        <div style={{maxWidth:560,margin:"0 auto"}}>
-           <div className="lp-soc-title">So what is</div>
-           <span>Sector 317</span></div>
-          <p style={{fontFamily:"'Barlow',sans-serif",fontSize:"1rem",color:"rgba(232,228,220,.65)",lineHeight:1.7,marginBottom:"2rem"}}>
-            Sector 317 is an immersive, team-based tactical experience inspired by SWAT-style close-quarters combat operations. You and your team, equipped with specialized tactical gear, will breach doors, eliminate targets, and secure rooms as you advance through thoughtfully designed structures. Choose your group, play mode, environmental conditions, opposition difficulty, and objectives to put your skills to the test. Our competitive scoring system ranks each team’s performance—weighted by run difficulty—to determine their place on the leaderboards. Blending the strategy and coordination of real tactical operations with the excitement of live competition, Sector 317 delivers a fast-paced experience that rewards teamwork, communication, and precision.
-            </div>
-      </section>
+<section
+  style={{
+    background: "linear-gradient(135deg,#1a1b13 0%,#111209 100%)",
+    borderTop: "1px solid rgba(200,224,58,.15)",
+    borderBottom: "1px solid rgba(200,224,58,.15)",
+    padding: "5rem 2rem",
+    textAlign: "center"
+  }}
+>
+  <div style={{ maxWidth: 560, margin: "0 auto" }}>
+    
+    <div className="lp-soc-title">So what is</div>
+    <span style={{ display: "block", fontSize: "2rem", fontWeight: 700 }}>
+      Sector 317
+    </span>
+
+    <p
+      style={{
+        fontFamily: "'Barlow', sans-serif",
+        fontSize: "1rem",
+        color: "rgba(232,228,220,.65)",
+        lineHeight: 1.7,
+        marginTop: "1.5rem"
+      }}
+    >
+      Sector 317 is an immersive, team-based tactical experience inspired by
+      SWAT-style close-quarters combat operations. You and your team, equipped
+      with specialized tactical gear, will breach doors, eliminate targets, and
+      secure rooms as you advance through thoughtfully designed structures.
+      Choose your group, play mode, environmental conditions, opposition
+      difficulty, and objectives to put your skills to the test. Our competitive
+      scoring system ranks each team’s performance—weighted by run difficulty—to
+      determine their place on the leaderboards. Blending the strategy and
+      coordination of real tactical operations with the excitement of live
+      competition, Sector 317 delivers a fast-paced experience that rewards
+      teamwork, communication, and precision.
+    </p>
+
+  </div>
+</section>
       {/* MISSIONS */}
       <section className="lp-section lp-missions" id="missions">
         <div className="lp-con">
