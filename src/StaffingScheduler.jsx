@@ -1261,10 +1261,17 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
 
                         {(() => {
                           const active = templates.find(t => t.active)
+                          const hasWk2Assignments = active && slotAssignments.some(a => a.weekNumber === 2)
+                          const cycleSet = !!active?.cycleStartDate
+                          // Build next-8-week preview of week numbers
+                          const weekPreview = cycleSet ? Array.from({length:8},(_,i)=>{
+                            const d = addDays(todayISO(), i*7+1)
+                            return { label: d.slice(5).replace('-','/'), wn: getWeekNumber(d, active.cycleStartDate) }
+                          }) : []
                           return (
                             <>
                               {active ? (
-                                <div style={{ fontSize: '.84rem', color: 'var(--muted)', marginBottom: '.75rem' }}>
+                                <div style={{ fontSize: '.84rem', color: 'var(--muted)', marginBottom: '.5rem' }}>
                                   Active template: <strong style={{ color: 'var(--txt)' }}>{active.name}</strong>
                                   {editingTmplId !== active.id && (
                                     <span style={{ marginLeft: '.5rem', color: 'var(--warnL)', fontSize: '.78rem' }}>
@@ -1275,6 +1282,38 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                               ) : (
                                 <div style={{ fontSize: '.84rem', color: 'var(--warnL)', marginBottom: '.75rem' }}>
                                   No active template. Select a template and click "Set Active" above.
+                                </div>
+                              )}
+
+                              {/* Cycle start date — shown in stamp section for easy access */}
+                              {active && (
+                                <div style={{ display:'flex', alignItems:'center', gap:'.6rem', flexWrap:'wrap', marginBottom:'.65rem', fontSize:'.83rem' }}>
+                                  <span style={{ color:'var(--muted)' }}>Alternating week cycle starts:</span>
+                                  <input
+                                    type="date"
+                                    value={active.cycleStartDate ?? ''}
+                                    onChange={async e => {
+                                      const val = e.target.value || null
+                                      try {
+                                        const updated = await upsertShiftTemplate({ ...active, cycleStartDate: val })
+                                        setTemplates(prev => prev.map(t => t.id === updated.id ? updated : t))
+                                        setStampPreview(null)
+                                      } catch (err) { onAlert('Error saving cycle date: ' + err.message) }
+                                    }}
+                                    style={{ fontSize:'.83rem', padding:'.2rem .45rem', background:'var(--surf2)', color:'var(--txt)', border:'1px solid var(--bdr)', borderRadius:4 }}
+                                  />
+                                  {!cycleSet
+                                    ? <span style={{ color: hasWk2Assignments ? 'var(--warnL)' : 'var(--muted)', fontSize:'.78rem' }}>
+                                        {hasWk2Assignments ? '⚠ Not set — Week 2 assignments will be ignored' : 'Not set — all weeks use Week 1'}
+                                      </span>
+                                    : <span style={{ fontSize:'.76rem', color:'var(--muted)' }}>
+                                        {weekPreview.map((w,i) => (
+                                          <span key={i} style={{ marginRight:'.35rem', color: w.wn===1 ? 'var(--accB)' : 'var(--okB)', fontWeight:600 }}>
+                                            {w.label}=Wk{w.wn}
+                                          </span>
+                                        ))}
+                                      </span>
+                                  }
                                 </div>
                               )}
 
