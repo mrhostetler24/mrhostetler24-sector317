@@ -1524,7 +1524,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                   {isExpanded&&resRuns.length>0&&<tr key={r.id+"-runs"}><td colSpan={6} style={{background:"var(--surf2)",padding:0,borderBottom:"1px solid var(--bdr)"}}>
                     <div style={{padding:".85rem 1rem"}}>
                       {rt?.mode==='versus'?(()=>{
-                        const env=resRuns[0];
+                        const roleColor=role=>{if(!role)return'var(--muted)';const r=role.toLowerCase();if(r.includes('hunt'))return'#c8e03a';if(r.includes('coyot'))return'#c4a882';return'var(--muted)';};
                         const groups={};
                         resRuns.forEach(rn=>{const k=rn.runNumber??0;(groups[k]=groups[k]||[]).push(rn);});
                         const sortedGroups=Object.entries(groups).sort(([a],[b])=>Number(a)-Number(b));
@@ -1534,21 +1534,33 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                         const mwNum=mwKey!=null?Number(mwKey):null;
                         const iWon=mwNum!=null&&myTeam!=null&&mwNum===Number(myTeam);
                         return <>
-                          <div style={{marginBottom:'.85rem'}}>
-                            <div style={{fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.1em',color:'var(--muted)',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:700}}>Session Settings</div>
-                            {env.visual&&<Pill v={(VIZ[env.visual]||env.visual)+' Visual'}/>}
-                            <Pill v={audLbl(env)+' Audio'}/>
-                            {env.structure&&<Pill v={'Map: '+env.structure}/>}
-                            {env.liveOpDifficulty&&<Pill v={'OP: '+(OPD[env.liveOpDifficulty]||env.liveOpDifficulty)}/>}
+                          <div style={{display:'flex',alignItems:'center',gap:'.6rem',marginBottom:'.85rem',flexWrap:'wrap'}}>
+                            {myTeam!=null&&<div style={{display:'flex',alignItems:'center',gap:'.35rem',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:4,padding:'.18rem .55rem',fontSize:'.68rem'}}>
+                              <div style={{width:8,height:8,borderRadius:'50%',background:TC[Number(myTeam)]?.col??'var(--muted)',flexShrink:0}}/>
+                              <span style={{color:'var(--muted)',fontFamily:'var(--fd)',letterSpacing:'.06em',textTransform:'uppercase'}}>Your team:</span>
+                              <span style={{fontWeight:700,color:TC[Number(myTeam)]?.col??'var(--txt)'}}>{TC[Number(myTeam)]?.name??'Team '+myTeam}</span>
+                            </div>}
+                            {mwNum!=null&&<div style={{display:'flex',alignItems:'center',gap:'.35rem',background:iWon?'rgba(34,197,94,.08)':'var(--bg2)',border:'1px solid '+(iWon?'rgba(34,197,94,.25)':'var(--bdr)'),borderRadius:4,padding:'.18rem .55rem',fontSize:'.68rem'}}>
+                              <div style={{width:8,height:8,borderRadius:'50%',background:TC[mwNum]?.col??'var(--acc)',flexShrink:0}}/>
+                              <span style={{color:'var(--muted)',fontFamily:'var(--fd)',letterSpacing:'.06em',textTransform:'uppercase'}}>Match:</span>
+                              <span style={{fontWeight:700,color:TC[mwNum]?.col??'var(--acc)'}}>{TC[mwNum]?.name??'Team '+mwNum} wins</span>
+                              {iWon&&<span style={{fontWeight:700,color:'var(--okB)',marginLeft:'.2rem'}}>— You won!</span>}
+                            </div>}
                           </div>
                           {sortedGroups.map(([runNum,grp])=>{
-                            const teamRuns=[...grp].sort((a,b)=>(a.team??0)-(b.team??0));
+                            const teamRuns=[...grp].sort((a,b)=>{if(myTeam==null)return(a.team??0)-(b.team??0);if(Number(a.team)===Number(myTeam))return -1;if(Number(b.team)===Number(myTeam))return 1;return(a.team??0)-(b.team??0);});
                             const runWinTeam=grp[0]?.winningTeam!=null?Number(grp[0].winningTeam):null;
                             const runTime=fmtSec(grp[0]?.elapsedSeconds);
+                            const rEnv=grp[0];
                             return <div key={runNum} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
-                              <div style={{background:'var(--bg2)',padding:'.3rem .85rem',fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                                <span>Run {runNum}</span>
-                                <div style={{display:'flex',gap:'.6rem',alignItems:'center'}}>
+                              <div style={{background:'var(--bg2)',padding:'.3rem .85rem',fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.3rem'}}>
+                                <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap'}}>
+                                  <span style={{color:'var(--txt)',fontWeight:700}}>Run {runNum}</span>
+                                  {rEnv.structure&&<span>Structure: {rEnv.structure}</span>}
+                                  {rEnv.visual&&<Pill v={(VIZ[rEnv.visual]||rEnv.visual)+' Visual'}/>}
+                                  <Pill v={audLbl(rEnv)+' Audio'}/>
+                                </div>
+                                <div style={{display:'flex',gap:'.5rem',alignItems:'center'}}>
                                   {runTime&&<span>{runTime}</span>}
                                   {runWinTeam!=null&&<span style={{color:TC[runWinTeam]?.col??'var(--acc)',fontWeight:700}}>{(TC[runWinTeam]?.name??'Team '+runWinTeam)+' wins'}</span>}
                                 </div>
@@ -1559,45 +1571,41 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                                   const isMe=myTeam!=null&&Number(rn.team)===Number(myTeam);
                                   const sc=rn.score??calculateRunScore(rn);
                                   const won=rn.winningTeam!=null&&Number(rn.team)===Number(rn.winningTeam);
+                                  const rc=roleColor(rn.role);
                                   return <div key={rn.id} style={{flex:1,padding:'.6rem .9rem',borderLeft:isMe?`3px solid ${tc.col}`:'none',borderRight:ti<teamRuns.length-1?'1px solid var(--bdr)':'none',background:won?tc.col+'18':undefined}}>
                                     <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
                                       <div style={{width:9,height:9,borderRadius:'50%',background:tc.col,flexShrink:0}}/>
                                       <span style={{fontWeight:700,fontSize:'.8rem',color:tc.col}}>{tc.name}</span>
-                                      {rn.role&&<span style={{fontSize:'.7rem',color:'var(--muted)'}}>· {rn.role}</span>}
+                                      {rn.role&&<span style={{fontSize:'.72rem',fontWeight:700,color:rc,textTransform:'capitalize',letterSpacing:'.03em'}}>· {rn.role}</span>}
                                       {isMe&&<span style={{fontSize:'.62rem',background:'var(--accD)',color:'var(--accB)',padding:'1px 6px',borderRadius:99,marginLeft:'auto',flexShrink:0,whiteSpace:'nowrap'}}>← You</span>}
                                     </div>
                                     <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:won?tc.col:'var(--txt)'}}>{sc}</div>
-                                    {won&&<div style={{fontSize:'.68rem',color:'var(--okB)',marginTop:'.1rem'}}>✓ Won run</div>}
+                                    <div style={{display:'flex',gap:'.25rem',flexWrap:'wrap',marginTop:'.25rem'}}>
+                                      {rn.objectiveComplete!=null&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>}
+                                      {won&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:'rgba(34,197,94,.12)',color:'var(--okB)',border:'1px solid rgba(34,197,94,.3)'}}>✓ Won run</span>}
+                                    </div>
                                   </div>;
                                 })}
                               </div>
                             </div>;
                           })}
-                          {mwNum!=null&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.5rem',padding:'.5rem .85rem',marginTop:'.2rem',background:iWon?'rgba(34,197,94,.08)':'var(--bg2)',border:'1px solid '+(iWon?'rgba(34,197,94,.25)':'var(--bdr)'),borderRadius:6,fontSize:'.85rem'}}>
-                            <div style={{width:10,height:10,borderRadius:'50%',background:TC[mwNum]?.col??'var(--acc)',flexShrink:0}}/>
-                            <span style={{fontWeight:700,color:TC[mwNum]?.col??'var(--acc)'}}>{TC[mwNum]?.name??'Team '+mwNum}</span>
-                            <span style={{color:'var(--muted)'}}>wins the match</span>
-                            {iWon&&<span style={{fontWeight:700,color:'var(--okB)'}}>— You won!</span>}
-                          </div>}
                         </>;
                       })():(()=>{
-                        const env=resRuns[0];
                         return <>
-                          <div style={{marginBottom:'.85rem'}}>
-                            <div style={{fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.1em',color:'var(--muted)',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:700}}>Session Settings</div>
-                            {env.visual&&<Pill v={(VIZ[env.visual]||env.visual)+' Visual'}/>}
-                            <Pill v={audLbl(env)+' Audio'}/>
-                            {env.structure&&<Pill v={'Map: '+env.structure}/>}
-                            {env.liveOpDifficulty&&<Pill v={'OP Difficulty: '+(OPD[env.liveOpDifficulty]||env.liveOpDifficulty)}/>}
-                          </div>
                           <div style={{display:'flex',flexWrap:'wrap',gap:'.5rem'}}>
                             {resRuns.map((rn,i)=>{
                               const sc=rn.score??calculateRunScore(rn);
                               const t=fmtSec(rn.elapsedSeconds);
-                              return <div key={rn.id} style={{background:'var(--surf)',border:'1px solid var(--bdr)',borderLeft:`3px solid ${rn.objectiveComplete?'var(--acc)':'var(--danger)'}`,borderRadius:6,padding:'.6rem .85rem',minWidth:170}}>
+                              return <div key={rn.id} style={{background:'var(--surf)',border:'1px solid var(--bdr)',borderLeft:`3px solid ${rn.objectiveComplete?'var(--acc)':'var(--danger)'}`,borderRadius:6,padding:'.6rem .85rem',minWidth:200}}>
                                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
                                   <span style={{fontSize:'.68rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>Run {rn.runNumber??i+1}</span>
                                   {t&&<span style={{fontSize:'.68rem',color:'var(--muted)'}}>{t}</span>}
+                                </div>
+                                <div style={{marginBottom:'.3rem',display:'flex',flexWrap:'wrap',gap:'.2rem'}}>
+                                  {rn.visual&&<Pill v={(VIZ[rn.visual]||rn.visual)+' Visual'}/>}
+                                  <Pill v={audLbl(rn)+' Audio'}/>
+                                  {rn.structure&&<Pill v={'Structure: '+rn.structure}/>}
+                                  {rn.liveOpDifficulty&&<Pill v={'OP: '+(OPD[rn.liveOpDifficulty]||rn.liveOpDifficulty)}/>}
                                 </div>
                                 <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:'var(--accB)',marginBottom:'.35rem'}}>{sc}</div>
                                 <div style={{display:'flex',flexWrap:'wrap',gap:'.25rem'}}>

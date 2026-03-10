@@ -65,7 +65,7 @@ const CSS = `
 .lp-mobile-btns .lp-btn-login,.lp-mobile-btns .lp-btn-book{flex:1;clip-path:none;border-radius:3px;text-align:center;}
 
 /* HERO */
-.lp-hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;overflow:hidden;padding-bottom:10vh;}
+.lp-hero{position:relative;min-height:100vh;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;overflow:hidden;padding-bottom:10vh;}
 .lp-hero-bg{position:absolute;inset:0;background:url('/hero.png') center 18% / cover no-repeat;will-change:transform;}
 .lp-hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(17,18,9,.45) 0%,rgba(17,18,9,.0) 12%,rgba(17,18,9,.0) 30%,rgba(17,18,9,.55) 65%,rgba(17,18,9,.99) 100%);}
 .lp-hero-content{position:relative;z-index:2;text-align:center;padding:0 2rem;max-width:720px;animation:lpUp .9s ease both;}
@@ -253,7 +253,7 @@ const CSS = `
   .lp-inc-text strong{font-size:.92rem;}
   .lp-inc-text{font-size:.82rem;}
   /* ── Mobile centering ── */
-  .lp-hero{padding-bottom:5rem;}
+  .lp-hero{padding-bottom:7rem;}
   .lp-ey,.lp-ey.left,.lp-ey.right{justify-content:center;text-align:center;}
   .lp-ey.left::after,.lp-ey.right::before{display:none;}
   .lp-h,.lp-h.right{text-align:center;}
@@ -268,7 +268,6 @@ const CSS = `
 }
 @media(max-width:480px){
   .lp-steps{grid-template-columns:1fr;}
-  .lp-hero{min-height:100svh;}
   .lp-hero-bg{background-position:center 8% !important;}
   .lp-name{font-size:1.5rem;}
   .lp-soc-links{flex-direction:column;}
