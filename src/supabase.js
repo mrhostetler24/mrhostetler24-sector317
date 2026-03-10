@@ -1280,6 +1280,14 @@ export async function deleteShift(id) {
   if (error) throw error
 }
 
+// Delete ALL shifts in the given date range
+export async function clearStampedShifts(fromDate, toDate) {
+  const { error } = await supabase.from('shifts').delete()
+    .gte('date', fromDate)
+    .lte('date', toDate)
+  if (error) throw error
+}
+
 // ============================================================
 // KIOSK
 // ============================================================

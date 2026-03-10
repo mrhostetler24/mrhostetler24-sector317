@@ -6,7 +6,7 @@
 import { useState, useMemo, useEffect, Fragment } from 'react'
 import { timeToMinutes, minutesToTime, addDays, todayISO, getWeekNumber, isStaffBlocked, computeStampShifts } from './stampUtils.js'
 import {
-  updateShift, createShiftBatch, upsertShiftBatch,
+  updateShift, createShiftBatch, upsertShiftBatch, clearStampedShifts,
   fetchShiftTemplates, upsertShiftTemplate, deleteShiftTemplate, setActiveShiftTemplate,
   fetchTemplateSlots, upsertTemplateSlot, deleteTemplateSlot,
   fetchSlotAssignments, upsertSlotAssignment,
@@ -1318,13 +1318,34 @@ export default function StaffingScheduler({ currentUser, shifts, setShifts, user
                               )}
 
                               {!stampPreview ? (
-                                <button
-                                  className="btn btn-s"
-                                  disabled={!active || stamping}
-                                  onClick={previewStamp}
-                                >
-                                  {stamping ? 'Computing…' : 'Preview Stamp'}
-                                </button>
+                                <div style={{ display:'flex', gap:'.6rem', alignItems:'center', flexWrap:'wrap' }}>
+                                  <button
+                                    className="btn btn-s"
+                                    disabled={!active || stamping}
+                                    onClick={previewStamp}
+                                  >
+                                    {stamping ? 'Computing…' : 'Preview Stamp'}
+                                  </button>
+                                  <button
+                                    className="btn btn-d btn-sm"
+                                    style={{ background:'var(--danger)', borderColor:'var(--danger)', color:'#fff', opacity:.85 }}
+                                    disabled={stamping}
+                                    onClick={async () => {
+                                      const from = addDays(todayISO(), 1)
+                                      const to   = addDays(todayISO(), 91)
+                                      if (!window.confirm(`[TESTING] Delete all template-stamped shifts from ${from} to ${to}?\n\nThis cannot be undone.`)) return
+                                      setStamping(true)
+                                      try {
+                                        await clearStampedShifts(from, to)
+                                        setShifts(prev => prev.filter(s => s.date < from || s.date > to))
+                                        onAlert('Schedule cleared — 91-day horizon wiped. Ready to re-stamp.')
+                                      } catch (e) { onAlert('Error clearing schedule: ' + e.message) }
+                                      finally { setStamping(false) }
+                                    }}
+                                  >
+                                    🗑 Clear Schedule
+                                  </button>
+                                </div>
                               ) : (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                                   <div style={{ fontSize: '.88rem' }}>
