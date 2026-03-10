@@ -1845,6 +1845,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
     supabase.from('v_leaderboard_cumulative').select('total_runs_played').eq('player_id',user.id).maybeSingle()
       .then(({data})=>setCareerRuns(data?.total_runs_played??0)).catch(()=>setCareerRuns(0));
   },[tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{
+    if(!editUser){setEditUserPrefs(null);return;}
+    fetchEmailPreferences(editUser.id).then(p=>setEditUserPrefs({
+      bookings:p.bookings??true,match_summary:p.match_summary??true,
+      social:p.social??true,merchandise:p.merchandise??true,marketing:p.marketing??true,
+    })).catch(()=>setEditUserPrefs({bookings:true,match_summary:true,social:true,merchandise:true,marketing:true}));
+  },[editUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showWidgetMenu,setShowWidgetMenu]=useState(false);
   const [dashWidgets,setDashWidgets]=useState(()=>isAdmin
     ?{revenue:true,bookings:true,players:true,utilization:true,newUsers:true,leadTime:true,envCoop:true,envVs:true,avgRunTime:true}
@@ -1872,6 +1879,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [editST,setEditST]=useState(null);
   const [newST,setNewST]=useState({dayOfWeek:"Monday",startTime:"18:00",maxSessions:2,active:true});
   const [editUser,setEditUser]=useState(null);
+  const [editUserPrefs,setEditUserPrefs]=useState(null);
   const [userSaving,setUserSaving]=useState(false);
   const [applyCreditFor,setApplyCreditFor]=useState(null);
   const [applyCreditAmt,setApplyCreditAmt]=useState('');
@@ -1897,7 +1905,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         }:{}),
       });
       setUsers(p=>p.map(u=>u.id===updated.id?updated:u));
-      setModal(null);setEditUser(null);showToast("Saved");
+      if(editUserPrefs) await updateEmailPreferences(editUser.id,editUserPrefs).catch(()=>{});
+      setModal(null);setEditUser(null);setEditUserPrefs(null);showToast("Saved");
     }catch(e){showToast("Error: "+e.message);}
     finally{setUserSaving(false);}
   };
@@ -2065,7 +2074,22 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             </div>
           </>;
         })()}
-        <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditUser(null);}}>Cancel</button><button className="btn btn-p" disabled={userSaving} onClick={()=>{if(editUser)doSaveUser();else{setUsers(p=>[...p,{...newUser,id:Date.now()}]);setModal(null);setEditUser(null);showToast("Saved");}}}>{userSaving?"Saving…":"Save"}</button></div>
+        {editUser&&editUserPrefs&&<>
+          <div style={{fontWeight:700,fontSize:".78rem",textTransform:"uppercase",letterSpacing:".06em",color:"var(--muted)",margin:"1rem 0 .5rem"}}>Email Notifications</div>
+          {[
+            {key:"bookings",label:"Booking Confirmations & Reminders"},
+            {key:"match_summary",label:"Post-Match Summaries"},
+            {key:"social",label:"Social Notifications"},
+            {key:"merchandise",label:"Order & Shipping Updates"},
+            {key:"marketing",label:"Newsletter & Promotions"},
+          ].map(({key,label})=>(
+            <label key={key} style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".45rem",cursor:"pointer",fontSize:".82rem",color:"var(--txt)"}}>
+              <input type="checkbox" checked={editUserPrefs[key]??true} onChange={e=>setEditUserPrefs(p=>({...p,[key]:e.target.checked}))} style={{accentColor:"var(--accB)",width:15,height:15,flexShrink:0}}/>
+              {label}
+            </label>
+          ))}
+        </>}
+        <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditUser(null);setEditUserPrefs(null);}}>Cancel</button><button className="btn btn-p" disabled={userSaving} onClick={()=>{if(editUser)doSaveUser();else{setUsers(p=>[...p,{...newUser,id:Date.now()}]);setModal(null);setEditUser(null);showToast("Saved");}}}>{userSaving?"Saving…":"Save"}</button></div>
       </div></div>}
       {applyCreditFor&&<div className="mo"><div className="mc" style={{maxWidth:400}}>
         <div className="mt2">Apply Store Credit</div>
