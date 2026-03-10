@@ -1,12 +1,13 @@
 // MerchPortal.jsx — Merchandise & Inventory Management
 // Surfaces: MerchAdmin (manager/admin), MerchStaffSales (staff/ops), MerchStorefront (customer)
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   fetchMerchCatalog, fetchMerchCategories, fetchStockLocations, fetchMerchOrders,
   fetchMerchDiscounts, fetchMerchGiftCodes, fetchMerchReturns,
   fetchMerchInventory, fetchMerchInventoryTransactions,
   upsertMerchCategory, upsertMerchProduct, upsertMerchVariant, deleteMerchVariant,
   upsertMerchDiscount, upsertStockLocation, upsertBundleComponents,
+  fetchBundleComponents, uploadMerchImage,
   adjustMerchInventory, validateMerchDiscount, createMerchOrder,
   processMerchReturn, voidGiftCode, updateMerchOrderStatus,
   fetchUserByPhone, createGuestUser, createPayment, deductUserCredits,
@@ -39,16 +40,22 @@ function ProductCard({ product, onSelect, channel }) {
     ? activeVariants.some(v => v.inventory > 0)
     : true
   const hasVariants = product.type === 'physical' && activeVariants.length > 1
+  const primaryImage = product.imageUrls?.[0] || product.imageUrl || null
 
   return (
     <div onClick={() => onSelect(product)}
       style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 10,
         padding: '1rem', cursor: 'pointer', opacity: (!inStock && product.type === 'physical') ? .55 : 1,
-        transition: 'border-color .15s' }}
+        transition: 'border-color .15s', position: 'relative' }}
       onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--acc)'}
       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--bdr)'}>
-      {product.imageUrl
-        ? <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6, marginBottom: '.75rem' }} />
+      {product.type === 'bundle' && product.bundleSavingsPct > 0 && (
+        <div style={{ position: 'absolute', top: 8, right: 8, background: 'var(--dangerL,#c44)', color: '#fff', fontSize: '.62rem', fontWeight: 800, padding: '2px 8px', borderRadius: 99, letterSpacing: '.03em', zIndex: 1 }}>
+          {product.bundleSavingsPct}% OFF
+        </div>
+      )}
+      {primaryImage
+        ? <img src={primaryImage} alt={product.name} style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6, marginBottom: '.75rem' }} />
         : <div style={{ width: '100%', height: 100, background: 'var(--bg2)', borderRadius: 6, marginBottom: '.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>
             {product.type === 'gift_card' ? '🎁' : product.type === 'gift_cert' ? '🎟' : product.type === 'bundle' ? '📦' : '🛍'}
           </div>}
@@ -233,6 +240,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
   const [giftCodes, setGiftCodes] = useState([])
   const [returns, setReturns] = useState([])
   const [editProduct, setEditProduct] = useState(null) // null | {} | {id,...}
+  const [editBundle, setEditBundle] = useState(null) // null | {} | {id,...}
   const [editVariant, setEditVariant] = useState(null) // null | {productId,...}
   const [editCategory, setEditCategory] = useState(null)
   const [editDiscount, setEditDiscount] = useState(null)
@@ -267,11 +275,12 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
 
   const TABS = [
     ['products', '📦 Products'],
+    ...(isAdmin ? [['bundles', '🎁 Bundles']] : []),
     ['inventory', '📊 Inventory'],
     ['orders', '🧾 Orders'],
     ['discounts', '🏷 Discounts'],
     ['returns', '↩ Returns'],
-    ['gift-codes', '🎁 Gift Codes'],
+    ['gift-codes', '🎟 Gift Codes'],
     ...(isAdmin ? [['settings', '⚙ Settings']] : []),
   ]
 
@@ -318,7 +327,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
               <span style={{ fontSize: '.9rem', fontWeight: 700, color: 'var(--acc)' }}>{fmtMoney(p.basePrice)}</span>
               {!p.active && <span className="badge b-d" style={{ fontSize: '.6rem' }}>Inactive</span>}
               {isAdmin && <div style={{ display: 'flex', gap: '.4rem' }}>
-                <button className="btn btn-sm btn-s" onClick={e => { e.stopPropagation(); setEditProduct(p) }}>Edit</button>
+                <button className="btn btn-sm btn-s" onClick={e => { e.stopPropagation(); p.type === 'bundle' ? setEditBundle(p) : setEditProduct(p) }}>Edit</button>
               </div>}
             </div>
             {expandedProduct === p.id && (
@@ -348,6 +357,39 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
                   onClick={() => setEditVariant({ productId: p.id })}>+ Add Variant</button>}
               </div>
             )}
+          </div>
+        ))}
+      </>)}
+
+      {/* ── Bundles Tab ─────────────────────────────── */}
+      {tab === 'bundles' && (<>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <button className="btn btn-p btn-sm" onClick={() => setEditBundle({})}>+ New Bundle</button>
+        </div>
+        {catalog.filter(p => p.type === 'bundle').length === 0 && (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>No bundles yet. Create one to get started.</div>
+        )}
+        {catalog.filter(p => p.type === 'bundle').map(b => (
+          <div key={b.id} style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.6rem', display: 'flex', alignItems: 'center', padding: '.65rem 1rem', gap: '.75rem' }}>
+            {b.imageUrls?.[0]
+              ? <img src={b.imageUrls[0]} alt="" style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+              : <div style={{ width: 52, height: 52, background: 'var(--bg2)', borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>📦</div>
+            }
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, color: 'var(--txt)' }}>{b.name}</div>
+              {b.description && <div style={{ fontSize: '.78rem', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.description}</div>}
+              <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: '.15rem' }}>
+                {b.imageUrls?.length > 0 ? `${b.imageUrls.length} image${b.imageUrls.length > 1 ? 's' : ''}` : 'No images'}
+                {b.categoryName ? ` · ${b.categoryName}` : ''}
+              </div>
+            </div>
+            {b.bundleSavingsPct > 0 && (
+              <span style={{ background: 'var(--dangerL,#c44)', color: '#fff', fontSize: '.65rem', fontWeight: 800, padding: '2px 8px', borderRadius: 99 }}>{b.bundleSavingsPct}% OFF</span>
+            )}
+            <span style={{ fontWeight: 700, color: 'var(--acc)', whiteSpace: 'nowrap' }}>{fmtMoney(b.basePrice)}</span>
+            {!b.active && <span className="badge b-d" style={{ fontSize: '.6rem' }}>Inactive</span>}
+            {!b.storefrontVisible && b.active && <span className="badge b-open" style={{ fontSize: '.6rem' }}>Hidden</span>}
+            <button className="btn btn-sm btn-s" onClick={() => setEditBundle(b)}>Edit</button>
           </div>
         ))}
       </>)}
@@ -552,6 +594,18 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
           onClose={() => setEditProduct(null)} />
       )}
 
+      {editBundle !== null && (
+        <BundleMakerModal bundle={editBundle} catalog={catalog} categories={categories}
+          onSave={async (p, components) => {
+            const id = await upsertMerchProduct(p)
+            await upsertBundleComponents(id, components.map(c => ({ variantId: c.variantId, quantity: c.quantity })))
+            await loadAll()
+            setEditBundle(null)
+            onAlert?.('Bundle saved.')
+          }}
+          onClose={() => setEditBundle(null)} />
+      )}
+
       {editVariant !== null && (
         <VariantEditModal variant={editVariant}
           onSave={async (v) => {
@@ -619,15 +673,58 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
   )
 }
 
+// ─── ImageUploader ────────────────────────────────────────────
+function ImageUploader({ images, onChange, maxImages = 5 }) {
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef()
+  const handleFiles = async files => {
+    const toUpload = Array.from(files).slice(0, maxImages - images.length)
+    if (!toUpload.length) return
+    setUploading(true)
+    try {
+      const urls = await Promise.all(toUpload.map(f => uploadMerchImage(f)))
+      onChange([...images, ...urls])
+    } catch (e) { alert('Upload error: ' + e.message) }
+    setUploading(false)
+  }
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', marginBottom: '.4rem' }}>
+        {images.map((url, i) => (
+          <div key={i} style={{ position: 'relative', flexShrink: 0 }}>
+            <img src={url} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--bdr)', display: 'block' }} />
+            <button type="button" style={{ position: 'absolute', top: -6, right: -6, background: 'var(--danger,#c33)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: '.72rem', lineHeight: '18px', textAlign: 'center', padding: 0 }}
+              onClick={() => onChange(images.filter((_, j) => j !== i))}>✕</button>
+          </div>
+        ))}
+        {images.length < maxImages && (
+          <button type="button" disabled={uploading}
+            style={{ width: 72, height: 72, background: 'var(--bg2)', border: '2px dashed var(--bdr)', borderRadius: 6, cursor: uploading ? 'wait' : 'pointer', color: 'var(--muted)', fontSize: '.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '.15rem', flexShrink: 0 }}
+            onClick={() => inputRef.current?.click()}>
+            {uploading ? '…' : <><span style={{ fontSize: '1.1rem' }}>+</span><span>Image</span></>}
+          </button>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+        onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
+      <div style={{ fontSize: '.68rem', color: 'var(--muted)' }}>{images.length} / {maxImages} images · Click thumbnail ✕ to remove</div>
+    </div>
+  )
+}
+
 // ─── ProductEditModal ─────────────────────────────────────────
 function ProductEditModal({ product, categories, onSave, onClose }) {
   const [form, setForm] = useState(() => {
     const base = { type: 'physical', name: '', description: '', sku: '', basePrice: '',
-      categoryId: '', imageUrl: '', storefrontVisible: true, staffVisible: true,
+      categoryId: '', imageUrls: [], storefrontVisible: true, staffVisible: true,
       shippable: true, pickupOnly: false, returnable: true, returnWindowDays: 30,
       restockable: true, returnPolicyNote: '', active: true, archived: false, sortOrder: 0,
       ...product }
-    return { ...base, basePrice: product.basePrice != null ? String(product.basePrice) : '' }
+    return {
+      ...base,
+      basePrice: product.basePrice != null ? String(product.basePrice) : '',
+      imageUrls: product.imageUrls?.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : []),
+    }
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   return (
@@ -637,7 +734,7 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
         <div className="f" style={{ gridColumn: '1/-1' }}><label>Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Product name" /></div>
         <div className="f"><label>Type *</label>
           <select value={form.type} onChange={e => set('type', e.target.value)}>
-            {Object.entries(TYPE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            {Object.entries(TYPE_LABELS).filter(([k]) => k !== 'bundle').map(([k,v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
         <div className="f"><label>Category</label>
@@ -649,7 +746,10 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
         <div className="f"><label>Base Price ($) *</label><input type="number" min="0" step="0.01" value={form.basePrice} onChange={e => set('basePrice', e.target.value)} placeholder="0.00" /></div>
         <div className="f"><label>SKU</label><input value={form.sku || ''} onChange={e => set('sku', e.target.value)} placeholder="Optional" /></div>
         <div className="f" style={{ gridColumn: '1/-1' }}><label>Description</label><textarea value={form.description || ''} onChange={e => set('description', e.target.value)} rows={2} style={{ resize: 'vertical' }} /></div>
-        <div className="f" style={{ gridColumn: '1/-1' }}><label>Image URL</label><input value={form.imageUrl || ''} onChange={e => set('imageUrl', e.target.value)} placeholder="https://…" /></div>
+        <div className="f" style={{ gridColumn: '1/-1' }}>
+          <label>Images (up to 5)</label>
+          <ImageUploader images={form.imageUrls} onChange={v => set('imageUrls', v)} />
+        </div>
         <div className="f"><label>Sort Order</label><input type="number" value={form.sortOrder} onChange={e => set('sortOrder', parseInt(e.target.value) || 0)} /></div>
       </div>
       <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.5rem' }}>Visibility</div>
@@ -1259,6 +1359,209 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
       {variantModal && (
         <VariantModal product={variantModal} channel="staff" onAdd={addToCart} onClose={() => setVariantModal(null)} />
       )}
+    </div>
+  )
+}
+
+// ─── BundleMakerModal ─────────────────────────────────────────
+function BundleMakerModal({ bundle, catalog, categories, onSave, onClose }) {
+  const [form, setForm] = useState({
+    name: bundle.name || '',
+    description: bundle.description || '',
+    categoryId: bundle.categoryId || '',
+    basePrice: bundle.basePrice != null ? String(bundle.basePrice) : '',
+    storefrontVisible: bundle.storefrontVisible ?? true,
+    staffVisible: bundle.staffVisible ?? true,
+    active: bundle.active ?? true,
+    archived: bundle.archived ?? false,
+    sortOrder: bundle.sortOrder ?? 0,
+    imageUrls: bundle.imageUrls?.length ? bundle.imageUrls : (bundle.imageUrl ? [bundle.imageUrl] : []),
+  })
+  const [components, setComponents] = useState([]) // {productId,variantId,quantity,productName,variantLabel,price}
+  const [loadingComps, setLoadingComps] = useState(!!bundle.id)
+  const [saving, setSaving] = useState(false)
+  const [selProductId, setSelProductId] = useState('')
+  const [selVariantId, setSelVariantId] = useState('')
+  const [selQty, setSelQty] = useState(1)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  useEffect(() => {
+    if (!bundle.id) { setLoadingComps(false); return }
+    fetchBundleComponents(bundle.id).then(comps => {
+      const enriched = comps.map(c => {
+        for (const p of catalog) {
+          const v = p.variants.find(vv => vv.id === c.variantId)
+          if (v) return { productId: p.id, variantId: c.variantId, quantity: c.quantity, productName: p.name, variantLabel: v.label, price: variantPrice(p, v) }
+        }
+        return null
+      }).filter(Boolean)
+      setComponents(enriched)
+    }).catch(() => {}).finally(() => setLoadingComps(false))
+  }, []) // eslint-disable-line
+
+  const sellableProducts = catalog.filter(p => p.type !== 'bundle' && p.active && !p.archived)
+  const selProduct = sellableProducts.find(p => p.id === selProductId)
+  const selVariants = (selProduct?.variants || []).filter(v => v.active)
+  const selVariant = selVariants.find(v => v.id === selVariantId)
+  const selPrice = selVariant ? variantPrice(selProduct, selVariant) : (selProduct?.basePrice || 0)
+
+  const componentTotal = components.reduce((s, c) => s + c.price * c.quantity, 0)
+  const bundlePrice = parseFloat(form.basePrice) || 0
+  const savingsPct = componentTotal > 0 && bundlePrice > 0 && bundlePrice < componentTotal
+    ? Math.round((1 - bundlePrice / componentTotal) * 100) : null
+
+  const addComponent = () => {
+    if (!selProductId) return
+    const matchKey = c => selVariantId ? c.variantId === selVariantId : (!c.variantId && c.productId === selProductId)
+    if (components.find(matchKey)) {
+      setComponents(prev => prev.map(c => matchKey(c) ? { ...c, quantity: c.quantity + selQty } : c))
+    } else {
+      setComponents(prev => [...prev, { productId: selProductId, variantId: selVariantId || null, quantity: selQty, productName: selProduct.name, variantLabel: selVariant?.label || null, price: selPrice }])
+    }
+    setSelProductId(''); setSelVariantId(''); setSelQty(1)
+  }
+
+  const doSave = async () => {
+    if (!form.name || !bundlePrice || components.length === 0) return
+    setSaving(true)
+    try {
+      await onSave({ ...form, type: 'bundle', basePrice: bundlePrice, bundleSavingsPct: savingsPct }, components)
+    } catch (e) { alert('Save error: ' + e.message) }
+    setSaving(false)
+  }
+
+  const sectionLabel = txt => (
+    <div style={{ fontSize: '.78rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: '.6rem' }}>{txt}</div>
+  )
+
+  return (
+    <div className="mo" onClick={onClose}>
+      <div className="mc" style={{ maxWidth: 700, maxHeight: '92vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div className="mt2">{bundle.id ? 'Edit Bundle' : 'New Bundle'}</div>
+
+        {/* Basic info */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '1rem' }}>
+          <div className="f" style={{ gridColumn: '1/-1' }}><label>Bundle Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Tactical Starter Pack" /></div>
+          <div className="f">
+            <label>Category</label>
+            <select value={form.categoryId || ''} onChange={e => set('categoryId', e.target.value || null)}>
+              <option value="">— None —</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="f"><label>Sort Order</label><input type="number" value={form.sortOrder} onChange={e => set('sortOrder', parseInt(e.target.value) || 0)} /></div>
+          <div className="f" style={{ gridColumn: '1/-1' }}><label>Description</label><textarea value={form.description || ''} onChange={e => set('description', e.target.value)} rows={2} style={{ resize: 'vertical' }} /></div>
+        </div>
+
+        {/* Images */}
+        <div style={{ marginBottom: '1rem' }}>
+          {sectionLabel('Images (up to 5)')}
+          <ImageUploader images={form.imageUrls} onChange={v => set('imageUrls', v)} />
+        </div>
+
+        {/* Visibility */}
+        {sectionLabel('Visibility')}
+        <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+          {[['active','Active'],['storefrontVisible','On Storefront'],['staffVisible','Staff Sales'],['archived','Archived']].map(([k,lbl]) => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '.4rem', fontSize: '.88rem', cursor: 'pointer' }}>
+              <input type="checkbox" checked={!!form[k]} onChange={e => set(k, e.target.checked)} />{lbl}
+            </label>
+          ))}
+        </div>
+
+        {/* Component picker */}
+        <div style={{ borderTop: '1px solid var(--bdr)', paddingTop: '1rem' }}>
+          {sectionLabel('Bundle Contents')}
+          {loadingComps
+            ? <div style={{ color: 'var(--muted)', fontSize: '.85rem', marginBottom: '.75rem' }}>Loading components…</div>
+            : <>
+              {/* Add component row */}
+              <div style={{ display: 'flex', gap: '.5rem', marginBottom: '.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: 2, minWidth: 160 }}>
+                  <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginBottom: '.2rem' }}>Product</div>
+                  <select value={selProductId} onChange={e => { setSelProductId(e.target.value); setSelVariantId('') }}
+                    style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.85rem' }}>
+                    <option value="">— Select product —</option>
+                    {sellableProducts.map(p => <option key={p.id} value={p.id}>{p.name} ({fmtMoney(p.basePrice)})</option>)}
+                  </select>
+                </div>
+                {selVariants.length > 0 && (
+                  <div style={{ flex: 2, minWidth: 130 }}>
+                    <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginBottom: '.2rem' }}>Variant</div>
+                    <select value={selVariantId} onChange={e => setSelVariantId(e.target.value)}
+                      style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.85rem' }}>
+                      <option value="">— Any variant —</option>
+                      {selVariants.map(v => <option key={v.id} value={v.id}>{v.label}{v.priceOverride != null ? ` (${fmtMoney(v.priceOverride)})` : ''}</option>)}
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginBottom: '.2rem' }}>Qty</div>
+                  <input type="number" min={1} value={selQty} onChange={e => setSelQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    style={{ width: 56, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.85rem', textAlign: 'center' }} />
+                </div>
+                {selProductId && (
+                  <div style={{ fontSize: '.8rem', color: 'var(--acc)', fontWeight: 700, paddingBottom: '.4rem' }}>{fmtMoney(selPrice * selQty)}</div>
+                )}
+                <button className="btn btn-s btn-sm" style={{ alignSelf: 'flex-end' }} disabled={!selProductId} onClick={addComponent}>+ Add</button>
+              </div>
+
+              {/* Component list */}
+              {components.length === 0 && <div style={{ fontSize: '.82rem', color: 'var(--muted)', padding: '.4rem 0', marginBottom: '.5rem' }}>No items added yet.</div>}
+              {components.map((c, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '.6rem', padding: '.45rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.85rem' }}>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ fontWeight: 600 }}>{c.productName}</span>
+                    {c.variantLabel && <span style={{ color: 'var(--muted)', marginLeft: '.35rem' }}>— {c.variantLabel}</span>}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '.25rem' }}>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1, padding: '0 5px' }}
+                      onClick={() => setComponents(prev => prev.map((x, j) => j === i ? { ...x, quantity: Math.max(1, x.quantity - 1) } : x))}>−</button>
+                    <span style={{ minWidth: 22, textAlign: 'center', fontWeight: 600 }}>×{c.quantity}</span>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1, padding: '0 5px' }}
+                      onClick={() => setComponents(prev => prev.map((x, j) => j === i ? { ...x, quantity: x.quantity + 1 } : x))}>+</button>
+                  </div>
+                  <span style={{ fontWeight: 700, color: 'var(--acc)', minWidth: 60, textAlign: 'right' }}>{fmtMoney(c.price * c.quantity)}</span>
+                  <button style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0 4px' }}
+                    onClick={() => setComponents(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              ))}
+
+              {/* Price summary + bundle price input */}
+              <div style={{ marginTop: '.9rem', background: 'var(--bg2)', borderRadius: 8, padding: '.85rem 1rem' }}>
+                {components.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.85rem', marginBottom: '.65rem', paddingBottom: '.65rem', borderBottom: '1px solid var(--bdr)' }}>
+                    <span style={{ color: 'var(--muted)' }}>Component retail total</span>
+                    <span style={{ fontWeight: 700 }}>{fmtMoney(componentTotal)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                    <label style={{ fontSize: '.82rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Bundle Price ($) *</label>
+                    <input type="number" min="0" step="0.01" value={form.basePrice} onChange={e => set('basePrice', e.target.value)} placeholder="0.00"
+                      style={{ width: 90, background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.35rem .6rem', color: 'var(--txt)', fontSize: '.95rem', fontWeight: 700 }} />
+                  </div>
+                  {savingsPct !== null && savingsPct > 0 && (
+                    <div style={{ background: 'var(--dangerL,#c44)', color: '#fff', fontWeight: 800, fontSize: '.9rem', padding: '.3rem .9rem', borderRadius: 99 }}>
+                      {savingsPct}% OFF!
+                    </div>
+                  )}
+                  {bundlePrice > 0 && componentTotal > 0 && bundlePrice >= componentTotal && (
+                    <div style={{ color: 'var(--warn)', fontSize: '.8rem' }}>Bundle price ≥ component total — no savings.</div>
+                  )}
+                </div>
+              </div>
+            </>
+          }
+        </div>
+
+        <div className="ma" style={{ marginTop: '1.25rem' }}>
+          <button className="btn btn-s" onClick={onClose}>Cancel</button>
+          <button className="btn btn-p" disabled={saving || !form.name || !bundlePrice || components.length === 0} onClick={doSave}>
+            {saving ? 'Saving…' : 'Save Bundle'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

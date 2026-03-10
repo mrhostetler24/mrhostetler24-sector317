@@ -1721,14 +1721,23 @@ const toMerchCategory = r => r ? ({
   createdAt: r.created_at,
 }) : null
 
+const parseImageUrls = v => {
+  if (!v) return []
+  if (v.startsWith('[')) { try { return JSON.parse(v) } catch { return [v] } }
+  return [v]
+}
 const toMerchProduct = r => r ? ({
   id: r.id, categoryId: r.category_id, categoryName: r.category_name,
   type: r.type, name: r.name, description: r.description, sku: r.sku,
-  basePrice: Number(r.base_price), imageUrl: r.image_url,
+  basePrice: Number(r.base_price),
+  imageUrl: r.image_url?.startsWith('[') ? ((() => { try { return JSON.parse(r.image_url)[0] } catch { return null } })()) : (r.image_url || null),
+  imageUrls: parseImageUrls(r.image_url),
+  bundleSavingsPct: r.type === 'bundle' && r.return_policy_note ? (parseInt(r.return_policy_note) || null) : null,
   storefrontVisible: r.storefront_visible, staffVisible: r.staff_visible,
   shippable: r.shippable, pickupOnly: r.pickup_only, returnable: r.returnable,
   returnWindowDays: r.return_window_days, restockable: r.restockable,
-  returnPolicyNote: r.return_policy_note, active: r.active, archived: r.archived,
+  returnPolicyNote: r.type !== 'bundle' ? (r.return_policy_note || null) : null,
+  active: r.active, archived: r.archived,
   sortOrder: r.sort_order, createdAt: r.created_at,
   variants: (r.variants || []).map(v => ({
     id: v.id, label: v.label, sku: v.sku,
@@ -1872,15 +1881,20 @@ export async function upsertMerchCategory(cat) {
 }
 
 export async function upsertMerchProduct(product) {
+  const imgs = product.imageUrls
+  const imageUrlVal = imgs?.length > 1 ? JSON.stringify(imgs) : (imgs?.[0] || product.imageUrl || null)
   const row = {
     category_id: product.categoryId || null, type: product.type,
     name: product.name, description: product.description || null,
     sku: product.sku || null, base_price: product.basePrice ?? 0,
-    image_url: product.imageUrl || null,
+    image_url: imageUrlVal,
     storefront_visible: product.storefrontVisible ?? true, staff_visible: product.staffVisible ?? true,
     shippable: product.shippable ?? true, pickup_only: product.pickupOnly ?? false,
     returnable: product.returnable ?? true, return_window_days: product.returnWindowDays ?? 30,
-    restockable: product.restockable ?? true, return_policy_note: product.returnPolicyNote || null,
+    restockable: product.restockable ?? true,
+    return_policy_note: product.type === 'bundle'
+      ? (product.bundleSavingsPct != null ? String(product.bundleSavingsPct) : null)
+      : (product.returnPolicyNote || null),
     active: product.active ?? true, archived: product.archived ?? false, sort_order: product.sortOrder ?? 0,
   }
   if (product.id) row.id = product.id
@@ -1942,6 +1956,24 @@ export async function upsertBundleComponents(bundleProductId, components) {
     components.map(c => ({ bundle_product_id: bundleProductId, component_variant_id: c.variantId, quantity: c.quantity }))
   )
   if (error) throw error
+}
+
+export async function fetchBundleComponents(bundleProductId) {
+  const { data, error } = await supabase
+    .from('merch_bundle_components')
+    .select('component_variant_id, quantity')
+    .eq('bundle_product_id', bundleProductId)
+  if (error) throw error
+  return (data || []).map(r => ({ variantId: r.component_variant_id, quantity: r.quantity }))
+}
+
+export async function uploadMerchImage(file) {
+  const ext = file.name.split('.').pop().toLowerCase()
+  const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const { error } = await supabase.storage.from('merch-images').upload(path, file, { cacheControl: '3600', upsert: false })
+  if (error) throw error
+  const { data } = supabase.storage.from('merch-images').getPublicUrl(path)
+  return data.publicUrl
 }
 
 export async function voidGiftCode(id) {

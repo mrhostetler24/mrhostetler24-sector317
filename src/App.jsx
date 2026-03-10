@@ -1500,11 +1500,18 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           )}
           {resSub==="past"&&(()=>{
             const fmtSec=s=>{if(s==null)return null;const m=Math.floor(s/60),sec=s%60;return`${m}:${String(sec).padStart(2,'0')}`;};
+            const VIZ={V:'Standard',C:'Cosmic',R:'Rave',S:'Strobe',CS:'Cosmic+Strobe',B:'Dark'};
+            const AUD={C:'Cranked',O:'Off',T:'Tunes'};
+            const OPD={easy:'Easy',medium:'Medium',hard:'Hard',elite:'Elite'};
+            const TC={1:{name:'Blue',col:'#3b82f6'},2:{name:'Red',col:'#ef4444'}};
+            const audLbl=rn=>rn.audio?AUD[rn.audio]||rn.audio:(rn.cranked?'Cranked':'Standard');
+            const Pill=({v})=><span style={{display:'inline-block',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:4,padding:'1px 7px',fontSize:'.67rem',color:'var(--muted)',marginRight:'.3rem',marginBottom:'.2rem'}}>{v}</span>;
             return <div className="tw"><table><thead><tr><th>Type</th><th>Date & Time</th><th>Players</th><th>Amount</th><th>Status</th><th></th></tr></thead>
               <tbody>{past.map(r=>{
                 const rt=resTypes.find(x=>x.id===r.typeId);
                 const resRuns=runs.filter(rn=>rn.reservationId===r.id);
                 const isExpanded=expandedPastId===r.id;
+                const myTeam=r.players.find(p=>p.userId===user.id)?.team??null;
                 return <Fragment key={r.id}>
                   <tr style={{cursor:resRuns.length?"pointer":"default"}} onClick={()=>resRuns.length?setExpandedPastId(isExpanded?null:r.id):null}>
                     <td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td>
@@ -1512,25 +1519,96 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                     <td style={{color:"var(--accB)"}}>{r.players.length}/{r.playerCount}</td>
                     <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>
                     <td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td>
-                    <td style={{textAlign:"right"}}>{resRuns.length>0&&<span style={{fontSize:".72rem",color:"var(--muted)"}}>{isExpanded?"▲":"▼"} {resRuns.length} run{resRuns.length!==1?"s":""}</span>}</td>
+                    <td style={{textAlign:"right"}}>{resRuns.length>0&&<span style={{fontSize:".72rem",color:"var(--accB)",fontWeight:600}}>{isExpanded?"▲":"▼"} Check your scores!</span>}</td>
                   </tr>
                   {isExpanded&&resRuns.length>0&&<tr key={r.id+"-runs"}><td colSpan={6} style={{background:"var(--surf2)",padding:0,borderBottom:"1px solid var(--bdr)"}}>
-                    <div style={{padding:".75rem 1rem"}}>
-                      <div style={{fontSize:".7rem",fontFamily:"var(--fd)",letterSpacing:".1em",color:"var(--acc2)",marginBottom:".5rem",textTransform:"uppercase"}}>Run Scores</div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:".5rem"}}>
-                        {resRuns.map((rn,i)=>{
-                          const sc=rn.score??calculateRunScore(rn);
-                          const t=fmtSec(rn.elapsedSeconds);
-                          return <div key={rn.id} style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderLeft:`3px solid ${rn.objectiveComplete?"var(--acc)":"var(--danger)"}`,borderRadius:5,padding:".5rem .75rem",minWidth:130}}>
-                            <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",color:"var(--accB)"}}>{sc}</div>
-                            <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:".15rem"}}>
-                              Run {rn.runNumber??i+1}
-                              {t&&<span> · {t}</span>}
-                              {rn.objectiveComplete?<span style={{color:"var(--okB)"}}> · ✓ obj</span>:<span style={{color:"var(--dangerL)"}}> · ✗ obj</span>}
-                            </div>
-                          </div>;
-                        })}
-                      </div>
+                    <div style={{padding:".85rem 1rem"}}>
+                      {rt?.mode==='versus'?(()=>{
+                        const env=resRuns[0];
+                        const groups={};
+                        resRuns.forEach(rn=>{const k=rn.runNumber??0;(groups[k]=groups[k]||[]).push(rn);});
+                        const sortedGroups=Object.entries(groups).sort(([a],[b])=>Number(a)-Number(b));
+                        const matchWins={};
+                        sortedGroups.forEach(([,grp])=>{const w=grp[0]?.winningTeam;if(w!=null)matchWins[w]=(matchWins[w]||0)+1;});
+                        const mwKey=Object.entries(matchWins).sort((a,b)=>b[1]-a[1])[0]?.[0];
+                        const mwNum=mwKey!=null?Number(mwKey):null;
+                        const iWon=mwNum!=null&&myTeam!=null&&mwNum===Number(myTeam);
+                        return <>
+                          <div style={{marginBottom:'.85rem'}}>
+                            <div style={{fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.1em',color:'var(--muted)',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:700}}>Session Settings</div>
+                            {env.visual&&<Pill v={(VIZ[env.visual]||env.visual)+' Visual'}/>}
+                            <Pill v={audLbl(env)+' Audio'}/>
+                            {env.structure&&<Pill v={'Map: '+env.structure}/>}
+                            {env.liveOpDifficulty&&<Pill v={'OP: '+(OPD[env.liveOpDifficulty]||env.liveOpDifficulty)}/>}
+                          </div>
+                          {sortedGroups.map(([runNum,grp])=>{
+                            const teamRuns=[...grp].sort((a,b)=>(a.team??0)-(b.team??0));
+                            const runWinTeam=grp[0]?.winningTeam!=null?Number(grp[0].winningTeam):null;
+                            const runTime=fmtSec(grp[0]?.elapsedSeconds);
+                            return <div key={runNum} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
+                              <div style={{background:'var(--bg2)',padding:'.3rem .85rem',fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                                <span>Run {runNum}</span>
+                                <div style={{display:'flex',gap:'.6rem',alignItems:'center'}}>
+                                  {runTime&&<span>{runTime}</span>}
+                                  {runWinTeam!=null&&<span style={{color:TC[runWinTeam]?.col??'var(--acc)',fontWeight:700}}>{(TC[runWinTeam]?.name??'Team '+runWinTeam)+' wins'}</span>}
+                                </div>
+                              </div>
+                              <div style={{display:'flex'}}>
+                                {teamRuns.map((rn,ti)=>{
+                                  const tc=TC[rn.team]||{name:'Team '+(rn.team??'?'),col:'var(--muted)'};
+                                  const isMe=myTeam!=null&&Number(rn.team)===Number(myTeam);
+                                  const sc=rn.score??calculateRunScore(rn);
+                                  const won=rn.winningTeam!=null&&Number(rn.team)===Number(rn.winningTeam);
+                                  return <div key={rn.id} style={{flex:1,padding:'.6rem .9rem',borderLeft:isMe?`3px solid ${tc.col}`:'none',borderRight:ti<teamRuns.length-1?'1px solid var(--bdr)':'none',background:won?tc.col+'18':undefined}}>
+                                    <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
+                                      <div style={{width:9,height:9,borderRadius:'50%',background:tc.col,flexShrink:0}}/>
+                                      <span style={{fontWeight:700,fontSize:'.8rem',color:tc.col}}>{tc.name}</span>
+                                      {rn.role&&<span style={{fontSize:'.7rem',color:'var(--muted)'}}>· {rn.role}</span>}
+                                      {isMe&&<span style={{fontSize:'.62rem',background:'var(--accD)',color:'var(--accB)',padding:'1px 6px',borderRadius:99,marginLeft:'auto',flexShrink:0,whiteSpace:'nowrap'}}>← You</span>}
+                                    </div>
+                                    <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:won?tc.col:'var(--txt)'}}>{sc}</div>
+                                    {won&&<div style={{fontSize:'.68rem',color:'var(--okB)',marginTop:'.1rem'}}>✓ Won run</div>}
+                                  </div>;
+                                })}
+                              </div>
+                            </div>;
+                          })}
+                          {mwNum!=null&&<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'.5rem',padding:'.5rem .85rem',marginTop:'.2rem',background:iWon?'rgba(34,197,94,.08)':'var(--bg2)',border:'1px solid '+(iWon?'rgba(34,197,94,.25)':'var(--bdr)'),borderRadius:6,fontSize:'.85rem'}}>
+                            <div style={{width:10,height:10,borderRadius:'50%',background:TC[mwNum]?.col??'var(--acc)',flexShrink:0}}/>
+                            <span style={{fontWeight:700,color:TC[mwNum]?.col??'var(--acc)'}}>{TC[mwNum]?.name??'Team '+mwNum}</span>
+                            <span style={{color:'var(--muted)'}}>wins the match</span>
+                            {iWon&&<span style={{fontWeight:700,color:'var(--okB)'}}>— You won!</span>}
+                          </div>}
+                        </>;
+                      })():(()=>{
+                        const env=resRuns[0];
+                        return <>
+                          <div style={{marginBottom:'.85rem'}}>
+                            <div style={{fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.1em',color:'var(--muted)',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:700}}>Session Settings</div>
+                            {env.visual&&<Pill v={(VIZ[env.visual]||env.visual)+' Visual'}/>}
+                            <Pill v={audLbl(env)+' Audio'}/>
+                            {env.structure&&<Pill v={'Map: '+env.structure}/>}
+                            {env.liveOpDifficulty&&<Pill v={'OP Difficulty: '+(OPD[env.liveOpDifficulty]||env.liveOpDifficulty)}/>}
+                          </div>
+                          <div style={{display:'flex',flexWrap:'wrap',gap:'.5rem'}}>
+                            {resRuns.map((rn,i)=>{
+                              const sc=rn.score??calculateRunScore(rn);
+                              const t=fmtSec(rn.elapsedSeconds);
+                              return <div key={rn.id} style={{background:'var(--surf)',border:'1px solid var(--bdr)',borderLeft:`3px solid ${rn.objectiveComplete?'var(--acc)':'var(--danger)'}`,borderRadius:6,padding:'.6rem .85rem',minWidth:170}}>
+                                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
+                                  <span style={{fontSize:'.68rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>Run {rn.runNumber??i+1}</span>
+                                  {t&&<span style={{fontSize:'.68rem',color:'var(--muted)'}}>{t}</span>}
+                                </div>
+                                <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:'var(--accB)',marginBottom:'.35rem'}}>{sc}</div>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:'.25rem'}}>
+                                  <span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.targetsEliminated?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.targetsEliminated?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.targetsEliminated?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.targetsEliminated?'✓ Targets':'✗ Missed'}</span>
+                                  <span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>
+                                </div>
+                              </div>;
+                            })}
+                          </div>
+                        </>;
+                      })()}
                     </div>
                   </td></tr>}
                 </Fragment>;
