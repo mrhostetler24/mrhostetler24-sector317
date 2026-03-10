@@ -610,7 +610,7 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
             <div className="lp-loc lp-reveal lp-d2">
               <div className="lp-loc-lbl">Headquarters</div>
               <div className="lp-loc-name">Sector 317 HQ</div>
-              <div className="lp-loc-addr">📍 Address TBD, Noblesville, IN<br/>📞 (317) 000-0000<br/>✉️ info@sector317.com</div>
+              <div className="lp-loc-addr">📍 Address TBD, Noblesville, IN<br/>✉️ info@sector317.com</div>
               <div className="lp-loc-map"><span>📍 Map coming soon</span></div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:".72rem",color:"#7a7868",letterSpacing:".05em"}}>Free parking on site</div>
             </div>
