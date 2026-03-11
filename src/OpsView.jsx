@@ -225,7 +225,9 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   const [scored,setScored]=useState({});
   const [saving,setSaving]=useState(null);
   const [showCommit,setShowCommit]=useState(false);
-  const [editFinish,setEditFinish]=useState(null);
+  const [timePicker,setTimePicker]=useState(null); // {laneIdx,mins,secs,tenths}|null
+  const openTimePicker=laneIdx=>{const ft=laneFinish[laneIdx]??0;setTimePicker({laneIdx,mins:Math.floor(ft/600),secs:Math.floor((ft%600)/10),tenths:ft%10});};
+  const tpSet=field=>v=>setTimePicker(p=>({...p,[field]:v}));
   const [showExitGuard,setShowExitGuard]=useState(false);
 
   // Fetch objectives and player stats on mount
@@ -488,18 +490,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
             {fmtTenths(ft)}
           </div>
           <div style={{display:'flex',gap:'.4rem',justifyContent:'center',marginTop:'.3rem'}}>
-            {editFinish===laneIdx?(
-              <input type="text" defaultValue={fmtTenths(ft)} placeholder="MM:SS.T"
-                style={{width:100,textAlign:'center',background:'var(--bg2)',border:'1px solid var(--acc)',borderRadius:5,padding:'.25rem .5rem',color:'var(--txt)',fontSize:'.88rem',fontVariantNumeric:'tabular-nums'}}
-                onBlur={e=>{
-                  const m=e.target.value.match(/^(\d+):(\d+)\.(\d)$/);
-                  if(m){const t=(+m[1])*600+(+m[2])*10+(+m[3]);setLaneFinish(p=>({...p,[laneIdx]:Math.min(MAX_TENTHS,t)}))}
-                  setEditFinish(null);
-                }}
-                autoFocus/>
-            ):(
-              <button className="btn btn-s" style={{fontSize:'.75rem',padding:'.2rem .6rem'}} onClick={()=>setEditFinish(laneIdx)}>Edit</button>
-            )}
+            <button className="btn btn-s" style={{fontSize:'.75rem',padding:'.2rem .6rem'}} onClick={()=>openTimePicker(laneIdx)}>Edit</button>
             {!isScored&&<button className="btn btn-s" style={{fontSize:'.75rem',padding:'.2rem .6rem'}} onClick={()=>{setLaneFinish(p=>{const n={...p};delete n[laneIdx];return n;});}}>Clear</button>}
           </div>
         </div>
@@ -812,14 +803,18 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const sName=runNum===1?structOrder[li]:(structOrder[li]==='Alpha'?'Bravo':'Alpha');
       const elapsedSec=scored[laneKey(runNum,li,1)]?.elapsedSeconds??scored[laneKey(runNum,li,null)]?.elapsedSeconds??null;
       if(mode==='versus'){
-        const hs=getScoredTeamScore(runNum,li,1),cs=getScoredTeamScore(runNum,li,2);
-        const btn=runNum===1?1:2,rtn=runNum===1?2:1;
-        const blueScore=btn===1?hs:cs,redScore=btn===1?cs:hs;
+        // Blue = always T1 (run-1 / check-in identity). Red = always T2.
+        // In run 1: Blue=T1=Hunter, Red=T2=Coyote. In run 2 (after doLogRun swap): Blue=T2=Coyote, Red=T1=Hunter.
+        const blueTeamInRun=runNum===1?1:2; // Blue's team-number slot for this run
+        const redTeamInRun =runNum===1?2:1; // Red's team-number slot for this run
+        const blueScore=getScoredTeamScore(runNum,li,blueTeamInRun);
+        const redScore =getScoredTeamScore(runNum,li,redTeamInRun);
         const blueRole=runNum===1?'Hunters':'Coyotes',redRole=runNum===1?'Coyotes':'Hunters';
         const wt=getRunWinner(runNum,li);
-        const blueWon=wt!=null&&wt===btn,redWon=wt!=null&&wt===rtn;
-        const bPl=btn===1?t1Pl:t2Pl,rPl=btn===1?t2Pl:t1Pl;
-        return{runNum,struct:sName,elapsedSec,mode:'versus',blueScore,redScore,blueRole,redRole,blueWon,redWon,bluePlayers:bPl,redPlayers:rPl};
+        const blueWon=wt!=null&&wt===blueTeamInRun,redWon=wt!=null&&wt===redTeamInRun;
+        const bPl=t1Pl,rPl=t2Pl; // players never change — Blue=T1, Red=T2 always
+        const hunterIsBlue=runNum===1; // Hunter on left; run 1→Blue left, run 2→Red left
+        return{runNum,struct:sName,elapsedSec,mode:'versus',blueScore,redScore,blueRole,redRole,blueWon,redWon,bluePlayers:bPl,redPlayers:rPl,hunterIsBlue};
       }else{
         const sc=getScoredTeamScore(runNum,li,null);
         return{runNum,struct:sName,elapsedSec,mode:'coop',sc,players:allPlayers};
@@ -944,32 +939,28 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
                       <span>{run.struct}</span>
                       {run.elapsedSec!=null&&<><span>·</span><span>{fmtSecMS(run.elapsedSec)}</span></>}
                     </div>
-                    {run.mode==='versus'?(
-                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem'}}>
-                        {/* Blue team */}
-                        <div style={{background:'rgba(79,195,247,.08)',border:`1px solid ${run.blueWon?'#4fc3f7':'rgba(79,195,247,.25)'}`,borderRadius:6,padding:'.5rem .65rem'}}>
-                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
-                            <span style={{color:'#4fc3f7',fontWeight:700,fontSize:'.85rem'}}>Blue · {run.blueRole}</span>
-                            <span style={{color:'#4fc3f7',fontWeight:800,fontSize:'1rem'}}>{run.blueScore!=null?Number(run.blueScore).toFixed(1):'—'}</span>
-                          </div>
-                          <div style={{fontSize:'.75rem',color:'var(--muted)',lineHeight:1.5}}>
-                            {run.bluePlayers.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
-                          </div>
-                          {run.blueWon&&<div style={{marginTop:'.3rem',fontSize:'.75rem',color:'#4fc3f7',fontWeight:700}}>✓ Won this run</div>}
+                    {run.mode==='versus'?(()=>{
+                      // Hunter always on the left column; Coyote on the right
+                      const blueT={color:'#4fc3f7',bg:'rgba(79,195,247,.08)',borderDim:'rgba(79,195,247,.25)',label:'Blue',role:run.blueRole,score:run.blueScore,players:run.bluePlayers,won:run.blueWon};
+                      const redT ={color:'#ef9a9a',bg:'rgba(239,154,154,.08)',borderDim:'rgba(239,154,154,.25)',label:'Red', role:run.redRole, score:run.redScore, players:run.redPlayers, won:run.redWon};
+                      const cols=run.hunterIsBlue?[blueT,redT]:[redT,blueT];
+                      return(
+                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem'}}>
+                          {cols.map(t=>(
+                            <div key={t.label} style={{background:t.bg,border:`1px solid ${t.won?t.color:t.borderDim}`,borderRadius:6,padding:'.5rem .65rem'}}>
+                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
+                                <span style={{color:t.color,fontWeight:700,fontSize:'.85rem'}}>{t.label} · {t.role}</span>
+                                <span style={{color:t.color,fontWeight:800,fontSize:'1rem'}}>{t.score!=null?Number(t.score).toFixed(1):'—'}</span>
+                              </div>
+                              <div style={{fontSize:'.75rem',color:'var(--muted)',lineHeight:1.5}}>
+                                {t.players.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
+                              </div>
+                              {t.won&&<div style={{marginTop:'.3rem',fontSize:'.75rem',color:t.color,fontWeight:700}}>✓ Won this run</div>}
+                            </div>
+                          ))}
                         </div>
-                        {/* Red team */}
-                        <div style={{background:'rgba(239,154,154,.08)',border:`1px solid ${run.redWon?'#ef9a9a':'rgba(239,154,154,.25)'}`,borderRadius:6,padding:'.5rem .65rem'}}>
-                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
-                            <span style={{color:'#ef9a9a',fontWeight:700,fontSize:'.85rem'}}>Red · {run.redRole}</span>
-                            <span style={{color:'#ef9a9a',fontWeight:800,fontSize:'1rem'}}>{run.redScore!=null?Number(run.redScore).toFixed(1):'—'}</span>
-                          </div>
-                          <div style={{fontSize:'.75rem',color:'var(--muted)',lineHeight:1.5}}>
-                            {run.redPlayers.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
-                          </div>
-                          {run.redWon&&<div style={{marginTop:'.3rem',fontSize:'.75rem',color:'#ef9a9a',fontWeight:700}}>✓ Won this run</div>}
-                        </div>
-                      </div>
-                    ):(
+                      );
+                    })():(
                       <div style={{display:'flex',alignItems:'center',gap:'1rem'}}>
                         <span style={{color:'var(--acc)',fontWeight:800,fontSize:'1.1rem'}}>{run.sc!=null?Number(run.sc).toFixed(1):'—'}</span>
                         <span style={{fontSize:'.78rem',color:'var(--muted)'}}>
@@ -1007,6 +998,42 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
           </div>
         </div></div>
         );
+      })()}
+      {/* ── Time Picker Modal ── */}
+      {timePicker&&(()=>{
+        const {laneIdx,mins,secs,tenths}=timePicker;
+        const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+        const seg=(label,field,val,max,sep)=>{
+          const btnStyle={width:64,height:56,fontSize:'1.6rem',lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,color:'var(--txt)',cursor:'pointer',userSelect:'none',flexShrink:0};
+          return <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+            <button style={btnStyle} onClick={()=>tpSet(field)(clamp(val+1,0,max))}>▲</button>
+            <div style={{fontFamily:'var(--fd)',fontSize:'2.8rem',fontWeight:800,color:'var(--acc)',width:72,textAlign:'center',fontVariantNumeric:'tabular-nums',lineHeight:1.1}}>
+              {field==='tenths'?val:String(val).padStart(2,'0')}
+            </div>
+            <button style={btnStyle} onClick={()=>tpSet(field)(clamp(val-1,0,max))}>▼</button>
+            <span style={{fontSize:'.62rem',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>{label}</span>
+            {sep&&<span style={{position:'absolute',fontSize:'2.4rem',fontWeight:700,color:'var(--muted)',pointerEvents:'none',marginTop:'-4.2rem',marginLeft:'5.2rem'}}>{sep}</span>}
+          </div>;
+        };
+        return <div className="mo" style={{zIndex:3000}} onClick={()=>setTimePicker(null)}>
+          <div className="mc" style={{maxWidth:380,padding:'1.5rem 1.75rem'}} onClick={e=>e.stopPropagation()}>
+            <div className="mt2" style={{marginBottom:'1.25rem'}}>Edit Time</div>
+            <div style={{position:'relative',display:'flex',alignItems:'flex-start',justifyContent:'center',gap:'.25rem',marginBottom:'1.5rem'}}>
+              {seg('MIN','mins',mins,9)}
+              <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>:</span>
+              {seg('SEC','secs',secs,59)}
+              <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>.</span>
+              {seg('1/10s','tenths',tenths,9)}
+            </div>
+            <div style={{textAlign:'center',fontSize:'1rem',color:'var(--muted)',marginBottom:'1.25rem',fontVariantNumeric:'tabular-nums'}}>
+              {String(mins).padStart(2,'0')}:{String(secs).padStart(2,'0')}.{tenths}
+            </div>
+            <div className="ma">
+              <button className="btn btn-s" onClick={()=>setTimePicker(null)}>Cancel</button>
+              <button className="btn btn-p" onClick={()=>{setLaneFinish(p=>({...p,[laneIdx]:Math.min(MAX_TENTHS,mins*600+secs*10+tenths)}));setTimePicker(null);}}>Set Time</button>
+            </div>
+          </div>
+        </div>;
       })()}
     </div>
   );
