@@ -744,7 +744,12 @@ export async function addPlayerToReservation(resId, player) {
   // rpcData is a single row object — check explicitly for id presence
   // Fall back to player.userId if the RPC doesn't echo user_id back
   if (!rpcErr && rpcData && rpcData.id) {
-    return { id: rpcData.id, userId: rpcData.user_id ?? player.userId ?? null, name: rpcData.name }
+    // RPC doesn't accept a team param — apply it via a follow-up update if provided
+    if (player.team != null) {
+      const { data: upd } = await supabase.from('reservation_players').update({ team: player.team }).eq('id', rpcData.id).select('team').single()
+      return { id: rpcData.id, userId: rpcData.user_id ?? player.userId ?? null, name: rpcData.name, team: upd?.team ?? player.team }
+    }
+    return { id: rpcData.id, userId: rpcData.user_id ?? player.userId ?? null, name: rpcData.name, team: null }
   }
 
   // Fallback: direct insert (works for staff/admin whose RLS allows it)
@@ -752,11 +757,12 @@ export async function addPlayerToReservation(resId, player) {
     reservation_id: resId,
     user_id:        player.userId ?? null,
     name:           player.name,
+    team:           player.team ?? null,
   }).select().single()
   if (error) throw new Error(
     `Could not add player — RPC: ${rpcErr?.message ?? 'n/a'}, Direct: ${error.message}`
   )
-  return { id: data.id, userId: data.user_id ?? player.userId ?? null, name: data.name }
+  return { id: data.id, userId: data.user_id ?? player.userId ?? null, name: data.name, team: data.team ?? null }
 }
 
 /** Fetch all players for a reservation from the normalized table */

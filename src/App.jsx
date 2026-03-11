@@ -1528,6 +1528,10 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                         const groups={};
                         resRuns.forEach(rn=>{const k=rn.runNumber??0;(groups[k]=groups[k]||[]).push(rn);});
                         const sortedGroups=Object.entries(groups).sort(([a],[b])=>Number(a)-Number(b));
+                        // Infer per-run roles: read team roles from run 1, then alternate each run
+                        const run1Roles={};
+                        (sortedGroups[0]?.[1]??[]).forEach(rn=>{if(rn.role)run1Roles[rn.team]=rn.role.toLowerCase();});
+                        const getRunRole=(team,runIdx)=>{const base=run1Roles[team];if(!base)return null;const isH=base.includes('hunt');return(runIdx%2===0)?( isH?'Hunter':'Coyote'):(isH?'Coyote':'Hunter');};
                         const matchWins={};
                         sortedGroups.forEach(([,grp])=>{const w=grp[0]?.winningTeam;if(w!=null)matchWins[w]=(matchWins[w]||0)+1;});
                         const mwKey=Object.entries(matchWins).sort((a,b)=>b[1]-a[1])[0]?.[0];
@@ -1547,7 +1551,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                               {iWon&&<span style={{fontWeight:700,color:'var(--okB)',marginLeft:'.2rem'}}>— You won!</span>}
                             </div>}
                           </div>
-                          {sortedGroups.map(([runNum,grp])=>{
+                          {sortedGroups.map(([runNum,grp],runIdx)=>{
                             const teamRuns=[...grp].sort((a,b)=>{if(myTeam==null)return(a.team??0)-(b.team??0);if(Number(a.team)===Number(myTeam))return -1;if(Number(b.team)===Number(myTeam))return 1;return(a.team??0)-(b.team??0);});
                             const runWinTeam=grp[0]?.winningTeam!=null?Number(grp[0].winningTeam):null;
                             const runTime=fmtSec(grp[0]?.elapsedSeconds);
@@ -1571,12 +1575,13 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                                   const isMe=myTeam!=null&&Number(rn.team)===Number(myTeam);
                                   const sc=rn.score??calculateRunScore(rn);
                                   const won=rn.winningTeam!=null&&Number(rn.team)===Number(rn.winningTeam);
-                                  const rc=roleColor(rn.role);
+                                  const displayRole=getRunRole(rn.team,runIdx);
+                                  const rc=roleColor(displayRole);
                                   return <div key={rn.id} style={{flex:1,padding:'.6rem .9rem',borderLeft:isMe?`3px solid ${tc.col}`:'none',borderRight:ti<teamRuns.length-1?'1px solid var(--bdr)':'none',background:won?tc.col+'18':undefined}}>
                                     <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
                                       <div style={{width:9,height:9,borderRadius:'50%',background:tc.col,flexShrink:0}}/>
                                       <span style={{fontWeight:700,fontSize:'.8rem',color:tc.col}}>{tc.name}</span>
-                                      {rn.role&&<span style={{fontSize:'.72rem',fontWeight:700,color:rc,textTransform:'capitalize',letterSpacing:'.03em'}}>· {rn.role}</span>}
+                                      {displayRole&&<span style={{fontSize:'.72rem',fontWeight:700,color:rc,textTransform:'capitalize',letterSpacing:'.03em'}}>· {displayRole}</span>}
                                       {isMe&&<span style={{fontSize:'.62rem',background:'var(--accD)',color:'var(--accB)',padding:'1px 6px',borderRadius:99,marginLeft:'auto',flexShrink:0,whiteSpace:'nowrap'}}>← You</span>}
                                     </div>
                                     <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:won?tc.col:'var(--txt)'}}>{sc}</div>
@@ -3088,10 +3093,10 @@ useEffect(() => {
   const handleFinalize=async(playerItems)=>{
     for(const item of playerItems){
       const resolveExtra=async(p)=>{
-        if(p.userId) return {userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||'')};
+        if(p.userId) return {userId:p.userId,name:p.name||(users.find(u=>u.id===p.userId)?.name||''),team:p.team??null};
         if(!p.name?.trim()) return null;
         const guest=await createGuestUser({name:p.name.trim(),phone:p.phone||null,createdByUserId:currentUser.id});
-        return {userId:guest.id,name:guest.name};
+        return {userId:guest.id,name:guest.name,team:p.team??null};
       };
       const resolved=(await Promise.all(item.players.map(resolveExtra))).filter(Boolean);
       const saved=await Promise.all(resolved.map(p=>addPlayerToReservation(item.resId,p)));

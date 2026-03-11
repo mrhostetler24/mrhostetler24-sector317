@@ -510,7 +510,7 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
                 <div className="lp-mi"><em>👥</em> Meet new people</div>
                 <div className="lp-mi"><em>🚶</em> Walk-ins welcome</div>
               </div>
-              <div className="lp-price">$55 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span><span className="lp-tag">Show up and show out</span></div>
+              <div className="lp-price">$65 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span><span className="lp-tag">Show up and show out</span></div>
             </div>
             {/* Private Group */}
             <div className="lp-card tacc lp-reveal lp-d2" onClick={handleBook}>
@@ -530,7 +530,7 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
                 <div className="lp-mi"><em>💪</em> You pick your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
               </div>
-              <div className="lp-price">From $270 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
+              <div className="lp-price">From $320 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
             </div>
           </div>
 
