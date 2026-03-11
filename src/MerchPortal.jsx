@@ -1154,7 +1154,7 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
         userId = guest.id; setFoundUserId(userId)
         if (setUsers) setUsers(prev => [...prev, guest])
       }
-      await linkOAuthUser(userId, null, authEmail.trim(), null) // RPC fallback sets auth_provider='email'
+      await linkOAuthUser(userId, null, authEmail.trim(), 'email')
       if (setUsers) setUsers(prev => prev.map(u => u.id === userId
         ? { ...u, email: authEmail.trim(), authProvider: u.authProvider ?? 'email' } : u))
       await emailSocialAuthInvite(userId, { recipientName: customerName.trim() })
