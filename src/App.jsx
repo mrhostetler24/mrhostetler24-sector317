@@ -57,7 +57,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   );
   const isSoleBooker=slotMates.length===0;
   const alreadyPaid=res.amount||0;
-  const privatePrice=privateType?.price||270;
+  const privatePrice=privateType?.price??0;
   const perPersonPaid=rt?.pricingMode==="per_person"?(alreadyPaid/Math.max(1,res.playerCount)):0;
   const upgradeBalance=Math.max(0, privatePrice - alreadyPaid);
 
@@ -3204,7 +3204,7 @@ useEffect(() => {
     </div></>
   );
 
-  if(showLanding&&!currentUser&&!pendingUser)return <LandingPage onEnterApp={()=>setShowLanding(false)} onBookNow={()=>{setBookOnLogin(true);setShowLanding(false);}}/>;
+  if(showLanding&&!currentUser&&!pendingUser)return <LandingPage resTypes={resTypes} onEnterApp={()=>setShowLanding(false)} onBookNow={()=>{setBookOnLogin(true);setShowLanding(false);}}/>;
   if(pendingUser)return <><CompleteProfile user={pendingUser} onComplete={handleCompleteProfile} onSignOut={()=>{setPendingUser(null);setShowLanding(true);}}/></>;
   if(!liveUser)return <><LoginScreen onLogin={handleLogin}/></>;
 

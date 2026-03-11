@@ -357,8 +357,13 @@ function StripIcon({ type }) {
 }
 
 
-export default function LandingPage({ onEnterApp, onBookNow }) {
+export default function LandingPage({ onEnterApp, onBookNow, resTypes=[] }) {
   const handleBook = onBookNow || onEnterApp;
+  const fmtP=p=>p%1===0?`$${p}`:`$${p.toFixed(2)}`;
+  const activeOpen=resTypes.filter(rt=>rt.style==='open'&&rt.active&&rt.availableForBooking);
+  const activePrivate=resTypes.filter(rt=>rt.style==='private'&&rt.active&&rt.availableForBooking);
+  const openPrice=activeOpen.length?Math.min(...activeOpen.map(rt=>rt.price)):null;
+  const privateMinPrice=activePrivate.length?Math.min(...activePrivate.map(rt=>rt.price)):null;
   const parallax = useParallax();
   const scrolled = useScrolled();
   useReveal();
@@ -510,7 +515,7 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
                 <div className="lp-mi"><em>👥</em> Meet new people</div>
                 <div className="lp-mi"><em>🚶</em> Walk-ins welcome</div>
               </div>
-              <div className="lp-price">$65 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span><span className="lp-tag">Show up and show out</span></div>
+              <div className="lp-price">{openPrice!=null?fmtP(openPrice):'—'} <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>/&nbsp;person</span><span className="lp-tag">Show up and show out</span></div>
             </div>
             {/* Private Group */}
             <div className="lp-card tacc lp-reveal lp-d2" onClick={handleBook}>
@@ -530,7 +535,7 @@ export default function LandingPage({ onEnterApp, onBookNow }) {
                 <div className="lp-mi"><em>💪</em> You pick your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
               </div>
-              <div className="lp-price">From $320 <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
+              <div className="lp-price">{privateMinPrice!=null?`From ${fmtP(privateMinPrice)}`:'—'} <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
             </div>
           </div>
 
