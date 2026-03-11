@@ -1531,10 +1531,9 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                         const run1Roles={};
                         (sortedGroups[0]?.[1]??[]).forEach(rn=>{if(rn.role)run1Roles[rn.team]=rn.role.toLowerCase();});
                         const getRunRole=(team,runIdx)=>{const base=run1Roles[team];if(!base)return null;const isH=base.includes('hunt');return(runIdx%2===0)?( isH?'Hunter':'Coyote'):(isH?'Coyote':'Hunter');};
-                        const matchWins={};
-                        sortedGroups.forEach(([,grp])=>{const w=grp[0]?.winningTeam;if(w!=null)matchWins[w]=(matchWins[w]||0)+1;});
-                        const mwKey=Object.entries(matchWins).sort((a,b)=>b[1]-a[1])[0]?.[0];
-                        const mwNum=mwKey!=null?Number(mwKey):null;
+                        // Use stored war_winner_team (correctly accounts for role swap in run 2).
+                        // Fall back to counting run wins only for legacy records without it.
+                        const mwNum=r.warWinnerTeam!=null?r.warWinnerTeam:(()=>{const mw={};sortedGroups.forEach(([,grp])=>{const w=grp[0]?.winningTeam;if(w!=null)mw[w]=(mw[w]||0)+1;});const k=Object.entries(mw).sort((a,b)=>b[1]-a[1])[0]?.[0];return k!=null?Number(k):null;})();
                         const iWon=mwNum!=null&&myTeam!=null&&mwNum===Number(myTeam);
                         return <>
                           <div style={{display:'flex',alignItems:'center',gap:'.6rem',marginBottom:'.85rem',flexWrap:'wrap'}}>
