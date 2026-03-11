@@ -1182,6 +1182,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [saveGroupError,setSaveGroupError]=useState(null);
   const [saveGroupBusy,setSaveGroupBusy]=useState(false);
   const [modifyRes,setModifyRes]=useState(null); // {res, mode:'reschedule'|'upgrade'}
+  const [now,setNow]=useState(()=>new Date());
+  useEffect(()=>{const id=setInterval(()=>setNow(new Date()),60000);return()=>clearInterval(id);},[]);
   const [playerInputs,setPlayerInputs]=useState([]);
   const [bookerIsPlayer,setBookerIsPlayer]=useState(true);
   const [player1Input,setPlayer1Input]=useState({phone:"",userId:null,name:"",status:"idle"});
@@ -1224,8 +1226,9 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   },[tab,lbMode,lbPeriod,lbPlayerFilter,friendIds]);// eslint-disable-line react-hooks/exhaustive-deps
   const today=todayStr();
   const myRes=reservations.filter(r=>r.userId===user.id);
-  const upcoming=myRes.filter(r=>r.date>=today&&r.status!=="cancelled").sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
-  const past=myRes.filter(r=>r.date<today||r.status==="completed").sort((a,b)=>b.date.localeCompare(a.date)||b.startTime.localeCompare(a.startTime));
+  const isSessionOver=r=>{if(r.date<today)return true;if(r.date>today)return false;const c=new Date(`${r.date}T${r.startTime}`);c.setHours(c.getHours()+1);return now>=c;};
+  const upcoming=myRes.filter(r=>!isSessionOver(r)&&r.status!=="cancelled").sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
+  const past=myRes.filter(r=>isSessionOver(r)).sort((a,b)=>b.date.localeCompare(a.date)||b.startTime.localeCompare(a.startTime));
   const valid=hasValidWaiver(user,activeWaiverDoc);
   const wDate=latestWaiverDate(user);
   const editRes=reservations.find(r=>r.id===editResId);
