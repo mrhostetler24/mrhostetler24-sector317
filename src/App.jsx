@@ -1527,12 +1527,12 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                         const groups={};
                         resRuns.forEach(rn=>{const k=rn.runNumber??0;(groups[k]=groups[k]||[]).push(rn);});
                         const sortedGroups=Object.entries(groups).sort(([a],[b])=>Number(a)-Number(b));
-                        // Infer per-run roles: read team roles from run 1, then alternate each run
-                        const run1Roles={};
-                        (sortedGroups[0]?.[1]??[]).forEach(rn=>{if(rn.role)run1Roles[rn.team]=rn.role.toLowerCase();});
-                        const getRunRole=(team,runIdx)=>{const base=run1Roles[team];if(!base)return null;const isH=base.includes('hunt');return(runIdx%2===0)?( isH?'Hunter':'Coyote'):(isH?'Coyote':'Hunter');};
-                        // Use stored war_winner_team (correctly accounts for role swap in run 2).
-                        // Fall back to counting run wins only for legacy records without it.
+                        // DB stores team:1=hunter, team:2=coyote in every run record.
+                        // doLogRun swaps players into the opposing team slot each run, so odd-indexed
+                        // runs have in-run team numbers inverted relative to the original stable team
+                        // stored in reservation_players.team.  origTeamOf maps back to stable numbers.
+                        const origTeamOf=(inRunTeam,runIdx)=>runIdx%2===1?3-inRunTeam:inRunTeam;
+                        // Match winner uses stored war_winner_team (already accounts for role swap).
                         const mwNum=r.warWinnerTeam!=null?r.warWinnerTeam:(()=>{const mw={};sortedGroups.forEach(([,grp])=>{const w=grp[0]?.winningTeam;if(w!=null)mw[w]=(mw[w]||0)+1;});const k=Object.entries(mw).sort((a,b)=>b[1]-a[1])[0]?.[0];return k!=null?Number(k):null;})();
                         const iWon=mwNum!=null&&myTeam!=null&&mwNum===Number(myTeam);
                         return <>
@@ -1550,8 +1550,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                             </div>}
                           </div>
                           {sortedGroups.map(([runNum,grp],runIdx)=>{
-                            const teamRuns=[...grp].sort((a,b)=>{if(myTeam==null)return(a.team??0)-(b.team??0);if(Number(a.team)===Number(myTeam))return -1;if(Number(b.team)===Number(myTeam))return 1;return(a.team??0)-(b.team??0);});
-                            const runWinTeam=grp[0]?.winningTeam!=null?Number(grp[0].winningTeam):null;
+                            const teamRuns=[...grp].sort((a,b)=>{if(myTeam==null)return origTeamOf(a.team??0,runIdx)-origTeamOf(b.team??0,runIdx);if(origTeamOf(Number(a.team),runIdx)===Number(myTeam))return -1;if(origTeamOf(Number(b.team),runIdx)===Number(myTeam))return 1;return origTeamOf(a.team??0,runIdx)-origTeamOf(b.team??0,runIdx);});
+                            const runWinTeam=grp[0]?.winningTeam!=null?origTeamOf(Number(grp[0].winningTeam),runIdx):null;
                             const runTime=fmtSec(grp[0]?.elapsedSeconds);
                             const rEnv=grp[0];
                             return <div key={runNum} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
@@ -1569,12 +1569,14 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                               </div>
                               <div style={{display:'flex'}}>
                                 {teamRuns.map((rn,ti)=>{
-                                  const tc=TC[rn.team]||{name:'Team '+(rn.team??'?'),col:'var(--muted)'};
-                                  const isMe=myTeam!=null&&Number(rn.team)===Number(myTeam);
+                                  const origTeam=origTeamOf(rn.team,runIdx);
+                                  const tc=TC[origTeam]||{name:'Team '+(origTeam??'?'),col:'var(--muted)'};
+                                  const isMe=myTeam!=null&&origTeam===Number(myTeam);
                                   const sc=rn.score??calculateRunScore(rn);
                                   const won=rn.winningTeam!=null&&Number(rn.team)===Number(rn.winningTeam);
-                                  const displayRole=getRunRole(rn.team,runIdx);
+                                  const displayRole=rn.team===1?'Hunter':'Coyote';
                                   const rc=roleColor(displayRole);
+                                  const teamPlayers=r.players.filter(p=>Number(p.team)===origTeam);
                                   return <div key={rn.id} style={{flex:1,padding:'.6rem .9rem',borderLeft:isMe?`3px solid ${tc.col}`:'none',borderRight:ti<teamRuns.length-1?'1px solid var(--bdr)':'none',background:won?tc.col+'18':undefined}}>
                                     <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
                                       <div style={{width:9,height:9,borderRadius:'50%',background:tc.col,flexShrink:0}}/>
@@ -1587,7 +1589,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                                       {displayRole==='Hunter'&&rn.objectiveComplete!=null&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>}
                                       {won&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:'rgba(34,197,94,.12)',color:'var(--okB)',border:'1px solid rgba(34,197,94,.3)'}}>✓ Won run</span>}
                                     </div>
-                                    {(()=>{const tp=r.players.filter(p=>Number(p.team)===Number(rn.team));if(!tp.length)return null;return<div style={{marginTop:'.4rem',display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{tp.map((p,i)=><span key={i} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{p.name||'—'}</span>)}</div>;})()}
+                                    {teamPlayers.length>0&&<div style={{marginTop:'.4rem',display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{teamPlayers.map((p,i)=><span key={i} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{p.name||'—'}</span>)}</div>}
                                   </div>;
                                 })}
                               </div>
