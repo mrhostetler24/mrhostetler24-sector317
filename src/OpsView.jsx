@@ -285,8 +285,14 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     if(!lane.reservations.length)return;
     const runNum=run;
     const env={visual:s.visual,audio:s.audio??null,cranked:s.cranked??false};
+    // Score calc uses in-run slot convention (1=hunter,2=coyote) — unchanged
     const huntersScore=calcVersusRunScore({role:'hunter',winningTeam:s.winnerTeam,team:1,...env});
     const coyotesScore=calcVersusRunScore({role:'coyote',winningTeam:s.winnerTeam,team:2,...env});
+    // Stable original team numbers: Blue(1) hunts run 1, Red(2) hunts run 2
+    const hunterOrigTeam=runNum===2?2:1;
+    const coyoteOrigTeam=runNum===2?1:2;
+    // s.winnerTeam is in-run slot (1=hunter won, 2=coyote won); convert to stable original
+    const winnerOrigTeam=s.winnerTeam===1?hunterOrigTeam:s.winnerTeam===2?coyoteOrigTeam:null;
     const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
     setSaving(laneIdx);
     try{
@@ -302,12 +308,12 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       // Create run records for EVERY reservation so each customer can see their scores
       let firstR1=null,firstR2=null;
       for(const res of lane.reservations){
-        const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],...env,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
-        const r1=await createRun({...base,team:1,role:'hunter',targetsEliminated:false,objectiveComplete:s.winnerTeam===1,score:huntersScore});
-        const r2=await createRun({...base,team:2,role:'coyote',targetsEliminated:false,objectiveComplete:s.winnerTeam!==2,score:coyotesScore});
+        const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],...env,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:winnerOrigTeam,scoredBy:currentUser?.id??null};
+        const r1=await createRun({...base,team:hunterOrigTeam,role:'hunter',targetsEliminated:false,objectiveComplete:s.winnerTeam===1,score:huntersScore});
+        const r2=await createRun({...base,team:coyoteOrigTeam,role:'coyote',targetsEliminated:false,objectiveComplete:s.winnerTeam!==2,score:coyotesScore});
         if(!firstR1){firstR1=r1;firstR2=r2;}
       }
-      setScored(p=>({...p,[laneKey(runNum,laneIdx,1)]:firstR1,[laneKey(runNum,laneIdx,2)]:firstR2}));
+      setScored(p=>({...p,[laneKey(runNum,laneIdx,hunterOrigTeam)]:firstR1,[laneKey(runNum,laneIdx,coyoteOrigTeam)]:firstR2}));
     }catch(e){alert("Score error: "+e.message);}
     setSaving(null);
   };
@@ -360,13 +366,14 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     // For VERSUS sessions, stamp the war outcome before marking complete
     const vsLaneIdx=lanes.findIndex((_,i)=>{const rt=resTypes.find(x=>x.id===(lanes[i].reservations[0]?.typeId));return rt?.mode==='versus';});
     if(vsLaneIdx>=0){
-      const run1Winner=getRunWinner(1,vsLaneIdx)??null;
-      const run2Winner=getRunWinner(2,vsLaneIdx)??null;
-      // Elapsed seconds: group 1 was hunter in run 1, group 2 was hunter in run 2
-      const r1Rec=scored[laneKey(1,vsLaneIdx,1)];
-      const r2Rec=scored[laneKey(2,vsLaneIdx,2)]; // team 2 in run 2 = original group 1 as hunters
-      const g1HunterElapsed=r1Rec?.elapsedSeconds??null;
-      const g2HunterElapsed=r2Rec?.elapsedSeconds??null;
+      // Read stable winning teams from scored records (winningTeam now = original group number)
+      const r1Rec=scored[laneKey(1,vsLaneIdx,1)]||scored[laneKey(1,vsLaneIdx,2)];
+      const r2Rec=scored[laneKey(2,vsLaneIdx,1)]||scored[laneKey(2,vsLaneIdx,2)];
+      const run1Winner=r1Rec?.winningTeam??null;
+      const run2Winner=r2Rec?.winningTeam??null;
+      // Elapsed: Blue(team:1) hunts run 1, Red(team:2) hunts run 2
+      const g1HunterElapsed=scored[laneKey(1,vsLaneIdx,1)]?.elapsedSeconds??null;
+      const g2HunterElapsed=scored[laneKey(2,vsLaneIdx,2)]?.elapsedSeconds??null;
       const warResult=calcWarOutcome({run1WinnerTeam:run1Winner,run2WinnerTeam:run2Winner,group1HunterElapsed:g1HunterElapsed,group2HunterElapsed:g2HunterElapsed});
       if(warResult){
         for(const vsRes of lanes[vsLaneIdx].reservations){
@@ -388,13 +395,13 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     // Only for versus: use calcWarOutcome for consistent logic
     const vsLaneIdx=lanes.findIndex((_,i)=>{const rt=resTypes.find(x=>x.id===(lanes[i].reservations[0]?.typeId));return rt?.mode==='versus';});
     if(vsLaneIdx<0)return null;
-    const r1Rec=scored[laneKey(1,vsLaneIdx,1)];
-    const r2Rec=scored[laneKey(2,vsLaneIdx,2)];
+    const r1Rec=scored[laneKey(1,vsLaneIdx,1)]||scored[laneKey(1,vsLaneIdx,2)];
+    const r2Rec=scored[laneKey(2,vsLaneIdx,1)]||scored[laneKey(2,vsLaneIdx,2)];
     const result=calcWarOutcome({
-      run1WinnerTeam:getRunWinner(1,vsLaneIdx)??null,
-      run2WinnerTeam:getRunWinner(2,vsLaneIdx)??null,
-      group1HunterElapsed:r1Rec?.elapsedSeconds??null,
-      group2HunterElapsed:r2Rec?.elapsedSeconds??null,
+      run1WinnerTeam:r1Rec?.winningTeam??null,
+      run2WinnerTeam:r2Rec?.winningTeam??null,
+      group1HunterElapsed:scored[laneKey(1,vsLaneIdx,1)]?.elapsedSeconds??null,
+      group2HunterElapsed:scored[laneKey(2,vsLaneIdx,2)]?.elapsedSeconds??null,
     });
     return result?{winner:result.warWinner,winType:result.warWinType,timeDiff:result.timeDiff??null}:null;
   };
@@ -807,15 +814,14 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const sName=sRec?.structure||structOrder[li];
       const elapsedSec=scored[laneKey(runNum,li,1)]?.elapsedSeconds??scored[laneKey(runNum,li,null)]?.elapsedSeconds??null;
       if(mode==='versus'){
-        // Blue = always T1 (run-1 / check-in identity). Red = always T2.
-        // In run 1: Blue=T1=Hunter, Red=T2=Coyote. In run 2 (after doLogRun swap): Blue=T2=Coyote, Red=T1=Hunter.
-        const blueTeamInRun=runNum===1?1:2; // Blue's team-number slot for this run
-        const redTeamInRun =runNum===1?2:1; // Red's team-number slot for this run
-        const blueScore=getScoredTeamScore(runNum,li,blueTeamInRun);
-        const redScore =getScoredTeamScore(runNum,li,redTeamInRun);
-        const blueRole=runNum===1?'Hunters':'Coyotes',redRole=runNum===1?'Coyotes':'Hunters';
-        const wt=getRunWinner(runNum,li);
-        const blueWon=wt!=null&&wt===blueTeamInRun,redWon=wt!=null&&wt===redTeamInRun;
+        // Blue=team:1 always, Red=team:2 always (stable original teams)
+        const blueScore=getScoredTeamScore(runNum,li,1);
+        const redScore =getScoredTeamScore(runNum,li,2);
+        const blueRec=scored[laneKey(runNum,li,1)],redRec=scored[laneKey(runNum,li,2)];
+        const blueRole=blueRec?.role?(blueRec.role.charAt(0).toUpperCase()+blueRec.role.slice(1)+'s'):(runNum===1?'Hunters':'Coyotes');
+        const redRole=redRec?.role?(redRec.role.charAt(0).toUpperCase()+redRec.role.slice(1)+'s'):(runNum===1?'Coyotes':'Hunters');
+        const wt=blueRec?.winningTeam??redRec?.winningTeam??null;
+        const blueWon=wt!=null&&wt===1,redWon=wt!=null&&wt===2;
         const bPl=t1Pl,rPl=t2Pl; // players never change — Blue=T1, Red=T2 always
         const hunterIsBlue=runNum===1; // Hunter on left; run 1→Blue left, run 2→Red left
         return{runNum,struct:sName,elapsedSec,mode:'versus',blueScore,redScore,blueRole,redRole,blueWon,redWon,bluePlayers:bPl,redPlayers:rPl,hunterIsBlue};
@@ -827,8 +833,10 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     // Per-lane war outcome
     const laneWar=(()=>{
       if(mode!=='versus')return null;
-      const r1Rec=scored[laneKey(1,li,1)],r2Rec=scored[laneKey(2,li,2)];
-      const result=calcWarOutcome({run1WinnerTeam:getRunWinner(1,li)??null,run2WinnerTeam:getRunWinner(2,li)??null,group1HunterElapsed:r1Rec?.elapsedSeconds??null,group2HunterElapsed:r2Rec?.elapsedSeconds??null});
+      const r1Blue=scored[laneKey(1,li,1)],r2Red=scored[laneKey(2,li,2)];
+      const run1Win=r1Blue?.winningTeam??scored[laneKey(1,li,2)]?.winningTeam??null;
+      const run2Win=r2Red?.winningTeam??scored[laneKey(2,li,1)]?.winningTeam??null;
+      const result=calcWarOutcome({run1WinnerTeam:run1Win,run2WinnerTeam:run2Win,group1HunterElapsed:r1Blue?.elapsedSeconds??null,group2HunterElapsed:r2Red?.elapsedSeconds??null});
       return result?{winner:result.warWinner,winType:result.warWinType,timeDiff:result.timeDiff??null}:null;
     })();
     return{li,mode,typeName:rt?.name||'',runs,laneWar};

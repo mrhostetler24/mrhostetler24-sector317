@@ -109,32 +109,32 @@ export function calcVersusRunScore({ role, winningTeam, team, visual, audio, cra
 /**
  * Compute which original player group wins the war (session-level W/L).
  *
- * In OpsView, team numbers are stable UI labels (team 1 = Hunters, team 2 = Coyotes)
- * but the actual players rotate: original group 1 plays Hunters in run 1 and Coyotes
- * in run 2. So run2WinnerTeam is INVERTED relative to original groups.
+ * session_runs.winning_team stores the STABLE original group number (1=Blue, 2=Red)
+ * for all runs, so no inversion is needed. Both inputs are already original groups.
  *
- * Translation:
- *   run 1 winner team 1 → original group 1 wins run 1
- *   run 2 winner team 1 → original group 2 wins run 2  (3 - 1 = 2)
- *   run 2 winner team 2 → original group 1 wins run 2  (3 - 2 = 1)
+ * Possible outcomes:
+ *   run1=1, run2=1  → Blue sweeps (won both runs)
+ *   run1=2, run2=2  → Red sweeps (won both runs)
+ *   run1=1, run2=2  → 1-1 tiebreak (each team won as hunters)
+ *   run1=2, run2=1  → draw (both coyotes won, no hunter won) → null
  *
  * Returns { warWinner: 1|2, warWinType: 'SWEEP'|'TIEBREAK' }
  * in terms of original groups (matching reservation_players.team).
- * Returns null if data is incomplete.
+ * Returns null if data is incomplete or a draw.
  *
- * @param {number|null} run1WinnerTeam       - winning_team from run 1 session_runs row
- * @param {number|null} run2WinnerTeam       - winning_team from run 2 session_runs row
- * @param {number|null} group1HunterElapsed  - elapsed_seconds when group 1 was hunter (run 1)
- * @param {number|null} group2HunterElapsed  - elapsed_seconds when group 2 was hunter (run 2)
+ * @param {number|null} run1WinnerTeam       - stable winning_team from run 1 session_runs row
+ * @param {number|null} run2WinnerTeam       - stable winning_team from run 2 session_runs row
+ * @param {number|null} group1HunterElapsed  - elapsed_seconds when group 1 (Blue) was hunter (run 1)
+ * @param {number|null} group2HunterElapsed  - elapsed_seconds when group 2 (Red) was hunter (run 2)
  */
 export function calcWarOutcome({ run1WinnerTeam, run2WinnerTeam, group1HunterElapsed, group2HunterElapsed }) {
   if (run1WinnerTeam == null || run2WinnerTeam == null) return null
 
-  // If both hunter teams lost their runs (both coyote teams won), it's a draw — no war bonus
-  if (run1WinnerTeam === 2 && run2WinnerTeam === 2) return null
+  // Both coyotes won their respective runs (Red wins run 1, Blue wins run 2) — draw, no war bonus
+  if (run1WinnerTeam === 2 && run2WinnerTeam === 1) return null
 
-  const origRun1Winner = run1WinnerTeam            // run 1: team numbers match original groups
-  const origRun2Winner = 3 - run2WinnerTeam        // run 2: teams swapped, invert (1↔2)
+  const origRun1Winner = run1WinnerTeam  // stable original group that won run 1
+  const origRun2Winner = run2WinnerTeam  // stable original group that won run 2 (no inversion needed)
 
   if (origRun1Winner === origRun2Winner) {
     return { warWinner: origRun1Winner, warWinType: 'SWEEP' }

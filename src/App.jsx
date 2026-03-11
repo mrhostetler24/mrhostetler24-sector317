@@ -1527,13 +1527,9 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                         const groups={};
                         resRuns.forEach(rn=>{const k=rn.runNumber??0;(groups[k]=groups[k]||[]).push(rn);});
                         const sortedGroups=Object.entries(groups).sort(([a],[b])=>Number(a)-Number(b));
-                        // DB stores team:1=hunter, team:2=coyote in every run record.
-                        // doLogRun swaps players into the opposing team slot each run, so odd-indexed
-                        // runs have in-run team numbers inverted relative to the original stable team
-                        // stored in reservation_players.team.  origTeamOf maps back to stable numbers.
-                        const origTeamOf=(inRunTeam,runIdx)=>runIdx%2===1?3-inRunTeam:inRunTeam;
-                        // Match winner uses stored war_winner_team (already accounts for role swap).
-                        const mwNum=r.warWinnerTeam!=null?r.warWinnerTeam:(()=>{const mw={};sortedGroups.forEach(([,grp])=>{const w=grp[0]?.winningTeam;if(w!=null)mw[w]=(mw[w]||0)+1;});const k=Object.entries(mw).sort((a,b)=>b[1]-a[1])[0]?.[0];return k!=null?Number(k):null;})();
+                        // session_runs.team is now the stable original group (1=Blue, 2=Red always).
+                        // winningTeam and role are also stable — no mapping needed.
+                        const mwNum=r.warWinnerTeam!=null?r.warWinnerTeam:null;
                         const iWon=mwNum!=null&&myTeam!=null&&mwNum===Number(myTeam);
                         return <>
                           <div style={{display:'flex',alignItems:'center',gap:'.6rem',marginBottom:'.85rem',flexWrap:'wrap'}}>
@@ -1550,8 +1546,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                             </div>}
                           </div>
                           {sortedGroups.map(([runNum,grp],runIdx)=>{
-                            const teamRuns=[...grp].sort((a,b)=>{if(myTeam==null)return origTeamOf(a.team??0,runIdx)-origTeamOf(b.team??0,runIdx);if(origTeamOf(Number(a.team),runIdx)===Number(myTeam))return -1;if(origTeamOf(Number(b.team),runIdx)===Number(myTeam))return 1;return origTeamOf(a.team??0,runIdx)-origTeamOf(b.team??0,runIdx);});
-                            const runWinTeam=grp[0]?.winningTeam!=null?origTeamOf(Number(grp[0].winningTeam),runIdx):null;
+                            const teamRuns=[...grp].sort((a,b)=>{if(myTeam==null)return (a.team??0)-(b.team??0);if(Number(a.team)===Number(myTeam))return -1;if(Number(b.team)===Number(myTeam))return 1;return (a.team??0)-(b.team??0);});
+                            const runWinTeam=grp[0]?.winningTeam!=null?Number(grp[0].winningTeam):null;
                             const runTime=fmtSec(grp[0]?.elapsedSeconds);
                             const rEnv=grp[0];
                             return <div key={runNum} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
@@ -1569,14 +1565,13 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                               </div>
                               <div style={{display:'flex'}}>
                                 {teamRuns.map((rn,ti)=>{
-                                  const origTeam=origTeamOf(rn.team,runIdx);
-                                  const tc=TC[origTeam]||{name:'Team '+(origTeam??'?'),col:'var(--muted)'};
-                                  const isMe=myTeam!=null&&origTeam===Number(myTeam);
+                                  const tc=TC[rn.team]||{name:'Team '+(rn.team??'?'),col:'var(--muted)'};
+                                  const isMe=myTeam!=null&&Number(rn.team)===Number(myTeam);
                                   const sc=rn.score??calculateRunScore(rn);
                                   const won=rn.winningTeam!=null&&Number(rn.team)===Number(rn.winningTeam);
-                                  const displayRole=rn.team===1?'Hunter':'Coyote';
+                                  const displayRole=rn.role?rn.role.charAt(0).toUpperCase()+rn.role.slice(1):null;
                                   const rc=roleColor(displayRole);
-                                  const teamPlayers=r.players.filter(p=>Number(p.team)===origTeam);
+                                  const teamPlayers=r.players.filter(p=>Number(p.team)===Number(rn.team));
                                   return <div key={rn.id} style={{flex:1,padding:'.6rem .9rem',borderLeft:isMe?`3px solid ${tc.col}`:'none',borderRight:ti<teamRuns.length-1?'1px solid var(--bdr)':'none',background:won?tc.col+'18':undefined}}>
                                     <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
                                       <div style={{width:9,height:9,borderRadius:'50%',background:tc.col,flexShrink:0}}/>
