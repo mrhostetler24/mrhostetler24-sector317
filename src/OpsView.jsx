@@ -282,18 +282,15 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
 
   const doScoreVersus=async(laneIdx)=>{
     const lane=lanes[laneIdx];const s=settings[run][laneIdx];
-    const res=lane.reservations[0];if(!res)return;
+    if(!lane.reservations.length)return;
     const runNum=run;
     const env={visual:s.visual,audio:s.audio??null,cranked:s.cranked??false};
     const huntersScore=calcVersusRunScore({role:'hunter',winningTeam:s.winnerTeam,team:1,...env});
     const coyotesScore=calcVersusRunScore({role:'coyote',winningTeam:s.winnerTeam,team:2,...env});
     const elapsedSec=laneFinish[laneIdx]!=null?Math.round(laneFinish[laneIdx]/10):null;
-    const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],...env,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
     setSaving(laneIdx);
     try{
-      // Persist each player's original group (run 1 team) to reservation_players.team.
-      // v_player_runs attributes scores via: run1 sr.team=rp.team, run2 sr.team!=rp.team.
-      // Priority: explicit run-1 assignment > open-screen versusTeams > half-split fallback.
+      // Persist each player's run-1 team to reservation_players.team
       const allLanePlayers=lane.reservations.flatMap(r=>r.players||[]);
       await Promise.all(allLanePlayers.map(player=>{
         const r1=runTeams[1]?.[laneIdx]?.[player.id];
@@ -302,9 +299,15 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         const fallback=calcResVsTeams(lane.reservations)[resForPlayer?.id]??1;
         return updateReservationPlayer(player.id,{team:r1??vt??fallback});
       }));
-      const r1=await createRun({...base,team:1,role:'hunter',targetsEliminated:false,objectiveComplete:s.winnerTeam===1,score:huntersScore});
-      const r2=await createRun({...base,team:2,role:'coyote',targetsEliminated:false,objectiveComplete:s.winnerTeam!==2,score:coyotesScore});
-      setScored(p=>({...p,[laneKey(runNum,laneIdx,1)]:r1,[laneKey(runNum,laneIdx,2)]:r2}));
+      // Create run records for EVERY reservation so each customer can see their scores
+      let firstR1=null,firstR2=null;
+      for(const res of lane.reservations){
+        const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],...env,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:s.winnerTeam,scoredBy:currentUser?.id??null};
+        const r1=await createRun({...base,team:1,role:'hunter',targetsEliminated:false,objectiveComplete:s.winnerTeam===1,score:huntersScore});
+        const r2=await createRun({...base,team:2,role:'coyote',targetsEliminated:false,objectiveComplete:s.winnerTeam!==2,score:coyotesScore});
+        if(!firstR1){firstR1=r1;firstR2=r2;}
+      }
+      setScored(p=>({...p,[laneKey(runNum,laneIdx,1)]:firstR1,[laneKey(runNum,laneIdx,2)]:firstR2}));
     }catch(e){alert("Score error: "+e.message);}
     setSaving(null);
   };
@@ -339,9 +342,10 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     lanes.forEach((lane,li)=>{
       const rt=resTypes.find(x=>x.id===(lane.reservations[0]?.typeId));
       if(rt?.mode==='versus'){
-        const res=lane.reservations[0];if(!res)return;
         const batch={};
-        (res.players||[]).forEach(pl=>{const t=getTeam(li,res,pl.id);batch[pl.id]=t===1?2:1;});
+        lane.reservations.forEach(res=>{
+          (res.players||[]).forEach(pl=>{const t=getTeam(li,res,pl.id);batch[pl.id]=t===1?2:1;});
+        });
         newTeams2[li]=batch;
       }
     });
@@ -365,8 +369,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const g2HunterElapsed=r2Rec?.elapsedSeconds??null;
       const warResult=calcWarOutcome({run1WinnerTeam:run1Winner,run2WinnerTeam:run2Winner,group1HunterElapsed:g1HunterElapsed,group2HunterElapsed:g2HunterElapsed});
       if(warResult){
-        const vsRes=lanes[vsLaneIdx].reservations[0];
-        if(vsRes){
+        for(const vsRes of lanes[vsLaneIdx].reservations){
           try{ await finalizeVersusWar(vsRes.id,warResult.warWinner,warResult.warWinType); }
           catch(e){ console.error('finalizeVersusWar failed:',e); }
         }
@@ -800,7 +803,8 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const t1Pl=allPlayers.filter(p=>getLT(p.id)===1);
     const t2Pl=allPlayers.filter(p=>getLT(p.id)===2);
     const runs=[1,2].map(runNum=>{
-      const sName=runNum===1?structOrder[li]:(structOrder[li]==='Alpha'?'Bravo':'Alpha');
+      const sRec=scored[laneKey(runNum,li,1)]||scored[laneKey(runNum,li,2)]||scored[laneKey(runNum,li,null)];
+      const sName=sRec?.structure||structOrder[li];
       const elapsedSec=scored[laneKey(runNum,li,1)]?.elapsedSeconds??scored[laneKey(runNum,li,null)]?.elapsedSeconds??null;
       if(mode==='versus'){
         // Blue = always T1 (run-1 / check-in identity). Red = always T2.
