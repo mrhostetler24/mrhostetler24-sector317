@@ -1003,27 +1003,31 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       {timePicker&&(()=>{
         const {laneIdx,mins,secs,tenths}=timePicker;
         const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
-        const seg=(label,field,val,max,sep)=>{
+        const at10=mins>=10;
+        const seg=(label,field,val,max,{onUp,onDown,upOff,downOff}={})=>{
           const btnStyle={width:64,height:56,fontSize:'1.6rem',lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,color:'var(--txt)',cursor:'pointer',userSelect:'none',flexShrink:0};
+          const upClick=onUp||(()=>tpSet(field)(clamp(val+1,0,max)));
+          const dnClick=onDown||(()=>tpSet(field)(clamp(val-1,0,max)));
           return <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-            <button style={btnStyle} onClick={()=>tpSet(field)(clamp(val+1,0,max))}>▲</button>
-            <div style={{fontFamily:'var(--fd)',fontSize:'2.8rem',fontWeight:800,color:'var(--acc)',width:72,textAlign:'center',fontVariantNumeric:'tabular-nums',lineHeight:1.1}}>
+            <button style={{...btnStyle,...(upOff?{opacity:.3,cursor:'default'}:{})}} onClick={upOff?undefined:upClick}>▲</button>
+            <div style={{fontFamily:'var(--fd)',fontSize:'2.8rem',fontWeight:800,color:at10&&field!=='mins'?'var(--muted)':'var(--acc)',width:72,textAlign:'center',fontVariantNumeric:'tabular-nums',lineHeight:1.1}}>
               {field==='tenths'?val:String(val).padStart(2,'0')}
             </div>
-            <button style={btnStyle} onClick={()=>tpSet(field)(clamp(val-1,0,max))}>▼</button>
+            <button style={{...btnStyle,...(downOff?{opacity:.3,cursor:'default'}:{})}} onClick={downOff?undefined:dnClick}>▼</button>
             <span style={{fontSize:'.62rem',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>{label}</span>
-            {sep&&<span style={{position:'absolute',fontSize:'2.4rem',fontWeight:700,color:'var(--muted)',pointerEvents:'none',marginTop:'-4.2rem',marginLeft:'5.2rem'}}>{sep}</span>}
           </div>;
         };
         return <div className="mo" style={{zIndex:3000}} onClick={()=>setTimePicker(null)}>
           <div className="mc" style={{maxWidth:380,padding:'1.5rem 1.75rem'}} onClick={e=>e.stopPropagation()}>
             <div className="mt2" style={{marginBottom:'1.25rem'}}>Edit Time</div>
             <div style={{position:'relative',display:'flex',alignItems:'flex-start',justifyContent:'center',gap:'.25rem',marginBottom:'1.5rem'}}>
-              {seg('MIN','mins',mins,9)}
+              {seg('MIN','mins',mins,10,{
+                onUp:()=>setTimePicker(p=>p.mins>=9?{...p,mins:10,secs:0,tenths:0}:{...p,mins:p.mins+1}),
+                upOff:mins>=10,downOff:mins<=0})}
               <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>:</span>
-              {seg('SEC','secs',secs,59)}
+              {seg('SEC','secs',secs,59,{upOff:at10,downOff:at10})}
               <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>.</span>
-              {seg('1/10s','tenths',tenths,9)}
+              {seg('1/10s','tenths',tenths,9,{upOff:at10,downOff:at10})}
             </div>
             <div style={{textAlign:'center',fontSize:'1rem',color:'var(--muted)',marginBottom:'1.25rem',fontVariantNumeric:'tabular-nums'}}>
               {String(mins).padStart(2,'0')}:{String(secs).padStart(2,'0')}.{tenths}
