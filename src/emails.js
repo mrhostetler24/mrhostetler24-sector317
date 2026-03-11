@@ -17,6 +17,7 @@
 //   store_credit_applied
 //   newsletter  (manager/admin only)
 //   welcome
+//   social_auth_invite
 
 import { supabase } from './supabase.js'
 
@@ -123,4 +124,8 @@ export function emailNewsletter(recipientIds, { subject, bodyHtml }) {
 
 export function emailWelcome(recipientId) {
   return sendEmail('welcome', recipientId, {})
+}
+
+export function emailSocialAuthInvite(recipientId, { recipientName }) {
+  return sendEmail('social_auth_invite', recipientId, { recipientName })
 }

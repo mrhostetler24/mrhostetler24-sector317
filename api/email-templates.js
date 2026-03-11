@@ -469,6 +469,22 @@ export function tmplWelcome(data) {
   return { subject, html: layout(subject, body, null) }
 }
 
+// data: { recipientName }
+// Transactional — no unsubLink
+export function tmplSocialAuthInvite(data) {
+  const subject = `Set up your ${BRAND} account`
+  const body = `
+    ${heading('Almost there, Operative!')}
+    ${para(`Hi ${data.recipientName},`)}
+    ${para(`A Sector 317 team member has created an account for you. To access your profile, view your mission history, and earn rewards, sign in with Google or Microsoft.`)}
+    ${alertBox('Signing in is quick — just click below and choose your preferred account.')}
+    ${ctaButton('Create My Account', BASE_URL + '/?login')}
+    ${divider()}
+    ${para('Once you sign in, your purchases and mission stats will be automatically linked to your profile.', `font-size:13px;color:${C.muted};`)}
+  `
+  return { subject, html: layout(subject, body, null) }
+}
+
 // ── Template dispatch map ────────────────────────────────────────────────────
 // Maps email type → { category, buildFn }
 // category maps to the email_preferences column name
@@ -486,4 +502,5 @@ export const TEMPLATE_MAP = {
   store_credit_applied:   { category: 'bookings',      build: tmplStoreCreditApplied },
   newsletter:             { category: 'marketing',     build: tmplNewsletter },
   welcome:                { category: null,            build: (d) => tmplWelcome(d) }, // transactional
+  social_auth_invite:     { category: null,            build: (d) => tmplSocialAuthInvite(d) }, // transactional
 }

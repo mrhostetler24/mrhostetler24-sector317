@@ -10,9 +10,9 @@ import {
   fetchBundleComponents, uploadMerchImage,
   adjustMerchInventory, validateMerchDiscount, createMerchOrder,
   processMerchReturn, voidGiftCode, updateMerchOrderStatus,
-  fetchUserByPhone, createGuestUser, createPayment, deductUserCredits,
+  fetchUserByPhone, createGuestUser, createPayment, deductUserCredits, linkOAuthUser,
 } from './supabase.js'
-import { emailMerchPurchase } from './emails.js'
+import { emailMerchPurchase, emailSocialAuthInvite } from './emails.js'
 import { processPayment } from './payments.js'
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -1051,11 +1051,14 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
   const [catFilter, setCatFilter] = useState('')
   const [cart, setCart] = useState([])
   const [variantModal, setVariantModal] = useState(null)
-  const [step, setStep] = useState('browse') // browse | customer | payment | receipt
+  const [step, setStep] = useState('lookup') // lookup | email-collect | auth-prompt | awaiting | browse | payment | receipt
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
-  const [lookupStatus, setLookupStatus] = useState('idle') // idle | searching | found | new
+  const [lookupStatus, setLookupStatus] = useState('idle') // idle | searching | found | notfound
   const [foundUserId, setFoundUserId] = useState(null)
+  const [foundUser, setFoundUser] = useState(null)
+  const [authEmail, setAuthEmail] = useState('')
+  const [emailSending, setEmailSending] = useState(false)
   const [discountCode, setDiscountCode] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState(null)
   const [discountErr, setDiscountErr] = useState('')
@@ -1108,9 +1111,56 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
     setLookupStatus('searching')
     try {
       const found = await fetchUserByPhone(ph)
-      if (found) { setFoundUserId(found.id); setCustomerName(found.name || customerName); setLookupStatus('found') }
-      else { setFoundUserId(null); setLookupStatus('new') }
-    } catch { setLookupStatus('new') }
+      if (found) {
+        setFoundUser(found); setFoundUserId(found.id)
+        setCustomerName(found.name || customerName)
+        setLookupStatus('found')
+      } else {
+        setFoundUser(null); setFoundUserId(null)
+        setLookupStatus('notfound')
+      }
+    } catch { setFoundUser(null); setLookupStatus('notfound') }
+  }
+
+  const doLookupContinue = () => {
+    if (lookupStatus === 'notfound') { setStep('auth-prompt'); return }
+    if (!foundUser) return
+    const social = foundUser.authProvider && foundUser.authProvider !== 'email'
+    if (social && foundUser.email) { setStep('browse'); return }
+    if (social && !foundUser.email) { setAuthEmail(''); setStep('email-collect'); return }
+    setAuthEmail(foundUser.email || '')
+    setStep('auth-prompt')
+  }
+
+  const doSaveEmail = async () => {
+    if (!authEmail.trim() || emailSending) return
+    setEmailSending(true)
+    try {
+      await linkOAuthUser(foundUserId, null, authEmail.trim(), foundUser.authProvider)
+      if (setUsers) setUsers(prev => prev.map(u => u.id === foundUserId ? { ...u, email: authEmail.trim() } : u))
+      setStep('browse')
+    } catch (e) { onAlert?.('Error saving email: ' + e.message) }
+    setEmailSending(false)
+  }
+
+  const doSendAuthInvite = async () => {
+    if (!authEmail.trim() || !customerName.trim() || emailSending) return
+    setEmailSending(true)
+    try {
+      let userId = foundUserId
+      if (!userId) {
+        const ph = cleanPh(customerPhone)
+        const guest = await createGuestUser({ name: customerName.trim(), phone: ph.length === 10 ? ph : null, createdByUserId: currentUser?.id || null })
+        userId = guest.id; setFoundUserId(userId)
+        if (setUsers) setUsers(prev => [...prev, guest])
+      }
+      await linkOAuthUser(userId, null, authEmail.trim(), null) // RPC fallback sets auth_provider='email'
+      if (setUsers) setUsers(prev => prev.map(u => u.id === userId
+        ? { ...u, email: authEmail.trim(), authProvider: u.authProvider ?? 'email' } : u))
+      await emailSocialAuthInvite(userId, { recipientName: customerName.trim() })
+      setStep('awaiting')
+    } catch (e) { onAlert?.('Error: ' + e.message) }
+    setEmailSending(false)
   }
 
   const applyDiscount = async () => {
@@ -1193,9 +1243,10 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
 
   const reset = () => {
     setCart([]); setSearch(''); setCatFilter(''); setDiscountCode(''); setAppliedDiscount(null); setDiscountErr('')
-    setCustomerPhone(''); setCustomerName(''); setFoundUserId(null); setLookupStatus('idle')
+    setCustomerPhone(''); setCustomerName(''); setFoundUserId(null); setFoundUser(null)
+    setLookupStatus('idle'); setAuthEmail(''); setEmailSending(false)
     setCardLast4(''); setCardExpiry(''); setCardHolder(''); setApplyCredits(false)
-    setCompletedPayment(null); setStep('browse')
+    setCompletedPayment(null); setStep('lookup')
   }
 
   if (completedPayment && step === 'receipt') return (
@@ -1204,11 +1255,125 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
     </div>
   )
 
+  const hasSidebar = step === 'browse' || step === 'payment'
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '1.25rem', minHeight: 400 }}>
-      {/* ── Left: Catalog ─── */}
+    <div style={hasSidebar ? { display: 'grid', gridTemplateColumns: '1fr 320px', gap: '1.25rem', minHeight: 400 } : { minHeight: 400 }}>
+      {/* ── Left / Full: Steps ─── */}
       <div>
+        {/* ── LOOKUP ── */}
+        {step === 'lookup' && (
+          <div style={{ maxWidth: 420 }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '.5rem' }}>Find Customer</div>
+            <div style={{ fontSize: '.83rem', color: 'var(--muted)', marginBottom: '1rem' }}>
+              Look up the customer by phone number before selecting products.
+            </div>
+            <div style={{ display: 'flex', gap: '.5rem', marginBottom: '.65rem' }}>
+              <div className="f" style={{ flex: 1, marginBottom: 0 }}>
+                <label>Phone Number</label>
+                <input type="tel" value={customerPhone}
+                  onChange={e => { setCustomerPhone(e.target.value); setLookupStatus('idle'); setFoundUser(null) }}
+                  placeholder="(317) 555-0100" onBlur={lookupPhone} />
+              </div>
+              <button className="btn btn-s btn-sm" style={{ alignSelf: 'flex-end' }}
+                onClick={lookupPhone}>{lookupStatus === 'searching' ? '…' : 'Search →'}</button>
+            </div>
+            {lookupStatus === 'found' && (
+              <div style={{ background: 'rgba(100,200,100,.07)', border: '1px solid var(--ok)', borderRadius: 6, padding: '.6rem .85rem', marginBottom: '.75rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '.88rem', color: 'var(--ok)' }}>✓ {foundUser.name}</div>
+                <div style={{ fontSize: '.78rem', color: 'var(--muted)', marginTop: '.2rem' }}>
+                  {foundUser.authProvider && foundUser.authProvider !== 'email'
+                    ? `Signed in via ${foundUser.authProvider}` : '⚠ No social account yet'}
+                  {foundUser.email ? ` · ${foundUser.email}` : ''}
+                </div>
+              </div>
+            )}
+            {lookupStatus === 'notfound' && (
+              <div style={{ fontSize: '.82rem', color: 'var(--acc)', marginBottom: '.75rem' }}>
+                No account found — will create a new one.
+              </div>
+            )}
+            <div className="ma" style={{ marginTop: '.75rem' }}>
+              <button className="btn btn-p"
+                disabled={lookupStatus !== 'found' && lookupStatus !== 'notfound'}
+                onClick={doLookupContinue}>Continue →</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── EMAIL COLLECT (social-auth user missing email) ── */}
+        {step === 'email-collect' && (
+          <div style={{ maxWidth: 420 }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '.5rem' }}>Email on File</div>
+            <div style={{ fontSize: '.83rem', color: 'var(--muted)', marginBottom: '1rem' }}>
+              {customerName} is signed in but has no email on record. Enter their email to complete the account.
+            </div>
+            <div className="f">
+              <label>Email Address *</label>
+              <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="name@example.com" />
+            </div>
+            <div className="ma" style={{ marginTop: '.75rem' }}>
+              <button className="btn btn-s" onClick={() => setStep('lookup')}>← Back</button>
+              <button className="btn btn-p" disabled={!authEmail.trim() || emailSending} onClick={doSaveEmail}>
+                {emailSending ? 'Saving…' : 'Save & Continue →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── AUTH PROMPT (phone-only or new customer) ── */}
+        {step === 'auth-prompt' && (
+          <div style={{ maxWidth: 420 }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '.5rem' }}>
+              {foundUserId ? 'Social Account Required' : 'New Customer'}
+            </div>
+            <div style={{ fontSize: '.83rem', color: 'var(--muted)', marginBottom: '1rem', lineHeight: 1.55 }}>
+              {foundUserId
+                ? `${customerName}'s account doesn't have a social login yet. Enter their email to send a sign-in link.`
+                : "No account found. Enter the customer's name and email to create an account and send them a sign-in link."}
+            </div>
+            {!foundUserId && (
+              <div className="f">
+                <label>Full Name *</label>
+                <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" />
+              </div>
+            )}
+            <div className="f">
+              <label>Email Address *</label>
+              <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="name@example.com" />
+            </div>
+            <div className="ma" style={{ marginTop: '.75rem' }}>
+              <button className="btn btn-s" onClick={() => setStep('lookup')}>← Back</button>
+              <button className="btn btn-p" disabled={!authEmail.trim() || !customerName.trim() || emailSending} onClick={doSendAuthInvite}>
+                {emailSending ? 'Sending…' : 'Send Sign-In Link'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── AWAITING (manual confirm after email sent) ── */}
+        {step === 'awaiting' && (
+          <div style={{ maxWidth: 420 }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '.5rem' }}>📨 Sign-In Link Sent</div>
+            <div style={{ fontSize: '.83rem', color: 'var(--muted)', marginBottom: '1rem', lineHeight: 1.6 }}>
+              An email was sent to <strong style={{ color: 'var(--txt)' }}>{authEmail}</strong>. Once {customerName} has created their account, press Continue.
+            </div>
+            <div style={{ background: 'rgba(200,224,58,.07)', border: '1px solid rgba(200,224,58,.3)', borderRadius: 6, padding: '.65rem .85rem', marginBottom: '1.25rem', fontSize: '.8rem', color: 'var(--acc)', lineHeight: 1.5 }}>
+              Direct them to <strong>sector317.com/?login</strong> if they don't see the email.
+            </div>
+            <div className="ma">
+              <button className="btn btn-p" onClick={() => setStep('browse')}>They've signed up — Continue →</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── BROWSE (catalog) ── */}
         {step === 'browse' && <>
+          {customerName && (
+            <div style={{ fontSize: '.8rem', color: 'var(--ok)', marginBottom: '.65rem' }}>
+              ✓ Customer: <strong>{customerName}</strong>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '.5rem', marginBottom: '.75rem', flexWrap: 'wrap' }}>
             <input placeholder="Search products…" value={search} onChange={e => setSearch(e.target.value)}
               style={{ flex: 1, minWidth: 160, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.4rem .75rem', color: 'var(--txt)', fontSize: '.88rem' }} />
@@ -1228,33 +1393,7 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
           )}
         </>}
 
-        {step === 'customer' && (
-          <div style={{ maxWidth: 400 }}>
-            <div style={{ fontWeight: 700, marginBottom: '1rem' }}>Customer Info</div>
-            <div style={{ fontSize: '.85rem', color: 'var(--muted)', marginBottom: '1rem' }}>
-              Enter the customer's phone to link this sale. You can also use name-only for anonymous cash/card purchases.
-            </div>
-            <div style={{ display: 'flex', gap: '.5rem', marginBottom: '.5rem' }}>
-              <div className="f" style={{ flex: 1, marginBottom: 0 }}>
-                <label>Phone Number</label>
-                <input type="tel" value={customerPhone} onChange={e => { setCustomerPhone(e.target.value); setLookupStatus('idle') }}
-                  placeholder="(317) 555-0100" onBlur={lookupPhone} />
-              </div>
-              <button className="btn btn-s btn-sm" style={{ alignSelf: 'flex-end', fontSize: '.8rem' }} onClick={lookupPhone}>Lookup</button>
-            </div>
-            {lookupStatus === 'found' && <div style={{ fontSize: '.82rem', color: 'var(--ok)', marginBottom: '.5rem' }}>✓ Existing customer found: {customerName}</div>}
-            {lookupStatus === 'new' && <div style={{ fontSize: '.82rem', color: 'var(--acc)', marginBottom: '.5rem' }}>New customer — will create guest record.</div>}
-            <div className="f">
-              <label>Name *</label>
-              <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" />
-            </div>
-            <div className="ma" style={{ marginTop: '1rem' }}>
-              <button className="btn btn-s" onClick={() => setStep('browse')}>← Back</button>
-              <button className="btn btn-p" disabled={!customerName.trim()} onClick={() => setStep('payment')}>Continue to Payment →</button>
-            </div>
-          </div>
-        )}
-
+        {/* ── PAYMENT ── */}
         {step === 'payment' && (
           <div style={{ maxWidth: 440 }}>
             <div style={{ fontWeight: 700, marginBottom: '1rem' }}>Payment</div>
@@ -1292,69 +1431,71 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
               </div>
             </div>
             <div className="ma">
-              <button className="btn btn-s" onClick={() => setStep('customer')}>← Back</button>
+              <button className="btn btn-s" onClick={() => setStep('browse')}>← Back</button>
               <button className="btn btn-p" disabled={saving} onClick={doCheckout}>{saving ? 'Processing…' : 'Payment Collected — Complete Sale'}</button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Right: Cart ─── */}
-      <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 10, padding: '1rem', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ fontWeight: 700, marginBottom: '.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Cart</span>
-          {cart.length > 0 && <button className="btn btn-sm btn-s" style={{ fontSize: '.72rem' }} onClick={() => setCart([])}>Clear</button>}
+      {/* ── Right: Cart (browse + payment only) ─── */}
+      {hasSidebar && (
+        <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 10, padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ fontWeight: 700, marginBottom: '.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Cart</span>
+            {cart.length > 0 && <button className="btn btn-sm btn-s" style={{ fontSize: '.72rem' }} onClick={() => setCart([])}>Clear</button>}
+          </div>
+          {cart.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '.88rem', textAlign: 'center', padding: '2rem 0' }}>No items yet</div>}
+          {cart.map(item => (
+            <div key={item.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '.5rem', padding: '.4rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.85rem' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600 }}>{item.productName}</div>
+                {item.variantLabel && <div style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{item.variantLabel}</div>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem' }}>
+                <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1rem', padding: '0 .2rem' }}
+                  onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: Math.max(1, i.qty - 1) } : i))}>−</button>
+                <span style={{ minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
+                <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1rem', padding: '0 .2rem' }}
+                  onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: i.qty + 1 } : i))}>+</button>
+              </div>
+              <div style={{ fontWeight: 700, color: 'var(--acc)', minWidth: 52, textAlign: 'right' }}>{fmtMoney(item.price * item.qty)}</div>
+              <button style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '.9rem' }}
+                onClick={() => setCart(prev => prev.filter(i => i.key !== item.key))}>✕</button>
+            </div>
+          ))}
+          {cart.length > 0 && step === 'browse' && <>
+            <div style={{ marginTop: '.75rem' }}>
+              <div style={{ display: 'flex', gap: '.35rem', marginBottom: '.4rem' }}>
+                <input placeholder="Discount code" value={discountCode} onChange={e => { setDiscountCode(e.target.value.toUpperCase()); setDiscountErr('') }}
+                  style={{ flex: 1, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.82rem' }} />
+                <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }} onClick={applyDiscount}>Apply</button>
+              </div>
+              {discountErr && <div style={{ fontSize: '.78rem', color: 'var(--danger)', marginBottom: '.3rem' }}>{discountErr}</div>}
+              {appliedDiscount && <div style={{ fontSize: '.78rem', color: 'var(--ok)', marginBottom: '.3rem' }}>✓ {appliedDiscount.code} applied</div>}
+            </div>
+            <div style={{ marginTop: 'auto', paddingTop: '.75rem' }}>
+              {discountAmount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.82rem', color: 'var(--ok)', marginBottom: '.3rem' }}>
+                <span>Discount</span><span>-{fmtMoney(discountAmount)}</span></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', borderTop: '2px solid var(--bdr)', paddingTop: '.5rem' }}>
+                <span>Total</span><span style={{ color: 'var(--acc)' }}>{fmtMoney(finalTotal)}</span>
+              </div>
+              <button className="btn btn-p" style={{ width: '100%', marginTop: '.75rem' }} onClick={() => setStep('payment')}>
+                Checkout →
+              </button>
+            </div>
+          </>}
+          {step === 'payment' && cart.length > 0 && (
+            <div style={{ marginTop: 'auto', paddingTop: '.75rem', borderTop: '1px solid var(--bdr)' }}>
+              {discountAmount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.82rem', color: 'var(--ok)', marginBottom: '.3rem' }}>
+                <span>Discount</span><span>-{fmtMoney(discountAmount)}</span></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem' }}>
+                <span>Total</span><span style={{ color: 'var(--acc)' }}>{fmtMoney(finalTotal)}</span>
+              </div>
+            </div>
+          )}
         </div>
-        {cart.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '.88rem', textAlign: 'center', padding: '2rem 0' }}>No items yet</div>}
-        {cart.map(item => (
-          <div key={item.key} style={{ display: 'flex', alignItems: 'flex-start', gap: '.5rem', padding: '.4rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.85rem' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{item.productName}</div>
-              {item.variantLabel && <div style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{item.variantLabel}</div>}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '.35rem' }}>
-              <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1rem', padding: '0 .2rem' }}
-                onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: Math.max(1, i.qty - 1) } : i))}>−</button>
-              <span style={{ minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-              <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1rem', padding: '0 .2rem' }}
-                onClick={() => setCart(prev => prev.map(i => i.key === item.key ? { ...i, qty: i.qty + 1 } : i))}>+</button>
-            </div>
-            <div style={{ fontWeight: 700, color: 'var(--acc)', minWidth: 52, textAlign: 'right' }}>{fmtMoney(item.price * item.qty)}</div>
-            <button style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '.9rem' }}
-              onClick={() => setCart(prev => prev.filter(i => i.key !== item.key))}>✕</button>
-          </div>
-        ))}
-        {cart.length > 0 && step === 'browse' && <>
-          <div style={{ marginTop: '.75rem' }}>
-            <div style={{ display: 'flex', gap: '.35rem', marginBottom: '.4rem' }}>
-              <input placeholder="Discount code" value={discountCode} onChange={e => { setDiscountCode(e.target.value.toUpperCase()); setDiscountErr('') }}
-                style={{ flex: 1, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '.35rem .5rem', color: 'var(--txt)', fontSize: '.82rem' }} />
-              <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }} onClick={applyDiscount}>Apply</button>
-            </div>
-            {discountErr && <div style={{ fontSize: '.78rem', color: 'var(--danger)', marginBottom: '.3rem' }}>{discountErr}</div>}
-            {appliedDiscount && <div style={{ fontSize: '.78rem', color: 'var(--ok)', marginBottom: '.3rem' }}>✓ {appliedDiscount.code} applied</div>}
-          </div>
-          <div style={{ marginTop: 'auto', paddingTop: '.75rem' }}>
-            {discountAmount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.82rem', color: 'var(--ok)', marginBottom: '.3rem' }}>
-              <span>Discount</span><span>-{fmtMoney(discountAmount)}</span></div>}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem', borderTop: '2px solid var(--bdr)', paddingTop: '.5rem' }}>
-              <span>Total</span><span style={{ color: 'var(--acc)' }}>{fmtMoney(finalTotal)}</span>
-            </div>
-            <button className="btn btn-p" style={{ width: '100%', marginTop: '.75rem' }} onClick={() => setStep('customer')}>
-              Checkout →
-            </button>
-          </div>
-        </>}
-        {step !== 'browse' && cart.length > 0 && (
-          <div style={{ marginTop: 'auto', paddingTop: '.75rem', borderTop: '1px solid var(--bdr)' }}>
-            {discountAmount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.82rem', color: 'var(--ok)', marginBottom: '.3rem' }}>
-              <span>Discount</span><span>-{fmtMoney(discountAmount)}</span></div>}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.1rem' }}>
-              <span>Total</span><span style={{ color: 'var(--acc)' }}>{fmtMoney(finalTotal)}</span>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
 
       {variantModal && (
         <VariantModal product={variantModal} channel="staff" onAdd={addToCart} onClose={() => setVariantModal(null)} />

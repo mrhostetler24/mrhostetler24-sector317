@@ -1689,7 +1689,17 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
           <div className="ma"><button className="btn btn-s" onClick={()=>setSendConfirm(null)}>No, Go Back</button><button className="btn btn-p" disabled={statusBusy===sendConfirm} onClick={()=>doSendGroup(sendConfirm)}>{statusBusy===sendConfirm?"Sending…":"Yes, Send Group"}</button></div>
         </div></div>
       )}
-      {showMerch&&<MerchStaffSales currentUser={currentUser} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={showMsg} onClose={()=>setShowMerch(false)}/>}
+      {showMerch&&(
+        <div className="mo" onClick={()=>setShowMerch(false)}>
+          <div className="mc" style={{maxWidth:'min(95vw,940px)',width:'940px',padding:'1.5rem'}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
+              <span className="mt2" style={{margin:0}}>Walk-In Merch Sale</span>
+              <button className="btn btn-s btn-sm" onClick={()=>setShowMerch(false)}>✕ Close</button>
+            </div>
+            <MerchStaffSales currentUser={currentUser} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={showMsg} onClose={()=>setShowMerch(false)}/>
+          </div>
+        </div>
+      )}
       {showLaneOverride&&<LaneOverrideModal
         time={showLaneOverride.time}
         rawLanes={showLaneOverride.rawLanes}
