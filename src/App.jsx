@@ -1483,9 +1483,11 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                 <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>
                 <td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td>
                 <td><div style={{display:"flex",gap:".35rem",flexWrap:"wrap"}}>
-                  <button className="btn btn-s btn-sm" onClick={()=>setEditResId(r.id)}>Manage Team</button>
-                  <button className="btn btn-s btn-sm" onClick={()=>setModifyRes({res:r,mode:"reschedule"})}>Reschedule</button>
-                  {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={()=>setModifyRes({res:r,mode:"upgrade"})}>⬆ Upgrade</button>}
+                  {r.status!=="completed"&&r.status!=="no-show"&&<>
+                    <button className="btn btn-s btn-sm" onClick={()=>setEditResId(r.id)}>Manage Team</button>
+                    <button className="btn btn-s btn-sm" onClick={()=>setModifyRes({res:r,mode:"reschedule"})}>Reschedule</button>
+                    {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={()=>setModifyRes({res:r,mode:"upgrade"})}>⬆ Upgrade</button>}
+                  </>}
                 </div></td>
               </tr>;})}
               </tbody></table>
