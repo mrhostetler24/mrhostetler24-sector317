@@ -1067,7 +1067,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem', marginBottom: '.75rem' }}>
               <StatCard label="Sessions"   value={activeStats.sessions} />
               <StatCard label="Total Runs" value={activeStats.runs} />
-              <StatCard label="Best Score" value={activeStats.best} />
+              <StatCard label="Best Score" value={activeStats.best.toFixed(1)} />
               <StatCard label="Avg Score"  value={activeStats.avg.toFixed(1)} />
               <StatCard label="Obj Rate"   value={`${activeStats.objRate}%`} />
               <StatCard label="Avg Time"   value={fmtSec(activeStats.avgTime)} />
