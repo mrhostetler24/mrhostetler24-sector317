@@ -78,13 +78,40 @@ ALTER TABLE public.platoon_join_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.platoon_posts         ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "platoons_select"        ON public.platoons;
+DROP POLICY IF EXISTS "platoons_insert"        ON public.platoons;
+DROP POLICY IF EXISTS "platoons_update"        ON public.platoons;
+DROP POLICY IF EXISTS "platoons_delete"        ON public.platoons;
 DROP POLICY IF EXISTS "platoon_members_select" ON public.platoon_members;
+DROP POLICY IF EXISTS "platoon_members_insert" ON public.platoon_members;
+DROP POLICY IF EXISTS "platoon_members_update" ON public.platoon_members;
+DROP POLICY IF EXISTS "platoon_members_delete" ON public.platoon_members;
 DROP POLICY IF EXISTS "platoon_posts_select"   ON public.platoon_posts;
+DROP POLICY IF EXISTS "platoon_posts_insert"   ON public.platoon_posts;
+DROP POLICY IF EXISTS "platoon_posts_update"   ON public.platoon_posts;
+DROP POLICY IF EXISTS "platoon_posts_delete"   ON public.platoon_posts;
+DROP POLICY IF EXISTS "join_requests_select"   ON public.platoon_join_requests;
+DROP POLICY IF EXISTS "join_requests_insert"   ON public.platoon_join_requests;
+DROP POLICY IF EXISTS "join_requests_delete"   ON public.platoon_join_requests;
 
-CREATE POLICY "platoons_select"        ON public.platoons        FOR SELECT TO authenticated USING (true);
-CREATE POLICY "platoon_members_select" ON public.platoon_members  FOR SELECT TO authenticated USING (true);
-CREATE POLICY "platoon_posts_select"   ON public.platoon_posts    FOR SELECT TO authenticated USING (true);
--- join_requests: access managed entirely through SECURITY DEFINER RPCs
+-- SELECT: all authenticated users can read platoon data
+CREATE POLICY "platoons_select"        ON public.platoons              FOR SELECT TO authenticated USING (true);
+CREATE POLICY "platoon_members_select" ON public.platoon_members       FOR SELECT TO authenticated USING (true);
+CREATE POLICY "platoon_posts_select"   ON public.platoon_posts         FOR SELECT TO authenticated USING (true);
+CREATE POLICY "join_requests_select"   ON public.platoon_join_requests FOR SELECT TO authenticated USING (true);
+
+-- INSERT / UPDATE / DELETE: allow authenticated so SECURITY DEFINER RPCs can write
+-- (authorization logic lives inside the RPCs, not in these policies)
+CREATE POLICY "platoons_insert"        ON public.platoons              FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "platoons_update"        ON public.platoons              FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "platoons_delete"        ON public.platoons              FOR DELETE TO authenticated USING (true);
+CREATE POLICY "platoon_members_insert" ON public.platoon_members       FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "platoon_members_update" ON public.platoon_members       FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "platoon_members_delete" ON public.platoon_members       FOR DELETE TO authenticated USING (true);
+CREATE POLICY "join_requests_insert"   ON public.platoon_join_requests FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "join_requests_delete"   ON public.platoon_join_requests FOR DELETE TO authenticated USING (true);
+CREATE POLICY "platoon_posts_insert"   ON public.platoon_posts         FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "platoon_posts_update"   ON public.platoon_posts         FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "platoon_posts_delete"   ON public.platoon_posts         FOR DELETE TO authenticated USING (true);
 
 
 -- ────────────────────────────────────────────────────────────
