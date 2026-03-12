@@ -43,7 +43,7 @@ function RoleChip({ role }) {
 
 function TagChip({ tag, style }) {
   return (
-    <span style={{ display: 'inline-block', color: '#94a3b8', fontSize: '.78em', fontFamily: 'var(--fd)', letterSpacing: '.03em', ...style }}>
+    <span style={{ display: 'inline-block', color: '#94a3b8', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em', ...style }}>
       [{tag}]
     </span>
   )
@@ -935,7 +935,7 @@ function MembersTab({ platoon, myRole, userId, onChanged, onViewProfile }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
                 <TierIcon totalRuns={m.total_runs} size={20} />
                 <span style={{ fontFamily: 'var(--fd)', fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {platoon.tag && <span style={{ color: platoon.badge_color || '#94a3b8', marginRight: '.25em' }}>[{platoon.tag}]</span>}
+                  {platoon.tag && <span style={{ color: platoon.badge_color || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em' }}>[{platoon.tag}]</span>}
                   {m.leaderboard_name}
                 </span>
                 <RoleChip role={m.role} />

@@ -1595,7 +1595,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                                       {displayRole==='Hunter'&&rn.objectiveComplete!=null&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>}
                                       {won&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:'rgba(34,197,94,.12)',color:'var(--okB)',border:'1px solid rgba(34,197,94,.3)'}}>✓ Won run</span>}
                                     </div>
-                                    {teamPlayers.length>0&&<div style={{marginTop:'.4rem',display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{teamPlayers.map((p,i)=>{const pu=users.find(u=>u.id===p.userId);const ptag=pu?.platoonTag;return <span key={i} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{ptag&&<span style={{color:'#94a3b8',marginRight:'.2rem'}}>[{ptag}]</span>}{p.name||'—'}</span>;})}</div>}
+                                    {teamPlayers.length>0&&<div style={{marginTop:'.4rem',display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{teamPlayers.map((p,i)=>{const pu=users.find(u=>u.id===p.userId);const ptag=pu?.platoonTag;return <span key={i} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{ptag&&<span style={{color:pu?.platoonBadgeColor||'#94a3b8',marginRight:'.2rem',fontFamily:'var(--fc)',fontWeight:700,letterSpacing:'.03em'}}>[{ptag}]</span>}{p.name||'—'}</span>;})}</div>}
                                   </div>;
                                 })}
                               </div>
@@ -1685,7 +1685,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                 <img src={`/${tier.key}.png`} alt={tier.key} style={{height:16,width:"auto",maxWidth:32,display:"block",flexShrink:0,objectFit:"contain",opacity:.9,...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}}/>
                 <div>
                   <div style={{fontFamily:"var(--fc)",fontWeight:700,fontSize:"1rem",color:isMe?"var(--accB)":"var(--txt)"}}>
-                    {r.platoon_tag&&<span style={{color:r.platoon_badge_color||'#94a3b8',marginRight:'.3em',fontFamily:'var(--fd)'}}>[{r.platoon_tag}]</span>}
+                    {r.platoon_tag&&<span style={{color:r.platoon_badge_color||'#94a3b8',marginRight:'.3em',fontFamily:'var(--fc)',fontWeight:700,letterSpacing:'.03em'}}>[{r.platoon_tag}]</span>}
                     {r.player_name??'Unknown'}{isMe&&<span style={{fontSize:".7rem",color:"var(--acc2)",marginLeft:".5rem"}}>← you</span>}
                   </div>
                   <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:".1rem"}}><span style={{fontFamily:"var(--fd)",letterSpacing:".05em",color:tierCol,textTransform:"uppercase",marginRight:".35rem"}}>{tier.name}</span>{runsLbl} · ⏱ avg {avgT}</div>
