@@ -162,7 +162,11 @@ function PlatoonFinder({ userId, onJoined }) {
 
       {results && results.length === 0 && !searching && (
         <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1.5rem' }}>
-          No platoons found. <button className="btn-link" style={{ color: 'var(--acc)' }} onClick={() => setShowCreate(true)}>Create yours →</button>
+          No platoons found.{' '}
+          <span
+            style={{ color: 'var(--accB)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+            onClick={() => setShowCreate(true)}
+          >Create yours →</span>
         </div>
       )}
 
