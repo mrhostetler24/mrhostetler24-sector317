@@ -11,6 +11,8 @@ import {
   goAwol, kickPlatoonMember, setPlatoonMemberRole, transferPlatoonAdmin,
   disbandPlatoon, postPlatoonMessage, deletePlatoonPost,
   updatePlatoonSettings, updatePlatoonBadge, uploadPlatoonBadge,
+  searchInvitablePlayers, inviteToPlatoon,
+  getMyPlatoonInvites, acceptPlatoonInvite, declinePlatoonInvite,
 } from './supabase.js'
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -120,15 +122,143 @@ export function PlatoonTabDot({ platoon, myRole }) {
 }
 
 
+// ── InviteModal ───────────────────────────────────────────────────────────────
+
+function InviteModal({ platoon, onClose }) {
+  const [query,    setQuery]    = useState('')
+  const [results,  setResults]  = useState([])
+  const [searching, setSearching] = useState(false)
+  const [invited,  setInvited]  = useState(new Set()) // user_ids successfully invited
+  const [sending,  setSending]  = useState(null)      // user_id currently being sent
+  const debounce = useRef(null)
+
+  const doSearch = useCallback(async (q) => {
+    if (!q || q.length < 2) { setResults([]); return }
+    setSearching(true)
+    try {
+      // Strip formatting chars so phone numbers work ("317-555-0100" → "3175550100")
+      const digits = q.replace(/[\s\-().+]/g, '')
+      const searchQ = /^\d+$/.test(digits) && digits.length >= 2 ? digits : q
+      const rows = await searchInvitablePlayers(platoon.id, searchQ)
+      setResults(Array.isArray(rows) ? rows : [])
+    } catch { setResults([]) }
+    setSearching(false)
+  }, [platoon.id])
+
+  useEffect(() => {
+    clearTimeout(debounce.current)
+    debounce.current = setTimeout(() => doSearch(query), 350)
+    return () => clearTimeout(debounce.current)
+  }, [query, doSearch])
+
+  const handleInvite = async (userId) => {
+    setSending(userId)
+    try {
+      await inviteToPlatoon(userId)
+      setInvited(prev => new Set([...prev, userId]))
+      // Remove from results so the list stays clean
+      setResults(prev => prev.filter(r => r.id !== userId))
+    } catch (e) {
+      if (e.message === 'already_in_platoon') alert('That operative has already enlisted in a platoon.')
+      else alert('Could not send invite: ' + e.message)
+    }
+    setSending(null)
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+      <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 10, padding: '1.5rem', maxWidth: 440, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: 'var(--fd)', fontSize: '1rem', color: 'var(--txt)' }}>
+            Invite to [{platoon.tag}]
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}
+          >✕</button>
+        </div>
+
+        {/* Search input */}
+        <input
+          className="inp"
+          style={{ width: '100%', boxSizing: 'border-box' }}
+          placeholder="Search by name or phone…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          autoFocus
+          autoComplete="off"
+        />
+
+        {/* Results */}
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+          {searching && (
+            <div style={{ fontSize: '.8rem', color: 'var(--muted)', textAlign: 'center', padding: '.5rem 0' }}>Searching…</div>
+          )}
+
+          {!searching && query.length >= 2 && results.length === 0 && (
+            <div style={{ fontSize: '.85rem', color: 'var(--muted)', textAlign: 'center', padding: '.75rem 0', fontStyle: 'italic' }}>
+              No eligible operatives found.
+            </div>
+          )}
+
+          {!searching && query.length < 2 && invited.size === 0 && (
+            <div style={{ fontSize: '.82rem', color: 'var(--muted)', textAlign: 'center', padding: '.75rem 0' }}>
+              Type a name or phone number to search.
+            </div>
+          )}
+
+          {invited.size > 0 && results.length === 0 && query.length < 2 && (
+            <div style={{ fontSize: '.85rem', color: '#4ade80', textAlign: 'center', padding: '.75rem 0' }}>
+              {invited.size} invite{invited.size !== 1 ? 's' : ''} sent ✓
+            </div>
+          )}
+
+          {results.map(p => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+              <Avatar url={p.avatar_url} hidden={p.hide_avatar} name={p.leaderboard_name} size={34} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {p.leaderboard_name}
+                </div>
+                {p.phone_last4 && (
+                  <div style={{ fontSize: '.72rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>
+                )}
+              </div>
+              <button
+                className="btn btn-p btn-s"
+                style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap', flexShrink: 0 }}
+                disabled={sending === p.id}
+                onClick={() => handleInvite(p.id)}
+              >
+                {sending === p.id ? '…' : 'Invite'}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button className="btn btn-s" style={{ width: '100%' }} onClick={onClose}>Done</button>
+      </div>
+    </div>
+  )
+}
+
+
 // ── PlatoonFinder ─────────────────────────────────────────────────────────────
 
 function PlatoonFinder({ userId, onJoined }) {
-  const [query,   setQuery]   = useState('')
-  const [results, setResults] = useState(null)
-  const [searching, setSearching] = useState(false)
-  const [detail,  setDetail]  = useState(null)   // platoon to preview
+  const [query,      setQuery]      = useState('')
+  const [results,    setResults]    = useState(null)
+  const [searching,  setSearching]  = useState(false)
+  const [detail,     setDetail]     = useState(null)   // platoon to preview
   const [showCreate, setShowCreate] = useState(false)
+  const [invites,    setInvites]    = useState([])     // pending invites for this user
+  const [invActing,  setInvActing]  = useState(null)   // invite id being acted on
   const debounce = useRef(null)
+
+  useEffect(() => {
+    getMyPlatoonInvites().then(rows => setInvites(Array.isArray(rows) ? rows : [])).catch(() => {})
+  }, [])
 
   const doSearch = useCallback(async (q) => {
     setSearching(true)
@@ -145,8 +275,69 @@ function PlatoonFinder({ userId, onJoined }) {
     return () => clearTimeout(debounce.current)
   }, [query, doSearch])
 
+  const handleAcceptInvite = async (invite) => {
+    setInvActing(invite.id)
+    try {
+      await acceptPlatoonInvite(invite.id)
+      onJoined()
+    } catch (e) {
+      alert(e.message === 'already_in_platoon' ? 'You are already in a platoon.' : 'Error: ' + e.message)
+      setInvActing(null)
+    }
+  }
+
+  const handleDeclineInvite = async (inviteId) => {
+    setInvActing(inviteId)
+    try {
+      await declinePlatoonInvite(inviteId)
+      setInvites(prev => prev.filter(i => i.id !== inviteId))
+    } catch { /* ignore */ }
+    setInvActing(null)
+  }
+
   return (
     <div>
+      {/* Pending invites */}
+      {invites.length > 0 && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <div style={SECTION_HDR}>Pending Invitations ({invites.length})</div>
+          {invites.map(inv => (
+            <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '.85rem', padding: '.65rem', background: 'var(--surf2)', border: '1px solid #2563eb44', borderRadius: 8, marginBottom: '.4rem' }}>
+              {inv.platoon_badge_url
+                ? <img src={inv.platoon_badge_url} style={{ width: 38, height: 38, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} alt="" />
+                : <div style={{ width: 38, height: 38, borderRadius: 6, background: 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>🎖️</div>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                  <TagChip tag={inv.platoon_tag} />
+                  <span style={{ fontFamily: 'var(--fd)', fontSize: '.92rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.platoon_name}</span>
+                </div>
+                <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: '.1rem' }}>
+                  Invited by {inv.from_leaderboard_name}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '.35rem', flexShrink: 0 }}>
+                <button
+                  className="btn btn-p btn-s"
+                  style={{ fontSize: '.72rem', padding: '.25rem .6rem' }}
+                  disabled={invActing === inv.id}
+                  onClick={() => handleAcceptInvite(inv)}
+                >
+                  {invActing === inv.id ? '…' : 'Enlist'}
+                </button>
+                <button
+                  className="btn btn-s btn-s"
+                  style={{ fontSize: '.72rem', padding: '.25rem .6rem', color: '#f87171', borderColor: '#7f1d1d' }}
+                  disabled={invActing === inv.id}
+                  onClick={() => handleDeclineInvite(inv.id)}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1rem', alignItems: 'center' }}>
         <input
           className="inp"
@@ -599,11 +790,12 @@ function PostRow({ post, platoonTag, userId, onDelete }) {
 // ── MembersTab ────────────────────────────────────────────────────────────────
 
 function MembersTab({ platoon, myRole, userId, onChanged }) {
-  const [members,   setMembers]   = useState([])
-  const [requests,  setRequests]  = useState([])
-  const [loading,   setLoading]   = useState(true)
-  const [menuOpen,  setMenuOpen]  = useState(null) // userId of open kebab
-  const [confirm,   setConfirm]   = useState(null) // { action, target }
+  const [members,     setMembers]     = useState([])
+  const [requests,    setRequests]    = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [menuOpen,    setMenuOpen]    = useState(null) // userId of open kebab
+  const [confirm,     setConfirm]     = useState(null) // { action, target }
+  const [showInvite,  setShowInvite]  = useState(false)
   const canManage = myRole === 'admin' || myRole === 'sergeant'
 
   const refresh = useCallback(async () => {
@@ -659,9 +851,14 @@ function MembersTab({ platoon, myRole, userId, onChanged }) {
         </>
       )}
 
-      {/* Member list */}
-      <div style={requests.length > 0 ? SECTION_HDR : { ...SECTION_HDR, marginTop: 0 }}>
-        Members ({members.length})
+      {/* Member list header + Invite button */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', ...(requests.length > 0 ? SECTION_HDR : { ...SECTION_HDR, marginTop: 0 }) }}>
+        <span>Members ({members.length})</span>
+        <button
+          className="btn btn-s"
+          style={{ fontSize: '.72rem', padding: '2px 10px', marginLeft: '.5rem' }}
+          onClick={() => setShowInvite(true)}
+        >+ Invite</button>
       </div>
       {members.map(m => {
         const isSelf  = m.user_id === userId
@@ -719,6 +916,8 @@ function MembersTab({ platoon, myRole, userId, onChanged }) {
           onCancel={() => setConfirm(null)}
         />
       )}
+
+      {showInvite && <InviteModal platoon={platoon} onClose={() => setShowInvite(false)} />}
 
       {/* close menu on outside click */}
       {menuOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setMenuOpen(null)} />}

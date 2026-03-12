@@ -1746,6 +1746,12 @@ export const postPlatoonMessage      = (platoonId, content)   => rpc('post_plato
 export const deletePlatoonPost       = (postId)               => rpc('delete_platoon_post',       { p_post_id: postId })
 export const updatePlatoonSettings   = (name, desc, isOpen)   => rpc('update_platoon_settings',   { p_name: name, p_description: desc, p_is_open: isOpen })
 export const updatePlatoonBadge      = (badgeUrl)             => rpc('update_platoon_badge',      { p_badge_url: badgeUrl })
+export const searchInvitablePlayers  = (platoonId, query)     => rpc('search_invitable_players',  { p_platoon_id: platoonId, p_query: query })
+export const inviteToPlatoon         = (toUserId)             => rpc('invite_to_platoon',         { p_to_user_id: toUserId })
+export const cancelPlatoonInvite     = (inviteId)             => rpc('cancel_platoon_invite',     { p_invite_id: inviteId })
+export const getMyPlatoonInvites     = ()                     => rpc('get_my_platoon_invites',    {})
+export const acceptPlatoonInvite     = (inviteId)             => rpc('accept_platoon_invite',     { p_invite_id: inviteId })
+export const declinePlatoonInvite    = (inviteId)             => rpc('decline_platoon_invite',    { p_invite_id: inviteId })
 
 export const uploadPlatoonBadge = async (platoonId, file) => {
   const ext = file.name.split('.').pop()
