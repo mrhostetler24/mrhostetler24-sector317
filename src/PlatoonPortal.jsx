@@ -1105,7 +1105,8 @@ function SessionCard({ session, upcoming }) {
               const runWinTeam = grp[0]?.winning_team != null ? Number(grp[0].winning_team) : null
               const runTime = fmtSec(grp[0]?.elapsed_seconds)
               const rEnv = grp[0]
-              const teamRuns = [...grp].sort((a, b) => (a.team ?? 0) - (b.team ?? 0))
+              // Deduplicate to unique teams (grp has one entry per player, not per team)
+              const uniqueTeams = [...new Set(grp.map(r => r.team))].sort((a, b) => (a ?? 0) - (b ?? 0))
               return (
                 <div key={runNum} style={{ marginBottom: '.5rem', border: '1px solid var(--bdr)', borderRadius: 6, overflow: 'hidden', background: 'var(--surf)' }}>
                   <div style={{ background: 'var(--bg2)', padding: '.28rem .75rem', fontSize: '.65rem', fontFamily: 'var(--fd)', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.3rem' }}>
@@ -1121,25 +1122,26 @@ function SessionCard({ session, upcoming }) {
                     </div>
                   </div>
                   <div style={{ display: 'flex' }}>
-                    {teamRuns.map((rn, ti) => {
-                      const tc = TC[rn.team] || { name: 'Team ' + (rn.team ?? '?'), col: 'var(--muted)' }
-                      const won = rn.winning_team != null && Number(rn.team) === Number(rn.winning_team)
-                      const displayRole = rn.role ? rn.role.charAt(0).toUpperCase() + rn.role.slice(1) : null
+                    {uniqueTeams.map((teamKey, ti) => {
+                      const teamPlayers = grp.filter(r => Number(r.team) === Number(teamKey))
+                      const rn = teamPlayers[0]
+                      const tc = TC[teamKey] || { name: 'Team ' + (teamKey ?? '?'), col: 'var(--muted)' }
+                      const won = rn?.winning_team != null && Number(teamKey) === Number(rn?.winning_team)
+                      const displayRole = rn?.role ? rn.role.charAt(0).toUpperCase() + rn.role.slice(1) : null
                       return (
-                        <div key={rn.id} style={{ flex: 1, padding: '.5rem .75rem', borderLeft: `3px solid ${tc.col}`, borderRight: ti < teamRuns.length - 1 ? '1px solid var(--bdr)' : 'none', background: won ? tc.col + '18' : undefined }}>
+                        <div key={teamKey} style={{ flex: 1, padding: '.5rem .75rem', borderLeft: `3px solid ${tc.col}`, borderRight: ti < uniqueTeams.length - 1 ? '1px solid var(--bdr)' : 'none', background: won ? tc.col + '18' : undefined }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '.3rem', marginBottom: '.25rem', flexWrap: 'wrap' }}>
                             <div style={{ width: 8, height: 8, borderRadius: '50%', background: tc.col, flexShrink: 0 }} />
                             <span style={{ fontWeight: 700, fontSize: '.78rem', color: tc.col }}>{tc.name}</span>
                             {displayRole && <span style={{ fontSize: '.7rem', fontWeight: 700, color: roleColor(displayRole), textTransform: 'capitalize' }}>· {displayRole}</span>}
                           </div>
-                          <div style={{ fontFamily: 'var(--fd)', fontSize: '1.25rem', fontWeight: 700, color: won ? tc.col : 'var(--txt)' }}>{rn.score ?? '—'}</div>
+                          <div style={{ fontFamily: 'var(--fd)', fontSize: '1.25rem', fontWeight: 700, color: won ? tc.col : 'var(--txt)' }}>{rn?.score ?? '—'}</div>
                           <div style={{ display: 'flex', gap: '.2rem', flexWrap: 'wrap', marginTop: '.2rem' }}>
-                            {displayRole === 'Hunter' && rn.objective_complete != null && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: rn.objective_complete ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)', color: rn.objective_complete ? '#4ade80' : '#f87171', border: '1px solid ' + (rn.objective_complete ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') }}>{rn.objective_complete ? '✓ Objective' : '✗ Objective'}</span>}
+                            {displayRole === 'Hunter' && rn?.objective_complete != null && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: rn.objective_complete ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)', color: rn.objective_complete ? '#4ade80' : '#f87171', border: '1px solid ' + (rn.objective_complete ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') }}>{rn.objective_complete ? '✓ Objective' : '✗ Objective'}</span>}
                             {won && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(34,197,94,.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,.3)' }}>✓ Won</span>}
                           </div>
-                          {/* Players in this team slot */}
                           <div style={{ marginTop: '.35rem', display: 'flex', flexWrap: 'wrap', gap: '.15rem .4rem' }}>
-                            {grp.filter(r2 => Number(r2.team) === Number(rn.team)).map(r2 => (
+                            {teamPlayers.map(r2 => (
                               <span key={r2.user_id} style={{ fontSize: '.66rem', color: r2.is_member ? 'var(--accB)' : 'var(--muted)', fontWeight: r2.is_member ? 700 : 400 }}>{r2.leaderboard_name || '—'}</span>
                             ))}
                           </div>
@@ -1162,7 +1164,7 @@ function SessionCard({ session, upcoming }) {
                       Run {runNum}{runTime && ` · ${runTime}`}
                     </div>
                     {grp.map(rn => (
-                      <div key={rn.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.5rem' }}>
+                      <div key={rn.run_id || rn.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.5rem' }}>
                         <span style={{ fontSize: '.72rem', color: rn.is_member ? 'var(--accB)' : 'var(--muted)', fontWeight: rn.is_member ? 700 : 400 }}>{rn.leaderboard_name || '—'}</span>
                         <span style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', fontWeight: 700, color: 'var(--txt)' }}>{rn.score ?? '—'}</span>
                       </div>

@@ -374,7 +374,7 @@ function FriendProfileModal({ userId, users, onClose }) {
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--fd)', fontSize: '1.2rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {profile.platoon_tag && <span style={{ color: profile.platoon_badge_color || '#94a3b8', fontSize: '.75em', marginRight: '.3em' }}>[{profile.platoon_tag}]</span>}
+                {profile.platoon_tag && <span style={{ color: profile.platoon_badge_color || '#94a3b8', marginRight: '.3em', fontFamily: 'var(--fd)' }}>[{profile.platoon_tag}]</span>}
                 {profile.leaderboard_name}
               </div>
               {profile.real_name && <div style={{ fontSize: '.82rem', color: 'var(--muted)', marginTop: '.1rem' }}>{profile.real_name}</div>}
@@ -879,7 +879,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           <div style={{ flex: 1, minWidth: 0, paddingTop: '.25rem' }}>
             <div style={{ fontFamily: 'var(--fd)', fontSize: '1.3rem', color: 'var(--txt)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
             <div style={{ fontSize: '.85rem', color: 'var(--acc2)', marginTop: '.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.platoonTag && <span style={{ color: '#94a3b8', fontSize: '.82em', marginRight: '.3em' }}>[{user.platoonTag}]</span>}
+              {user.platoonTag && <span style={{ color: user.platoonBadgeColor || '#94a3b8', marginRight: '.3em', fontFamily: 'var(--fd)' }}>[{user.platoonTag}]</span>}
               {user.leaderboardName || <span style={{ color: 'var(--muted)' }}>No callsign set</span>}
             </div>
             {careerRuns != null && (() => {
@@ -1100,7 +1100,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                     <MiniAvatar url={sender.avatarUrl} hidden={sender.hideAvatar} initials={getInitials(sender.leaderboardName || sender.name)} />
                     <TierIcon runs={friendRunsMap[req.from_user_id]} />
                     <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {sender.platoonTag && <span style={{ color: '#94a3b8', fontSize: '.78em', marginRight: '.25em' }}>[{sender.platoonTag}]</span>}
+                      {sender.platoonTag && <span style={{ color: sender.platoonBadgeColor || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fd)' }}>[{sender.platoonTag}]</span>}
                       {sender.leaderboardName || sender.name || 'Operative'}
                     </span>
                     <button className="btn btn-s" onClick={() => handleAccept(req.from_user_id)} title="Accept" style={{ padding: '3px 10px', fontSize: '.8rem' }}>✓</button>
@@ -1133,7 +1133,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   <MiniAvatar url={friend.avatarUrl} hidden={friend.hideAvatar} initials={getInitials(friend.leaderboardName || friend.name)} />
                   <TierIcon runs={friendRunsMap[otherId]} />
                   <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {friend.platoonTag && <span style={{ color: '#94a3b8', fontSize: '.78em', marginRight: '.25em' }}>[{friend.platoonTag}]</span>}
+                    {friend.platoonTag && <span style={{ color: friend.platoonBadgeColor || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fd)' }}>[{friend.platoonTag}]</span>}
                     {friend.leaderboardName || friend.name || 'Operative'}
                   </span>
                   <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>View →</span>
@@ -1181,7 +1181,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                     <TierIcon runs={p.total_runs} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.platoon_tag && <span style={{ color: p.platoon_badge_color || '#94a3b8', fontSize: '.78em', marginRight: '.25em' }}>[{p.platoon_tag}]</span>}
+                        {p.platoon_tag && <span style={{ color: p.platoon_badge_color || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fd)' }}>[{p.platoon_tag}]</span>}
                         {p.leaderboard_name}
                       </div>
                       {p.phone_last4 && <div style={{ fontSize: '.73rem', color: 'var(--muted)' }}>••••{p.phone_last4}</div>}
@@ -1210,7 +1210,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                     <MiniAvatar url={recipient.avatarUrl} hidden={recipient.hideAvatar} initials={getInitials(recipient.leaderboardName || recipient.name)} />
                     <TierIcon runs={friendRunsMap[req.to_user_id]} />
                     <span style={{ flex: 1, fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {recipient.platoonTag && <span style={{ color: '#94a3b8', fontSize: '.78em', marginRight: '.25em' }}>[{recipient.platoonTag}]</span>}
+                      {recipient.platoonTag && <span style={{ color: recipient.platoonBadgeColor || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fd)' }}>[{recipient.platoonTag}]</span>}
                       {recipient.leaderboardName || recipient.name || 'Operative'}
                     </span>
                     <button className="btn btn-s btn-sm" onClick={() => handleCancelRequest(req.to_user_id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Cancel</button>
@@ -1241,7 +1241,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   <TierIcon runs={p.total_runs} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.platoon_tag && <span style={{ color: p.platoon_badge_color || '#94a3b8', fontSize: '.78em', marginRight: '.25em' }}>[{p.platoon_tag}]</span>}
+                      {p.platoon_tag && <span style={{ color: p.platoon_badge_color || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fd)' }}>[{p.platoon_tag}]</span>}
                       {p.leaderboard_name}
                     </div>
                     <div style={{ fontSize: '.73rem', color: 'var(--muted)', display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>

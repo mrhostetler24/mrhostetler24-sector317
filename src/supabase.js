@@ -61,7 +61,8 @@ const toUser = r => r ? ({
   hideBio:            r.hide_bio        ?? false,
   socialLinks:        r.social_links    ?? [],
   credits:            r.credits         ?? 0,
-  platoonTag:         r.platoon_tag     ?? null,
+  platoonTag:         r.platoon_tag        ?? null,
+  platoonBadgeColor:  r.platoon_badge_color ?? null,
 }) : null
 
 const toWaiverDoc = r => r ? ({
