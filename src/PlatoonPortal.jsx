@@ -11,8 +11,9 @@ import {
   goAwol, kickPlatoonMember, setPlatoonMemberRole, transferPlatoonAdmin,
   disbandPlatoon, postPlatoonMessage, deletePlatoonPost,
   updatePlatoonSettings, updatePlatoonBadge, updatePlatoonBadgeColor, uploadPlatoonBadge,
-  searchInvitablePlayers, inviteToPlatoon,
+  searchInvitablePlayers, inviteToPlatoon, cancelPlatoonInvite,
   getMyPlatoonInvites, acceptPlatoonInvite, declinePlatoonInvite,
+  getPlatoonPendingInvites,
 } from './supabase.js'
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -48,6 +49,36 @@ function TagChip({ tag, style }) {
   )
 }
 
+const TIER_SHINE = {
+  apex:   'drop-shadow(0 0 3px rgba(205,127,50,.55)) drop-shadow(0 0 7px rgba(205,127,50,.35)) brightness(1.08)',
+  elite:  'drop-shadow(0 0 3px rgba(200,210,220,.6)) drop-shadow(0 0 7px rgba(184,191,199,.35)) brightness(1.13)',
+  legend: 'drop-shadow(0 0 4px rgba(245,200,66,.65)) drop-shadow(0 0 9px rgba(245,200,66,.35)) brightness(1.1)',
+}
+function tierCls(runs) {
+  const n = runs ?? 0
+  if (n >= 100) return 'legend'
+  if (n >= 86)  return 'elite'
+  if (n >= 71)  return 'apex'
+  if (n >= 56)  return 'enforcer'
+  if (n >= 40)  return 'sentinel'
+  if (n >= 28)  return 'vanguard'
+  if (n >= 18)  return 'striker'
+  if (n >= 10)  return 'operator'
+  if (n >= 4)   return 'initiate'
+  return 'recruit'
+}
+function TierIcon({ totalRuns, size = 22 }) {
+  const cls = tierCls(totalRuns)
+  const shine = TIER_SHINE[cls]
+  return (
+    <img
+      src={`/${cls}.png`}
+      alt={cls}
+      style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0, ...(shine ? { filter: shine } : {}) }}
+    />
+  )
+}
+
 function Confirm({ title, body, confirm = 'Confirm', onConfirm, onCancel, danger = false }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
@@ -73,7 +104,7 @@ const SECTION_HDR = { fontSize: '.65rem', color: 'var(--muted)', fontFamily: 'va
 
 // ── PlatoonPortal (top-level) ─────────────────────────────────────────────────
 
-export default function PlatoonPortal({ user }) {
+export default function PlatoonPortal({ user, onViewProfile }) {
   const [platoon,    setPlatoon]    = useState(null)
   const [myRole,     setMyRole]     = useState(null)
   const [loading,    setLoading]    = useState(true)
@@ -110,7 +141,7 @@ export default function PlatoonPortal({ user }) {
   }
 
   return <PlatoonHome platoon={platoon} myRole={myRole} userId={user.id}
-    pendingCount={pendingCount} onLeft={refresh} onChanged={refresh} />
+    pendingCount={pendingCount} onLeft={refresh} onChanged={refresh} onViewProfile={onViewProfile} />
 }
 
 // Export pendingCount for use in SocialPortal tab indicator
@@ -308,7 +339,7 @@ function PlatoonFinder({ userId, onJoined }) {
                 : <div style={{ width: 52, height: 52, borderRadius: 8, background: inv.platoon_badge_color || 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0 }}>🎖️</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
-                  <TagChip tag={inv.platoon_tag} />
+                  <TagChip tag={inv.platoon_tag} style={{ color: inv.platoon_badge_color || '#94a3b8' }} />
                   <span style={{ fontFamily: 'var(--fd)', fontSize: '.92rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.platoon_name}</span>
                 </div>
                 <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: '.1rem' }}>
@@ -374,7 +405,7 @@ function PlatoonFinder({ userId, onJoined }) {
             : <div style={{ width: 54, height: 54, borderRadius: 8, background: p.badge_color || 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>🎖️</div>}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-              <TagChip tag={p.tag} />
+              <TagChip tag={p.tag} style={{ color: p.badge_color || '#94a3b8' }} />
               <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)', fontSize: '.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
             </div>
             {p.description && <div style={{ fontSize: '.78rem', color: 'var(--muted)', marginTop: '.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</div>}
@@ -439,7 +470,7 @@ function PlatoonDetailModal({ platoon, onClose, onJoined }) {
             : <div style={{ width: 72, height: 72, borderRadius: 10, background: platoon.badge_color || 'var(--surf2)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>🎖️</div>}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-              <TagChip tag={platoon.tag} />
+              <TagChip tag={platoon.tag} style={{ color: platoon.badge_color || '#94a3b8' }} />
               <span style={{ fontFamily: 'var(--fd)', fontSize: '1.1rem', color: 'var(--txt)' }}>{platoon.name}</span>
             </div>
             <div style={{ fontSize: '.78rem', color: 'var(--muted)', marginTop: '.15rem' }}>
@@ -596,7 +627,7 @@ function PlatoonCreateModal({ onClose, onCreated }) {
 
 // ── PlatoonHome ───────────────────────────────────────────────────────────────
 
-function PlatoonHome({ platoon, myRole, userId, pendingCount, onLeft, onChanged }) {
+function PlatoonHome({ platoon, myRole, userId, pendingCount, onLeft, onChanged, onViewProfile }) {
   const [subTab,         setSubTab]         = useState('board')
   const [showAwolConfirm, setShowAwolConfirm] = useState(false)
   const [awolErr,        setAwolErr]        = useState('')
@@ -635,7 +666,7 @@ function PlatoonHome({ platoon, myRole, userId, pendingCount, onLeft, onChanged 
           : <div style={{ width: 64, height: 64, borderRadius: 10, background: platoon.badge_color || 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', flexShrink: 0 }}>🎖️</div>}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
-            <TagChip tag={platoon.tag} style={{ fontSize: '.9em' }} />
+            <TagChip tag={platoon.tag} style={{ fontSize: '.9em', color: platoon.badge_color || '#94a3b8' }} />
             <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)', fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{platoon.name}</span>
             <RoleChip role={myRole} />
           </div>
@@ -666,7 +697,7 @@ function PlatoonHome({ platoon, myRole, userId, pendingCount, onLeft, onChanged 
       </div>
 
       {subTab === 'board'    && <BoardTab    platoon={platoon} userId={userId} />}
-      {subTab === 'members'  && <MembersTab  platoon={platoon} myRole={myRole} userId={userId} onChanged={onChanged} />}
+      {subTab === 'members'  && <MembersTab  platoon={platoon} myRole={myRole} userId={userId} onChanged={onChanged} onViewProfile={onViewProfile} />}
       {subTab === 'sessions' && <SessionsTab platoon={platoon} />}
       {subTab === 'upcoming' && <UpcomingTab platoon={platoon} />}
       {subTab === 'settings' && myRole === 'admin' && <SettingsTab platoon={platoon} onChanged={onChanged} onDisbanded={onLeft} />}
@@ -752,7 +783,7 @@ function BoardTab({ platoon, userId }) {
       {!loading && posts.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1.5rem' }}>No posts yet. Be the first!</div>}
 
       {posts.map(post => (
-        <PostRow key={post.id} post={post} platoonTag={platoon.tag} userId={userId} onDelete={doDelete} />
+        <PostRow key={post.id} post={post} platoonTag={platoon.tag} badgeColor={platoon.badge_color} userId={userId} onDelete={doDelete} />
       ))}
 
       {hasMore && !loading && (
@@ -764,7 +795,7 @@ function BoardTab({ platoon, userId }) {
   )
 }
 
-function PostRow({ post, platoonTag, userId, onDelete }) {
+function PostRow({ post, platoonTag, badgeColor, userId, onDelete }) {
   const initials = post.leaderboard_name ? post.leaderboard_name.slice(0, 2).toUpperCase() : '?'
   const isOwn = post.user_id === userId
 
@@ -773,7 +804,7 @@ function PostRow({ post, platoonTag, userId, onDelete }) {
       <Avatar url={post.avatar_url} hidden={post.hide_avatar} name={post.leaderboard_name} size={34} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap', marginBottom: '.2rem' }}>
-          <TagChip tag={platoonTag} />
+          <TagChip tag={platoonTag} style={{ color: badgeColor || '#94a3b8' }} />
           <span style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', color: 'var(--txt)' }}>{post.leaderboard_name}</span>
           <span style={{ fontSize: '.7rem', color: 'var(--muted)', marginLeft: 'auto' }}>{formatDate(post.created_at)}</span>
           {isOwn && (
@@ -789,24 +820,27 @@ function PostRow({ post, platoonTag, userId, onDelete }) {
 
 // ── MembersTab ────────────────────────────────────────────────────────────────
 
-function MembersTab({ platoon, myRole, userId, onChanged }) {
-  const [members,     setMembers]     = useState([])
-  const [requests,    setRequests]    = useState([])
-  const [loading,     setLoading]     = useState(true)
-  const [menuOpen,    setMenuOpen]    = useState(null) // userId of open kebab
-  const [confirm,     setConfirm]     = useState(null) // { action, target }
-  const [showInvite,  setShowInvite]  = useState(false)
+function MembersTab({ platoon, myRole, userId, onChanged, onViewProfile }) {
+  const [members,        setMembers]        = useState([])
+  const [requests,       setRequests]       = useState([])
+  const [pendingInvites, setPendingInvites] = useState([])
+  const [loading,        setLoading]        = useState(true)
+  const [menuOpen,       setMenuOpen]       = useState(null) // userId of open kebab
+  const [confirm,        setConfirm]        = useState(null) // { action, target }
+  const [showInvite,     setShowInvite]     = useState(false)
   const canManage = myRole === 'admin' || myRole === 'sergeant'
 
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [mRows, rRows] = await Promise.all([
+      const [mRows, rRows, iRows] = await Promise.all([
         getPlatoonMembers(platoon.id),
         canManage ? getPlatoonJoinRequests() : Promise.resolve([]),
+        getPlatoonPendingInvites(),
       ])
       setMembers(Array.isArray(mRows) ? mRows : [])
       setRequests(Array.isArray(rRows) ? rRows : [])
+      setPendingInvites(Array.isArray(iRows) ? iRows : [])
     } catch { /* ignore */ }
     setLoading(false)
   }, [platoon.id, canManage])
@@ -816,12 +850,13 @@ function MembersTab({ platoon, myRole, userId, onChanged }) {
   const doAction = async (action, targetUserId, extra) => {
     setMenuOpen(null)
     try {
-      if (action === 'kick')         await kickPlatoonMember(targetUserId)
-      if (action === 'promote')      await setPlatoonMemberRole(targetUserId, 'sergeant')
-      if (action === 'demote')       await setPlatoonMemberRole(targetUserId, 'member')
-      if (action === 'transfer')     await transferPlatoonAdmin(targetUserId)
-      if (action === 'approve-req')  await approveJoinRequest(extra)
-      if (action === 'deny-req')     await denyJoinRequest(extra)
+      if (action === 'kick')           await kickPlatoonMember(targetUserId)
+      if (action === 'promote')        await setPlatoonMemberRole(targetUserId, 'sergeant')
+      if (action === 'demote')         await setPlatoonMemberRole(targetUserId, 'member')
+      if (action === 'transfer')       await transferPlatoonAdmin(targetUserId)
+      if (action === 'approve-req')    await approveJoinRequest(extra)
+      if (action === 'deny-req')       await denyJoinRequest(extra)
+      if (action === 'cancel-invite')  await cancelPlatoonInvite(extra)
       await refresh(); onChanged()
     } catch (e) { console.error(e) }
   }
@@ -851,6 +886,28 @@ function MembersTab({ platoon, myRole, userId, onChanged }) {
         </>
       )}
 
+      {/* Pending outgoing invites */}
+      {pendingInvites.length > 0 && (
+        <>
+          <div style={SECTION_HDR}>Pending Invites ({pendingInvites.length})</div>
+          {pendingInvites.map(inv => (
+            <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.6rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.4rem' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--fd)', fontSize: '.88rem', color: 'var(--txt)' }}>{inv.to_leaderboard_name}</div>
+                <div style={{ fontSize: '.72rem', color: 'var(--muted)' }}>Invited by {inv.from_leaderboard_name}</div>
+              </div>
+              {(canManage || inv.from_user_id === userId) && (
+                <button
+                  className="btn btn-s"
+                  style={{ fontSize: '.72rem', padding: '.25rem .6rem', color: '#f87171', borderColor: '#7f1d1d', flexShrink: 0 }}
+                  onClick={() => doAction('cancel-invite', null, inv.id)}
+                >Revoke</button>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+
       {/* Member list header + Invite button */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', ...(requests.length > 0 ? SECTION_HDR : { ...SECTION_HDR, marginTop: 0 }) }}>
         <span>Members ({members.length})</span>
@@ -868,13 +925,23 @@ function MembersTab({ platoon, myRole, userId, onChanged }) {
 
         return (
           <div key={m.user_id} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.6rem 0', borderBottom: '1px solid var(--bdr)' }}>
-            <Avatar url={m.avatar_url} hidden={m.hide_avatar} name={m.leaderboard_name} size={36} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '.5rem', cursor: onViewProfile ? 'pointer' : 'default', flexShrink: 0 }}
+              onClick={() => onViewProfile && onViewProfile(m.user_id)}
+            >
+              <Avatar url={m.avatar_url} hidden={m.hide_avatar} name={m.leaderboard_name} size={36} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0, cursor: onViewProfile ? 'pointer' : 'default' }} onClick={() => onViewProfile && onViewProfile(m.user_id)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
+                <TierIcon totalRuns={m.total_runs} size={20} />
+                {m.leaderboard_rank && <span style={{ fontSize: '.72rem', color: 'var(--muted)', fontFamily: 'var(--fd)' }}>#{m.leaderboard_rank}</span>}
                 <span style={{ fontFamily: 'var(--fd)', fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.leaderboard_name}</span>
                 <RoleChip role={m.role} />
               </div>
-              <div style={{ fontSize: '.7rem', color: 'var(--muted)' }}>Joined {formatDate(m.joined_at)}</div>
+              <div style={{ fontSize: '.7rem', color: 'var(--muted)' }}>
+                {m.leaderboard_score != null && <span style={{ marginRight: '.5rem' }}>{Number(m.leaderboard_score).toFixed(0)} pts · {m.total_runs ?? 0} run{m.total_runs !== 1 ? 's' : ''}</span>}
+                Joined {formatDate(m.joined_at)}
+              </div>
             </div>
 
             {canAct && (
@@ -989,23 +1056,122 @@ function UpcomingTab({ platoon }) {
 
 function SessionCard({ session, upcoming }) {
   const members = Array.isArray(session.member_players) ? session.member_players : []
+  const runs    = Array.isArray(session.runs) ? session.runs : []
   const dateStr = session.date ? new Date(session.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''
 
+  const fmtSec = s => { if (s == null) return null; const m = Math.floor(s / 60), sec = s % 60; return `${m}:${String(sec).padStart(2, '0')}` }
+  const VIZ = { V: 'Standard', C: 'Cosmic', R: 'Rave', S: 'Strobe', CS: 'Cosmic+Strobe', B: 'Dark' }
+  const AUD = { C: 'Cranked', O: 'Off', T: 'Tunes' }
+  const TC  = { 1: { name: 'Blue', col: '#3b82f6' }, 2: { name: 'Red', col: '#ef4444' } }
+  const Pill = ({ v }) => <span style={{ display: 'inline-block', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '1px 6px', fontSize: '.65rem', color: 'var(--muted)', marginRight: '.25rem' }}>{v}</span>
+  const audLbl = rn => rn.audio ? (AUD[rn.audio] || rn.audio) : (rn.cranked ? 'Cranked' : 'Standard')
+  const roleColor = role => { if (!role) return 'var(--muted)'; const r = role.toLowerCase(); if (r.includes('hunt')) return '#c8e03a'; if (r.includes('coyot')) return '#c4a882'; return 'var(--muted)' }
+
+  // Group runs by run_number
+  const groups = {}
+  runs.forEach(rn => { const k = rn.run_number ?? 0; (groups[k] = groups[k] || []).push(rn) })
+  const sortedGroups = Object.entries(groups).sort(([a], [b]) => Number(a) - Number(b))
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '.85rem', padding: '.75rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.5rem' }}>
-      <div style={{ textAlign: 'center', minWidth: 52, flexShrink: 0 }}>
-        <div style={{ fontFamily: 'var(--fd)', fontSize: '.9rem', color: upcoming ? 'var(--acc)' : 'var(--txt)', lineHeight: 1.2 }}>{dateStr}</div>
-        {session.start_time && <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: '.15rem' }}>{session.start_time}</div>}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '.85rem', color: 'var(--txt)', fontFamily: 'var(--fd)' }}>{session.type_name}</div>
-        <div style={{ display: 'flex', gap: '.2rem', marginTop: '.35rem', flexWrap: 'wrap' }}>
-          {members.slice(0, 8).map(m => (
-            <Avatar key={m.user_id} url={m.avatar_url} name={m.leaderboard_name} size={26} />
-          ))}
-          {members.length > 8 && <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.65rem', color: 'var(--muted)' }}>+{members.length - 8}</div>}
+    <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.65rem', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.65rem .85rem', borderBottom: runs.length ? '1px solid var(--bdr)' : 'none' }}>
+        <div style={{ textAlign: 'center', minWidth: 52, flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', color: upcoming ? 'var(--acc)' : 'var(--txt)', lineHeight: 1.2 }}>{dateStr}</div>
+          {session.start_time && <div style={{ fontSize: '.7rem', color: 'var(--muted)', marginTop: '.1rem' }}>{session.start_time}</div>}
         </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '.88rem', color: 'var(--txt)', fontFamily: 'var(--fd)' }}>{session.type_name}</div>
+          <div style={{ display: 'flex', gap: '.2rem', marginTop: '.3rem', flexWrap: 'wrap' }}>
+            {members.slice(0, 10).map(m => <Avatar key={m.user_id} url={m.avatar_url} name={m.leaderboard_name} size={24} />)}
+            {members.length > 10 && <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.6rem', color: 'var(--muted)' }}>+{members.length - 10}</div>}
+          </div>
+        </div>
+        {/* Match winner badge for versus */}
+        {session.war_winner_team != null && TC[session.war_winner_team] && (
+          <div style={{ flexShrink: 0, background: TC[session.war_winner_team].col + '18', border: `1px solid ${TC[session.war_winner_team].col}44`, borderRadius: 5, padding: '.25rem .6rem', fontSize: '.7rem', fontFamily: 'var(--fd)', color: TC[session.war_winner_team].col, whiteSpace: 'nowrap' }}>
+            {TC[session.war_winner_team].name} wins
+          </div>
+        )}
       </div>
+
+      {/* Run details */}
+      {!upcoming && sortedGroups.length > 0 && (
+        <div style={{ padding: '.6rem .85rem' }}>
+          {session.mode === 'versus' ? (
+            sortedGroups.map(([runNum, grp]) => {
+              const runWinTeam = grp[0]?.winning_team != null ? Number(grp[0].winning_team) : null
+              const runTime = fmtSec(grp[0]?.elapsed_seconds)
+              const rEnv = grp[0]
+              const teamRuns = [...grp].sort((a, b) => (a.team ?? 0) - (b.team ?? 0))
+              return (
+                <div key={runNum} style={{ marginBottom: '.5rem', border: '1px solid var(--bdr)', borderRadius: 6, overflow: 'hidden', background: 'var(--surf)' }}>
+                  <div style={{ background: 'var(--bg2)', padding: '.28rem .75rem', fontSize: '.65rem', fontFamily: 'var(--fd)', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
+                      <span style={{ color: 'var(--txt)', fontWeight: 700 }}>Run {runNum}</span>
+                      {rEnv?.structure && <span>Structure: {rEnv.structure}</span>}
+                      {rEnv?.visual && <Pill v={(VIZ[rEnv.visual] || rEnv.visual) + ' Visual'} />}
+                      <Pill v={audLbl(rEnv ?? {}) + ' Audio'} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '.4rem', alignItems: 'center', flexShrink: 0 }}>
+                      {runTime && <span>{runTime}</span>}
+                      {runWinTeam != null && <span style={{ color: TC[runWinTeam]?.col ?? 'var(--acc)', fontWeight: 700 }}>{(TC[runWinTeam]?.name ?? 'Team ' + runWinTeam) + ' wins'}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex' }}>
+                    {teamRuns.map((rn, ti) => {
+                      const tc = TC[rn.team] || { name: 'Team ' + (rn.team ?? '?'), col: 'var(--muted)' }
+                      const won = rn.winning_team != null && Number(rn.team) === Number(rn.winning_team)
+                      const displayRole = rn.role ? rn.role.charAt(0).toUpperCase() + rn.role.slice(1) : null
+                      return (
+                        <div key={rn.id} style={{ flex: 1, padding: '.5rem .75rem', borderLeft: `3px solid ${tc.col}`, borderRight: ti < teamRuns.length - 1 ? '1px solid var(--bdr)' : 'none', background: won ? tc.col + '18' : undefined }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '.3rem', marginBottom: '.25rem', flexWrap: 'wrap' }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: tc.col, flexShrink: 0 }} />
+                            <span style={{ fontWeight: 700, fontSize: '.78rem', color: tc.col }}>{tc.name}</span>
+                            {displayRole && <span style={{ fontSize: '.7rem', fontWeight: 700, color: roleColor(displayRole), textTransform: 'capitalize' }}>· {displayRole}</span>}
+                          </div>
+                          <div style={{ fontFamily: 'var(--fd)', fontSize: '1.25rem', fontWeight: 700, color: won ? tc.col : 'var(--txt)' }}>{rn.score ?? '—'}</div>
+                          <div style={{ display: 'flex', gap: '.2rem', flexWrap: 'wrap', marginTop: '.2rem' }}>
+                            {displayRole === 'Hunter' && rn.objective_complete != null && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: rn.objective_complete ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)', color: rn.objective_complete ? '#4ade80' : '#f87171', border: '1px solid ' + (rn.objective_complete ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') }}>{rn.objective_complete ? '✓ Objective' : '✗ Objective'}</span>}
+                            {won && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(34,197,94,.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,.3)' }}>✓ Won</span>}
+                          </div>
+                          {/* Players in this team slot */}
+                          <div style={{ marginTop: '.35rem', display: 'flex', flexWrap: 'wrap', gap: '.15rem .4rem' }}>
+                            {grp.filter(r2 => Number(r2.team) === Number(rn.team)).map(r2 => (
+                              <span key={r2.user_id} style={{ fontSize: '.66rem', color: r2.is_member ? 'var(--accB)' : 'var(--muted)', fontWeight: r2.is_member ? 700 : 400 }}>{r2.leaderboard_name || '—'}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            // Co-op: flat run cards
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem' }}>
+              {sortedGroups.map(([runNum, grp]) => {
+                const rEnv = grp[0]
+                const runTime = fmtSec(rEnv?.elapsed_seconds)
+                return (
+                  <div key={runNum} style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.5rem .75rem', minWidth: 120 }}>
+                    <div style={{ fontSize: '.65rem', color: 'var(--muted)', fontFamily: 'var(--fd)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.25rem' }}>
+                      Run {runNum}{runTime && ` · ${runTime}`}
+                    </div>
+                    {grp.map(rn => (
+                      <div key={rn.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.5rem' }}>
+                        <span style={{ fontSize: '.72rem', color: rn.is_member ? 'var(--accB)' : 'var(--muted)', fontWeight: rn.is_member ? 700 : 400 }}>{rn.leaderboard_name || '—'}</span>
+                        <span style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', fontWeight: 700, color: 'var(--txt)' }}>{rn.score ?? '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

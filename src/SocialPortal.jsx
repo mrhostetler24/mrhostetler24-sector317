@@ -1273,7 +1273,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           PLATOON TAB
       ════════════════════════════════════════════════════════ */}
       {tab === 'platoon' && (
-        <PlatoonPortal user={user} users={users} setUsers={setUsers} />
+        <PlatoonPortal user={user} users={users} setUsers={setUsers} onViewProfile={uid => setProfileModal(uid)} />
       )}
     </>
   )
