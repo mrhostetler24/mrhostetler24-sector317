@@ -4,13 +4,17 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
+  emailPlatoonInviteReceived, emailPlatoonRequestReceived,
+  emailPlatoonRequestApproved, emailPlatoonRequestDenied,
+} from './emails.js'
+import {
   searchPlatoons, getPlatoonForUser, getPlatoonMembers, getPlatoonJoinRequests,
   getPlatoonPosts, getPlatoonSessions, getPlatoonUpcoming,
   createPlatoon, joinPlatoon, requestToJoin, cancelJoinRequest,
   approveJoinRequest, denyJoinRequest,
   goAwol, kickPlatoonMember, setPlatoonMemberRole, transferPlatoonAdmin,
   disbandPlatoon, postPlatoonMessage, deletePlatoonPost,
-  updatePlatoonSettings, updatePlatoonBadge, updatePlatoonBadgeColor, uploadPlatoonBadge,
+  updatePlatoonTag, updatePlatoonSettings, updatePlatoonBadge, updatePlatoonBadgeColor, uploadPlatoonBadge,
   searchInvitablePlayers, inviteToPlatoon, cancelPlatoonInvite,
   getMyPlatoonInvites, acceptPlatoonInvite, declinePlatoonInvite,
   getPlatoonPendingInvites,
@@ -137,10 +141,10 @@ export default function PlatoonPortal({ user, onViewProfile }) {
   if (loading) return <div style={{ color: 'var(--muted)', fontSize: '.9rem', textAlign: 'center', paddingTop: '2rem' }}>Loading…</div>
 
   if (!platoon) {
-    return <PlatoonFinder userId={user.id} onJoined={refresh} />
+    return <PlatoonFinder userId={user.id} currentUser={user} onJoined={refresh} />
   }
 
-  return <PlatoonHome platoon={platoon} myRole={myRole} userId={user.id}
+  return <PlatoonHome platoon={platoon} myRole={myRole} userId={user.id} currentUser={user}
     pendingCount={pendingCount} onLeft={refresh} onChanged={refresh} onViewProfile={onViewProfile} />
 }
 
@@ -155,7 +159,7 @@ export function PlatoonTabDot({ platoon, myRole }) {
 
 // ── InviteModal ───────────────────────────────────────────────────────────────
 
-function InviteModal({ platoon, onClose }) {
+function InviteModal({ platoon, senderName, onClose }) {
   const [query,    setQuery]    = useState('')
   const [results,  setResults]  = useState([])
   const [searching, setSearching] = useState(false)
@@ -187,8 +191,12 @@ function InviteModal({ platoon, onClose }) {
     try {
       await inviteToPlatoon(userId)
       setInvited(prev => new Set([...prev, userId]))
-      // Remove from results so the list stays clean
       setResults(prev => prev.filter(r => r.id !== userId))
+      emailPlatoonInviteReceived(userId, {
+        platoonTag:  platoon.tag,
+        platoonName: platoon.name,
+        inviterName: senderName,
+      })
     } catch (e) {
       if (e.message === 'already_in_platoon') alert('That operative has already enlisted in a platoon.')
       else alert('Could not send invite: ' + e.message)
@@ -277,7 +285,7 @@ function InviteModal({ platoon, onClose }) {
 
 // ── PlatoonFinder ─────────────────────────────────────────────────────────────
 
-function PlatoonFinder({ userId, onJoined }) {
+function PlatoonFinder({ userId, currentUser, onJoined }) {
   const [query,      setQuery]      = useState('')
   const [results,    setResults]    = useState(null)
   const [searching,  setSearching]  = useState(false)
@@ -420,6 +428,7 @@ function PlatoonFinder({ userId, onJoined }) {
       {detail && (
         <PlatoonDetailModal
           platoon={detail}
+          currentUser={currentUser}
           onClose={() => setDetail(null)}
           onJoined={onJoined}
         />
@@ -438,7 +447,7 @@ function PlatoonFinder({ userId, onJoined }) {
 
 // ── PlatoonDetailModal ────────────────────────────────────────────────────────
 
-function PlatoonDetailModal({ platoon, onClose, onJoined }) {
+function PlatoonDetailModal({ platoon, currentUser, onClose, onJoined }) {
   const [message,   setMessage]   = useState('')
   const [loading,   setLoading]   = useState(false)
   const [requested, setRequested] = useState(false)
@@ -454,6 +463,22 @@ function PlatoonDetailModal({ platoon, onClose, onJoined }) {
       } else {
         await requestToJoin(platoon.id, message || null)
         setRequested(true)
+        // Email platoon officers
+        try {
+          const members = await getPlatoonMembers(platoon.id)
+          const officers = (Array.isArray(members) ? members : [])
+            .filter(m => m.role === 'admin' || m.role === 'sergeant')
+            .map(m => m.user_id)
+          if (officers.length) {
+            const applicantName = currentUser?.leaderboardName || currentUser?.name || 'An operative'
+            emailPlatoonRequestReceived(officers, {
+              applicantName,
+              platoonTag:  platoon.tag,
+              platoonName: platoon.name,
+              message:     message || null,
+            })
+          }
+        } catch { /* email is fire-and-forget */ }
       }
     } catch (e) {
       setErr(e.message === 'already_in_platoon' ? 'You are already in a platoon.' : e.message)
@@ -627,7 +652,7 @@ function PlatoonCreateModal({ onClose, onCreated }) {
 
 // ── PlatoonHome ───────────────────────────────────────────────────────────────
 
-function PlatoonHome({ platoon, myRole, userId, pendingCount, onLeft, onChanged, onViewProfile }) {
+function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLeft, onChanged, onViewProfile }) {
   const [subTab,         setSubTab]         = useState('board')
   const [showAwolConfirm, setShowAwolConfirm] = useState(false)
   const [awolErr,        setAwolErr]        = useState('')
@@ -697,7 +722,7 @@ function PlatoonHome({ platoon, myRole, userId, pendingCount, onLeft, onChanged,
       </div>
 
       {subTab === 'board'    && <BoardTab    platoon={platoon} userId={userId} />}
-      {subTab === 'members'  && <MembersTab  platoon={platoon} myRole={myRole} userId={userId} onChanged={onChanged} onViewProfile={onViewProfile} />}
+      {subTab === 'members'  && <MembersTab  platoon={platoon} myRole={myRole} userId={userId} currentUser={currentUser} onChanged={onChanged} onViewProfile={onViewProfile} />}
       {subTab === 'sessions' && <SessionsTab platoon={platoon} />}
       {subTab === 'upcoming' && <UpcomingTab platoon={platoon} />}
       {subTab === 'settings' && myRole === 'admin' && <SettingsTab platoon={platoon} onChanged={onChanged} onDisbanded={onLeft} />}
@@ -820,7 +845,7 @@ function PostRow({ post, platoonTag, badgeColor, userId, onDelete }) {
 
 // ── MembersTab ────────────────────────────────────────────────────────────────
 
-function MembersTab({ platoon, myRole, userId, onChanged, onViewProfile }) {
+function MembersTab({ platoon, myRole, userId, currentUser, onChanged, onViewProfile }) {
   const [members,        setMembers]        = useState([])
   const [requests,       setRequests]       = useState([])
   const [pendingInvites, setPendingInvites] = useState([])
@@ -854,8 +879,14 @@ function MembersTab({ platoon, myRole, userId, onChanged, onViewProfile }) {
       if (action === 'promote')        await setPlatoonMemberRole(targetUserId, 'sergeant')
       if (action === 'demote')         await setPlatoonMemberRole(targetUserId, 'member')
       if (action === 'transfer')       await transferPlatoonAdmin(targetUserId)
-      if (action === 'approve-req')    await approveJoinRequest(extra)
-      if (action === 'deny-req')       await denyJoinRequest(extra)
+      if (action === 'approve-req') {
+        await approveJoinRequest(extra)
+        emailPlatoonRequestApproved(targetUserId, { platoonTag: platoon.tag, platoonName: platoon.name })
+      }
+      if (action === 'deny-req') {
+        await denyJoinRequest(extra)
+        emailPlatoonRequestDenied(targetUserId, { platoonTag: platoon.tag, platoonName: platoon.name })
+      }
       if (action === 'cancel-invite')  await cancelPlatoonInvite(extra)
       await refresh(); onChanged()
     } catch (e) { console.error(e) }
@@ -986,7 +1017,7 @@ function MembersTab({ platoon, myRole, userId, onChanged, onViewProfile }) {
         />
       )}
 
-      {showInvite && <InviteModal platoon={platoon} onClose={() => setShowInvite(false)} />}
+      {showInvite && <InviteModal platoon={platoon} senderName={currentUser?.leaderboardName || currentUser?.name || 'An officer'} onClose={() => setShowInvite(false)} />}
 
       {/* close menu on outside click */}
       {menuOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setMenuOpen(null)} />}
@@ -1057,9 +1088,11 @@ function UpcomingTab({ platoon }) {
 }
 
 function SessionCard({ session, upcoming }) {
+  const [expanded, setExpanded] = useState(false)
   const members = Array.isArray(session.member_players) ? session.member_players : []
   const runs    = Array.isArray(session.runs) ? session.runs : []
   const dateStr = session.date ? new Date(session.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''
+  const hasDetails = !upcoming && runs.length > 0
 
   const fmtSec = s => { if (s == null) return null; const m = Math.floor(s / 60), sec = s % 60; return `${m}:${String(sec).padStart(2, '0')}` }
   const VIZ = { V: 'Standard', C: 'Cosmic', R: 'Rave', S: 'Strobe', CS: 'Cosmic+Strobe', B: 'Dark' }
@@ -1076,29 +1109,55 @@ function SessionCard({ session, upcoming }) {
 
   return (
     <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.65rem', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.65rem .85rem', borderBottom: runs.length ? '1px solid var(--bdr)' : 'none' }}>
+      {/* Header — clickable to expand if there are run details */}
+      <div
+        style={{ display: 'flex', alignItems: 'flex-start', gap: '.75rem', padding: '.65rem .85rem', borderBottom: expanded ? '1px solid var(--bdr)' : 'none', cursor: hasDetails ? 'pointer' : 'default', userSelect: 'none' }}
+        onClick={() => hasDetails && setExpanded(e => !e)}
+      >
+        {/* Date/time */}
         <div style={{ textAlign: 'center', minWidth: 52, flexShrink: 0 }}>
           <div style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', color: upcoming ? 'var(--acc)' : 'var(--txt)', lineHeight: 1.2 }}>{dateStr}</div>
           {session.start_time && <div style={{ fontSize: '.7rem', color: 'var(--muted)', marginTop: '.1rem' }}>{session.start_time}</div>}
         </div>
+
+        {/* Type + member list */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '.88rem', color: 'var(--txt)', fontFamily: 'var(--fd)' }}>{session.type_name}</div>
-          <div style={{ display: 'flex', gap: '.2rem', marginTop: '.3rem', flexWrap: 'wrap' }}>
-            {members.slice(0, 10).map(m => <Avatar key={m.user_id} url={m.avatar_url} name={m.leaderboard_name} size={24} />)}
-            {members.length > 10 && <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.6rem', color: 'var(--muted)' }}>+{members.length - 10}</div>}
+          <div style={{ fontSize: '.88rem', color: 'var(--txt)', fontFamily: 'var(--fd)', marginBottom: '.4rem' }}>{session.type_name}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '.25rem' }}>
+            {members.map(m => (
+              <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', gap: '.35rem' }}>
+                <Avatar url={m.avatar_url} name={m.leaderboard_name} size={22} />
+                {m.platoon_tag && (
+                  <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em', fontSize: '.72rem', color: m.platoon_badge_color || '#94a3b8', flexShrink: 0 }}>
+                    [{m.platoon_tag}]
+                  </span>
+                )}
+                <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, fontSize: '.8rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.leaderboard_name}
+                </span>
+                {m.leaderboard_rank != null && (
+                  <span style={{ fontSize: '.68rem', color: 'var(--muted)', flexShrink: 0 }}>#{m.leaderboard_rank}</span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-        {/* Match winner badge for versus */}
-        {session.war_winner_team != null && TC[session.war_winner_team] && (
-          <div style={{ flexShrink: 0, background: TC[session.war_winner_team].col + '18', border: `1px solid ${TC[session.war_winner_team].col}44`, borderRadius: 5, padding: '.25rem .6rem', fontSize: '.7rem', fontFamily: 'var(--fd)', color: TC[session.war_winner_team].col, whiteSpace: 'nowrap' }}>
-            {TC[session.war_winner_team].name} wins
-          </div>
-        )}
+
+        {/* Right side: winner badge + chevron */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '.35rem', flexShrink: 0 }}>
+          {session.war_winner_team != null && TC[session.war_winner_team] && (
+            <div style={{ background: TC[session.war_winner_team].col + '18', border: `1px solid ${TC[session.war_winner_team].col}44`, borderRadius: 5, padding: '.25rem .6rem', fontSize: '.7rem', fontFamily: 'var(--fd)', color: TC[session.war_winner_team].col, whiteSpace: 'nowrap' }}>
+              {TC[session.war_winner_team].name} wins
+            </div>
+          )}
+          {hasDetails && (
+            <span style={{ fontSize: '.75rem', color: 'var(--muted)', marginTop: '.1rem' }}>{expanded ? '▾' : '▸'}</span>
+          )}
+        </div>
       </div>
 
-      {/* Run details */}
-      {!upcoming && sortedGroups.length > 0 && (
+      {/* Run details — only when expanded */}
+      {expanded && !upcoming && sortedGroups.length > 0 && (
         <div style={{ padding: '.6rem .85rem' }}>
           {session.mode === 'versus' ? (
             sortedGroups.map(([runNum, grp]) => {
@@ -1184,6 +1243,7 @@ function SessionCard({ session, upcoming }) {
 // ── SettingsTab ───────────────────────────────────────────────────────────────
 
 function SettingsTab({ platoon, onChanged, onDisbanded }) {
+  const [tag,          setTag]          = useState(platoon.tag)
   const [name,         setName]         = useState(platoon.name)
   const [desc,         setDesc]         = useState(platoon.description || '')
   const [isOpen,       setIsOpen]       = useState(platoon.is_open)
@@ -1206,9 +1266,12 @@ function SettingsTab({ platoon, onChanged, onDisbanded }) {
   }
 
   const doSave = async () => {
+    const cleanTag = tag.trim().toUpperCase()
+    if (!cleanTag || !/^[A-Z0-9]{2,5}$/.test(cleanTag)) return setErr('Tag must be 2–5 uppercase letters/digits.')
     if (!name.trim()) return setErr('Name is required.')
     setSaving(true); setErr(''); setSaved(false)
     try {
+      if (cleanTag !== platoon.tag) await updatePlatoonTag(cleanTag)
       await updatePlatoonSettings(name.trim(), desc.trim() || null, isOpen)
       await updatePlatoonBadgeColor(badgeColor)
       if (badgeFile) {
@@ -1219,7 +1282,9 @@ function SettingsTab({ platoon, onChanged, onDisbanded }) {
       setSaved(true)
       onChanged()
     } catch (e) {
-      if (e.message?.includes('unique')) setErr('That name is already taken.')
+      if (e.message?.includes('platoons_tag_unique') || e.message?.includes('unique') && e.message?.includes('tag')) setErr('That tag is already taken.')
+      else if (e.message?.includes('unique')) setErr('That name is already taken.')
+      else if (e.message?.includes('invalid_tag')) setErr('Tag must be 2–5 uppercase letters/digits.')
       else setErr(e.message || 'Failed to save.')
     }
     setSaving(false)
@@ -1278,6 +1343,19 @@ function SettingsTab({ platoon, onChanged, onDisbanded }) {
         />
         <div style={{ width: 28, height: 28, borderRadius: 5, background: /^#[0-9A-Fa-f]{6}$/.test(badgeColor) ? badgeColor : '#4ade80', border: '1px solid var(--bdr)', flexShrink: 0 }} />
         <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Used as tag accent &amp; badge background</span>
+      </div>
+
+      <div style={SECTION_HDR}>Platoon Tag</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem' }}>
+        <input
+          className="inp"
+          value={tag}
+          onChange={e => setTag(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5))}
+          placeholder="2–5 chars"
+          maxLength={5}
+          style={{ width: 100, fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.08em' }}
+        />
+        <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>2–5 uppercase letters &amp; digits · shown as [{tag || '???'}]</span>
       </div>
 
       <div style={SECTION_HDR}>Platoon Name</div>

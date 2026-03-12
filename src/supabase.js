@@ -1747,6 +1747,7 @@ export const transferPlatoonAdmin    = (newAdminUserId)       => rpc('transfer_p
 export const disbandPlatoon          = ()                     => rpc('disband_platoon',           {})
 export const postPlatoonMessage      = (platoonId, content)   => rpc('post_platoon_message',      { p_platoon_id: platoonId, p_content: content })
 export const deletePlatoonPost       = (postId)               => rpc('delete_platoon_post',       { p_post_id: postId })
+export const updatePlatoonTag        = (tag)                  => rpc('update_platoon_tag',         { p_tag: tag })
 export const updatePlatoonSettings   = (name, desc, isOpen)   => rpc('update_platoon_settings',   { p_name: name, p_description: desc, p_is_open: isOpen })
 export const updatePlatoonBadge      = (badgeUrl)             => rpc('update_platoon_badge',      { p_badge_url: badgeUrl })
 export const updatePlatoonBadgeColor = (color)               => rpc('update_platoon_badge_color', { p_color: color })

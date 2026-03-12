@@ -485,6 +485,67 @@ export function tmplSocialAuthInvite(data) {
   return { subject, html: layout(subject, body, null) }
 }
 
+// ── platoon_invite_received ──────────────────────────────────────────────────
+// data: { recipientName, platoonTag, platoonName, inviterName }
+export function tmplPlatoonInviteReceived(data, unsubLink) {
+  const subject = `You've Been Invited to Join [${data.platoonTag}] · ${BRAND}`
+  const body = `
+    ${heading('Platoon Invitation')}
+    ${para(`Hi ${data.recipientName},`)}
+    ${para(`<strong>${data.inviterName}</strong> has invited you to join the <strong>[${data.platoonTag}]</strong> ${data.platoonName} platoon on ${BRAND}.`)}
+    ${infoTable([
+      { label: 'Platoon',    value: `[${data.platoonTag}] ${data.platoonName}` },
+      { label: 'Invited By', value: data.inviterName },
+    ])}
+    ${alertBox('Log in to your portal and open the Platoon tab to accept or decline this invitation.')}
+    ${ctaButton('View Invitation', BASE_URL + '/?portal=customer')}
+  `
+  return { subject, html: layout(subject, body, unsubLink) }
+}
+
+// ── platoon_request_received ─────────────────────────────────────────────────
+// data: { recipientName, applicantName, platoonTag, platoonName, message }
+export function tmplPlatoonRequestReceived(data, unsubLink) {
+  const subject = `New Enlistment Request for [${data.platoonTag}] · ${BRAND}`
+  const body = `
+    ${heading('New Join Request')}
+    ${para(`Hi ${data.recipientName},`)}
+    ${para(`<strong>${data.applicantName}</strong> has requested to join <strong>[${data.platoonTag}]</strong> ${data.platoonName}.`)}
+    ${data.message ? infoTable([{ label: 'Message', value: data.message }]) : ''}
+    ${alertBox('Log in to your portal and open the Platoon → Members tab to approve or deny this request.')}
+    ${ctaButton('Review Request', BASE_URL + '/?portal=customer')}
+  `
+  return { subject, html: layout(subject, body, unsubLink) }
+}
+
+// ── platoon_request_approved ─────────────────────────────────────────────────
+// data: { recipientName, platoonTag, platoonName }
+export function tmplPlatoonRequestApproved(data, unsubLink) {
+  const subject = `Welcome to [${data.platoonTag}] — Request Approved · ${BRAND}`
+  const body = `
+    ${heading('Request Approved!')}
+    ${para(`Hi ${data.recipientName},`)}
+    ${para(`Your request to join <strong>[${data.platoonTag}]</strong> ${data.platoonName} has been approved. You are now a member of the platoon.`)}
+    ${alertBox(`Your [${data.platoonTag}] tag is now active and will appear on the leaderboard next to your name.`, C.ok)}
+    ${ctaButton('View Your Platoon', BASE_URL + '/?portal=customer')}
+  `
+  return { subject, html: layout(subject, body, unsubLink) }
+}
+
+// ── platoon_request_denied ───────────────────────────────────────────────────
+// data: { recipientName, platoonTag, platoonName }
+export function tmplPlatoonRequestDenied(data, unsubLink) {
+  const subject = `Enlistment Request Update for [${data.platoonTag}] · ${BRAND}`
+  const body = `
+    ${heading('Enlistment Update')}
+    ${para(`Hi ${data.recipientName},`)}
+    ${para(`Your request to join <strong>[${data.platoonTag}]</strong> ${data.platoonName} was not approved at this time.`)}
+    ${para('You can browse other platoons or create your own from the Platoon tab in your portal.', `font-size:13px;color:${C.muted};`)}
+    ${ctaButton('Explore Platoons', BASE_URL + '/?portal=customer')}
+  `
+  return { subject, html: layout(subject, body, unsubLink) }
+}
+
 // ── Template dispatch map ────────────────────────────────────────────────────
 // Maps email type → { category, buildFn }
 // category maps to the email_preferences column name
@@ -501,6 +562,10 @@ export const TEMPLATE_MAP = {
   merch_pickup_ready:     { category: 'merchandise',   build: tmplMerchPickupReady },
   store_credit_applied:   { category: 'bookings',      build: tmplStoreCreditApplied },
   newsletter:             { category: 'marketing',     build: tmplNewsletter },
-  welcome:                { category: null,            build: (d) => tmplWelcome(d) }, // transactional
-  social_auth_invite:     { category: null,            build: (d) => tmplSocialAuthInvite(d) }, // transactional
+  welcome:                  { category: null,            build: (d) => tmplWelcome(d) }, // transactional
+  social_auth_invite:       { category: null,            build: (d) => tmplSocialAuthInvite(d) }, // transactional
+  platoon_invite_received:  { category: 'social',        build: tmplPlatoonInviteReceived },
+  platoon_request_received: { category: 'social',        build: tmplPlatoonRequestReceived },
+  platoon_request_approved: { category: 'social',        build: tmplPlatoonRequestApproved },
+  platoon_request_denied:   { category: 'social',        build: tmplPlatoonRequestDenied },
 }

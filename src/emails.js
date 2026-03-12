@@ -129,3 +129,19 @@ export function emailWelcome(recipientId) {
 export function emailSocialAuthInvite(recipientId, { recipientName }) {
   return sendEmail('social_auth_invite', recipientId, { recipientName })
 }
+
+export function emailPlatoonInviteReceived(recipientId, { platoonTag, platoonName, inviterName }) {
+  return sendEmail('platoon_invite_received', recipientId, { platoonTag, platoonName, inviterName })
+}
+
+export function emailPlatoonRequestReceived(recipientIds, { applicantName, platoonTag, platoonName, message }) {
+  return sendEmail('platoon_request_received', recipientIds, { applicantName, platoonTag, platoonName, message })
+}
+
+export function emailPlatoonRequestApproved(recipientId, { platoonTag, platoonName }) {
+  return sendEmail('platoon_request_approved', recipientId, { platoonTag, platoonName })
+}
+
+export function emailPlatoonRequestDenied(recipientId, { platoonTag, platoonName }) {
+  return sendEmail('platoon_request_denied', recipientId, { platoonTag, platoonName })
+}
