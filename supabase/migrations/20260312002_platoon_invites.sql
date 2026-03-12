@@ -39,12 +39,11 @@ DROP POLICY IF EXISTS "invites_select" ON public.platoon_invites;
 DROP POLICY IF EXISTS "invites_insert" ON public.platoon_invites;
 DROP POLICY IF EXISTS "invites_delete" ON public.platoon_invites;
 
--- SELECT: allow authenticated so SECURITY DEFINER RPCs can read
-CREATE POLICY "invites_select" ON public.platoon_invites FOR SELECT TO authenticated USING (true);
--- INSERT / DELETE: allow authenticated so SECURITY DEFINER RPCs can write
--- (authorization lives inside the RPCs)
-CREATE POLICY "invites_insert" ON public.platoon_invites FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "invites_delete" ON public.platoon_invites FOR DELETE TO authenticated USING (true);
+-- No TO clause = applies to PUBLIC (all roles), covering SECURITY DEFINER
+-- functions that run as 'postgres'. Authorization lives inside the RPCs.
+CREATE POLICY "invites_select" ON public.platoon_invites FOR SELECT USING (true);
+CREATE POLICY "invites_insert" ON public.platoon_invites FOR INSERT WITH CHECK (true);
+CREATE POLICY "invites_delete" ON public.platoon_invites FOR DELETE USING (true);
 
 
 -- ────────────────────────────────────────────────────────────

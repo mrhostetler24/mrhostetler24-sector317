@@ -93,25 +93,25 @@ DROP POLICY IF EXISTS "join_requests_select"   ON public.platoon_join_requests;
 DROP POLICY IF EXISTS "join_requests_insert"   ON public.platoon_join_requests;
 DROP POLICY IF EXISTS "join_requests_delete"   ON public.platoon_join_requests;
 
--- SELECT: all authenticated users can read platoon data
-CREATE POLICY "platoons_select"        ON public.platoons              FOR SELECT TO authenticated USING (true);
-CREATE POLICY "platoon_members_select" ON public.platoon_members       FOR SELECT TO authenticated USING (true);
-CREATE POLICY "platoon_posts_select"   ON public.platoon_posts         FOR SELECT TO authenticated USING (true);
-CREATE POLICY "join_requests_select"   ON public.platoon_join_requests FOR SELECT TO authenticated USING (true);
+-- All policies apply to PUBLIC (no TO clause) so SECURITY DEFINER functions
+-- running as the 'postgres' role are also covered. Authorization logic lives
+-- inside the RPCs themselves, not in these policies.
+CREATE POLICY "platoons_select"        ON public.platoons              FOR SELECT USING (true);
+CREATE POLICY "platoon_members_select" ON public.platoon_members       FOR SELECT USING (true);
+CREATE POLICY "platoon_posts_select"   ON public.platoon_posts         FOR SELECT USING (true);
+CREATE POLICY "join_requests_select"   ON public.platoon_join_requests FOR SELECT USING (true);
 
--- INSERT / UPDATE / DELETE: allow authenticated so SECURITY DEFINER RPCs can write
--- (authorization logic lives inside the RPCs, not in these policies)
-CREATE POLICY "platoons_insert"        ON public.platoons              FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "platoons_update"        ON public.platoons              FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "platoons_delete"        ON public.platoons              FOR DELETE TO authenticated USING (true);
-CREATE POLICY "platoon_members_insert" ON public.platoon_members       FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "platoon_members_update" ON public.platoon_members       FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "platoon_members_delete" ON public.platoon_members       FOR DELETE TO authenticated USING (true);
-CREATE POLICY "join_requests_insert"   ON public.platoon_join_requests FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "join_requests_delete"   ON public.platoon_join_requests FOR DELETE TO authenticated USING (true);
-CREATE POLICY "platoon_posts_insert"   ON public.platoon_posts         FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "platoon_posts_update"   ON public.platoon_posts         FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "platoon_posts_delete"   ON public.platoon_posts         FOR DELETE TO authenticated USING (true);
+CREATE POLICY "platoons_insert"        ON public.platoons              FOR INSERT WITH CHECK (true);
+CREATE POLICY "platoons_update"        ON public.platoons              FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "platoons_delete"        ON public.platoons              FOR DELETE USING (true);
+CREATE POLICY "platoon_members_insert" ON public.platoon_members       FOR INSERT WITH CHECK (true);
+CREATE POLICY "platoon_members_update" ON public.platoon_members       FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "platoon_members_delete" ON public.platoon_members       FOR DELETE USING (true);
+CREATE POLICY "join_requests_insert"   ON public.platoon_join_requests FOR INSERT WITH CHECK (true);
+CREATE POLICY "join_requests_delete"   ON public.platoon_join_requests FOR DELETE USING (true);
+CREATE POLICY "platoon_posts_insert"   ON public.platoon_posts         FOR INSERT WITH CHECK (true);
+CREATE POLICY "platoon_posts_update"   ON public.platoon_posts         FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "platoon_posts_delete"   ON public.platoon_posts         FOR DELETE USING (true);
 
 
 -- ────────────────────────────────────────────────────────────
