@@ -63,6 +63,7 @@ const toUser = r => r ? ({
   credits:            r.credits         ?? 0,
   platoonTag:         r.platoon_tag        ?? null,
   platoonBadgeColor:  r.platoon_badge_color ?? null,
+  canBook:            r.can_book           ?? false,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -320,7 +321,7 @@ export async function createGuestUser({ name, phone, createdByUserId }) {
 }
 
 // Admin-only update via SECURITY DEFINER RPC (bypasses RLS for manager/admin editing other users)
-export async function updateUserAdmin(id, { name, phone, access, role, active, leaderboardName, hideFromLeaderboard }) {
+export async function updateUserAdmin(id, { name, phone, access, role, active, leaderboardName, hideFromLeaderboard, canBook }) {
   const params = {
     p_user_id: id,
     p_name:    name    ?? null,
@@ -331,6 +332,7 @@ export async function updateUserAdmin(id, { name, phone, access, role, active, l
   }
   if (leaderboardName      !== undefined) params.p_leaderboard_name      = leaderboardName
   if (hideFromLeaderboard  !== undefined) params.p_hide_from_leaderboard = hideFromLeaderboard
+  if (canBook              !== undefined) params.p_can_book              = canBook
   const { data, error } = await supabase.rpc('admin_update_user', params)
   if (error) throw error
   const row = Array.isArray(data) ? data[0] : data

@@ -1417,7 +1417,10 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             {!valid&&wDate&&<span style={{fontSize:".72rem",color:"var(--muted)"}}>Expired {fmtTS(wDate)}</span>}
           </div>
         </div>
-        <button className="btn btn-p" style={{flexShrink:0}} onClick={()=>setShowBook(true)}>+ Book Mission</button>
+        {user.canBook
+          ?<button className="btn btn-p" style={{flexShrink:0}} onClick={()=>setShowBook(true)}>+ Book Mission</button>
+          :<button className="btn btn-s" style={{flexShrink:0,opacity:.6,cursor:"default"}} disabled>Booking agent coming soon!</button>
+        }
       </div>
       {/* ── Top info row: Leaderboard + Rank combined · Store Credits ── */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:".75rem",marginBottom:"1.5rem"}}>
@@ -2009,6 +2012,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         ...(editUser.access==="customer"?{
           leaderboardName:editUser.leaderboardName||null,
           hideFromLeaderboard:editUser.hideFromLeaderboard??false,
+          canBook:editUser.canBook??false,
         }:{}),
       });
       setUsers(p=>p.map(u=>u.id===updated.id?updated:u));
@@ -2040,7 +2044,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const stF=editST||newST;const setSTF=fn=>editST?setEditST(p=>({...(typeof fn==="function"?fn(p):fn)})):setNewST(p=>({...(typeof fn==="function"?fn(p):fn)}));
   const wF=editWaiver||newWaiver;const setWF=fn=>editWaiver?setEditWaiver(p=>({...(typeof fn==="function"?fn(p):fn)})):setNewWaiver(p=>({...(typeof fn==="function"?fn(p):fn)}));
   const canManageUser=u=>{if(isAdmin)return true;if(isManager)return u.access!=="admin";return false;};
-  const saveRT=()=>{if(editRT)setResTypes(p=>p.map(rt=>rt.id===editRT.id?editRT:rt));else setResTypes(p=>[...p,{...newRT,id:`rt-${Date.now()}`,price:+newRT.price,maxPlayers:newRT.maxPlayers?+newRT.maxPlayers:null}]);showToast(editRT?"Updated":"Created");setModal(null);setEditRT(null);};
+  const saveRT=async()=>{try{const saved=await upsertResType({...rtF,price:+rtF.price,maxPlayers:rtF.maxPlayers?+rtF.maxPlayers:null});if(editRT)setResTypes(p=>p.map(rt=>rt.id===saved.id?saved:rt));else setResTypes(p=>[...p,saved]);showToast(editRT?"Updated":"Created");setModal(null);setEditRT(null);}catch(e){showToast("Error: "+e.message);}};
   const saveST=()=>{if(editST)sortTmpl(p=>p.map(st=>st.id===editST.id?editST:st));else sortTmpl(p=>[...p,{...newST,id:Date.now(),maxSessions:+newST.maxSessions}]);showToast(editST?"Updated":"Added");setModal(null);setEditST(null);};
   const saveWaiver=async()=>{
     try{
@@ -2171,9 +2175,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               <label>Leaderboard Name</label>
               <input value={editUser.leaderboardName||""} onChange={e=>setEditUser(p=>({...p,leaderboardName:e.target.value}))} placeholder={genDefaultLeaderboardName(editUser.name,editUser.phone)} maxLength={24}/>
             </div>
-            <label style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".75rem",cursor:"pointer",fontSize:".82rem",color:"var(--muted)"}}>
+            <label style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".45rem",cursor:"pointer",fontSize:".82rem",color:"var(--muted)"}}>
               <input type="checkbox" checked={editUser.hideFromLeaderboard??false} onChange={e=>setEditUser(p=>({...p,hideFromLeaderboard:e.target.checked}))} style={{accentColor:"var(--accB)",width:15,height:15,flexShrink:0}}/>
               Hide from all leaderboards
+            </label>
+            <label style={{display:"flex",alignItems:"center",gap:".5rem",marginBottom:".75rem",cursor:"pointer",fontSize:".82rem",color:"var(--muted)"}}>
+              <input type="checkbox" checked={editUser.canBook??false} onChange={e=>setEditUser(p=>({...p,canBook:e.target.checked}))} style={{accentColor:"var(--accB)",width:15,height:15,flexShrink:0}}/>
+              Can book missions
             </label>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"var(--surf2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".5rem .75rem",marginBottom:".5rem"}}>
               <span style={{fontSize:".82rem",color:"var(--muted)"}}>Store Credits: <strong style={{color:"var(--accB)"}}>{fmtMoney(editUser.credits??0)}</strong></span>
