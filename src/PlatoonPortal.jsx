@@ -934,8 +934,10 @@ function MembersTab({ platoon, myRole, userId, onChanged, onViewProfile }) {
             <div style={{ flex: 1, minWidth: 0, cursor: onViewProfile ? 'pointer' : 'default' }} onClick={() => onViewProfile && onViewProfile(m.user_id)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
                 <TierIcon totalRuns={m.total_runs} size={20} />
-                {m.leaderboard_rank && <span style={{ fontSize: '.72rem', color: 'var(--muted)', fontFamily: 'var(--fd)' }}>#{m.leaderboard_rank}</span>}
-                <span style={{ fontFamily: 'var(--fd)', fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.leaderboard_name}</span>
+                <span style={{ fontFamily: 'var(--fd)', fontSize: '.9rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {platoon.tag && <span style={{ color: platoon.badge_color || '#94a3b8', marginRight: '.25em' }}>[{platoon.tag}]</span>}
+                  {m.leaderboard_name}
+                </span>
                 <RoleChip role={m.role} />
               </div>
               <div style={{ fontSize: '.7rem', color: 'var(--muted)' }}>
