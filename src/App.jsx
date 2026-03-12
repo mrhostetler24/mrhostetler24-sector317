@@ -539,6 +539,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   const [selectedDay,setSelectedDay]=useState(todayStr());
   const [hideAdminShifts,setHideAdminShifts]=useState(true);
   const [allStaffSub,setAllStaffSub]=useState('roster');
+  const [myShiftsSub,setMyShiftsSub]=useState('upcoming');
   const [weekStart,setWeekStart]=useState(todayStr());
   const [assignModal,setAssignModal]=useState(null);
   const [assignTarget,setAssignTarget]=useState('');
@@ -659,26 +660,33 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         {isManager&&<button className={`tab${tab==="templates"?" on":""}`} onClick={()=>setTab("templates")}>Templates</button>}
         <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending'&&!blockIsResolved(b)).length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending'&&!blockIsResolved(b)).length}</span>}</button>
       </div>
-      {tab==="mine"&&<>
-        {isAdmin&&<div style={{marginBottom:'.5rem'}}>
-          <button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>
-            {hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}
-          </button>
-        </div>}
-        {!visMine.length&&<div className="empty"><div className="ei">📅</div><p>No shifts scheduled.</p></div>}
-        {visMine.map(s=><div key={s.id} className={`shift-card mine${s.conflicted?" conflict":""}`} style={{padding:'.5rem 1rem',flexWrap:'nowrap'}}>
-          <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,minWidth:160,flexShrink:0,color:s.conflicted?"var(--warnL)":"var(--accB)"}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
-          <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
-            <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
-            {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
-            {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
-            {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.7rem',flexShrink:0}}>Awaiting Manager</span>}
-            {s.conflicted&&s.conflictNote&&<span style={{fontSize:".78rem",color:"var(--warnL)",fontStyle:'italic',whiteSpace:'nowrap'}}>"{s.conflictNote}"</span>}
+      {tab==="mine"&&(()=>{
+        const mineUpcoming=visMine.filter(s=>s.date>=today);
+        const minePast=[...visMine.filter(s=>s.date<today)].reverse();
+        const mineDisplay=myShiftsSub==='upcoming'?mineUpcoming:minePast;
+        return <>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem',flexWrap:'wrap',gap:'.4rem'}}>
+            <div style={{display:'flex',gap:'.3rem'}}>
+              <button className={`btn btn-sm${myShiftsSub==='upcoming'?' btn-p':' btn-s'}`} onClick={()=>setMyShiftsSub('upcoming')}>Upcoming {mineUpcoming.length>0&&<span style={{marginLeft:'.2rem',opacity:.8}}>({mineUpcoming.length})</span>}</button>
+              <button className={`btn btn-sm${myShiftsSub==='past'?' btn-p':' btn-s'}`} onClick={()=>setMyShiftsSub('past')}>Past {minePast.length>0&&<span style={{marginLeft:'.2rem',opacity:.8}}>({minePast.length})</span>}</button>
+            </div>
+            {isAdmin&&<button className="btn btn-s btn-sm" style={{opacity:hideAdminShifts?.6:1}} onClick={()=>setHideAdminShifts(p=>!p)}>{hideAdminShifts?'Show Admin Shifts':'Hide Admin Shifts'}</button>}
           </div>
-          {!s.conflicted&&s.date>=today&&<button className="btn btn-warn btn-sm" style={{flexShrink:0}} onClick={()=>{setCNote("");setConflictModal(s);}}>Flag Conflict</button>}
-        </div>)}
-        {!isManager&&<StaffStandardSchedule userId={currentUser.id}/>}
-      </>}
+          {!mineDisplay.length&&<div className="empty"><div className="ei">📅</div><p>{myShiftsSub==='upcoming'?'No upcoming shifts.':'No past shifts.'}</p></div>}
+          {mineDisplay.map(s=><div key={s.id} className={`shift-card mine${s.conflicted?" conflict":""}`} style={{padding:'.5rem 1rem',flexWrap:'nowrap',opacity:myShiftsSub==='past'?.7:1}}>
+            <div style={{fontFamily:"var(--fd)",fontSize:".92rem",fontWeight:700,minWidth:160,flexShrink:0,color:s.conflicted?"var(--warnL)":myShiftsSub==='past'?"var(--muted)":"var(--accB)"}}>{getDayName(s.date)+', '+fmt(s.date)}</div>
+            <div style={{flex:1,display:'flex',alignItems:'center',gap:'.55rem',flexWrap:'wrap',minWidth:0}}>
+              <span style={{fontSize:".88rem",color:"var(--txt)",whiteSpace:'nowrap'}}>{fmt12(s.start)}–{fmt12(s.end)}</span>
+              {fmtDur(s.start,s.end)&&<span style={{fontSize:".82rem",color:"var(--muted)",whiteSpace:'nowrap'}}>{fmtDur(s.start,s.end)}</span>}
+              {s.role&&<span style={{fontSize:".73rem",background:"var(--surf2)",color:"var(--txt)",borderRadius:3,padding:".1rem .4rem",border:"1px solid var(--bdr)",flexShrink:0,whiteSpace:'nowrap'}}>{s.role}</span>}
+              {s.conflicted&&<span className="badge b-conflict" style={{fontSize:'.7rem',flexShrink:0}}>Awaiting Manager</span>}
+              {s.conflicted&&s.conflictNote&&<span style={{fontSize:".78rem",color:"var(--warnL)",fontStyle:'italic',whiteSpace:'nowrap'}}>"{s.conflictNote}"</span>}
+            </div>
+            {!s.conflicted&&s.date>=today&&<button className="btn btn-warn btn-sm" style={{flexShrink:0}} onClick={()=>{setCNote("");setConflictModal(s);}}>Flag Conflict</button>}
+          </div>)}
+          {!isManager&&myShiftsSub==='upcoming'&&<StaffStandardSchedule userId={currentUser.id}/>}
+        </>;
+      })()}
       {tab==="conflict"&&isManager&&<>
         {!conflicts.length&&<div className="empty"><div className="ei">✅</div><p>No conflicted shifts.</p></div>}
         {conflicts.map(s=>{const orig=getU(s.staffId);return <div key={s.id} className="shift-card conflict" style={{padding:'.5rem 1rem',flexDirection:'column',gap:'.35rem'}}>
