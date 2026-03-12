@@ -336,18 +336,19 @@ GRANT EXECUTE ON FUNCTION public.get_platoon_upcoming(uuid) TO authenticated;
 
 
 -- ── 4.8 create_platoon ───────────────────────────────────────
+-- Returns the new platoon's uuid (avoids OUT-param name conflicts with column names)
 CREATE OR REPLACE FUNCTION public.create_platoon(
   p_tag         text,
   p_name        text,
   p_description text DEFAULT NULL,
   p_is_open     boolean DEFAULT true
 )
-RETURNS TABLE (id uuid, tag text, name text)
+RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_user_id uuid;
+  v_user_id    uuid;
   v_platoon_id uuid;
-  v_tag text;
+  v_tag        text;
 BEGIN
   v_user_id := private_get_my_user_id();
   v_tag := UPPER(TRIM(p_tag));
@@ -360,7 +361,7 @@ BEGIN
   -- Create platoon
   INSERT INTO public.platoons (tag, name, description, is_open, created_by)
   VALUES (v_tag, TRIM(p_name), TRIM(p_description), p_is_open, v_user_id)
-  RETURNING public.platoons.id INTO v_platoon_id;
+  RETURNING platoons.id INTO v_platoon_id;
 
   -- Add creator as admin
   INSERT INTO public.platoon_members (platoon_id, user_id, role)
@@ -369,7 +370,7 @@ BEGIN
   -- Update denormalized tag
   UPDATE public.users SET platoon_tag = v_tag WHERE id = v_user_id;
 
-  RETURN QUERY SELECT v_platoon_id, v_tag, TRIM(p_name);
+  RETURN v_platoon_id;
 END;
 $$;
 GRANT EXECUTE ON FUNCTION public.create_platoon(text, text, text, boolean) TO authenticated;

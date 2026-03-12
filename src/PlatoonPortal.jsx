@@ -328,10 +328,10 @@ function PlatoonCreateModal({ onClose, onCreated }) {
 
     setSaving(true); setErr('')
     try {
-      const rows = await createPlatoon(cleanTag, cleanName, desc.trim() || null, isOpen)
-      const created = Array.isArray(rows) ? rows[0] : rows
-      if (badgeFile && created?.id) {
-        const url = await uploadPlatoonBadge(created.id, badgeFile)
+      const result = await createPlatoon(cleanTag, cleanName, desc.trim() || null, isOpen)
+      const platoonId = Array.isArray(result) ? result[0] : result
+      if (badgeFile && platoonId) {
+        const url = await uploadPlatoonBadge(platoonId, badgeFile)
         await updatePlatoonBadge(url)
       }
       onCreated()
