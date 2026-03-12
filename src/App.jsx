@@ -2371,8 +2371,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const audLineS=arr=>{if(!arr.length)return"—";return Object.entries(audAbbr).map(([k,n])=>{const p=audPct(arr,k);return p>0?`${n} ${p}%`:null;}).filter(Boolean).join(" · ")||"—";};
             const topViz=arr=>{if(!arr.length)return null;const cnts={};arr.forEach(r=>{cnts[r.visual]=(cnts[r.visual]||0)+1;});const [k,c]=Object.entries(cnts).sort((a,b)=>b[1]-a[1])[0]??[];return k?{code:k,name:vizNames[k]??k,pct:Math.round(c/arr.length*100)}:null;};
             const topAud=arr=>{if(!arr.length)return null;const cnts={};arr.forEach(r=>{const k=r.audio??(r.cranked?'C':'T');cnts[k]=(cnts[k]||0)+1;});const [k,c]=Object.entries(cnts).sort((a,b)=>b[1]-a[1])[0]??[];return k?{code:k,name:audNames[k]??k,pct:Math.round(c/arr.length*100)}:null;};
-            const vizColor={V:"#dce3ef",C:"#a78bfa",R:"#f472b6",S:"#60a5fa",B:"#3d6080"};
-            const vizExtra={B:{textShadow:"0 0 10px rgba(100,160,255,.55),0 0 24px rgba(60,120,230,.25)"}};
+            const vizColor={V:"#dce3ef",C:"#a78bfa",R:"#f472b6",S:"#60a5fa",B:"#1a2533"};
+            const vizExtra={B:{textShadow:"0 0 8px rgba(255,255,255,.9),0 0 18px rgba(255,255,255,.55),0 0 32px rgba(255,255,255,.2)"}};
             const audColor={O:"var(--muted)",T:"var(--accB)",C:"#f97316"};
             // Avg run time
             const fmtSec=s=>s===null?"—":`${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
