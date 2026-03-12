@@ -207,6 +207,7 @@
     .player-name-row { display:flex; align-items:center; gap:.55rem; }
     .player-name { font-family:var(--fc); font-weight:700; font-size:1.05rem; letter-spacing:.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .player-meta { font-size:.72rem; color:var(--muted); margin-top:.16rem; font-family:var(--fc); letter-spacing:.02em; }
+    .platoon-tag { color:#94a3b8; font-size:.78em; font-family:var(--fc); letter-spacing:.03em; flex-shrink:0; }
     .time-note { color:var(--acc2); font-weight:600; }
 
     /* Tier badges */
@@ -527,7 +528,7 @@ function buildRowsHtml(rows, period, mode, maxScore){
     return `<tr>
       <td class="rank-cell ${rc}">${rankDisp(rank)}</td>
       <td>
-        <div class="player-name-row">${icon}<span class="player-name">${esc(r.player_name??'Unknown')}</span> ${badge}</div>
+        <div class="player-name-row">${icon}${r.platoon_tag?`<span class="platoon-tag">[${esc(r.platoon_tag)}]</span> `:''}<span class="player-name">${esc(r.player_name??'Unknown')}</span> ${badge}</div>
         <div class="player-meta">${runsLbl}${timeStr?' &nbsp;·&nbsp; '+timeStr:''}</div>
         <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${pct}%"></div></div>
       </td>

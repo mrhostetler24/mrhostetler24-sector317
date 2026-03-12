@@ -1,7 +1,8 @@
 // src/SocialPortal.jsx
-// Social tab for the Customer Portal — Profile, Friends, Connect.
+// Social tab for the Customer Portal — Profile, Friends, Connect, Platoon.
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import PlatoonPortal from './PlatoonPortal.jsx'
 import {
   uploadAvatar, updateOwnAvatar, updateSocialProfile, updateSocialLinks,
   sendFriendRequest, cancelFriendRequest, acceptFriendRequest, rejectFriendRequest,
@@ -374,9 +375,12 @@ function FriendProfileModal({ userId, users, onClose }) {
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--fd)', fontSize: '1.2rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.leaderboard_name}</div>
               {profile.real_name && <div style={{ fontSize: '.82rem', color: 'var(--muted)', marginTop: '.1rem' }}>{profile.real_name}</div>}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginTop: '.35rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', marginTop: '.35rem', flexWrap: 'wrap' }}>
                 <TierImg tierKey={tier.key} />
                 <span style={{ fontFamily: 'var(--fd)', fontSize: '.75rem', color: tierCol, textTransform: 'uppercase', letterSpacing: '.06em' }}>{tier.name}</span>
+                {['staff','manager','admin'].includes(profile.access) && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#1e3a5f', color: '#60a5fa', border: '1px solid #2563eb', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', fontWeight: 700, letterSpacing: '.04em' }}>⚔ STAFF</span>
+                )}
               </div>
             </div>
           </div>
@@ -845,6 +849,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           )}
         </button>
         <button className={`tab${tab === 'connect' ? ' on' : ''}`} onClick={() => setTab('connect')}>Connect</button>
+        <button className={`tab${tab === 'platoon' ? ' on' : ''}`} onClick={() => setTab('platoon')}>Platoon</button>
       </div>
 
       {/* ════════════════════════════════════════════════════════
@@ -884,6 +889,9 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 </div>
               )
             })()}
+            {['staff','manager','admin'].includes(user.access) && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#1e3a5f', color: '#60a5fa', border: '1px solid #2563eb', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', fontWeight: 700, letterSpacing: '.04em', marginTop: '.4rem' }}>⚔ STAFF</span>
+            )}
             {user.motto && !editing && (
               <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontStyle: 'italic', marginTop: '.4rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{user.motto}"</div>
             )}
@@ -1259,6 +1267,13 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           </div>
 
         </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════
+          PLATOON TAB
+      ════════════════════════════════════════════════════════ */}
+      {tab === 'platoon' && (
+        <PlatoonPortal user={user} users={users} setUsers={setUsers} />
       )}
     </>
   )

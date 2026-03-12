@@ -61,6 +61,7 @@ const toUser = r => r ? ({
   hideBio:            r.hide_bio        ?? false,
   socialLinks:        r.social_links    ?? [],
   credits:            r.credits         ?? 0,
+  platoonTag:         r.platoon_tag     ?? null,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -1715,6 +1716,44 @@ export const fetchSentRequests = async (userId) => {
     .select('id, to_user_id, created_at')
     .eq('from_user_id', userId)
     .order('created_at', { ascending: false })
+}
+
+// ============================================================
+// PLATOONS
+// ============================================================
+
+const rpc = (fn, params) => supabase.rpc(fn, params).then(r => { if (r.error) throw r.error; return r.data })
+
+export const searchPlatoons          = (query = '')           => rpc('search_platoons',          { p_query: query })
+export const getPlatoonForUser       = (userId)               => rpc('get_platoon_for_user',      { p_user_id: userId })
+export const getPlatoonMembers       = (platoonId)            => rpc('get_platoon_members',       { p_platoon_id: platoonId })
+export const getPlatoonJoinRequests  = ()                     => rpc('get_platoon_join_requests', {})
+export const getPlatoonPosts         = (platoonId, limit=20, offset=0) => rpc('get_platoon_posts', { p_platoon_id: platoonId, p_limit: limit, p_offset: offset })
+export const getPlatoonSessions      = (platoonId)            => rpc('get_platoon_sessions',      { p_platoon_id: platoonId })
+export const getPlatoonUpcoming      = (platoonId)            => rpc('get_platoon_upcoming',      { p_platoon_id: platoonId })
+export const createPlatoon           = (tag, name, desc, isOpen) => rpc('create_platoon',         { p_tag: tag, p_name: name, p_description: desc, p_is_open: isOpen })
+export const joinPlatoon             = (platoonId)            => rpc('join_platoon',              { p_platoon_id: platoonId })
+export const requestToJoin           = (platoonId, message)   => rpc('request_to_join',           { p_platoon_id: platoonId, p_message: message })
+export const cancelJoinRequest       = (platoonId)            => rpc('cancel_join_request',       { p_platoon_id: platoonId })
+export const approveJoinRequest      = (requestId)            => rpc('approve_join_request',      { p_request_id: requestId })
+export const denyJoinRequest         = (requestId)            => rpc('deny_join_request',         { p_request_id: requestId })
+export const goAwol                  = ()                     => rpc('go_awol',                   {})
+export const kickPlatoonMember       = (targetUserId)         => rpc('kick_platoon_member',       { p_target_user_id: targetUserId })
+export const setPlatoonMemberRole    = (targetUserId, role)   => rpc('set_platoon_member_role',   { p_target_user_id: targetUserId, p_new_role: role })
+export const transferPlatoonAdmin    = (newAdminUserId)       => rpc('transfer_platoon_admin',    { p_new_admin_user_id: newAdminUserId })
+export const disbandPlatoon          = ()                     => rpc('disband_platoon',           {})
+export const postPlatoonMessage      = (platoonId, content)   => rpc('post_platoon_message',      { p_platoon_id: platoonId, p_content: content })
+export const deletePlatoonPost       = (postId)               => rpc('delete_platoon_post',       { p_post_id: postId })
+export const updatePlatoonSettings   = (name, desc, isOpen)   => rpc('update_platoon_settings',   { p_name: name, p_description: desc, p_is_open: isOpen })
+export const updatePlatoonBadge      = (badgeUrl)             => rpc('update_platoon_badge',      { p_badge_url: badgeUrl })
+
+export const uploadPlatoonBadge = async (platoonId, file) => {
+  const ext = file.name.split('.').pop()
+  const path = `platoon-badges/${platoonId}.${ext}`
+  const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  return data.publicUrl + '?v=' + Date.now()
 }
 
 // ============================================================
