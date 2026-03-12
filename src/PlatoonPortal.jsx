@@ -10,7 +10,7 @@ import {
   approveJoinRequest, denyJoinRequest,
   goAwol, kickPlatoonMember, setPlatoonMemberRole, transferPlatoonAdmin,
   disbandPlatoon, postPlatoonMessage, deletePlatoonPost,
-  updatePlatoonSettings, updatePlatoonBadge, uploadPlatoonBadge,
+  updatePlatoonSettings, updatePlatoonBadge, updatePlatoonBadgeColor, uploadPlatoonBadge,
   searchInvitablePlayers, inviteToPlatoon,
   getMyPlatoonInvites, acceptPlatoonInvite, declinePlatoonInvite,
 } from './supabase.js'
@@ -304,8 +304,8 @@ function PlatoonFinder({ userId, onJoined }) {
           {invites.map(inv => (
             <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '.85rem', padding: '.65rem', background: 'var(--surf2)', border: '1px solid #2563eb44', borderRadius: 8, marginBottom: '.4rem' }}>
               {inv.platoon_badge_url
-                ? <img src={inv.platoon_badge_url} style={{ width: 38, height: 38, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} alt="" />
-                : <div style={{ width: 38, height: 38, borderRadius: 6, background: 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>🎖️</div>}
+                ? <img src={inv.platoon_badge_url} style={{ width: 52, height: 52, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} alt="" />
+                : <div style={{ width: 52, height: 52, borderRadius: 8, background: inv.platoon_badge_color || 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0 }}>🎖️</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
                   <TagChip tag={inv.platoon_tag} />
@@ -370,8 +370,8 @@ function PlatoonFinder({ userId, onJoined }) {
           onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--bdr)'}
         >
           {p.badge_url
-            ? <img src={p.badge_url} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} alt="" />
-            : <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>🎖️</div>}
+            ? <img src={p.badge_url} style={{ width: 54, height: 54, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} alt="" />
+            : <div style={{ width: 54, height: 54, borderRadius: 8, background: p.badge_color || 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>🎖️</div>}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
               <TagChip tag={p.tag} />
@@ -435,8 +435,8 @@ function PlatoonDetailModal({ platoon, onClose, onJoined }) {
       <div style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 10, padding: '1.5rem', maxWidth: 420, width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
           {platoon.badge_url
-            ? <img src={platoon.badge_url} style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} alt="" />
-            : <div style={{ width: 56, height: 56, borderRadius: 8, background: 'var(--surf2)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem' }}>🎖️</div>}
+            ? <img src={platoon.badge_url} style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} alt="" />
+            : <div style={{ width: 72, height: 72, borderRadius: 10, background: platoon.badge_color || 'var(--surf2)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>🎖️</div>}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
               <TagChip tag={platoon.tag} />
@@ -631,8 +631,8 @@ function PlatoonHome({ platoon, myRole, userId, pendingCount, onLeft, onChanged 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '.85rem', marginBottom: '1rem', padding: '.75rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8 }}>
         {platoon.badge_url
-          ? <img src={platoon.badge_url} style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} alt="" />
-          : <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0 }}>🎖️</div>}
+          ? <img src={platoon.badge_url} style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} alt="" />
+          : <div style={{ width: 64, height: 64, borderRadius: 10, background: platoon.badge_color || 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', flexShrink: 0 }}>🎖️</div>}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
             <TagChip tag={platoon.tag} style={{ fontSize: '.9em' }} />
@@ -1014,16 +1014,17 @@ function SessionCard({ session, upcoming }) {
 // ── SettingsTab ───────────────────────────────────────────────────────────────
 
 function SettingsTab({ platoon, onChanged, onDisbanded }) {
-  const [name,       setName]       = useState(platoon.name)
-  const [desc,       setDesc]       = useState(platoon.description || '')
-  const [isOpen,     setIsOpen]     = useState(platoon.is_open)
-  const [badgeFile,  setBadgeFile]  = useState(null)
+  const [name,         setName]         = useState(platoon.name)
+  const [desc,         setDesc]         = useState(platoon.description || '')
+  const [isOpen,       setIsOpen]       = useState(platoon.is_open)
+  const [badgeFile,    setBadgeFile]    = useState(null)
   const [badgePreview, setBadgePreview] = useState(platoon.badge_url || null)
-  const [saving,     setSaving]     = useState(false)
-  const [err,        setErr]        = useState('')
-  const [saved,      setSaved]      = useState(false)
-  const [showDisband, setShowDisband] = useState(false)
-  const [disbanding, setDisbanding] = useState(false)
+  const [badgeColor,   setBadgeColor]   = useState(platoon.badge_color || '#4ade80')
+  const [saving,       setSaving]       = useState(false)
+  const [err,          setErr]          = useState('')
+  const [saved,        setSaved]        = useState(false)
+  const [showDisband,  setShowDisband]  = useState(false)
+  const [disbanding,   setDisbanding]   = useState(false)
 
   const handleBadge = (e) => {
     const f = e.target.files[0]
@@ -1039,6 +1040,7 @@ function SettingsTab({ platoon, onChanged, onDisbanded }) {
     setSaving(true); setErr(''); setSaved(false)
     try {
       await updatePlatoonSettings(name.trim(), desc.trim() || null, isOpen)
+      await updatePlatoonBadgeColor(badgeColor)
       if (badgeFile) {
         const url = await uploadPlatoonBadge(platoon.id, badgeFile)
         await updatePlatoonBadge(url)
@@ -1071,7 +1073,7 @@ function SettingsTab({ platoon, onChanged, onDisbanded }) {
       <div style={SECTION_HDR}>Platoon Badge</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <label style={{ cursor: 'pointer' }}>
-          <div style={{ width: 72, height: 72, borderRadius: 10, background: 'var(--surf2)', border: '2px dashed var(--bdr)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 72, height: 72, borderRadius: 10, background: badgePreview ? 'transparent' : badgeColor, border: '2px dashed var(--bdr)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {badgePreview
               ? <img src={badgePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
               : <span style={{ fontSize: '2rem' }}>🎖️</span>}
@@ -1079,6 +1081,33 @@ function SettingsTab({ platoon, onChanged, onDisbanded }) {
           <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleBadge} />
         </label>
         <div style={{ fontSize: '.78rem', color: 'var(--muted)' }}>Click to change logo</div>
+      </div>
+
+      <div style={SECTION_HDR}>Badge Color</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
+        <input
+          type="color"
+          value={/^#[0-9A-Fa-f]{6}$/.test(badgeColor) ? badgeColor : '#4ade80'}
+          onChange={e => setBadgeColor(e.target.value)}
+          style={{ width: 40, height: 40, padding: 2, borderRadius: 6, border: '1px solid var(--bdr)', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+        />
+        <input
+          className="inp"
+          value={badgeColor}
+          onChange={e => {
+            const v = e.target.value
+            setBadgeColor(v)
+          }}
+          onBlur={e => {
+            const v = e.target.value.trim()
+            if (!/^#[0-9A-Fa-f]{6}$/.test(v)) setBadgeColor('#4ade80')
+          }}
+          maxLength={7}
+          placeholder="#4ade80"
+          style={{ width: 100, fontFamily: 'monospace' }}
+        />
+        <div style={{ width: 28, height: 28, borderRadius: 5, background: /^#[0-9A-Fa-f]{6}$/.test(badgeColor) ? badgeColor : '#4ade80', border: '1px solid var(--bdr)', flexShrink: 0 }} />
+        <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Used as tag accent &amp; badge background</span>
       </div>
 
       <div style={SECTION_HDR}>Platoon Name</div>
