@@ -333,10 +333,25 @@ const VIZ_COLORS = {
 }
 const AUD_COLORS = { T: '#38bdf8', C: '#f97316', O: '#64748b' }
 
+function fmtPhone(digits) {
+  if (!digits) return null
+  const d = digits.replace(/\D/g, '').slice(-10)
+  if (d.length < 10) return digits
+  return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
+}
+
 function FriendProfileModal({ userId, users, onClose }) {
   const [profile, setProfile] = useState(null)
   const [ext, setExt]         = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const handler = e => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -357,7 +372,28 @@ function FriendProfileModal({ userId, users, onClose }) {
   const tierCol = TIER_COLORS[tier?.key] ?? 'var(--muted)'
 
   const hasEnv = !!ext
-  const hasProfile = profile && (profile.profession || profile.home_base_city || profile.home_base_state || profile.bio || profile.motto || profile.phone_last4 || profile.email)
+  const hasProfile = profile && (profile.profession || profile.home_base_city || profile.home_base_state || profile.bio || profile.motto || profile.phone || profile.email)
+
+  const handleDownloadVCard = () => {
+    if (!profile) return
+    const lines = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `FN:${profile.leaderboard_name}`,
+      profile.phone ? `TEL;TYPE=CELL:+1${profile.phone.replace(/\D/g,'')}` : null,
+      profile.email ? `EMAIL:${profile.email}` : null,
+      'URL:https://www.sector317.com/',
+      'NOTE:Sector 317 player — sector317.com',
+      'END:VCARD',
+    ].filter(Boolean).join('\r\n')
+    const blob = new Blob([lines], { type: 'text/vcard' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${profile.leaderboard_name}.vcf`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div
@@ -460,10 +496,13 @@ function FriendProfileModal({ userId, users, onClose }) {
             <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem', display: 'flex', flexDirection: 'column', gap: '.35rem', fontSize: '.85rem' }}>
               {profile.profession && <div><span style={{ color: 'var(--muted)' }}>Profession: </span><span style={{ color: 'var(--txt)' }}>{profile.profession}</span></div>}
               {(profile.home_base_city || profile.home_base_state) && <div><span style={{ color: 'var(--muted)' }}>Home Base: </span><span style={{ color: 'var(--txt)' }}>{[profile.home_base_city, profile.home_base_state].filter(Boolean).join(', ')}</span></div>}
-              {profile.phone_last4 && <div><span style={{ color: 'var(--muted)' }}>Phone: </span><span style={{ color: 'var(--txt)' }}>••••{profile.phone_last4}</span></div>}
-              {profile.email && <div><span style={{ color: 'var(--muted)' }}>Email: </span><span style={{ color: 'var(--txt)', wordBreak: 'break-all' }}>{profile.email}</span></div>}
+              {profile.phone && <div><span style={{ color: 'var(--muted)' }}>Phone: </span><span style={{ color: 'var(--txt)' }}>{fmtPhone(profile.phone)}</span></div>}
+              {profile.email && <div><span style={{ color: 'var(--muted)' }}>Email: </span><a href={`mailto:${profile.email}`} style={{ color: 'var(--accB)', wordBreak: 'break-all', textDecoration: 'none' }}>{profile.email}</a></div>}
               {profile.motto && <div style={{ fontStyle: 'italic', color: 'var(--muted)', marginTop: '.1rem' }}>"{profile.motto}"</div>}
               {profile.bio && <div style={{ color: 'var(--txt)', lineHeight: 1.5, marginTop: '.15rem' }}>{profile.bio}</div>}
+              {isMobile && (profile.phone || profile.email) && (
+                <button onClick={handleDownloadVCard} style={{ marginTop: '.6rem', background: 'none', border: '1px solid var(--bdr)', borderRadius: 5, color: 'var(--muted)', cursor: 'pointer', fontSize: '.78rem', padding: '.3rem .65rem', alignSelf: 'flex-start' }}>⬇ Save Contact</button>
+              )}
             </div>
           </>)}
 

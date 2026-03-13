@@ -1932,6 +1932,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dashFrom,setDashFrom]=useState("");
   const [dashTo,setDashTo]=useState("");
   const [recentPage,setRecentPage]=useState(0);
+  const [runPage,setRunPage]=useState(0);
+  const [userPage,setUserPage]=useState(0);
   const [dashViewTab,setDashViewTab]=useState("bookings");
   const [acknowledgedFlags,setAcknowledgedFlags]=useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("ack-flags")||"[]"))}catch{return new Set()}});
   const [dismissedDups,setDismissedDups]=useState([]);
@@ -2469,8 +2471,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           return <div className="tw">
             <div className="th" style={{gap:".5rem",flexWrap:"wrap"}}>
               <button style={tabBtnStyle(dashViewTab==="bookings")} onClick={()=>{setDashViewTab("bookings");setRecentPage(0);}}>Bookings <span style={{opacity:.65}}>({recentSorted.length})</span></button>
-              <button style={tabBtnStyle(dashViewTab==="runs")} onClick={()=>setDashViewTab("runs")}>Runs <span style={{opacity:.65}}>({recentRuns.length})</span></button>
-              <button style={tabBtnStyle(dashViewTab==="users")} onClick={()=>setDashViewTab("users")}>New Users <span style={{opacity:.65}}>({recentUsers.length})</span></button>
+              <button style={tabBtnStyle(dashViewTab==="runs")} onClick={()=>{setDashViewTab("runs");setRunPage(0);}}>Runs <span style={{opacity:.65}}>({recentRuns.length})</span></button>
+              <button style={tabBtnStyle(dashViewTab==="users")} onClick={()=>{setDashViewTab("users");setUserPage(0);}}>New Users <span style={{opacity:.65}}>({recentUsers.length})</span></button>
               <button style={{...tabBtnStyle(dashViewTab==="flags"),borderColor:visibleFlagRows.length>0&&dashViewTab!=="flags"?"#e07060":"",color:visibleFlagRows.length>0&&dashViewTab!=="flags"?"#e07060":""}} onClick={()=>setDashViewTab("flags")}>⚑ Flags <span style={{opacity:.65}}>({visibleFlagRows.length})</span></button>
               <span style={{marginLeft:"auto",fontSize:".73rem",color:"var(--muted)"}}>last 30 days</span>
             </div>
@@ -2487,10 +2489,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               </div>}
             </>}
 
-            {dashViewTab==="runs"&&<>
+            {dashViewTab==="runs"&&(()=>{const rpSize=50;const rpTotal=Math.ceil(recentRuns.length/rpSize)||1;const rpRows=recentRuns.slice(runPage*rpSize,(runPage+1)*rpSize);return<>
               <table><thead><tr><th>Scored</th><th>Customer</th><th>Session</th><th>Visual</th><th>Audio</th><th>Time</th><th>Score</th></tr></thead>
                 <tbody>{!recentRuns.length&&<tr><td colSpan={7} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No runs in last 30 days.</td></tr>}
-                {recentRuns.map(r=>{const res=resMap[r.reservationId];const rt=res?getType(res.typeId):null;return <tr key={r.id}>
+                {rpRows.map(r=>{const res=resMap[r.reservationId];const rt=res?getType(res.typeId):null;return <tr key={r.id}>
                   <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{r.createdAt?fmt(r.createdAt.slice(0,10)):""}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td>
                   <td><div>{res?.customerName||"—"}</div><div style={{fontSize:".72rem",color:"var(--muted)"}}>{res?`${fmt(res.date)} ${fmt12(res.startTime)}`:""}</div></td>
                   <td>{rt&&<><span className={`badge b-${rt.mode}`} style={{marginRight:".3rem"}}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}</td>
@@ -2501,7 +2503,12 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 </tr>;})}
                 </tbody>
               </table>
-            </>}
+              {rpTotal>1&&<div style={{display:"flex",gap:".5rem",justifyContent:"center",padding:".75rem 0",alignItems:"center"}}>
+                <button className="btn btn-sm btn-s" disabled={runPage===0} onClick={()=>setRunPage(p=>p-1)}>← Prev</button>
+                <span style={{fontSize:".8rem",color:"var(--muted)"}}>{runPage+1} / {rpTotal}</span>
+                <button className="btn btn-sm btn-s" disabled={runPage>=rpTotal-1} onClick={()=>setRunPage(p=>p+1)}>Next →</button>
+              </div>}
+            </>;})()}
 
             {dashViewTab==="flags"&&<>
               {!visibleFlagRows.length&&<div style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem .5rem"}}>{flagRows.length>0?"All flags acknowledged.":"No unpaid, cancelled, or no-show reservations to show."}</div>}
@@ -2523,10 +2530,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               </div>
             </>}
 
-            {dashViewTab==="users"&&<>
+            {dashViewTab==="users"&&(()=>{const upSize=50;const upTotal=Math.ceil(recentUsers.length/upSize)||1;const upRows=recentUsers.slice(userPage*upSize,(userPage+1)*upSize);return<>
               <table><thead><tr><th>Created</th><th>Name</th><th>Phone</th><th>Access</th><th>Auth</th><th>Created By</th></tr></thead>
                 <tbody>{!recentUsers.length&&<tr><td colSpan={6} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No new users in last 30 days.</td></tr>}
-                {recentUsers.map(u=>{const creator=u.createdByUserId?userById[u.createdByUserId]:null;return <tr key={u.id}>
+                {upRows.map(u=>{const creator=u.createdByUserId?userById[u.createdByUserId]:null;return <tr key={u.id}>
                   <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{fmt(u.createdAt.slice(0,10))}<br/>{new Date(u.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</td>
                   <td><strong>{u.name||"—"}</strong><div style={{fontSize:".72rem",color:"var(--muted)"}}>{u.email||""}</div></td>
                   <td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(u.phone)}</td>
@@ -2536,7 +2543,12 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 </tr>;})}
                 </tbody>
               </table>
-            </>}
+              {upTotal>1&&<div style={{display:"flex",gap:".5rem",justifyContent:"center",padding:".75rem 0",alignItems:"center"}}>
+                <button className="btn btn-sm btn-s" disabled={userPage===0} onClick={()=>setUserPage(p=>p-1)}>← Prev</button>
+                <span style={{fontSize:".8rem",color:"var(--muted)"}}>{userPage+1} / {upTotal}</span>
+                <button className="btn btn-sm btn-s" disabled={userPage>=upTotal-1} onClick={()=>setUserPage(p=>p+1)}>Next →</button>
+              </div>}
+            </>;})()}
           </div>;
         })()}
 
