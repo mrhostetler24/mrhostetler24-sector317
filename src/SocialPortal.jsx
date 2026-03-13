@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import PlatoonPortal from './PlatoonPortal.jsx'
+import { vizRenderName, audRenderName } from './envRender.jsx'
 import {
   uploadAvatar, updateOwnAvatar, updateSocialProfile, updateSocialLinks,
   sendFriendRequest, cancelFriendRequest, acceptFriendRequest, rejectFriendRequest,
@@ -293,15 +294,14 @@ function TierIcon({ runs }) {
 }
 
 // ── Friend Profile Modal ──────────────────────────────────────────────────────
-function EnvBar({ label, pct, color }) {
-  if (!pct) return null
+function EnvBar({ labelNode, pct, barColor }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-      <div style={{ width: 56, color: 'var(--muted)', fontSize: '.75rem', textAlign: 'right', flexShrink: 0 }}>{label}</div>
+      <div style={{ width: 64, textAlign: 'right', flexShrink: 0, overflow: 'visible' }}>{labelNode}</div>
       <div style={{ flex: 1, background: 'rgba(255,255,255,.07)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3 }} />
+        <div style={{ width: `${pct || 0}%`, height: '100%', background: barColor, borderRadius: 3 }} />
       </div>
-      <div style={{ width: 30, fontFamily: 'var(--fd)', fontSize: '.75rem', color: 'var(--txt)' }}>{pct}%</div>
+      <div style={{ width: 30, fontFamily: 'var(--fd)', fontSize: '.75rem', color: pct ? 'var(--txt)' : 'var(--muted)' }}>{pct ? `${pct}%` : '—'}</div>
     </div>
   )
 }
@@ -323,8 +323,15 @@ function RankCard({ label, rank, score }) {
 }
 
 const FP_SECTION = { fontSize: '.65rem', color: 'var(--muted)', fontFamily: 'var(--fc)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '.5rem', marginTop: '1rem' }
-const VIZ_COLORS = { V: '#9ca3af', C: '#a78bfa', R: '#f472b6', S: '#60a5fa', B: '#4b5563' }
-const AUD_COLORS = { T: 'var(--accB)', C: '#f97316', O: '#6b7280' }
+const ELS = { fontFamily: 'var(--fd)', fontSize: '.67rem', fontWeight: 700, lineHeight: 1 }
+const VIZ_COLORS = {
+  V: '#dce3ef',
+  C: '#a78bfa',
+  R: 'linear-gradient(to right, #f472b6, #fb923c, #facc15, #4ade80, #60a5fa, #c084fc)',
+  S: 'repeating-linear-gradient(90deg, #ffffff 0px, #ffffff 4px, rgba(0,0,0,0) 4px, rgba(0,0,0,0) 8px)',
+  B: '#00ff41',
+}
+const AUD_COLORS = { T: '#38bdf8', C: '#f97316', O: '#64748b' }
 
 function FriendProfileModal({ userId, users, onClose }) {
   const [profile, setProfile] = useState(null)
@@ -349,7 +356,7 @@ function FriendProfileModal({ userId, users, onClose }) {
   const { current: tier } = profile ? getTierInfo(profile.total_runs ?? 0) : { current: { key: 'recruit', name: 'Recruit' } }
   const tierCol = TIER_COLORS[tier?.key] ?? 'var(--muted)'
 
-  const hasEnv = ext && (ext.viz_std || ext.viz_cosmic || ext.viz_rave || ext.viz_strobe || ext.viz_dark)
+  const hasEnv = !!ext
   const hasProfile = profile && (profile.profession || profile.home_base_city || profile.home_base_state || profile.bio || profile.motto || profile.phone_last4 || profile.email)
 
   return (
@@ -407,7 +414,7 @@ function FriendProfileModal({ userId, users, onClose }) {
           </>)}
 
           {/* ── Tactical Profile ── */}
-          {(hasEnv || ext?.avg_time_sec != null) && (<>
+          {ext && (<>
             <div style={FP_SECTION}>Tactical Profile</div>
             <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '.45rem' }}>
 
@@ -433,21 +440,17 @@ function FriendProfileModal({ userId, users, onClose }) {
                 )}
               </div>
 
-              {hasEnv && (<>
-                <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase' }}>Visuals</div>
-                <EnvBar label="Standard" pct={ext.viz_std}    color={VIZ_COLORS.V} />
-                <EnvBar label="Cosmic"   pct={ext.viz_cosmic} color={VIZ_COLORS.C} />
-                <EnvBar label="Rave"     pct={ext.viz_rave}   color={VIZ_COLORS.R} />
-                <EnvBar label="Strobe"   pct={ext.viz_strobe} color={VIZ_COLORS.S} />
-                <EnvBar label="Dark"     pct={ext.viz_dark}   color={VIZ_COLORS.B} />
-              </>)}
+              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase' }}>Visuals</div>
+              <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ext.viz_std}    barColor={VIZ_COLORS.V} />
+              <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={ext.viz_cosmic} barColor={VIZ_COLORS.C} />
+              <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={ext.viz_rave}   barColor={VIZ_COLORS.R} />
+              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ext.viz_strobe} barColor={VIZ_COLORS.S} />
+              <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={ext.viz_dark}   barColor={VIZ_COLORS.B} />
 
-              {(ext.aud_tunes || ext.aud_cranked || ext.aud_off) && (<>
-                <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.2rem' }}>Audio</div>
-                <EnvBar label="Tunes"   pct={ext.aud_tunes}   color={AUD_COLORS.T} />
-                <EnvBar label="Cranked" pct={ext.aud_cranked} color={AUD_COLORS.C} />
-                <EnvBar label="Off"     pct={ext.aud_off}     color={AUD_COLORS.O} />
-              </>)}
+              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem' }}>Audio</div>
+              <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={ext.aud_tunes}   barColor={AUD_COLORS.T} />
+              <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={ext.aud_cranked} barColor={AUD_COLORS.C} />
+              <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={ext.aud_off}     barColor={AUD_COLORS.O} />
             </div>
           </>)}
 
@@ -759,6 +762,9 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const activeStats = profileStatsSub === 'coop' ? computeStats(coopRuns)
     : profileStatsSub === 'versus' ? computeStats(versRuns)
     : computeStats(myRuns)
+  const activeRunArr = profileStatsSub === 'coop' ? coopRuns : profileStatsSub === 'versus' ? versRuns : myRuns
+  const envPct = (arr, test) => arr.length ? Math.round(arr.filter(test).length / arr.length * 100) : 0
+  const audCodeFn = rn => rn.audio || (rn.cranked ? 'C' : 'T')
 
   const lbl = { color: 'var(--muted)', fontSize: '.87rem' }
   const val = { color: 'var(--txt)',   fontSize: '.87rem' }
@@ -1063,7 +1069,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub === 'all' ? '' : profileStatsSub + ' '}runs yet.</p>
             </div>
           )}
-          {activeStats && (
+          {activeStats && (<>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem', marginBottom: '.75rem' }}>
               <StatCard label="Sessions"   value={activeStats.sessions} />
               <StatCard label="Total Runs" value={activeStats.runs} />
@@ -1077,7 +1083,19 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 <StatCard label="VS Losses" value={versLosses} />
               </>}
             </div>
-          )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.3rem', marginTop: '.75rem' }}>
+              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.1rem' }}>Visuals</div>
+              <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={envPct(activeRunArr, r => r.visual === 'V')} barColor={VIZ_COLORS.V} />
+              <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'C')} barColor={VIZ_COLORS.C} />
+              <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'R')} barColor={VIZ_COLORS.R} />
+              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} />
+              <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'B')} barColor={VIZ_COLORS.B} />
+              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
+              <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'T')} barColor={AUD_COLORS.T} />
+              <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'C')} barColor={AUD_COLORS.C} />
+              <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'O')} barColor={AUD_COLORS.O} />
+            </div>
+          </>)}
         </div>
       </>}
 
