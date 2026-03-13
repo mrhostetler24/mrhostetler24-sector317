@@ -1569,8 +1569,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                                 <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap'}}>
                                   <span style={{color:'var(--txt)',fontWeight:700}}>Run {runNum}</span>
                                   {rEnv.structure&&<span>Structure: {rEnv.structure}</span>}
-                                  {rEnv.visual&&<Pill>{vizRenderName(rEnv.visual,VIZ[rEnv.visual]||rEnv.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></Pill>}
-                                  <Pill>{audRenderName(audCode(rEnv),AUD[audCode(rEnv)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></Pill>
+                                  {rEnv.visual&&<span style={{marginRight:'.4rem'}}>{vizRenderName(rEnv.visual,VIZ[rEnv.visual]||rEnv.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></span>}
+                                  <span style={{marginRight:'.4rem'}}>{audRenderName(audCode(rEnv),AUD[audCode(rEnv)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></span>
                                 </div>
                                 <div style={{display:'flex',gap:'.5rem',alignItems:'center'}}>
                                   {runTime&&<span>{runTime}</span>}
@@ -1617,8 +1617,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                                   {t&&<span style={{fontSize:'.68rem',color:'var(--muted)'}}>{t}</span>}
                                 </div>
                                 <div style={{marginBottom:'.3rem',display:'flex',flexWrap:'wrap',gap:'.2rem'}}>
-                                  {rn.visual&&<Pill>{vizRenderName(rn.visual,VIZ[rn.visual]||rn.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></Pill>}
-                                  <Pill>{audRenderName(audCode(rn),AUD[audCode(rn)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></Pill>
+                                  {rn.visual&&<span style={{marginRight:'.4rem'}}>{vizRenderName(rn.visual,VIZ[rn.visual]||rn.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></span>}
+                                  <span style={{marginRight:'.4rem'}}>{audRenderName(audCode(rn),AUD[audCode(rn)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></span>
                                   {rn.structure&&<Pill v={'Structure: '+rn.structure}/>}
                                   {rn.liveOpDifficulty&&<Pill v={'OP: '+(OPD[rn.liveOpDifficulty]||rn.liveOpDifficulty)}/>}
                                 </div>

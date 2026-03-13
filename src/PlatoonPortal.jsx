@@ -1174,8 +1174,8 @@ function SessionCard({ session, upcoming }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
                       <span style={{ color: 'var(--txt)', fontWeight: 700 }}>Run {runNum}</span>
                       {rEnv?.structure && <span>Structure: {rEnv.structure}</span>}
-                      {rEnv?.visual && <Pill>{vizRenderName(rEnv.visual, VIZ[rEnv.visual]||rEnv.visual, ns)}<span style={{color:'var(--muted)'}}> Viz</span></Pill>}
-                      <Pill>{audRenderName(audCode(rEnv??{}), AUD[audCode(rEnv??{})]||'Tunes', ns)}<span style={{color:'var(--muted)'}}> Aud</span></Pill>
+                      {rEnv?.visual && <span style={{marginRight:'.35rem'}}>{vizRenderName(rEnv.visual, VIZ[rEnv.visual]||rEnv.visual, ns)}<span style={{color:'var(--muted)'}}> Viz</span></span>}
+                      <span style={{marginRight:'.35rem'}}>{audRenderName(audCode(rEnv??{}), AUD[audCode(rEnv??{})]||'Tunes', ns)}<span style={{color:'var(--muted)'}}> Aud</span></span>
                     </div>
                     <div style={{ display: 'flex', gap: '.4rem', alignItems: 'center', flexShrink: 0 }}>
                       {runTime && <span>{runTime}</span>}
