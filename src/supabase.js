@@ -495,26 +495,24 @@ export async function fetchResTypes() {
 }
 
 export async function upsertResType(rt) {
-  const row = {
-    name:                  rt.name,
-    mode:                  rt.mode,
-    style:                 rt.style,
-    pricing_mode:          rt.pricingMode,
-    price:                 rt.price,
-    max_players:           rt.maxPlayers ?? null,
-    description:           rt.description ?? '',
-    active:                rt.active ?? true,
-    available_for_booking: rt.availableForBooking ?? true,
-  }
-  if (rt.id) row.id = rt.id
-  const { data, error } = await supabase
-    .from('reservation_types').upsert(row).select().single()
+  const { data, error } = await supabase.rpc('upsert_res_type', {
+    p_id:                    rt.id ?? null,
+    p_name:                  rt.name,
+    p_mode:                  rt.mode,
+    p_style:                 rt.style,
+    p_pricing_mode:          rt.pricingMode,
+    p_price:                 rt.price,
+    p_max_players:           rt.maxPlayers ?? null,
+    p_description:           rt.description ?? '',
+    p_active:                rt.active ?? true,
+    p_available_for_booking: rt.availableForBooking ?? true,
+  })
   if (error) throw error
-  return toResType(data)
+  return toResType(data[0])
 }
 
 export async function deleteResType(id) {
-  const { error } = await supabase.from('reservation_types').delete().eq('id', id)
+  const { error } = await supabase.rpc('delete_res_type', { p_id: id })
   if (error) throw error
 }
 

@@ -330,7 +330,7 @@ For corporate events, large parties, or full-venue experiences, reach out at{" "
 
 {
 q: "What's at the bar?",
-a: "We offer beer, wine, champagne, hard seltzers, mocktails, and sodas. Alcohol is not permitted for those participating in active play. Valid ID is required. A limited bar menu is available, but you're also welcome to bring in outside food. Cater for your crew or have delivery sent straight to your table."
+a: "We offer beer, wine, champagne, hard seltzers, mocktails, and sodas. Alcohol is not permitted within the play area. Valid ID is required. A limited bar menu is available, but you're also welcome to bring in outside food. Cater for your crew or have delivery sent straight to your table."
 }
 ];
 
