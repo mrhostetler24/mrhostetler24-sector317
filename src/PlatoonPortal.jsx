@@ -4,6 +4,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { vizRenderName, audRenderName } from './envRender.jsx'
+import { getTierInfo, TIER_SHINE } from './utils.js'
+
+function TierImg({ runs = 0, height = 14 }) {
+  const { current: tier } = getTierInfo(runs)
+  const filter = TIER_SHINE[tier.key]
+  return <img src={`/${tier.key}.png`} alt={tier.key} style={{ height, width: 'auto', flexShrink: 0, ...(filter ? { filter } : {}) }} />
+}
 import {
   emailPlatoonInviteReceived, emailPlatoonRequestReceived,
   emailPlatoonRequestApproved, emailPlatoonRequestDenied,
@@ -694,13 +701,17 @@ function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLef
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem', marginBottom: '1rem', padding: '.85rem 1rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8 }}>
-        {/* Oversized tag */}
-        <div style={{ fontFamily: 'var(--fc)', fontWeight: 900, fontSize: '3.25rem', lineHeight: 1, letterSpacing: '.03em', color: platoon.badge_color || '#94a3b8', flexShrink: 0, userSelect: 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '.85rem', marginBottom: '1rem', padding: '.75rem 1rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8 }}>
+        {/* Badge icon */}
+        {platoon.badge_url
+          ? <img src={platoon.badge_url} style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} alt="" />
+          : <div style={{ width: 56, height: 56, borderRadius: 8, background: 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>🎖️</div>}
+        {/* TAG — sized to match text block height (~two text lines) */}
+        <div style={{ fontFamily: 'var(--fc)', fontWeight: 900, fontSize: '1.85rem', lineHeight: 1.15, letterSpacing: '.03em', color: platoon.badge_color || '#94a3b8', flexShrink: 0, userSelect: 'none' }}>
           [{platoon.tag}]
         </div>
-        {/* Name + meta — matches tag height via flex alignment */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '.25rem' }}>
+        {/* Name + meta */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '.2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)', fontSize: '1.05rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{platoon.name}</span>
             <RoleChip role={myRole} />
@@ -1053,9 +1064,12 @@ function MenuItem({ label, onClick, danger }) {
 
 // ── SessionsTab ───────────────────────────────────────────────────────────────
 
+const PAGE_SZ = 10
+
 function SessionsTab({ platoon }) {
   const [sessions, setSessions] = useState([])
   const [loading,  setLoading]  = useState(true)
+  const [page,     setPage]     = useState(0)
 
   useEffect(() => {
     getPlatoonSessions(platoon.id)
@@ -1067,11 +1081,21 @@ function SessionsTab({ platoon }) {
   if (loading) return <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1rem' }}>Loading…</div>
   if (sessions.length === 0) return <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1.5rem' }}>No completed sessions yet.</div>
 
+  const totalPages = Math.ceil(sessions.length / PAGE_SZ)
+  const pageRows   = sessions.slice(page * PAGE_SZ, (page + 1) * PAGE_SZ)
+
   return (
     <div>
-      {sessions.map(s => (
+      {pageRows.map(s => (
         <SessionCard key={s.reservation_id} session={s} />
       ))}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'center', padding: '.75rem 0', alignItems: 'center' }}>
+          <button className="btn btn-sm btn-s" disabled={page === 0} onClick={() => setPage(p => p - 1)}>← Prev</button>
+          <span style={{ fontSize: '.8rem', color: 'var(--muted)' }}>{page + 1} / {totalPages}</span>
+          <button className="btn btn-sm btn-s" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next →</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1079,6 +1103,7 @@ function SessionsTab({ platoon }) {
 function UpcomingTab({ platoon }) {
   const [sessions, setSessions] = useState([])
   const [loading,  setLoading]  = useState(true)
+  const [page,     setPage]     = useState(0)
 
   useEffect(() => {
     getPlatoonUpcoming(platoon.id)
@@ -1090,11 +1115,21 @@ function UpcomingTab({ platoon }) {
   if (loading) return <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1rem' }}>Loading…</div>
   if (sessions.length === 0) return <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1.5rem' }}>No upcoming sessions.</div>
 
+  const totalPages = Math.ceil(sessions.length / PAGE_SZ)
+  const pageRows   = sessions.slice(page * PAGE_SZ, (page + 1) * PAGE_SZ)
+
   return (
     <div>
-      {sessions.map(s => (
+      {pageRows.map(s => (
         <SessionCard key={s.reservation_id} session={s} upcoming />
       ))}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'center', padding: '.75rem 0', alignItems: 'center' }}>
+          <button className="btn btn-sm btn-s" disabled={page === 0} onClick={() => setPage(p => p - 1)}>← Prev</button>
+          <span style={{ fontSize: '.8rem', color: 'var(--muted)' }}>{page + 1} / {totalPages}</span>
+          <button className="btn btn-sm btn-s" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next →</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1136,22 +1171,24 @@ function SessionCard({ session, upcoming }) {
         {/* Type + player list */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '.88rem', color: 'var(--txt)', fontFamily: 'var(--fd)', marginBottom: '.4rem' }}>{session.type_name}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '.25rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem .75rem', alignItems: 'center' }}>
             {(upcoming && Array.isArray(session.all_players) ? session.all_players : members).map(p => {
               const isMember = upcoming ? !!p.is_member : true
+              const roleLabel = p.platoon_role ? (p.platoon_role === 'admin' ? 'CO' : p.platoon_role === 'sergeant' ? 'SGT' : null) : null
               return (
-                <div key={p.user_id} style={{ display: 'flex', alignItems: 'center', gap: '.35rem', opacity: isMember ? 1 : 0.5 }}>
-                  <Avatar url={p.avatar_url} name={p.leaderboard_name} size={22} />
+                <div key={p.user_id} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem', opacity: isMember ? 1 : 0.45, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  <Avatar url={p.avatar_url} name={p.leaderboard_name} size={20} />
+                  {isMember && <TierImg runs={p.total_runs ?? 0} height={13} />}
                   {isMember && p.platoon_tag && (
-                    <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em', fontSize: '.72rem', color: p.platoon_badge_color || '#94a3b8', flexShrink: 0 }}>
+                    <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em', fontSize: '.7rem', color: p.platoon_badge_color || '#94a3b8' }}>
                       [{p.platoon_tag}]
                     </span>
                   )}
-                  <span style={{ fontFamily: 'var(--fc)', fontWeight: isMember ? 700 : 400, fontSize: '.8rem', color: isMember ? 'var(--txt)' : 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontFamily: 'var(--fc)', fontWeight: isMember ? 700 : 400, fontSize: '.8rem', color: isMember ? 'var(--txt)' : 'var(--muted)' }}>
                     {p.leaderboard_name}
                   </span>
-                  {p.leaderboard_rank != null && isMember && (
-                    <span style={{ fontSize: '.68rem', color: 'var(--muted)', flexShrink: 0 }}>#{p.leaderboard_rank}</span>
+                  {roleLabel && (
+                    <span style={{ fontSize: '.62rem', fontFamily: 'var(--fd)', color: 'var(--muted)', letterSpacing: '.06em' }}>{roleLabel}</span>
                   )}
                 </div>
               )
