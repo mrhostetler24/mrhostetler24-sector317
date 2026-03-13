@@ -2495,7 +2495,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                   <td><div>{res?.customerName||"—"}</div><div style={{fontSize:".72rem",color:"var(--muted)"}}>{res?`${fmt(res.date)} ${fmt12(res.startTime)}`:""}</div></td>
                   <td>{rt&&<><span className={`badge b-${rt.mode}`} style={{marginRight:".3rem"}}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}</td>
                   <td>{r.visual?vizRenderName(r.visual,vizLabel[r.visual]||r.visual,{fontFamily:'var(--fd)',fontSize:'.82rem',fontWeight:700}):<span style={{color:'var(--muted)'}}>—</span>}</td>
-                  <td>{(()=>{const ac=r.audio||(r.cranked?'C':'T');return audRenderName(ac,audNames[ac]||ac,{fontFamily:'var(--fd)',fontSize:'.82rem',fontWeight:700});})()}</td>
+                  <td>{(()=>{const ac=r.audio||(r.cranked?'C':'T');return audRenderName(ac,audLabel(r),{fontFamily:'var(--fd)',fontSize:'.82rem',fontWeight:700});})()}</td>
                   <td style={{fontFamily:"var(--fd)",color:"var(--accB)"}}>{fmtRunSec(r.elapsedSeconds)}</td>
                   <td style={{fontFamily:"var(--fd)",fontWeight:700,color:r.score!=null?"var(--txt)":"var(--muted)"}}>{r.score!=null?Number(r.score).toFixed(1):"—"}</td>
                 </tr>;})}
