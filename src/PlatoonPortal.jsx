@@ -694,24 +694,21 @@ function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLef
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '.85rem', marginBottom: '1rem', padding: '.75rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8 }}>
-        {platoon.badge_url
-          ? <img src={platoon.badge_url} style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} alt="" />
-          : <div style={{ width: 64, height: 64, borderRadius: 10, background: platoon.badge_color || 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', flexShrink: 0 }}>🎖️</div>}
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem', marginBottom: '1rem', padding: '.85rem 1rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8 }}>
+        {/* Oversized tag */}
+        <div style={{ fontFamily: 'var(--fc)', fontWeight: 900, fontSize: '3.25rem', lineHeight: 1, letterSpacing: '.03em', color: platoon.badge_color || '#94a3b8', flexShrink: 0, userSelect: 'none' }}>
+          [{platoon.tag}]
+        </div>
+        {/* Name + meta — matches tag height via flex alignment */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap' }}>
-            <TagChip tag={platoon.tag} style={{ fontSize: '.9em', color: platoon.badge_color || '#94a3b8' }} />
-            <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)', fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{platoon.name}</span>
+            <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)', fontSize: '1.05rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{platoon.name}</span>
             <RoleChip role={myRole} />
           </div>
-          <div style={{ fontSize: '.75rem', color: 'var(--muted)', marginTop: '.15rem' }}>
-            {platoon.member_count} {platoon.member_count === 1 ? 'member' : 'members'} · {platoon.is_open ? 'Open' : 'Approval required'}
+          <div style={{ fontSize: '.78rem', color: 'var(--muted)' }}>
+            {platoon.member_count} {platoon.member_count === 1 ? 'member' : 'members'} · {platoon.is_open ? 'Open enrollment' : 'Approval required'}
           </div>
         </div>
-        <button
-          style={{ background: 'transparent', border: '1px solid #7f1d1d', color: '#f87171', borderRadius: 6, padding: '.35rem .65rem', fontSize: '.75rem', cursor: 'pointer', flexShrink: 0, fontFamily: 'var(--fd)' }}
-          onClick={() => setShowAwolConfirm(true)}
-        >Go AWOL</button>
       </div>
 
       {awolErr && <div style={{ color: '#f87171', fontSize: '.82rem', marginBottom: '.75rem', padding: '.5rem .75rem', background: '#7f1d1d22', borderRadius: 6, border: '1px solid #7f1d1d' }}>{awolErr}</div>}
@@ -735,6 +732,12 @@ function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLef
       {subTab === 'sessions' && <SessionsTab platoon={platoon} />}
       {subTab === 'upcoming' && <UpcomingTab platoon={platoon} />}
       {subTab === 'settings' && myRole === 'admin' && <SettingsTab platoon={platoon} onChanged={onChanged} onDisbanded={onLeft} userAccess={currentUser.access} />}
+
+      <div style={{ textAlign: 'right', marginTop: '1.5rem', paddingTop: '.75rem', borderTop: '1px solid var(--bdr)' }}>
+        <button onClick={() => setShowAwolConfirm(true)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '.72rem', cursor: 'pointer', opacity: .5 }}>
+          Leave platoon
+        </button>
+      </div>
 
       {showAwolConfirm && (
         <Confirm
@@ -1130,26 +1133,29 @@ function SessionCard({ session, upcoming }) {
           {session.start_time && <div style={{ fontSize: '.7rem', color: 'var(--muted)', marginTop: '.1rem' }}>{session.start_time}</div>}
         </div>
 
-        {/* Type + member list */}
+        {/* Type + player list */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '.88rem', color: 'var(--txt)', fontFamily: 'var(--fd)', marginBottom: '.4rem' }}>{session.type_name}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '.25rem' }}>
-            {members.map(m => (
-              <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', gap: '.35rem' }}>
-                <Avatar url={m.avatar_url} name={m.leaderboard_name} size={22} />
-                {m.platoon_tag && (
-                  <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em', fontSize: '.72rem', color: m.platoon_badge_color || '#94a3b8', flexShrink: 0 }}>
-                    [{m.platoon_tag}]
+            {(upcoming && Array.isArray(session.all_players) ? session.all_players : members).map(p => {
+              const isMember = upcoming ? !!p.is_member : true
+              return (
+                <div key={p.user_id} style={{ display: 'flex', alignItems: 'center', gap: '.35rem', opacity: isMember ? 1 : 0.5 }}>
+                  <Avatar url={p.avatar_url} name={p.leaderboard_name} size={22} />
+                  {isMember && p.platoon_tag && (
+                    <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em', fontSize: '.72rem', color: p.platoon_badge_color || '#94a3b8', flexShrink: 0 }}>
+                      [{p.platoon_tag}]
+                    </span>
+                  )}
+                  <span style={{ fontFamily: 'var(--fc)', fontWeight: isMember ? 700 : 400, fontSize: '.8rem', color: isMember ? 'var(--txt)' : 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.leaderboard_name}
                   </span>
-                )}
-                <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, fontSize: '.8rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {m.leaderboard_name}
-                </span>
-                {m.leaderboard_rank != null && (
-                  <span style={{ fontSize: '.68rem', color: 'var(--muted)', flexShrink: 0 }}>#{m.leaderboard_rank}</span>
-                )}
-              </div>
-            ))}
+                  {p.leaderboard_rank != null && isMember && (
+                    <span style={{ fontSize: '.68rem', color: 'var(--muted)', flexShrink: 0 }}>#{p.leaderboard_rank}</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 

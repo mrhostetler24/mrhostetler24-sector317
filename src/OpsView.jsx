@@ -1037,7 +1037,20 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
                 onUp:()=>setTimePicker(p=>p.mins>=9?{...p,mins:10,secs:0,tenths:0}:{...p,mins:p.mins+1}),
                 upOff:mins>=10,downOff:mins<=0})}
               <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>:</span>
-              {seg('SEC','secs',secs,59,{upOff:at10,downOff:at10})}
+              {seg('SEC','secs',secs,59,{
+                onUp:()=>setTimePicker(p=>{
+                  if(p.secs<59)return{...p,secs:p.secs+1};
+                  if(p.mins>=9)return{...p,mins:10,secs:0,tenths:0}; // cap at 10:00.0
+                  return{...p,mins:p.mins+1,secs:0};
+                }),
+                onDown:()=>setTimePicker(p=>{
+                  if(p.secs>0)return{...p,secs:p.secs-1};
+                  if(p.mins<=0)return p; // already at 0:00
+                  return{...p,mins:p.mins-1,secs:59};
+                }),
+                upOff:at10,
+                downOff:at10||(mins===0&&secs===0),
+              })}
               <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>.</span>
               {seg('1/10s','tenths',tenths,9,{upOff:at10,downOff:at10})}
             </div>

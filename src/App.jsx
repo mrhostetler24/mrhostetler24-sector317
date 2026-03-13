@@ -1936,6 +1936,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [userPage,setUserPage]=useState(0);
   const [dashViewTab,setDashViewTab]=useState("bookings");
   const [acknowledgedFlags,setAcknowledgedFlags]=useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("ack-flags")||"[]"))}catch{return new Set()}});
+  const [showAcknowledged,setShowAcknowledged]=useState(false);
   const [dismissedDups,setDismissedDups]=useState([]);
   const [careerRuns,setCareerRuns]=useState(null);
   const [friendsVersion,setFriendsVersion]=useState(0);
@@ -2510,10 +2511,18 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               </div>}
             </>;})()}
 
-            {dashViewTab==="flags"&&<>
-              {!visibleFlagRows.length&&<div style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem .5rem"}}>{flagRows.length>0?"All flags acknowledged.":"No unpaid, cancelled, or no-show reservations to show."}</div>}
-              {!!visibleFlagRows.length&&<table><thead><tr><th>Session</th><th>Booked</th><th>Customer</th><th>Type</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Flag</th><th></th></tr></thead>
-                <tbody>{visibleFlagRows.map(r=>{const rt=getType(r.typeId);const fb=flagBadge(r._flag);return <tr key={r.id+r._flag}>
+            {dashViewTab==="flags"&&(()=>{
+              const ackedFlagRows=flagRows.filter(r=>acknowledgedFlags.has(r.id+r._flag));
+              const displayRows=[...visibleFlagRows,...(showAcknowledged?ackedFlagRows:[])];
+              return <>
+              {ackedFlagRows.length>0&&<div style={{display:"flex",justifyContent:"flex-end",padding:".35rem .8rem .1rem"}}>
+                <button onClick={()=>setShowAcknowledged(v=>!v)} style={{fontSize:".72rem",padding:".2rem .6rem",borderRadius:4,border:"1px solid var(--bdr)",background:"var(--surf2)",color:"var(--muted)",cursor:"pointer"}}>
+                  {showAcknowledged?"Hide Acknowledged":"Show Acknowledged ("+ackedFlagRows.length+")"}
+                </button>
+              </div>}
+              {!displayRows.length&&<div style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem .5rem"}}>No unpaid, cancelled, or no-show reservations to show.</div>}
+              {!!displayRows.length&&<table><thead><tr><th>Session</th><th>Booked</th><th>Customer</th><th>Type</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Flag</th><th></th></tr></thead>
+                <tbody>{displayRows.map(r=>{const rt=getType(r.typeId);const fb=flagBadge(r._flag);const isAcked=acknowledgedFlags.has(r.id+r._flag);return <tr key={r.id+r._flag} style={isAcked?{opacity:.45}:{}}>
                   <td><strong style={{fontSize:".88rem"}}>{fmt(r.date)}</strong><br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td>
                   <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{r.createdAt?fmt(r.createdAt.slice(0,10)):""}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td>
                   <td>{r.customerName}</td>
@@ -2521,14 +2530,14 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                   <td>{r.playerCount}</td>
                   {isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}
                   <td><span style={{fontSize:".75rem",padding:".2rem .55rem",borderRadius:4,fontWeight:700,background:fb.bg,color:fb.color}}>{fb.label}</span></td>
-                  <td><button onClick={()=>ackFlag(r.id+r._flag)} style={{fontSize:".72rem",padding:".2rem .55rem",borderRadius:4,border:"1px solid var(--bdr)",background:"var(--surf2)",color:"var(--muted)",cursor:"pointer"}}>Acknowledge</button></td>
+                  <td>{isAcked?<span style={{fontSize:".72rem",color:"var(--muted)"}}>✓ Done</span>:<button onClick={()=>ackFlag(r.id+r._flag)} style={{fontSize:".72rem",padding:".2rem .55rem",borderRadius:4,border:"1px solid var(--bdr)",background:"var(--surf2)",color:"var(--muted)",cursor:"pointer"}}>Acknowledge</button>}</td>
                 </tr>;})}
                 </tbody>
               </table>}
               <div style={{fontSize:".72rem",color:"var(--muted)",padding:".6rem .8rem",borderTop:"1px solid var(--bdr)",marginTop:".25rem"}}>
                 Unpaid: all-time active bookings. Rescheduled, cancelled &amp; no-show: last 90 days.
               </div>
-            </>}
+            </>;})()}
 
             {dashViewTab==="users"&&(()=>{const upSize=50;const upTotal=Math.ceil(recentUsers.length/upSize)||1;const upRows=recentUsers.slice(userPage*upSize,(userPage+1)*upSize);return<>
               <table><thead><tr><th>Created</th><th>Name</th><th>Phone</th><th>Access</th><th>Auth</th><th>Created By</th></tr></thead>
