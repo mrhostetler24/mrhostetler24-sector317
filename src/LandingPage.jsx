@@ -537,7 +537,7 @@ export default function LandingPage({ onEnterApp, onBookNow, resTypes=[] }) {
                 <div className="lp-mi"><em>💪</em> You pick your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
               </div>
-              <div className="lp-price">{privateMinPrice!=null?`From ${fmtP(privateMinPrice)}`:'—'} <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span>{maxPrivateDiscount!=null&&<span style={{color:"#c8e03a",fontSize:".8rem",fontWeight:600,marginLeft:".4rem"}}>({maxPrivateDiscount}% off full lane)</span>}<span className="lp-tag">Stick With Your Crew</span></div>
+              <div className="lp-price">{privateMinPrice!=null?`From ${fmtP(privateMinPrice)}`:'—'} <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span>{maxPrivateDiscount!=null&&<span style={{color:"#c8e03a",fontSize:".8rem",fontWeight:600,marginLeft:".4rem"}}>up to {maxPrivateDiscount}% off</span>}<span className="lp-tag">Stick With Your Crew</span></div>
             </div>
           </div>
 

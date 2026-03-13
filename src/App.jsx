@@ -1433,7 +1433,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
               const{current}=getTierInfo(careerRuns);
               return <img src={`/${current.key}.png`} alt={current.key} style={{height:16,width:"auto",flexShrink:0,objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}}/>;
             })()}
-            {user.platoonTag&&!user.hideFromLeaderboard&&<span style={{fontSize:".88rem",fontFamily:"var(--fc)",fontWeight:700,color:"#94a3b8",flexShrink:0}}>[{user.platoonTag}]</span>}
+            {user.platoonTag&&!user.hideFromLeaderboard&&<span style={{fontSize:".88rem",fontFamily:"var(--fc)",fontWeight:700,color:user.platoonBadgeColor||"#94a3b8",flexShrink:0}}>[{user.platoonTag}]</span>}
             <span style={{fontSize:".88rem",color:user.hideFromLeaderboard?"var(--muted)":"var(--txt)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
               {user.hideFromLeaderboard?"Hidden":user.leaderboardName||genDefaultLeaderboardName(user.name,user.phone)}
             </span>
