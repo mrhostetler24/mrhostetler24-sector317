@@ -2404,7 +2404,31 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const revStr=fmtMoney(revenue);
             const revSzCls=revStr.length>10?" stat-val-xs":revStr.length>7?" stat-val-sm":"";
             return <>
-              {isAdmin&&w.revenue&&(()=>{const coopRev=coopRes.reduce((s,r)=>s+r.amount,0);const vsRev=vsRes.reduce((s,r)=>s+r.amount,0);return<div className="stat-card"><div className="stat-lbl">Revenue</div><div className={`stat-val${revSzCls}`} style={{color:"var(--accB)"}}>{revStr}</div><div className="stat-sub">Co-Op {fmtMoney(coopRev)} · Versus {fmtMoney(vsRev)}</div></div>;})()}
+              {isAdmin&&w.revenue&&(()=>{
+                const coopOpenRev=activeCoopOpen.reduce((s,r)=>s+r.amount,0);
+                const coopPrivRev=activeCoopPriv.reduce((s,r)=>s+r.amount,0);
+                const vsOpenRev=activeVsOpen.reduce((s,r)=>s+r.amount,0);
+                const vsPrivRev=activeVsPriv.reduce((s,r)=>s+r.amount,0);
+                const now2=new Date();
+                let pmtFrom="",pmtTo="";
+                if(dashPeriod==="day"){pmtFrom=pmtTo=today;}
+                else if(dashPeriod==="week"){const d=new Date(now2);d.setDate(d.getDate()-d.getDay());pmtFrom=d.toISOString().slice(0,10);pmtTo=today;}
+                else if(dashPeriod==="month"){pmtFrom=`${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,"0")}-01`;pmtTo=today;}
+                else if(dashPeriod==="year"){pmtFrom=`${now2.getFullYear()}-01-01`;pmtTo=today;}
+                else if(dashPeriod==="custom"){pmtFrom=dashFrom;pmtTo=dashTo;}
+                const dashMerch=payments.filter(p=>p.merchOrderId&&p.status==="paid"&&(()=>{const d=p.createdAt?.slice(0,10)||"";return(!pmtFrom||d>=pmtFrom)&&(!pmtTo||d<=pmtTo);})());
+                const merchRev=dashMerch.reduce((s,p)=>s+p.amount,0);
+                const totalRev=revenue+merchRev;
+                const totalStr=fmtMoney(totalRev);
+                const szCls=totalStr.length>10?" stat-val-xs":totalStr.length>7?" stat-val-sm":"";
+                return<div className="stat-card">
+                  <div className="stat-lbl">Revenue</div>
+                  <div className={`stat-val${szCls}`} style={{color:"var(--accB)"}}>{totalStr}</div>
+                  <div className="stat-sub">Co-Op Open {fmtMoney(coopOpenRev)} · Co-Op Priv {fmtMoney(coopPrivRev)}</div>
+                  <div className="stat-sub">Vs Open {fmtMoney(vsOpenRev)} · Vs Priv {fmtMoney(vsPrivRev)}</div>
+                  <div className="stat-sub">Merch {fmtMoney(merchRev)}</div>
+                </div>;
+              })()}
               {w.bookings&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} vs</div></div>}
               {w.players&&<div className="stat-card"><div className="stat-lbl">Avg / Lane</div><div className="stat-val">{fmt2(avgPerLane)}</div><div className="stat-sub">Priv Co-Op {fmt2(arrAvg(coopPrivLanes))} · Priv Vs {fmt2(arrAvg(vsPrivLanes))}</div><div className="stat-sub">Open Co-Op {fmt2(arrAvg(coopOpenLanes))} · Open Vs {fmt2(arrAvg(vsOpenLanes))}</div></div>}
               {isAdmin&&w.utilization&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions</div></div>}

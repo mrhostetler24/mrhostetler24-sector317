@@ -11,8 +11,11 @@
 --   permissions (RLS was blocking direct upsert/delete).
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.upsert_res_type(uuid,text,text,text,text,numeric,int,text,boolean,boolean);
+DROP FUNCTION IF EXISTS public.delete_res_type(uuid);
+
 CREATE OR REPLACE FUNCTION public.upsert_res_type(
-  p_id                    uuid,
+  p_id                    text,
   p_name                  text,
   p_mode                  text,
   p_style                 text,
@@ -58,10 +61,10 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.upsert_res_type(uuid,text,text,text,text,numeric,int,text,boolean,boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_res_type(text,text,text,text,text,numeric,int,text,boolean,boolean) TO authenticated;
 
 
-CREATE OR REPLACE FUNCTION public.delete_res_type(p_id uuid)
+CREATE OR REPLACE FUNCTION public.delete_res_type(p_id text)
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -75,4 +78,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.delete_res_type(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.delete_res_type(text) TO authenticated;
