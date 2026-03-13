@@ -333,13 +333,6 @@ const VIZ_COLORS = {
 }
 const AUD_COLORS = { T: '#38bdf8', C: '#f97316', O: '#64748b' }
 
-function fmtPhone(digits) {
-  if (!digits) return null
-  const d = digits.replace(/\D/g, '').slice(-10)
-  if (d.length < 10) return digits
-  return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`
-}
-
 function FriendProfileModal({ userId, users, onClose }) {
   const [profile, setProfile] = useState(null)
   const [ext, setExt]         = useState(null)
