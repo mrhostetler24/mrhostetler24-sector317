@@ -4,13 +4,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { vizRenderName, audRenderName } from './envRender.jsx'
-import { getTierInfo, TIER_SHINE } from './utils.js'
-
-function TierImg({ runs = 0, height = 14 }) {
-  const { current: tier } = getTierInfo(runs)
-  const filter = TIER_SHINE[tier.key]
-  return <img src={`/${tier.key}.png`} alt={tier.key} style={{ height, width: 'auto', flexShrink: 0, ...(filter ? { filter } : {}) }} />
-}
 import {
   emailPlatoonInviteReceived, emailPlatoonRequestReceived,
   emailPlatoonRequestApproved, emailPlatoonRequestDenied,
@@ -1178,7 +1171,7 @@ function SessionCard({ session, upcoming }) {
               return (
                 <div key={p.user_id} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem', opacity: isMember ? 1 : 0.45, flexShrink: 0, whiteSpace: 'nowrap' }}>
                   <Avatar url={p.avatar_url} name={p.leaderboard_name} size={20} />
-                  {isMember && <TierImg runs={p.total_runs ?? 0} height={13} />}
+                  {isMember && <TierIcon totalRuns={p.total_runs ?? 0} size={16} />}
                   {isMember && p.platoon_tag && (
                     <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em', fontSize: '.7rem', color: p.platoon_badge_color || '#94a3b8' }}>
                       [{p.platoon_tag}]
