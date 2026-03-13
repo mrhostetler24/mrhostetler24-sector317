@@ -1039,20 +1039,46 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           )}
         </div>
 
-        {/* Social Links */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.65rem' }}>
-            <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase' }}>Social Links</div>
-            {socialLinks.length < PLATFORMS.length && (
-              <button className="btn btn-s btn-sm" style={{ fontSize: '.72rem', padding: '2px 10px' }} onClick={() => setLinkPickerOpen(true)}>
-                {socialLinks.length === 0 ? '+ Link a Profile' : '+ Link Another'}
-              </button>
+        {/* Two-column: Social Links + Visuals/Audio */}
+        <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+
+          {/* Social Links */}
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.65rem' }}>
+              <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase' }}>Social Links</div>
+              {socialLinks.length < PLATFORMS.length && (
+                <button className="btn btn-s btn-sm" style={{ fontSize: '.72rem', padding: '2px 10px' }} onClick={() => setLinkPickerOpen(true)}>
+                  {socialLinks.length === 0 ? '+ Link a Profile' : '+ Link Another'}
+                </button>
+              )}
+            </div>
+            {socialLinks.length === 0
+              ? <div style={{ fontSize: '.82rem', color: 'var(--muted)', fontStyle: 'italic' }}>No social profiles linked yet.</div>
+              : <SocialLinksList links={socialLinks} editable onDelete={async key => { const n = socialLinks.filter(l => l.platform !== key); await saveSocialLinks(n) }} />
+            }
+          </div>
+
+          {/* Visuals / Audio */}
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.65rem' }}>Env Profile</div>
+            {activeRunArr.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '.3rem' }}>
+                <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.1rem' }}>Visuals</div>
+                <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={envPct(activeRunArr, r => r.visual === 'V')} barColor={VIZ_COLORS.V} />
+                <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'C')} barColor={VIZ_COLORS.C} />
+                <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'R')} barColor={VIZ_COLORS.R} />
+                <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
+                <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'B')} barColor={VIZ_COLORS.B} />
+                <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
+                <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'T')} barColor={AUD_COLORS.T} />
+                <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'C')} barColor={AUD_COLORS.C} />
+                <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'O')} barColor={AUD_COLORS.O} />
+              </div>
+            ) : (
+              <div style={{ fontSize: '.82rem', color: 'var(--muted)', fontStyle: 'italic' }}>No run data yet.</div>
             )}
           </div>
-          {socialLinks.length === 0
-            ? <div style={{ fontSize: '.82rem', color: 'var(--muted)', fontStyle: 'italic' }}>No social profiles linked yet.</div>
-            : <SocialLinksList links={socialLinks} editable onDelete={async key => { const n = socialLinks.filter(l => l.platform !== key); await saveSocialLinks(n) }} />
-          }
+
         </div>
 
         {/* Match Stats */}
@@ -1069,8 +1095,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub === 'all' ? '' : profileStatsSub + ' '}runs yet.</p>
             </div>
           )}
-          {activeStats && (<>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem', marginBottom: '.75rem' }}>
+          {activeStats && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem' }}>
               <StatCard label="Sessions"   value={activeStats.sessions} />
               <StatCard label="Total Runs" value={activeStats.runs} />
               <StatCard label="Best Score" value={activeStats.best.toFixed(1)} />
@@ -1083,19 +1109,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 <StatCard label="VS Losses" value={versLosses} />
               </>}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '.3rem', marginTop: '.75rem' }}>
-              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.1rem' }}>Visuals</div>
-              <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={envPct(activeRunArr, r => r.visual === 'V')} barColor={VIZ_COLORS.V} />
-              <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'C')} barColor={VIZ_COLORS.C} />
-              <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'R')} barColor={VIZ_COLORS.R} />
-              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
-              <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'B')} barColor={VIZ_COLORS.B} />
-              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
-              <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'T')} barColor={AUD_COLORS.T} />
-              <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'C')} barColor={AUD_COLORS.C} />
-              <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'O')} barColor={AUD_COLORS.O} />
-            </div>
-          </>)}
+          )}
         </div>
       </>}
 
