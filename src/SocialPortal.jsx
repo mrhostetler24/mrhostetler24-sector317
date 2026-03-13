@@ -297,7 +297,7 @@ function TierIcon({ runs }) {
 function EnvBar({ labelNode, pct, barColor, barClass }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-      <div style={{ width: 64, textAlign: 'right', flexShrink: 0, overflow: 'visible' }}>{labelNode}</div>
+      <div style={{ width: 56, textAlign: 'right', flexShrink: 0, overflow: 'visible' }}>{labelNode}</div>
       <div style={{ flex: 1, background: 'rgba(255,255,255,.07)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
         <div className={barClass} style={{ width: `${pct || 0}%`, height: '100%', background: barColor, borderRadius: 3 }} />
       </div>
@@ -323,7 +323,7 @@ function RankCard({ label, rank, score }) {
 }
 
 const FP_SECTION = { fontSize: '.65rem', color: 'var(--muted)', fontFamily: 'var(--fc)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: '.5rem', marginTop: '1rem' }
-const ELS = { fontFamily: 'var(--fd)', fontSize: '.67rem', fontWeight: 700, lineHeight: 1 }
+const ELS = { fontFamily: 'var(--fd)', fontSize: '.76rem', fontWeight: 700, lineHeight: 1 }
 const VIZ_COLORS = {
   V: '#dce3ef',
   C: '#a78bfa',
