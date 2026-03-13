@@ -294,12 +294,12 @@ function TierIcon({ runs }) {
 }
 
 // ── Friend Profile Modal ──────────────────────────────────────────────────────
-function EnvBar({ labelNode, pct, barColor }) {
+function EnvBar({ labelNode, pct, barColor, barClass }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
       <div style={{ width: 64, textAlign: 'right', flexShrink: 0, overflow: 'visible' }}>{labelNode}</div>
       <div style={{ flex: 1, background: 'rgba(255,255,255,.07)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
-        <div style={{ width: `${pct || 0}%`, height: '100%', background: barColor, borderRadius: 3 }} />
+        <div className={barClass} style={{ width: `${pct || 0}%`, height: '100%', background: barColor, borderRadius: 3 }} />
       </div>
       <div style={{ width: 30, fontFamily: 'var(--fd)', fontSize: '.75rem', color: pct ? 'var(--txt)' : 'var(--muted)' }}>{pct ? `${pct}%` : '—'}</div>
     </div>
@@ -328,7 +328,7 @@ const VIZ_COLORS = {
   V: '#dce3ef',
   C: '#a78bfa',
   R: 'linear-gradient(to right, #f472b6, #fb923c, #facc15, #4ade80, #60a5fa, #c084fc)',
-  S: 'repeating-linear-gradient(90deg, #ffffff 0px, #ffffff 4px, rgba(0,0,0,0) 4px, rgba(0,0,0,0) 8px)',
+  S: '#ffffff',
   B: '#00ff41',
 }
 const AUD_COLORS = { T: '#38bdf8', C: '#f97316', O: '#64748b' }
@@ -444,7 +444,7 @@ function FriendProfileModal({ userId, users, onClose }) {
               <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ext.viz_std}    barColor={VIZ_COLORS.V} />
               <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={ext.viz_cosmic} barColor={VIZ_COLORS.C} />
               <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={ext.viz_rave}   barColor={VIZ_COLORS.R} />
-              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ext.viz_strobe} barColor={VIZ_COLORS.S} />
+              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ext.viz_strobe} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
               <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={ext.viz_dark}   barColor={VIZ_COLORS.B} />
 
               <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem' }}>Audio</div>
@@ -1088,7 +1088,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={envPct(activeRunArr, r => r.visual === 'V')} barColor={VIZ_COLORS.V} />
               <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'C')} barColor={VIZ_COLORS.C} />
               <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'R')} barColor={VIZ_COLORS.R} />
-              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} />
+              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
               <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'B')} barColor={VIZ_COLORS.B} />
               <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
               <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'T')} barColor={AUD_COLORS.T} />
