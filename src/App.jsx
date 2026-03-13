@@ -4,6 +4,7 @@ import './app.css';
 import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, getDayName, cleanPh, todayStr, addDaysStr, sortTemplates, hasValidWaiver, latestWaiverDate, latestWaiverEntry, TIER_THRESHOLDS, TIER_COLORS, TIER_SHINE, getTierInfo, getSessionsForDate, buildLanes, laneCapacity, openPlayCapacity, getSlotStatus, dateHasAvailability, get60Dates, getInitials } from './utils.js';
 import { AuthBadge, Toast, Toggle, WaiverTooltip, RunsCell, WaiverModal, WaiverViewModal, PhoneInput, PlayerPhoneInput, genDefaultLeaderboardName, validateLbName, DateNav } from './ui.jsx';
 import BookingWizard from './BookingWizard.jsx';
+import { vizRenderName, audRenderName } from './envRender.jsx';
 import { emailStoreCreditApplied, emailWelcome } from './emails.js';
 import LandingPage from "./LandingPage.jsx";
 import MerchPortal from "./MerchPortal.jsx";
@@ -1515,7 +1516,9 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             const OPD={easy:'Easy',medium:'Medium',hard:'Hard',elite:'Elite'};
             const TC={1:{name:'Blue',col:'#3b82f6'},2:{name:'Red',col:'#ef4444'}};
             const audLbl=rn=>rn.audio?AUD[rn.audio]||rn.audio:(rn.cranked?'Cranked':'Standard');
-            const Pill=({v})=><span style={{display:'inline-block',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:4,padding:'1px 7px',fontSize:'.67rem',color:'var(--muted)',marginRight:'.3rem',marginBottom:'.2rem'}}>{v}</span>;
+            const Pill=({v,children})=><span style={{display:'inline-block',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:4,padding:'1px 7px',fontSize:'.67rem',marginRight:'.3rem',marginBottom:'.2rem'}}>{v!=null?<span style={{color:'var(--muted)'}}>{v}</span>:children}</span>;
+            const ns={fontFamily:'var(--fd)',fontSize:'.67rem',fontWeight:700,lineHeight:1};
+            const audCode=rn=>rn.audio||(rn.cranked?'C':'T');
             return <div className="tw"><table><thead><tr><th>Type</th><th>Date & Time</th><th>Players</th><th>Amount</th><th>Status</th><th></th></tr></thead>
               <tbody>{past.map(r=>{
                 const rt=resTypes.find(x=>x.id===r.typeId);
@@ -1566,8 +1569,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                                 <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap'}}>
                                   <span style={{color:'var(--txt)',fontWeight:700}}>Run {runNum}</span>
                                   {rEnv.structure&&<span>Structure: {rEnv.structure}</span>}
-                                  {rEnv.visual&&<Pill v={(VIZ[rEnv.visual]||rEnv.visual)+' Visual'}/>}
-                                  <Pill v={audLbl(rEnv)+' Audio'}/>
+                                  {rEnv.visual&&<Pill>{vizRenderName(rEnv.visual,VIZ[rEnv.visual]||rEnv.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></Pill>}
+                                  <Pill>{audRenderName(audCode(rEnv),AUD[audCode(rEnv)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></Pill>
                                 </div>
                                 <div style={{display:'flex',gap:'.5rem',alignItems:'center'}}>
                                   {runTime&&<span>{runTime}</span>}
@@ -1614,8 +1617,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                                   {t&&<span style={{fontSize:'.68rem',color:'var(--muted)'}}>{t}</span>}
                                 </div>
                                 <div style={{marginBottom:'.3rem',display:'flex',flexWrap:'wrap',gap:'.2rem'}}>
-                                  {rn.visual&&<Pill v={(VIZ[rn.visual]||rn.visual)+' Visual'}/>}
-                                  <Pill v={audLbl(rn)+' Audio'}/>
+                                  {rn.visual&&<Pill>{vizRenderName(rn.visual,VIZ[rn.visual]||rn.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></Pill>}
+                                  <Pill>{audRenderName(audCode(rn),AUD[audCode(rn)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></Pill>
                                   {rn.structure&&<Pill v={'Structure: '+rn.structure}/>}
                                   {rn.liveOpDifficulty&&<Pill v={'OP: '+(OPD[rn.liveOpDifficulty]||rn.liveOpDifficulty)}/>}
                                 </div>
@@ -2390,9 +2393,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             const audLineS=arr=>{if(!arr.length)return"—";return Object.entries(audAbbr).map(([k,n])=>{const p=audPct(arr,k);return p>0?`${n} ${p}%`:null;}).filter(Boolean).join(" · ")||"—";};
             const topViz=arr=>{if(!arr.length)return null;const cnts={};arr.forEach(r=>{cnts[r.visual]=(cnts[r.visual]||0)+1;});const [k,c]=Object.entries(cnts).sort((a,b)=>b[1]-a[1])[0]??[];return k?{code:k,name:vizNames[k]??k,pct:Math.round(c/arr.length*100)}:null;};
             const topAud=arr=>{if(!arr.length)return null;const cnts={};arr.forEach(r=>{const k=r.audio??(r.cranked?'C':'T');cnts[k]=(cnts[k]||0)+1;});const [k,c]=Object.entries(cnts).sort((a,b)=>b[1]-a[1])[0]??[];return k?{code:k,name:audNames[k]??k,pct:Math.round(c/arr.length*100)}:null;};
-            const vizColor={V:"#dce3ef",C:"#a78bfa",R:"#f472b6",S:"#60a5fa",B:"#1a2533"};
-            const vizExtra={B:{textShadow:"0 0 8px rgba(255,255,255,.9),0 0 18px rgba(255,255,255,.55),0 0 32px rgba(255,255,255,.2)"}};
-            const audColor={O:"var(--muted)",T:"var(--accB)",C:"#f97316"};
+            // vizRenderName / audRenderName imported from ./envRender.jsx
             // Avg run time
             const fmtSec=s=>s===null?"—":`${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
             const avgSec=arr=>arr.length?arr.reduce((s,r)=>s+r.elapsedSeconds,0)/arr.length:null;
@@ -2424,18 +2425,31 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 return<div className="stat-card">
                   <div className="stat-lbl">Revenue</div>
                   <div className={`stat-val${szCls}`} style={{color:"var(--accB)"}}>{totalStr}</div>
-                  <div className="stat-sub">Co-Op Open {fmtMoney(coopOpenRev)} · Co-Op Priv {fmtMoney(coopPrivRev)}</div>
-                  <div className="stat-sub">Vs Open {fmtMoney(vsOpenRev)} · Vs Priv {fmtMoney(vsPrivRev)}</div>
+                  <div className="stat-sub">Co-Op Open {fmtMoney(coopOpenRev)}</div>
+                  <div className="stat-sub">Co-Op Priv {fmtMoney(coopPrivRev)}</div>
+                  <div className="stat-sub">Vs Open {fmtMoney(vsOpenRev)}</div>
+                  <div className="stat-sub">Vs Priv {fmtMoney(vsPrivRev)}</div>
                   <div className="stat-sub">Merch {fmtMoney(merchRev)}</div>
                 </div>;
               })()}
-              {w.bookings&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">{coopRes.length} co-op · {vsRes.length} vs</div></div>}
-              {w.players&&<div className="stat-card"><div className="stat-lbl">Avg / Lane</div><div className="stat-val">{fmt2(avgPerLane)}</div><div className="stat-sub">Priv Co-Op {fmt2(arrAvg(coopPrivLanes))} · Priv Vs {fmt2(arrAvg(vsPrivLanes))}</div><div className="stat-sub">Open Co-Op {fmt2(arrAvg(coopOpenLanes))} · Open Vs {fmt2(arrAvg(vsOpenLanes))}</div></div>}
+              {w.bookings&&<div className="stat-card"><div className="stat-lbl">Bookings</div><div className="stat-val">{active.length}</div><div className="stat-sub">Co-Op Open {activeCoopOpen.length}</div><div className="stat-sub">Co-Op Priv {activeCoopPriv.length}</div><div className="stat-sub">Vs Open {activeVsOpen.length}</div><div className="stat-sub">Vs Priv {activeVsPriv.length}</div></div>}
+              {w.players&&<div className="stat-card"><div className="stat-lbl">Avg / Lane</div><div className="stat-val">{fmt2(avgPerLane)}</div><div className="stat-sub">Co-Op Open {fmt2(arrAvg(coopOpenLanes))}</div><div className="stat-sub">Co-Op Priv {fmt2(arrAvg(coopPrivLanes))}</div><div className="stat-sub">Vs Open {fmt2(arrAvg(vsOpenLanes))}</div><div className="stat-sub">Vs Priv {fmt2(arrAvg(vsPrivLanes))}</div></div>}
               {isAdmin&&w.utilization&&<div className="stat-card"><div className="stat-lbl">Utilization</div><div className="stat-val" style={{color:utilPct===null?"var(--muted)":utilPct>=80?"var(--okB)":utilPct>=50?"var(--accB)":"var(--warnL)"}}>{utilPct!==null?utilPct+"%":"—"}</div><div className="stat-sub">{offeredSessions} sessions</div></div>}
-              {isAdmin&&w.newUsers&&<div className="stat-card"><div className="stat-lbl">New Accounts</div><div className="stat-val">{newUsersInPeriod.length}</div><div className="stat-sub">{authedInPeriod.length} set up auth</div></div>}
-              {w.leadTime&&<div className="stat-card"><div className="stat-lbl">Lead Time</div><div className="stat-val">{fmtLT(leadHours(active))}</div><div className="stat-sub">CP {fmtLT(leadHours(activeCoopPriv))} · VP {fmtLT(leadHours(activeVsPriv))}</div><div className="stat-sub">CO {fmtLT(leadHours(activeCoopOpen))} · VO {fmtLT(leadHours(activeVsOpen))}</div></div>}
-              {w.envCoop&&(()=>{const tv=topViz(coopRuns);const ta=topAud(coopRuns);const vs={fontFamily:'var(--fd)',fontSize:'.95rem',fontWeight:700,lineHeight:1,whiteSpace:'nowrap'};return<div className="stat-card"><div className="stat-lbl">Env — Co-Op <span style={{fontWeight:400,opacity:.6}}>({coopRuns.length} runs)</span></div><div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:'.35rem',margin:'.2rem 0 .15rem'}}>{tv?<span style={{...vs,color:vizColor[tv.code]??'var(--accB)',...(vizExtra[tv.code]||{})}}>{tv.name}</span>:<span style={{...vs,color:'var(--muted)'}}>—</span>}<span style={{color:'var(--muted)',fontSize:'.75rem'}}>·</span>{ta?<span style={{...vs,color:audColor[ta.code]??'var(--accB)'}}>{ta.name}</span>:<span style={{...vs,color:'var(--muted)'}}>—</span>}</div><div className="stat-sub" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Viz: {vizLineS(coopRuns)}</div><div className="stat-sub" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Aud: {audLineS(coopRuns)}</div></div>;})()}
-              {w.envVs&&(()=>{const tv=topViz(vsRuns);const ta=topAud(vsRuns);const vs={fontFamily:'var(--fd)',fontSize:'.95rem',fontWeight:700,lineHeight:1,whiteSpace:'nowrap'};return<div className="stat-card"><div className="stat-lbl">Env — Versus <span style={{fontWeight:400,opacity:.6}}>({vsRuns.length} runs)</span></div><div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:'.35rem',margin:'.2rem 0 .15rem'}}>{tv?<span style={{...vs,color:vizColor[tv.code]??'var(--accB)',...(vizExtra[tv.code]||{})}}>{tv.name}</span>:<span style={{...vs,color:'var(--muted)'}}>—</span>}<span style={{color:'var(--muted)',fontSize:'.75rem'}}>·</span>{ta?<span style={{...vs,color:audColor[ta.code]??'var(--accB)'}}>{ta.name}</span>:<span style={{...vs,color:'var(--muted)'}}>—</span>}</div><div className="stat-sub" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Viz: {vizLineS(vsRuns)}</div><div className="stat-sub" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Aud: {audLineS(vsRuns)}</div></div>;})()}
+              {isAdmin&&w.newUsers&&(()=>{
+                const selfReg=newUsersInPeriod.filter(u=>!u.createdByUserId);
+                const byKiosk=newUsersInPeriod.filter(u=>{if(!u.createdByUserId)return false;const c=users.find(x=>x.id===u.createdByUserId);return c?.access==='kiosk';});
+                const byStaff=newUsersInPeriod.filter(u=>{if(!u.createdByUserId)return false;const c=users.find(x=>x.id===u.createdByUserId);return c?.access!=='kiosk';});
+                return<div className="stat-card">
+                  <div className="stat-lbl">New Accounts</div>
+                  <div className="stat-val">{newUsersInPeriod.length}</div>
+                  <div className="stat-sub">Self {selfReg.length}</div>
+                  <div className="stat-sub">Kiosk {byKiosk.length}</div>
+                  <div className="stat-sub">By Staff {byStaff.length}</div>
+                </div>;
+              })()}
+              {w.leadTime&&<div className="stat-card"><div className="stat-lbl">Lead Time</div><div className="stat-val">{fmtLT(leadHours(active))}</div><div className="stat-sub">Co-Op Open {fmtLT(leadHours(activeCoopOpen))}</div><div className="stat-sub">Co-Op Priv {fmtLT(leadHours(activeCoopPriv))}</div><div className="stat-sub">Vs Open {fmtLT(leadHours(activeVsOpen))}</div><div className="stat-sub">Vs Priv {fmtLT(leadHours(activeVsPriv))}</div></div>}
+              {w.envCoop&&(()=>{const tv=topViz(coopRuns);const ta=topAud(coopRuns);const vs={fontFamily:'var(--fd)',fontSize:'.95rem',fontWeight:700,lineHeight:1,whiteSpace:'nowrap'};return<div className="stat-card"><div className="stat-lbl">Env — Co-Op <span style={{fontWeight:400,opacity:.6}}>({coopRuns.length} runs)</span></div><div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:'.35rem',margin:'.2rem 0 .15rem'}}>{tv?vizRenderName(tv.code,tv.name,vs):<span style={{...vs,color:'var(--muted)'}}>—</span>}<span style={{color:'var(--muted)',fontSize:'.75rem'}}>·</span>{ta?audRenderName(ta.code,ta.name,vs):<span style={{...vs,color:'var(--muted)'}}>—</span>}</div><div className="stat-sub" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Viz: {vizLineS(coopRuns)}</div><div className="stat-sub" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Aud: {audLineS(coopRuns)}</div></div>;})()}
+              {w.envVs&&(()=>{const tv=topViz(vsRuns);const ta=topAud(vsRuns);const vs={fontFamily:'var(--fd)',fontSize:'.95rem',fontWeight:700,lineHeight:1,whiteSpace:'nowrap'};return<div className="stat-card"><div className="stat-lbl">Env — Versus <span style={{fontWeight:400,opacity:.6}}>({vsRuns.length} runs)</span></div><div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:'.35rem',margin:'.2rem 0 .15rem'}}>{tv?vizRenderName(tv.code,tv.name,vs):<span style={{...vs,color:'var(--muted)'}}>—</span>}<span style={{color:'var(--muted)',fontSize:'.75rem'}}>·</span>{ta?audRenderName(ta.code,ta.name,vs):<span style={{...vs,color:'var(--muted)'}}>—</span>}</div><div className="stat-sub" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Viz: {vizLineS(vsRuns)}</div><div className="stat-sub" style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Aud: {audLineS(vsRuns)}</div></div>;})()}
               {w.avgRunTime&&<div className="stat-card"><div className="stat-lbl">Avg Run Time</div><div className="stat-val">{fmtSec(avgSec(dashRuns))}</div><div className="stat-sub">Co-Op {fmtSec(avgSec(coopRuns))} · Versus {fmtSec(avgSec(vsRuns))}</div><div className="stat-sub">Full timer: Co-Op {fullTimerPct(coopRuns)??'—'}% · Versus {fullTimerPct(vsRuns)??'—'}%</div></div>}
             </>;
           })()}
@@ -2496,8 +2510,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                   <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{r.createdAt?fmt(r.createdAt.slice(0,10)):""}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td>
                   <td><div>{res?.customerName||"—"}</div><div style={{fontSize:".72rem",color:"var(--muted)"}}>{res?`${fmt(res.date)} ${fmt12(res.startTime)}`:""}</div></td>
                   <td>{rt&&<><span className={`badge b-${rt.mode}`} style={{marginRight:".3rem"}}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}</td>
-                  <td style={{fontSize:".82rem"}}>{vizLabel[r.visual]||r.visual||"—"}</td>
-                  <td style={{fontSize:".82rem"}}>{audLabel(r)}</td>
+                  <td>{r.visual?vizRenderName(r.visual,vizLabel[r.visual]||r.visual,{fontFamily:'var(--fd)',fontSize:'.82rem',fontWeight:700}):<span style={{color:'var(--muted)'}}>—</span>}</td>
+                  <td>{(()=>{const ac=r.audio||(r.cranked?'C':'T');return audRenderName(ac,audNames[ac]||ac,{fontFamily:'var(--fd)',fontSize:'.82rem',fontWeight:700});})()}</td>
                   <td style={{fontFamily:"var(--fd)",color:"var(--accB)"}}>{fmtRunSec(r.elapsedSeconds)}</td>
                   <td style={{fontFamily:"var(--fd)",fontWeight:700,color:r.score!=null?"var(--txt)":"var(--muted)"}}>{r.score!=null?Number(r.score).toFixed(1):"—"}</td>
                 </tr>;})}

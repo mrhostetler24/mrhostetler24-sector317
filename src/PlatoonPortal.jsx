@@ -3,6 +3,7 @@
 // Rendered inside SocialPortal.jsx as the 4th "Platoon" tab.
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { vizRenderName, audRenderName } from './envRender.jsx'
 import {
   emailPlatoonInviteReceived, emailPlatoonRequestReceived,
   emailPlatoonRequestApproved, emailPlatoonRequestDenied,
@@ -1098,8 +1099,9 @@ function SessionCard({ session, upcoming }) {
   const VIZ = { V: 'Standard', C: 'Cosmic', R: 'Rave', S: 'Strobe', CS: 'Cosmic+Strobe', B: 'Dark' }
   const AUD = { C: 'Cranked', O: 'Off', T: 'Tunes' }
   const TC  = { 1: { name: 'Blue', col: '#3b82f6' }, 2: { name: 'Red', col: '#ef4444' } }
-  const Pill = ({ v }) => <span style={{ display: 'inline-block', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '1px 6px', fontSize: '.65rem', color: 'var(--muted)', marginRight: '.25rem' }}>{v}</span>
-  const audLbl = rn => rn.audio ? (AUD[rn.audio] || rn.audio) : (rn.cranked ? 'Cranked' : 'Standard')
+  const Pill = ({ v, children }) => <span style={{ display: 'inline-block', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '1px 6px', fontSize: '.65rem', marginRight: '.25rem' }}>{v != null ? <span style={{ color: 'var(--muted)' }}>{v}</span> : children}</span>
+  const ns = { fontFamily: 'var(--fd)', fontSize: '.65rem', fontWeight: 700, lineHeight: 1 }
+  const audCode = rn => rn.audio || (rn.cranked ? 'C' : 'T')
   const roleColor = role => { if (!role) return 'var(--muted)'; const r = role.toLowerCase(); if (r.includes('hunt')) return '#c8e03a'; if (r.includes('coyot')) return '#c4a882'; return 'var(--muted)' }
 
   // Group runs by run_number
@@ -1172,8 +1174,8 @@ function SessionCard({ session, upcoming }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
                       <span style={{ color: 'var(--txt)', fontWeight: 700 }}>Run {runNum}</span>
                       {rEnv?.structure && <span>Structure: {rEnv.structure}</span>}
-                      {rEnv?.visual && <Pill v={(VIZ[rEnv.visual] || rEnv.visual) + ' Visual'} />}
-                      <Pill v={audLbl(rEnv ?? {}) + ' Audio'} />
+                      {rEnv?.visual && <Pill>{vizRenderName(rEnv.visual, VIZ[rEnv.visual]||rEnv.visual, ns)}<span style={{color:'var(--muted)'}}> Viz</span></Pill>}
+                      <Pill>{audRenderName(audCode(rEnv??{}), AUD[audCode(rEnv??{})]||'Tunes', ns)}<span style={{color:'var(--muted)'}}> Aud</span></Pill>
                     </div>
                     <div style={{ display: 'flex', gap: '.4rem', alignItems: 'center', flexShrink: 0 }}>
                       {runTime && <span>{runTime}</span>}
