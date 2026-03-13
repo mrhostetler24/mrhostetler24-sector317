@@ -364,6 +364,8 @@ export default function LandingPage({ onEnterApp, onBookNow, resTypes=[] }) {
   const activePrivate=resTypes.filter(rt=>rt.style==='private'&&rt.active&&rt.availableForBooking);
   const openPrice=activeOpen.length?Math.min(...activeOpen.map(rt=>rt.price)):null;
   const privateMinPrice=activePrivate.length?Math.min(...activePrivate.map(rt=>rt.price)):null;
+  const privateDiscount=pt=>{const op=activeOpen.find(o=>o.mode===pt.mode&&o.pricingMode==='per_person');if(!op||!pt.maxPlayers)return null;const full=op.price*pt.maxPlayers;return full>pt.price?Math.round((full-pt.price)/full*100):null;};
+  const maxPrivateDiscount=activePrivate.length?Math.max(...activePrivate.map(privateDiscount).filter(d=>d!=null)):null;
   const parallax = useParallax();
   const scrolled = useScrolled();
   useReveal();
@@ -535,7 +537,7 @@ export default function LandingPage({ onEnterApp, onBookNow, resTypes=[] }) {
                 <div className="lp-mi"><em>💪</em> You pick your team</div>
                 <div className="lp-mi"><em>🚫</em> No strays allowed</div>
               </div>
-              <div className="lp-price">{privateMinPrice!=null?`From ${fmtP(privateMinPrice)}`:'—'} <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span><span className="lp-tag">Stick With Your Crew</span></div>
+              <div className="lp-price">{privateMinPrice!=null?`From ${fmtP(privateMinPrice)}`:'—'} <span style={{fontSize:".85rem",fontWeight:400,color:"#7a7868"}}>flat rate</span>{maxPrivateDiscount!=null&&<span style={{color:"#c8e03a",fontSize:".8rem",fontWeight:600,marginLeft:".4rem"}}>({maxPrivateDiscount}% off full lane)</span>}<span className="lp-tag">Stick With Your Crew</span></div>
             </div>
           </div>
 

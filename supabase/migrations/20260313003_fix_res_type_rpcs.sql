@@ -50,7 +50,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_access text;
 BEGIN
-  SELECT access INTO v_access FROM public.users WHERE auth_id = auth.uid();
+  SELECT access INTO v_access FROM public.users WHERE auth_id = auth.uid()::text;
   IF v_access NOT IN ('staff','manager','admin') THEN
     RAISE EXCEPTION 'permission denied';
   END IF;
@@ -90,7 +90,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_access text;
 BEGIN
-  SELECT access INTO v_access FROM public.users WHERE auth_id = auth.uid();
+  SELECT access INTO v_access FROM public.users WHERE auth_id = auth.uid()::text;
   IF v_access NOT IN ('staff','manager','admin') THEN
     RAISE EXCEPTION 'permission denied';
   END IF;

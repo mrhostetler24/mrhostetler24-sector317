@@ -31,6 +31,14 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const [slotAssignments,setSlotAssignments]=useState({});
   const [pendingResIds,setPendingResIds]=useState(null); // [{startTime,laneIdx,resId}] set after Pay
   const bookable=resTypes.filter(rt=>rt.active&&rt.availableForBooking);
+  const flatDiscount=rt=>{
+    if(rt?.pricingMode!=='flat'||!rt.maxPlayers)return null;
+    const op=bookable.find(o=>o.mode===rt.mode&&o.style==='open'&&o.pricingMode==='per_person');
+    if(!op)return null;
+    const full=op.price*rt.maxPlayers;
+    if(full<=rt.price)return null;
+    return Math.round((full-rt.price)/full*100);
+  };
   const selType=bookable.find(rt=>rt.mode===selMode&&rt.style===selStyle);
   const allDates=get60Dates(sessionTemplates);
   const availMap=useMemo(()=>{if(!selType)return{};const m={};allDates.forEach(d=>{m[d]=dateHasAvailability(d,selType.id,_allRes,resTypes,sessionTemplates);});return m;},[selType,_allRes,resTypes,sessionTemplates]);
@@ -144,7 +152,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
                   <path d="M17.5 20v-2.5a3.5 3.5 0 017 0V20" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round"/>
                   <circle cx="21" cy="24" r="1.5" fill="#c8e03a"/>
                 </svg>
-}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div className="mode-desc">{rt.description}{selMode==="versus"&&sty==="open"&&<div style={{marginTop:".5rem",fontSize:".74rem",color:"var(--warn)",fontWeight:600}}>⚠ Minimum 4 players per reservation for Versus open play.</div>}</div><div className="mode-price">{rt.pricingMode==="flat"?`${fmtMoney(rt.price)} flat`:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
+}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div className="mode-desc">{rt.description}{selMode==="versus"&&sty==="open"&&<div style={{marginTop:".5rem",fontSize:".74rem",color:"var(--warn)",fontWeight:600}}>⚠ Minimum 4 players per reservation for Versus open play.</div>}</div><div className="mode-price">{rt.pricingMode==="flat"?<>{fmtMoney(rt.price)} flat{flatDiscount(rt)!=null&&<span style={{color:"#4ade80",fontSize:".78rem",marginLeft:".4rem",fontWeight:600}}>({flatDiscount(rt)}% off full lane)</span>}</>:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
       {step===3&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Choose a date.</p>
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
@@ -225,10 +233,10 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
       {step===5&&!isPrivate&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Players{selType?.pricingMode==="per_person"&&<span style={{color:"var(--accB)",marginLeft:".5rem"}}>{fmtMoney(selType.price)}/player</span>}</p>
         <div className="f"><label>Number of Players {spotsLocked?<span style={{fontSize:".78rem",color:"var(--dangerL)",fontWeight:600}}>({openMaxFromLane} spot{openMaxFromLane!==1?"s":""} left — fixed)</span>:isVersusOpen?<span style={{fontSize:".78rem",color:"var(--warn)",fontWeight:600}}>(min 4, max {maxP})</span>:<span style={{fontSize:".78rem",color:"var(--muted)"}}>max {maxP}</span>}</label>{spotsLocked?<div style={{fontSize:"1.1rem",fontWeight:700,color:"var(--accB)",padding:".35rem 0"}}>{openMaxFromLane} player{openMaxFromLane!==1?"s":""}</div>:<div style={{display:"flex",alignItems:"center",gap:"1rem"}}><span style={{fontSize:"2rem",fontWeight:800,color:"var(--txt)",minWidth:36,textAlign:"center",lineHeight:1,flexShrink:0}}>{playerCount}</span><div style={{flex:1,display:"flex",flexDirection:"column",gap:".25rem"}}><input type="range" min={minP} max={maxP} value={playerCount} onChange={e=>setPlayerCount(+e.target.value)} style={{width:"100%",accentColor:"var(--acc)",cursor:"pointer"}}/><div style={{display:"flex",justifyContent:"space-between",fontSize:".7rem",color:"var(--muted)"}}><span>{minP}</span><span style={{color:maxP<(selMode==="versus"?12:6)?"var(--warn)":"var(--muted)",fontWeight:600}}>{maxP} max</span></div></div></div>}{spotsLocked?<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".3rem"}}>⚠ This lane only has {openMaxFromLane} spot{openMaxFromLane!==1?"s":""} remaining — booking qty is fixed.</div>:!isVersusOpen&&!isPrivate&&openMaxFromLane<perLaneCap&&selSlots.length>0?<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".3rem"}}>⚠ This lane already has {perLaneCap-openMaxFromLane} of {perLaneCap} players — max {openMaxFromLane} spot{openMaxFromLane!==1?"s":""} remaining.</div>:isVersusOpen&&playerCount<4&&<div style={{fontSize:".74rem",color:"var(--dangerL)",marginTop:".3rem"}}>⚠ Versus open play requires a minimum of 4 players.</div>}</div>
-        <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div>
+        {(()=>{const disc=flatDiscount(selType);const op=disc!=null?bookable.find(o=>o.mode===selType.mode&&o.style==='open'&&o.pricingMode==='per_person'):null;const saved=op&&selType?.maxPlayers?((op.price*selType.maxPlayers)-selType.price)*selSlots.length:0;return<div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>{selType?.pricingMode==="flat"?"Flat":"Per Player"}</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span>{selType?.pricingMode==="per_person"&&<span>Players × {playerCount}</span>}</div>{disc!=null&&saved>0&&<div className="pay-row" style={{color:"#4ade80",fontSize:".8rem"}}><span>💰 Savings vs open play</span><span>-{fmtMoney(saved)}</span></div>}<div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div>
         {creditBalance>0&&<div className="pay-row" style={{color:"var(--okB)",cursor:"pointer"}} onClick={()=>setApplyCredits(a=>!a)}><span><input type="checkbox" checked={applyCredits} readOnly style={{accentColor:"var(--okB)",marginRight:".4rem"}}/>{applyCredits?`Credits Applied`:`Apply Credits (${fmtMoney(creditBalance)} available)`}</span><span style={{color:"var(--okB)"}}>{applyCredits?`-${fmtMoney(creditsApplied)}`:""}</span></div>}
         {creditsApplied>0&&<div className="pay-row tot"><span>Amount Due</span><span>{fmtMoney(amountDue)}</span></div>}
-        </div>
+        </div>;})()}
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
           {amountDue>0&&<><div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={handleCardNumber} maxLength={19} inputMode="numeric"/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM/YY" value={cardExpiry} onChange={handleCardExpiry} maxLength={5} inputMode="numeric"/></div></div>
@@ -305,10 +313,10 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         })()}
       </>}
       {step===5&&isPrivate&&<>
-        <div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>Private ({lanesBooked>1?`${lanesBooked} lanes · `:""}max {maxP} players) — Flat</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span></div><div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div>
+        {(()=>{const disc=flatDiscount(selType);const op=disc!=null?bookable.find(o=>o.mode===selType?.mode&&o.style==='open'&&o.pricingMode==='per_person'):null;const saved=op&&selType?.maxPlayers?((op.price*selType.maxPlayers)-selType.price)*selSlots.length:0;return<div className="pay-sum"><div className="pay-row"><span>{selType?.name}</span><span>Private ({lanesBooked>1?`${lanesBooked} lanes · `:""}max {maxP} players) — Flat</span></div><div className="pay-row"><span>Sessions × {selSlots.length}</span></div>{disc!=null&&saved>0&&<div className="pay-row" style={{color:"#4ade80",fontSize:".8rem"}}><span>💰 Savings vs open play</span><span>-{fmtMoney(saved)}</span></div>}<div className="pay-row tot"><span>Total</span><span>{fmtMoney(total)}</span></div>
         {creditBalance>0&&<div className="pay-row" style={{color:"var(--okB)",cursor:"pointer"}} onClick={()=>setApplyCredits(a=>!a)}><span><input type="checkbox" checked={applyCredits} readOnly style={{accentColor:"var(--okB)",marginRight:".4rem"}}/>{applyCredits?`Credits Applied`:`Apply Credits (${fmtMoney(creditBalance)} available)`}</span><span style={{color:"var(--okB)"}}>{applyCredits?`-${fmtMoney(creditsApplied)}`:""}</span></div>}
         {creditsApplied>0&&<div className="pay-row tot"><span>Amount Due</span><span>{fmtMoney(amountDue)}</span></div>}
-        </div>
+        </div>;})()}
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
           {amountDue>0&&<><div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={handleCardNumber} maxLength={19} inputMode="numeric"/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM/YY" value={cardExpiry} onChange={handleCardExpiry} maxLength={5} inputMode="numeric"/></div></div>
