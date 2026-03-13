@@ -439,6 +439,7 @@ function PlatoonFinder({ userId, currentUser, onJoined }) {
         <PlatoonCreateModal
           onClose={() => setShowCreate(false)}
           onCreated={onJoined}
+          userAccess={currentUser.access}
         />
       )}
     </div>
@@ -549,7 +550,7 @@ function PlatoonDetailModal({ platoon, currentUser, onClose, onJoined }) {
 
 // ── PlatoonCreateModal ────────────────────────────────────────────────────────
 
-function PlatoonCreateModal({ onClose, onCreated }) {
+function PlatoonCreateModal({ onClose, onCreated, userAccess }) {
   const [tag,       setTag]       = useState('')
   const [name,      setName]      = useState('')
   const [desc,      setDesc]      = useState('')
@@ -610,16 +611,23 @@ function PlatoonCreateModal({ onClose, onCreated }) {
           <div style={{ fontSize: '.78rem', color: 'var(--muted)', lineHeight: 1.5 }}>Click the badge to upload a logo <br />(optional — can add later)</div>
         </div>
 
-        <div style={SECTION_HDR}>Tag (2–5 chars)</div>
-        <input
-          className="inp"
-          style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'var(--fd)', textTransform: 'uppercase', letterSpacing: '.05em' }}
-          maxLength={5}
-          placeholder="S317"
-          value={tag}
-          onChange={e => setTag(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-        />
-        {tag.length >= 2 && <div style={{ fontSize: '.75rem', color: '#94a3b8', marginTop: '.25rem' }}>Preview: <strong>[{tag}]</strong></div>}
+        {(() => {
+          const isSiteAdmin = ['staff','manager','admin'].includes(userAccess)
+          const maxLen = isSiteAdmin ? 5 : 4
+          return <>
+            <div style={SECTION_HDR}>Tag (2–{maxLen} chars)</div>
+            <input
+              className="inp"
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'var(--fd)', textTransform: 'uppercase', letterSpacing: '.05em' }}
+              maxLength={maxLen}
+              placeholder="S317"
+              value={tag}
+              onChange={e => setTag(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+            />
+            {tag.length >= 2 && <div style={{ fontSize: '.75rem', color: '#94a3b8', marginTop: '.25rem' }}>Preview: <strong>[{tag}]</strong></div>}
+            {!isSiteAdmin && <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: '.2rem' }}>5-character tags are reserved for staff.</div>}
+          </>
+        })()}
 
         <div style={SECTION_HDR}>Platoon Name</div>
         <input className="inp" style={{ width: '100%', boxSizing: 'border-box' }} placeholder="Sector 317 Elite" value={name} onChange={e => setName(e.target.value)} />
@@ -726,7 +734,7 @@ function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLef
       {subTab === 'members'  && <MembersTab  platoon={platoon} myRole={myRole} userId={userId} currentUser={currentUser} onChanged={onChanged} onViewProfile={onViewProfile} />}
       {subTab === 'sessions' && <SessionsTab platoon={platoon} />}
       {subTab === 'upcoming' && <UpcomingTab platoon={platoon} />}
-      {subTab === 'settings' && myRole === 'admin' && <SettingsTab platoon={platoon} onChanged={onChanged} onDisbanded={onLeft} />}
+      {subTab === 'settings' && myRole === 'admin' && <SettingsTab platoon={platoon} onChanged={onChanged} onDisbanded={onLeft} userAccess={currentUser.access} />}
 
       {showAwolConfirm && (
         <Confirm
@@ -1244,7 +1252,7 @@ function SessionCard({ session, upcoming }) {
 
 // ── SettingsTab ───────────────────────────────────────────────────────────────
 
-function SettingsTab({ platoon, onChanged, onDisbanded }) {
+function SettingsTab({ platoon, onChanged, onDisbanded, userAccess }) {
   const [tag,          setTag]          = useState(platoon.tag)
   const [name,         setName]         = useState(platoon.name)
   const [desc,         setDesc]         = useState(platoon.description || '')
@@ -1347,18 +1355,25 @@ function SettingsTab({ platoon, onChanged, onDisbanded }) {
         <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Used as tag accent &amp; badge background</span>
       </div>
 
-      <div style={SECTION_HDR}>Platoon Tag</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem' }}>
-        <input
-          className="inp"
-          value={tag}
-          onChange={e => setTag(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5))}
-          placeholder="2–5 chars"
-          maxLength={5}
-          style={{ width: 100, fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.08em' }}
-        />
-        <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>2–5 uppercase letters &amp; digits · shown as [{tag || '???'}]</span>
-      </div>
+      {(() => {
+        const isSiteAdmin = ['staff','manager','admin'].includes(userAccess)
+        const maxLen = isSiteAdmin ? 5 : 4
+        return <>
+          <div style={SECTION_HDR}>Platoon Tag</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '.65rem', flexWrap: 'wrap' }}>
+            <input
+              className="inp"
+              value={tag}
+              onChange={e => setTag(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, maxLen))}
+              placeholder={`2–${maxLen} chars`}
+              maxLength={maxLen}
+              style={{ width: 100, fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.08em' }}
+            />
+            <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>2–{maxLen} uppercase letters &amp; digits · shown as [{tag || '???'}]</span>
+          </div>
+          {!isSiteAdmin && <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: '.2rem' }}>5-character tags are reserved for staff.</div>}
+        </>
+      })()}
 
       <div style={SECTION_HDR}>Platoon Name</div>
       <input className="inp" style={{ width: '100%', boxSizing: 'border-box' }} value={name} onChange={e => setName(e.target.value)} />
