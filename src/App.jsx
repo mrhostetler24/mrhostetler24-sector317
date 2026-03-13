@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment, startTransition } from "react";
 import { isStaffBlocked } from './stampUtils.js';
 import './app.css';
 import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, getDayName, cleanPh, todayStr, addDaysStr, sortTemplates, hasValidWaiver, latestWaiverDate, latestWaiverEntry, TIER_THRESHOLDS, TIER_COLORS, TIER_SHINE, getTierInfo, getSessionsForDate, buildLanes, laneCapacity, openPlayCapacity, getSlotStatus, dateHasAvailability, get60Dates, getInitials } from './utils.js';
@@ -1427,19 +1427,19 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:".75rem",marginBottom:"1.5rem"}}>
         {/* Leaderboard + Rank combined card */}
         <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:"3px solid var(--acc2)",borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".45rem"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:".5rem",flexWrap:"wrap"}}>
-            <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--acc2)",letterSpacing:".08em",textTransform:"uppercase"}}>🏆 Leaderboard</div>
+          <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--acc2)",letterSpacing:".08em",textTransform:"uppercase"}}>🏆 Leaderboard</div>
+          <div style={{display:"flex",alignItems:"center",gap:".4rem",overflow:"hidden"}}>
             {careerRuns!==null&&(()=>{
               const{current}=getTierInfo(careerRuns);
-              const col=TIER_COLORS[current.key];
-              return <div style={{display:"flex",alignItems:"center",gap:".35rem"}}>
-                <img src={`/${current.key}.png`} alt={current.key} style={{height:14,width:"auto",maxWidth:28,display:"block",flexShrink:0,objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}}/>
-                <span style={{fontFamily:"var(--fd)",fontSize:".82rem",letterSpacing:".06em",textTransform:"uppercase",color:col}}>{current.name}</span>
-              </div>;
+              return <img src={`/${current.key}.png`} alt={current.key} style={{height:16,width:"auto",flexShrink:0,objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}}/>;
             })()}
-          </div>
-          <div style={{fontSize:".88rem",color:user.hideFromLeaderboard?"var(--muted)":"var(--txt)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {user.hideFromLeaderboard?"Hidden":user.leaderboardName||genDefaultLeaderboardName(user.name,user.phone)}
+            <span style={{fontSize:".88rem",color:user.hideFromLeaderboard?"var(--muted)":"var(--txt)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              {user.hideFromLeaderboard?"Hidden":user.leaderboardName||genDefaultLeaderboardName(user.name,user.phone)}
+            </span>
+            {careerRuns!==null&&(()=>{
+              const{current}=getTierInfo(careerRuns);
+              return <span style={{fontSize:".88rem",fontFamily:"var(--fd)",letterSpacing:".06em",textTransform:"uppercase",color:TIER_COLORS[current.key],flexShrink:0}}>{current.name}</span>;
+            })()}
           </div>
           {careerRuns!==null&&(()=>{
             const{next,sessionsToNext}=getTierInfo(careerRuns);
@@ -1448,23 +1448,6 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
               {" · "}{careerRuns} career run{careerRuns!==1?"s":""}
             </div>;
           })()}
-          <label style={{display:"flex",alignItems:"center",gap:".4rem",cursor:"pointer",fontSize:".75rem",color:"var(--muted)",marginTop:".1rem",userSelect:"none"}}>
-            <input type="checkbox" checked={user.hideFromLeaderboard??false} disabled={lbHideSaving}
-              style={{accentColor:"var(--accB)",width:13,height:13,flexShrink:0,cursor:"pointer"}}
-              onChange={async e=>{
-                setLbHideSaving(true);
-                try{
-                  const updated=await updateOwnProfile(user.id,{
-                    name:user.name,phone:user.phone,
-                    leaderboardName:user.leaderboardName||genDefaultLeaderboardName(user.name,user.phone),
-                    hideFromLeaderboard:e.target.checked,
-                  });
-                  setUsers(prev=>prev.map(u=>u.id===user.id?updated:u));
-                }catch(_){}
-                finally{setLbHideSaving(false);}
-              }}/>
-            Hide from leaderboard
-          </label>
           <button className="btn btn-s btn-sm" style={{marginTop:"auto",alignSelf:"flex-start"}} onClick={()=>setShowAccount(true)}>Edit Account</button>
         </div>
         {(user.credits??0)>0&&<div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:"3px solid var(--ok)",borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".35rem"}}>
@@ -1500,8 +1483,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                 <td><div style={{display:"flex",gap:".35rem",flexWrap:"wrap"}}>
                   {r.status!=="completed"&&r.status!=="no-show"&&<>
                     <button className="btn btn-s btn-sm" onClick={()=>setEditResId(r.id)}>Manage Team</button>
-                    <button className="btn btn-s btn-sm" onClick={()=>setModifyRes({res:r,mode:"reschedule"})}>Reschedule</button>
-                    {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={()=>setModifyRes({res:r,mode:"upgrade"})}>⬆ Upgrade</button>}
+                    <button className="btn btn-s btn-sm" onClick={()=>startTransition(()=>setModifyRes({res:r,mode:"reschedule"}))}>Reschedule</button>
+                    {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={()=>startTransition(()=>setModifyRes({res:r,mode:"upgrade"}))}>⬆ Upgrade</button>}
                   </>}
                 </div></td>
               </tr>;})}
