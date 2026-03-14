@@ -1142,6 +1142,7 @@ function SessionCard({ session, upcoming }) {
   const VIZ = { V: 'Standard', C: 'Cosmic', R: 'Rave', S: 'Strobe', CS: 'Cosmic+Strobe', B: 'Dark' }
   const AUD = { C: 'Cranked', O: 'Off', T: 'Tunes' }
   const TC  = { 1: { name: 'Blue', col: '#3b82f6' }, 2: { name: 'Red', col: '#ef4444' } }
+  const OPD = { easy: 'Easy', medium: 'Medium', hard: 'Hard', elite: 'Elite' }
   const Pill = ({ v, children }) => <span style={{ display: 'inline-block', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '1px 6px', fontSize: '.65rem', marginRight: '.25rem' }}>{v != null ? <span style={{ color: 'var(--muted)' }}>{v}</span> : children}</span>
   const ns = { fontFamily: 'var(--fd)', fontSize: '.65rem', fontWeight: 700, lineHeight: 1 }
   const audCode = rn => rn.audio || (rn.cranked ? 'C' : 'T')
@@ -1262,22 +1263,35 @@ function SessionCard({ session, upcoming }) {
               )
             })
           ) : (
-            // Co-op: flat run cards
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem' }}>
+            // Co-op: same block structure as versus
+            <div>
               {sortedGroups.map(([runNum, grp]) => {
                 const rEnv = grp[0]
                 const runTime = fmtSec(rEnv?.elapsed_seconds)
                 return (
-                  <div key={runNum} style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.5rem .75rem', minWidth: 120 }}>
-                    <div style={{ fontSize: '.65rem', color: 'var(--muted)', fontFamily: 'var(--fd)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.25rem' }}>
-                      Run {runNum}{runTime && ` · ${runTime}`}
-                    </div>
-                    {grp.map(rn => (
-                      <div key={rn.run_id || rn.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.5rem' }}>
-                        <span style={{ fontSize: '.72rem', color: rn.is_member ? 'var(--accB)' : 'var(--muted)', fontWeight: rn.is_member ? 700 : 400 }}>{rn.leaderboard_name || '—'}</span>
-                        <span style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', fontWeight: 700, color: 'var(--txt)' }}>{rn.score ?? '—'}</span>
+                  <div key={runNum} style={{ marginBottom: '.5rem', border: '1px solid var(--bdr)', borderRadius: 6, overflow: 'hidden', background: 'var(--surf)' }}>
+                    <div style={{ background: 'var(--bg2)', padding: '.28rem .75rem', fontSize: '.65rem', fontFamily: 'var(--fd)', letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '.3rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
+                        <span style={{ color: 'var(--txt)', fontWeight: 700 }}>Run {runNum}</span>
+                        {rEnv?.structure && <span>Structure: {rEnv.structure}</span>}
+                        {rEnv?.visual && <span style={{ marginRight: '.35rem' }}>{vizRenderName(rEnv.visual, VIZ[rEnv.visual] || rEnv.visual, ns)}<span style={{ color: 'var(--muted)' }}> Viz</span></span>}
+                        <span style={{ marginRight: '.35rem' }}>{audRenderName(audCode(rEnv ?? {}), AUD[audCode(rEnv ?? {})] || 'Tunes', ns)}<span style={{ color: 'var(--muted)' }}> Aud</span></span>
+                        {rEnv?.live_op_difficulty && <span>OP: {OPD[rEnv.live_op_difficulty] || rEnv.live_op_difficulty}</span>}
                       </div>
-                    ))}
+                      {runTime && <span>{runTime}</span>}
+                    </div>
+                    <div style={{ padding: '.5rem .75rem' }}>
+                      <div style={{ fontFamily: 'var(--fd)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--txt)', marginBottom: '.2rem' }}>{rEnv?.score ?? '—'}</div>
+                      <div style={{ display: 'flex', gap: '.2rem', flexWrap: 'wrap', marginBottom: grp.length ? '.35rem' : 0 }}>
+                        {rEnv?.targets_eliminated != null && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: rEnv.targets_eliminated ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)', color: rEnv.targets_eliminated ? '#4ade80' : '#f87171', border: '1px solid ' + (rEnv.targets_eliminated ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') }}>{rEnv.targets_eliminated ? '✓ Targets' : '✗ Missed'}</span>}
+                        {rEnv?.objective_complete != null && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: rEnv.objective_complete ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)', color: rEnv.objective_complete ? '#4ade80' : '#f87171', border: '1px solid ' + (rEnv.objective_complete ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') }}>{rEnv.objective_complete ? '✓ Objective' : '✗ Objective'}</span>}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.15rem .4rem' }}>
+                        {grp.map(r2 => (
+                          <span key={r2.user_id} style={{ fontSize: '.66rem', color: r2.is_member ? 'var(--accB)' : 'var(--muted)', fontWeight: r2.is_member ? 700 : 400 }}>{r2.leaderboard_name || '—'}</span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )
               })}

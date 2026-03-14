@@ -1591,29 +1591,30 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                         </>;
                       })():(()=>{
                         return <>
-                          <div style={{display:'flex',flexWrap:'wrap',gap:'.5rem'}}>
-                            {resRuns.map((rn,i)=>{
-                              const sc=rn.score??calculateRunScore(rn);
-                              const t=fmtSec(rn.elapsedSeconds);
-                              return <div key={rn.id} style={{background:'var(--surf)',border:'1px solid var(--bdr)',borderLeft:`3px solid ${rn.objectiveComplete?'var(--acc)':'var(--danger)'}`,borderRadius:6,padding:'.6rem .85rem',minWidth:200}}>
-                                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
-                                  <span style={{fontSize:'.68rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>Run {rn.runNumber??i+1}</span>
-                                  {t&&<span style={{fontSize:'.68rem',color:'var(--muted)'}}>{t}</span>}
-                                </div>
-                                <div style={{marginBottom:'.3rem',display:'flex',flexWrap:'wrap',gap:'.2rem'}}>
+                          {resRuns.map((rn,i)=>{
+                            const sc=rn.score??calculateRunScore(rn);
+                            const t=fmtSec(rn.elapsedSeconds);
+                            return <div key={rn.id} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
+                              <div style={{background:'var(--bg2)',padding:'.3rem .85rem',fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.3rem'}}>
+                                <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap'}}>
+                                  <span style={{color:'var(--txt)',fontWeight:700}}>Run {rn.runNumber??i+1}</span>
+                                  {rn.structure&&<span>Structure: {rn.structure}</span>}
                                   {rn.visual&&<span style={{marginRight:'.4rem'}}>{vizRenderName(rn.visual,VIZ[rn.visual]||rn.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></span>}
                                   <span style={{marginRight:'.4rem'}}>{audRenderName(audCode(rn),AUD[audCode(rn)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></span>
-                                  {rn.structure&&<Pill v={'Structure: '+rn.structure}/>}
-                                  {rn.liveOpDifficulty&&<Pill v={'OP: '+(OPD[rn.liveOpDifficulty]||rn.liveOpDifficulty)}/>}
+                                  {rn.liveOpDifficulty&&<span>OP: {OPD[rn.liveOpDifficulty]||rn.liveOpDifficulty}</span>}
                                 </div>
-                                <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:'var(--accB)',marginBottom:'.35rem'}}>{sc}</div>
-                                <div style={{display:'flex',flexWrap:'wrap',gap:'.25rem'}}>
+                                {t&&<span>{t}</span>}
+                              </div>
+                              <div style={{padding:'.6rem .9rem'}}>
+                                <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:'var(--txt)',marginBottom:'.25rem'}}>{sc}</div>
+                                <div style={{display:'flex',flexWrap:'wrap',gap:'.25rem',marginBottom:'.4rem'}}>
                                   <span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.targetsEliminated?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.targetsEliminated?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.targetsEliminated?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.targetsEliminated?'✓ Targets':'✗ Missed'}</span>
                                   <span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>
                                 </div>
-                              </div>;
-                            })}
-                          </div>
+                                {r.players.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{r.players.map((p,pi)=>{const pu=users.find(u=>u.id===p.userId);const ptag=pu?.platoonTag;return <span key={pi} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{ptag&&<span style={{color:pu?.platoonBadgeColor||'#94a3b8',marginRight:'.2rem',fontFamily:'var(--fc)',fontWeight:700,letterSpacing:'.03em'}}>[{ptag}]</span>}{p.name||'—'}</span>;})}</div>}
+                              </div>
+                            </div>;
+                          })}
                         </>;
                       })()}
                     </div>
