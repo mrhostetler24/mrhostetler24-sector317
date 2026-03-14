@@ -15,6 +15,7 @@ import {
   updateReservationPlayer,
   finalizeVersusWar,
   createPayment,
+  fetchRunsForReservations,
 } from './supabase.js'
 import { processPayment } from './payments.js'
 import {
@@ -565,7 +566,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const colorT=getColorTeam(player.id); // persistent Blue(1)/Red(2) for tinting
       const isHunter=t===1;
       const wl=Number(st.total_runs)>0?`${st.versus_wins??0}-${st.versus_losses??0}`:'—';
-      const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(0):'—';
+      const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(1):'—';
       const runs=st.total_runs??0;
       return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.35rem',
           padding:'.3rem .4rem',borderRadius:4,marginBottom:'.15rem',
@@ -722,7 +723,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         {allPlayers.map(player=>{
           const st=playerStats[player.userId]||{};
           const cr=Number(st.coop_runs)>0?Math.round(Number(st.coop_success)/Number(st.coop_runs)*100)+'%':'—';
-          const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(0):'—';
+          const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(1):'—';
           const runs=st.total_runs??0;
           return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
             <span style={{flex:1,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
@@ -1248,12 +1249,24 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [showMerch,setShowMerch]=useState(false);
   const [showHistory,setShowHistory]=useState(false);
   const [scoringSlot,setScoringSlot]=useState(null);
+  const [completedRunsCache,setCompletedRunsCache]=useState({});
   const [viewDate,setViewDate]=useState(todayStr());
   const dateInputRef=useRef(null);
   const wiPhoneRef=useRef(null);
   const activeWorkRef=useRef(false);
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
   useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
+  useEffect(()=>{
+    if(!expandedSlot)return;
+    if(completedRunsCache[expandedSlot]!==undefined)return;
+    const slotRes=todayRes.filter(r=>r.startTime===expandedSlot);
+    const allDone=slotRes.length>0&&slotRes.every(r=>r.status==='completed'||r.status==='no-show');
+    if(!allDone)return;
+    const ids=slotRes.filter(r=>r.status==='completed').map(r=>r.id);
+    if(!ids.length){setCompletedRunsCache(prev=>({...prev,[expandedSlot]:[]}));return;}
+    setCompletedRunsCache(prev=>({...prev,[expandedSlot]:null}));
+    fetchRunsForReservations(ids).then(runs=>setCompletedRunsCache(prev=>({...prev,[expandedSlot]:runs}))).catch(()=>setCompletedRunsCache(prev=>({...prev,[expandedSlot]:[]})));
+  },[expandedSlot,todayRes,completedRunsCache]);
   const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
   const today=todayStr();
   const getType=useCallback(id=>resTypes.find(t=>t.id===id),[resTypes]);
@@ -1562,6 +1575,50 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
               const hasMatchingModes=activeLanes.some(l=>activeLanes.some(l2=>l2.laneNum!==l.laneNum&&l2.mode===l.mode));
               return(
                 <div style={{borderTop:"1px solid var(--bdr)",padding:"1rem 1.2rem"}}>
+                  {allCompleted&&(()=>{
+                    const runs=completedRunsCache[time];
+                    if(runs==null)return<div style={{textAlign:"center",color:"var(--muted)",fontSize:".82rem",padding:".2rem 0 .8rem"}}>Loading scores…</div>;
+                    if(!runs.length)return null;
+                    return<div style={{marginBottom:".9rem",display:"flex",gap:".75rem",flexWrap:"wrap"}}>
+                      {activeLanes.map(lane=>{
+                        const laneRuns=lane.reservations.flatMap(res=>runs.filter(r=>r.reservationId===res.id));
+                        if(!laneRuns.length)return null;
+                        const mode=lane.mode;
+                        return<div key={lane.laneNum} style={{flex:1,minWidth:180,background:"var(--bg2)",border:"1px solid rgba(74,222,128,.25)",borderRadius:8,padding:".65rem .85rem"}}>
+                          <div style={{fontSize:".72rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:".6rem"}}>Lane {lane.laneNum} · {mode} · Scores</div>
+                          {[1,2].map(runNum=>{
+                            const recs=laneRuns.filter(r=>r.runNumber===runNum);
+                            if(!recs.length)return null;
+                            if(mode==="versus"){
+                              const blue=recs.find(r=>r.team===1);
+                              const red=recs.find(r=>r.team===2);
+                              const winner=blue?.winningTeam??red?.winningTeam??null;
+                              return<div key={runNum} style={{marginBottom:".5rem"}}>
+                                <div style={{fontSize:".68rem",color:"var(--muted)",fontWeight:600,marginBottom:".25rem"}}>Run {runNum}</div>
+                                <div style={{display:"flex",gap:".4rem",alignItems:"center"}}>
+                                  <div style={{flex:1,textAlign:"center",background:"rgba(59,130,246,.08)",border:`1px solid ${winner===1?"#3b82f6":"rgba(59,130,246,.2)"}`,borderRadius:5,padding:".3rem .5rem"}}>
+                                    <div style={{fontSize:".62rem",color:"#60a5fa",fontWeight:700,textTransform:"uppercase",marginBottom:".1rem"}}>Blue{winner===1?" ✓":""}</div>
+                                    <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:winner===1?"#3b82f6":"var(--txt)"}}>{blue?.score!=null?Number(blue.score).toFixed(1):"—"}</div>
+                                  </div>
+                                  <div style={{fontSize:".75rem",color:"var(--muted)",fontWeight:700,flexShrink:0}}>vs</div>
+                                  <div style={{flex:1,textAlign:"center",background:"rgba(239,68,68,.08)",border:`1px solid ${winner===2?"#ef4444":"rgba(239,68,68,.2)"}`,borderRadius:5,padding:".3rem .5rem"}}>
+                                    <div style={{fontSize:".62rem",color:"#f87171",fontWeight:700,textTransform:"uppercase",marginBottom:".1rem"}}>Red{winner===2?" ✓":""}</div>
+                                    <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:winner===2?"#ef4444":"var(--txt)"}}>{red?.score!=null?Number(red.score).toFixed(1):"—"}</div>
+                                  </div>
+                                </div>
+                              </div>;
+                            }else{
+                              const rec=recs[0];
+                              return<div key={runNum} style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".35rem",padding:".3rem .45rem",background:"rgba(212,236,70,.06)",border:"1px solid rgba(212,236,70,.15)",borderRadius:5}}>
+                                <div style={{fontSize:".72rem",color:"var(--muted)",fontWeight:600}}>Run {runNum}</div>
+                                <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:"var(--acc)"}}>{rec?.score!=null?Number(rec.score).toFixed(1):"—"}</div>
+                              </div>;
+                            }
+                          })}
+                        </div>;
+                      })}
+                    </div>;
+                  })()}
                   {activeLanes.length>1&&hasMatchingModes&&<div style={{display:"flex",justifyContent:"center",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>setShowLaneOverride({time,rawLanes})}>⇄ Arrange Lanes</button></div>}
                   {activeLanes.length>0?(
                     <div style={{display:"flex",gap:"1rem",alignItems:"flex-start"}}>

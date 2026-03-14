@@ -1732,7 +1732,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         const fmtSec2=s=>s?`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`:"—";
         const renderLbRow=(r,pinned=false)=>{
           const rank=r[rankCol]??'?';
-          const sc=Number(r.leaderboard_score??0).toFixed(lbMode==='avg'?1:0);
+          const sc=Number(r.leaderboard_score??0).toFixed(1);
           const avgT=fmtSec2(r.avg_seconds);
           const runCount=lbMode==='avg'?(r.runs_in_avg??r.total_runs??0):(r.total_runs??r.total_runs_played??0);
           const runsLbl=lbMode==='avg'?`${runCount} runs avg`:`${runCount} total runs`;

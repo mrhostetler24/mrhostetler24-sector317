@@ -1049,7 +1049,7 @@ function MembersTab({ platoon, myRole, userId, currentUser, onChanged, onViewPro
                 <RoleChip role={m.role} />
               </div>
               <div style={{ fontSize: '.7rem', color: 'var(--muted)' }}>
-                {m.leaderboard_score != null && <span style={{ marginRight: '.5rem' }}>{Number(m.leaderboard_score).toFixed(0)} pts · {m.total_runs ?? 0} run{m.total_runs !== 1 ? 's' : ''}</span>}
+                {m.leaderboard_score != null && <span style={{ marginRight: '.5rem' }}>{Number(m.leaderboard_score).toFixed(1)} pts · {m.total_runs ?? 0} run{m.total_runs !== 1 ? 's' : ''}</span>}
                 Joined {formatDate(m.joined_at)}
               </div>
             </div>
@@ -1435,7 +1435,7 @@ function SessionCard({ session, upcoming }) {
                             <span style={{ fontWeight: 700, fontSize: '.78rem', color: tc.col }}>{tc.name}</span>
                             {displayRole && <span style={{ fontSize: '.7rem', fontWeight: 700, color: roleColor(displayRole), textTransform: 'capitalize' }}>· {displayRole}</span>}
                           </div>
-                          <div style={{ fontFamily: 'var(--fd)', fontSize: '1.25rem', fontWeight: 700, color: won ? tc.col : 'var(--txt)' }}>{rn?.score ?? '—'}</div>
+                          <div style={{ fontFamily: 'var(--fd)', fontSize: '1.25rem', fontWeight: 700, color: won ? tc.col : 'var(--txt)' }}>{rn?.score != null ? Number(rn.score).toFixed(1) : '—'}</div>
                           <div style={{ display: 'flex', gap: '.2rem', flexWrap: 'wrap', marginTop: '.2rem' }}>
                             {displayRole === 'Hunter' && rn?.objective_complete != null && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: rn.objective_complete ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)', color: rn.objective_complete ? '#4ade80' : '#f87171', border: '1px solid ' + (rn.objective_complete ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') }}>{rn.objective_complete ? '✓ Objective' : '✗ Objective'}</span>}
                             {won && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(34,197,94,.12)', color: '#4ade80', border: '1px solid rgba(34,197,94,.3)' }}>✓ Won</span>}
@@ -1471,7 +1471,7 @@ function SessionCard({ session, upcoming }) {
                       {runTime && <span>{runTime}</span>}
                     </div>
                     <div style={{ padding: '.5rem .75rem' }}>
-                      <div style={{ fontFamily: 'var(--fd)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--txt)', marginBottom: '.2rem' }}>{rEnv?.score ?? '—'}</div>
+                      <div style={{ fontFamily: 'var(--fd)', fontSize: '1.25rem', fontWeight: 700, color: 'var(--txt)', marginBottom: '.2rem' }}>{rEnv?.score != null ? Number(rEnv.score).toFixed(1) : '—'}</div>
                       <div style={{ display: 'flex', gap: '.2rem', flexWrap: 'wrap', marginBottom: grp.length ? '.35rem' : 0 }}>
                         {rEnv?.targets_eliminated != null && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: rEnv.targets_eliminated ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)', color: rEnv.targets_eliminated ? '#4ade80' : '#f87171', border: '1px solid ' + (rEnv.targets_eliminated ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') }}>{rEnv.targets_eliminated ? '✓ Targets' : '✗ Missed'}</span>}
                         {rEnv?.objective_complete != null && <span style={{ fontSize: '.62rem', padding: '1px 5px', borderRadius: 3, background: rEnv.objective_complete ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)', color: rEnv.objective_complete ? '#4ade80' : '#f87171', border: '1px solid ' + (rEnv.objective_complete ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)') }}>{rEnv.objective_complete ? '✓ Objective' : '✗ Objective'}</span>}

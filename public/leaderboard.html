@@ -522,7 +522,7 @@ function buildRowsHtml(rows, period, mode, maxScore){
     const timeStr   = timeParts.length ? `<span class="time-note">⏱ ${timeParts.join(' · ')}</span>` : ''
     const score     = Number(r.leaderboard_score ?? 0)
     const pct       = Math.max(2, Math.round(score / max * 100))
-    const scoreVal  = score.toFixed(mode==='avg'?1:0)
+    const scoreVal  = score.toFixed(1)
     const bestScore = r.best_run != null ? Number(r.best_run).toFixed(1) : null
     const {badge, icon} = getTierHtml(careerRunsMap[r.player_id] ?? r.total_runs_played ?? runCount)
     return `<tr>
