@@ -1081,13 +1081,13 @@ function TimeslotGroup({ group, upcoming }) {
     ? new Date(group.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     : ''
 
-  // Collect unique member avatars across all lanes for the collapsed summary row
-  const allMembers = []
+  // Collect unique platoon members across all lanes for the parent header
+  const platoonMembers = []
   const seen = new Set()
   group.sessions.forEach(s => {
-    const players = upcoming ? (Array.isArray(s.all_players) ? s.all_players : []) : (Array.isArray(s.member_players) ? s.member_players : [])
-    players.forEach(p => {
-      if (p.is_member && !seen.has(p.user_id)) { seen.add(p.user_id); allMembers.push(p) }
+    const mems = Array.isArray(s.member_players) ? s.member_players : []
+    mems.forEach(p => {
+      if (!seen.has(p.user_id)) { seen.add(p.user_id); platoonMembers.push(p) }
     })
   })
 
@@ -1095,7 +1095,7 @@ function TimeslotGroup({ group, upcoming }) {
     <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.65rem', overflow: 'hidden' }}>
       {/* Collapsed timeslot header */}
       <div
-        style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.65rem .85rem', cursor: 'pointer', userSelect: 'none', borderBottom: open ? '1px solid var(--bdr)' : 'none' }}
+        style={{ display: 'flex', alignItems: 'flex-start', gap: '.75rem', padding: '.65rem .85rem', cursor: 'pointer', userSelect: 'none', borderBottom: open ? '1px solid var(--bdr)' : 'none' }}
         onClick={() => setOpen(o => !o)}
       >
         <div style={{ textAlign: 'center', minWidth: 52, flexShrink: 0 }}>
@@ -1103,20 +1103,37 @@ function TimeslotGroup({ group, upcoming }) {
           {group.start_time && <div style={{ fontSize: '.7rem', color: 'var(--muted)', marginTop: '.1rem' }}>{group.start_time}</div>}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '.82rem', color: 'var(--txt)', fontFamily: 'var(--fd)', marginBottom: '.35rem' }}>
+          <div style={{ fontSize: '.82rem', color: 'var(--txt)', fontFamily: 'var(--fd)', marginBottom: '.4rem' }}>
             {group.sessions[0]?.type_name}
             <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {group.sessions.length} lanes</span>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.25rem', alignItems: 'center' }}>
-            {allMembers.slice(0, 14).map(p => (
-              <Avatar key={p.user_id} url={p.avatar_url} name={p.leaderboard_name} size={20} />
-            ))}
-            {allMembers.length > 14 && <span style={{ fontSize: '.7rem', color: 'var(--muted)' }}>+{allMembers.length - 14}</span>}
+          {/* Platoon members full row — same style as SessionCard */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem .75rem', alignItems: 'center' }}>
+            {platoonMembers.map(p => {
+              const roleLabel = p.platoon_role ? (p.platoon_role === 'admin' ? 'CO' : p.platoon_role === 'sergeant' ? 'SGT' : null) : null
+              return (
+                <div key={p.user_id} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  <Avatar url={p.avatar_url} name={p.leaderboard_name} size={20} />
+                  <TierIcon totalRuns={p.total_runs ?? 0} size={16} />
+                  {p.platoon_tag && (
+                    <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em', fontSize: '.7rem', color: p.platoon_badge_color || '#94a3b8' }}>
+                      [{p.platoon_tag}]
+                    </span>
+                  )}
+                  <span style={{ fontFamily: 'var(--fc)', fontWeight: 700, fontSize: '.8rem', color: 'var(--txt)' }}>
+                    {p.leaderboard_name}
+                  </span>
+                  {roleLabel && (
+                    <span style={{ fontSize: '.62rem', fontFamily: 'var(--fd)', color: 'var(--muted)', letterSpacing: '.06em' }}>{roleLabel}</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
-        <span style={{ fontSize: '.75rem', color: 'var(--muted)', flexShrink: 0 }}>{open ? '▾' : '▸'}</span>
+        <span style={{ fontSize: '.75rem', color: 'var(--muted)', flexShrink: 0, paddingTop: '.2rem' }}>{open ? '▾' : '▸'}</span>
       </div>
-      {/* Expanded: one SessionCard per lane */}
+      {/* Expanded: one SessionCard per lane with full participant list */}
       {open && (
         <div style={{ padding: '.65rem .85rem' }}>
           {group.sessions.map((s, i) => (
@@ -1177,7 +1194,15 @@ function UpcomingTab({ platoon }) {
 
   useEffect(() => {
     getPlatoonUpcoming(platoon.id)
-      .then(rows => setSessions(Array.isArray(rows) ? rows : []))
+      .then(rows => {
+        const arr = Array.isArray(rows) ? rows : []
+        arr.sort((a, b) => {
+          const da = (a.date || '') + (a.start_time || '')
+          const db = (b.date || '') + (b.start_time || '')
+          return da < db ? -1 : da > db ? 1 : 0
+        })
+        setSessions(arr)
+      })
       .catch(() => setSessions([]))
       .finally(() => setLoading(false))
   }, [platoon.id])
@@ -1224,6 +1249,38 @@ function SessionCard({ session, upcoming }) {
   const audCode = rn => rn.audio || (rn.cranked ? 'C' : 'T')
   const roleColor = role => { if (!role) return 'var(--muted)'; const r = role.toLowerCase(); if (r.includes('hunt')) return '#c8e03a'; if (r.includes('coyot')) return '#c4a882'; return 'var(--muted)' }
 
+  // Member lookup for enriching run-derived player entries
+  const memberMap = {}
+  members.forEach(m => { memberMap[m.user_id] = m })
+
+  // All players to show in header: for upcoming use all_players; for sessions derive from runs
+  // Non-platoon mates are shown muted (is_member = false)
+  const displayPlayers = Array.isArray(session.all_players)
+    ? session.all_players
+    : (() => {
+        if (runs.length === 0) return members.map(m => ({ ...m, is_member: true }))
+        const seenP = new Set()
+        const result = []
+        runs.forEach(rn => {
+          if (!seenP.has(rn.user_id)) {
+            seenP.add(rn.user_id)
+            const mem = memberMap[rn.user_id]
+            result.push({
+              user_id: rn.user_id,
+              leaderboard_name: rn.leaderboard_name,
+              avatar_url: mem?.avatar_url ?? null,
+              is_member: !!rn.is_member,
+              platoon_role: mem?.platoon_role ?? null,
+              platoon_tag: mem?.platoon_tag ?? null,
+              platoon_badge_color: mem?.platoon_badge_color ?? null,
+              total_runs: mem?.total_runs ?? null,
+            })
+          }
+        })
+        result.sort((a, b) => (b.is_member ? 1 : 0) - (a.is_member ? 1 : 0))
+        return result
+      })()
+
   // Group runs by run_number
   const groups = {}
   runs.forEach(rn => { const k = rn.run_number ?? 0; (groups[k] = groups[k] || []).push(rn) })
@@ -1246,9 +1303,9 @@ function SessionCard({ session, upcoming }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '.88rem', color: 'var(--txt)', fontFamily: 'var(--fd)', marginBottom: '.4rem' }}>{session.type_name}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem .75rem', alignItems: 'center' }}>
-            {(upcoming && Array.isArray(session.all_players) ? session.all_players : members).map(p => {
-              const isMember = upcoming ? !!p.is_member : true
-              const roleLabel = p.platoon_role ? (p.platoon_role === 'admin' ? 'CO' : p.platoon_role === 'sergeant' ? 'SGT' : null) : null
+            {displayPlayers.map(p => {
+              const isMember = !!p.is_member
+              const roleLabel = isMember && p.platoon_role ? (p.platoon_role === 'admin' ? 'CO' : p.platoon_role === 'sergeant' ? 'SGT' : null) : null
               return (
                 <div key={p.user_id} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem', opacity: isMember ? 1 : 0.45, flexShrink: 0, whiteSpace: 'nowrap' }}>
                   <Avatar url={p.avatar_url} name={p.leaderboard_name} size={20} />
