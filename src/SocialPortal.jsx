@@ -1151,33 +1151,25 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
         <div>
           <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.65rem' }}>Match Stats</div>
           <div className="tabs" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--bdr)' }}>
-            <button className={`tab${profileStatsSub === 'all'    ? ' on' : ''}`} onClick={() => setProfileStatsSub('all')}>All ({ownProfile?.total_runs ?? careerRuns ?? myRuns.length})</button>
+            <button className={`tab${profileStatsSub === 'all'    ? ' on' : ''}`} onClick={() => setProfileStatsSub('all')}>All ({myRuns.length})</button>
             <button className={`tab${profileStatsSub === 'coop'   ? ' on' : ''}`} onClick={() => setProfileStatsSub('coop')}>Co-op ({coopRuns.length})</button>
             <button className={`tab${profileStatsSub === 'versus' ? ' on' : ''}`} onClick={() => setProfileStatsSub('versus')}>Versus ({versRuns.length})</button>
           </div>
-          {profileStatsSub === 'all' && ownExt ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem' }}>
-              <StatCard label="Sessions"   value={ownExt.sessions ?? '—'} />
-              <StatCard label="Total Runs" value={ownProfile?.total_runs ?? careerRuns ?? '—'} />
-              <StatCard label="Best Score" value={ownProfile?.best_run  != null ? Number(ownProfile.best_run).toFixed(1) : '—'} />
-              <StatCard label="Avg Score"  value={ownProfile?.avg_score != null ? Number(ownProfile.avg_score).toFixed(1) : '—'} />
-              <StatCard label="Obj Rate"   value={ownExt.obj_pct != null ? `${ownExt.obj_pct}%` : '—'} />
-              <StatCard label="Avg Time"   value={ownExt.avg_time_sec != null ? fmtSec(ownExt.avg_time_sec) : '—'} />
-            </div>
-          ) : !activeStats ? (
+          {!activeStats ? (
             <div className="empty" style={{ paddingTop: '1.25rem' }}>
-              <div className="ei">{profileStatsSub === 'coop' ? '🤝' : '⚔'}</div>
-              <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub} runs yet.</p>
+              <div className="ei">{profileStatsSub === 'coop' ? '🤝' : profileStatsSub === 'versus' ? '⚔' : '🎯'}</div>
+              <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub === 'all' ? '' : profileStatsSub + ' '}runs yet.</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem' }}>
-              <StatCard label="Sessions"   value={activeStats.sessions} />
+              {/* Sessions / Obj Rate / Avg Time: use fuller DB values on "all" tab */}
+              <StatCard label="Sessions"   value={profileStatsSub === 'all' && ownExt?.sessions     != null ? ownExt.sessions            : activeStats.sessions} />
               <StatCard label="Total Runs" value={activeStats.runs} />
               <StatCard label="Best Score" value={activeStats.best.toFixed(1)} />
               <StatCard label="Avg Score"  value={activeStats.avg.toFixed(1)} />
-              <StatCard label="Obj Rate"   value={`${activeStats.objRate}%`} />
-              <StatCard label="Avg Time"   value={fmtSec(activeStats.avgTime)} />
-              {profileStatsSub === 'versus' && versRuns.length > 0 && <>
+              <StatCard label="Obj Rate"   value={profileStatsSub === 'all' && ownExt?.obj_pct      != null ? `${ownExt.obj_pct}%`        : `${activeStats.objRate}%`} />
+              <StatCard label="Avg Time"   value={profileStatsSub === 'all' && ownExt?.avg_time_sec != null ? fmtSec(ownExt.avg_time_sec)  : fmtSec(activeStats.avgTime)} />
+              {(profileStatsSub === 'versus' || profileStatsSub === 'all') && versRuns.length > 0 && <>
                 <StatCard label="VS Wins"   value={versWins}
                   sub={versWins + versLosses > 0 ? `${Math.round(versWins / (versWins + versLosses) * 100)}% W/L` : undefined} />
                 <StatCard label="VS Losses" value={versLosses} />
