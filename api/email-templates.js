@@ -275,7 +275,7 @@ export function tmplMatchSummary(data, unsubLink) {
       ...(data.teamOutcome ? [{ label: 'Outcome', value: `<strong style="color:${data.teamOutcome === 'Victory' ? C.okDark : C.danger};">${data.teamOutcome}</strong>` }] : []),
     ])}
     ${playersHtml}
-    ${ctaButton('View Full Stats', BASE_URL + '/?portal=customer&tab=social')}
+    ${ctaButton('View Full Stats', BASE_URL + '/?portal=customer')}
   `
   return { subject, html: layout(subject, body, unsubLink) }
 }
@@ -498,7 +498,7 @@ export function tmplPlatoonInviteReceived(data, unsubLink) {
       { label: 'Invited By', value: data.inviterName },
     ])}
     ${alertBox('Log in to your portal and open the Platoon tab to accept or decline this invitation.')}
-    ${ctaButton('View Invitation', BASE_URL + '/?portal=customer')}
+    ${ctaButton('View Invitation', BASE_URL + '/?portal=customer&sub=platoon')}
   `
   return { subject, html: layout(subject, body, unsubLink) }
 }
@@ -513,7 +513,7 @@ export function tmplPlatoonRequestReceived(data, unsubLink) {
     ${para(`<strong>${data.applicantName}</strong> has requested to join <strong>[${data.platoonTag}]</strong> ${data.platoonName}.`)}
     ${data.message ? infoTable([{ label: 'Message', value: data.message }]) : ''}
     ${alertBox('Log in to your portal and open the Platoon → Members tab to approve or deny this request.')}
-    ${ctaButton('Review Request', BASE_URL + '/?portal=customer')}
+    ${ctaButton('Review Request', BASE_URL + '/?portal=customer&sub=platoon&platsub=members')}
   `
   return { subject, html: layout(subject, body, unsubLink) }
 }
@@ -527,7 +527,7 @@ export function tmplPlatoonRequestApproved(data, unsubLink) {
     ${para(`Hi ${data.recipientName},`)}
     ${para(`Your request to join <strong>[${data.platoonTag}]</strong> ${data.platoonName} has been approved. You are now a member of the platoon.`)}
     ${alertBox(`Your [${data.platoonTag}] tag is now active and will appear on the leaderboard next to your name.`, C.ok)}
-    ${ctaButton('View Your Platoon', BASE_URL + '/?portal=customer')}
+    ${ctaButton('View Your Platoon', BASE_URL + '/?portal=customer&sub=platoon')}
   `
   return { subject, html: layout(subject, body, unsubLink) }
 }
@@ -541,7 +541,7 @@ export function tmplPlatoonRequestDenied(data, unsubLink) {
     ${para(`Hi ${data.recipientName},`)}
     ${para(`Your request to join <strong>[${data.platoonTag}]</strong> ${data.platoonName} was not approved at this time.`)}
     ${para('You can browse other platoons or create your own from the Platoon tab in your portal.', `font-size:13px;color:${C.muted};`)}
-    ${ctaButton('Explore Platoons', BASE_URL + '/?portal=customer')}
+    ${ctaButton('Explore Platoons', BASE_URL + '/?portal=customer&sub=platoon')}
   `
   return { subject, html: layout(subject, body, unsubLink) }
 }

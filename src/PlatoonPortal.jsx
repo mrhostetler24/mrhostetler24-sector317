@@ -109,7 +109,7 @@ const SECTION_HDR = { fontSize: '.65rem', color: 'var(--muted)', fontFamily: 'va
 
 // ── PlatoonPortal (top-level) ─────────────────────────────────────────────────
 
-export default function PlatoonPortal({ user, onViewProfile }) {
+export default function PlatoonPortal({ user, onViewProfile, initialSubTab }) {
   const [platoon,    setPlatoon]    = useState(null)
   const [myRole,     setMyRole]     = useState(null)
   const [loading,    setLoading]    = useState(true)
@@ -146,7 +146,8 @@ export default function PlatoonPortal({ user, onViewProfile }) {
   }
 
   return <PlatoonHome platoon={platoon} myRole={myRole} userId={user.id} currentUser={user}
-    pendingCount={pendingCount} onLeft={refresh} onChanged={refresh} onViewProfile={onViewProfile} />
+    pendingCount={pendingCount} onLeft={refresh} onChanged={refresh} onViewProfile={onViewProfile}
+    initialSubTab={initialSubTab} />
 }
 
 // Export pendingCount for use in SocialPortal tab indicator
@@ -661,8 +662,11 @@ function PlatoonCreateModal({ onClose, onCreated, userAccess }) {
 
 // ── PlatoonHome ───────────────────────────────────────────────────────────────
 
-function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLeft, onChanged, onViewProfile }) {
-  const [subTab,         setSubTab]         = useState('board')
+function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLeft, onChanged, onViewProfile, initialSubTab }) {
+  const [subTab,         setSubTab]         = useState(() => {
+    const valid = ['board','members','sessions','upcoming','settings']
+    return initialSubTab && valid.includes(initialSubTab) ? initialSubTab : 'board'
+  })
   const [showAwolConfirm, setShowAwolConfirm] = useState(false)
   const [awolErr,        setAwolErr]        = useState('')
   const [awolLoading,    setAwolLoading]    = useState(false)
@@ -917,7 +921,7 @@ function MembersTab({ platoon, myRole, userId, currentUser, onChanged, onViewPro
         <>
           <div style={SECTION_HDR}>Pending Requests ({requests.length})</div>
           {requests.map(req => (
-            <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.6rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.4rem' }}>
+            <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.6rem', background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.4rem', cursor: onViewProfile ? 'pointer' : 'default' }} onClick={() => onViewProfile && onViewProfile(req.user_id)}>
               <Avatar url={req.avatar_url} name={req.leaderboard_name} size={32} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: 'var(--fd)', fontSize: '.88rem', color: 'var(--txt)' }}>{req.leaderboard_name}</div>
@@ -925,8 +929,8 @@ function MembersTab({ platoon, myRole, userId, currentUser, onChanged, onViewPro
                 {req.message && <div style={{ fontSize: '.78rem', color: 'var(--muted)', fontStyle: 'italic', marginTop: '.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{req.message}"</div>}
               </div>
               <div style={{ display: 'flex', gap: '.4rem', flexShrink: 0 }}>
-                <button className="btn btn-p btn-sm" style={{ fontSize: '.72rem', padding: '.25rem .6rem' }} onClick={() => doAction('approve-req', req.user_id, req.id)}>✓ Approve</button>
-                <button className="btn btn-s btn-sm" style={{ fontSize: '.72rem', padding: '.25rem .6rem', color: '#f87171', borderColor: '#7f1d1d' }} onClick={() => doAction('deny-req', req.user_id, req.id)}>✕ Deny</button>
+                <button className="btn btn-p btn-sm" style={{ fontSize: '.72rem', padding: '.25rem .6rem' }} onClick={e => { e.stopPropagation(); doAction('approve-req', req.user_id, req.id) }}>✓ Approve</button>
+                <button className="btn btn-s btn-sm" style={{ fontSize: '.72rem', padding: '.25rem .6rem', color: '#f87171', borderColor: '#7f1d1d' }} onClick={e => { e.stopPropagation(); doAction('deny-req', req.user_id, req.id) }}>✕ Deny</button>
               </div>
             </div>
           ))}

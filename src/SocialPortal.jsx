@@ -522,7 +522,11 @@ const MAX_BIO = 250
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function SocialPortal({ user, users, setUsers, reservations, resTypes, runs, careerRuns, onEditProfile, onFriendsChanged }) {
-  const [tab, setTab]                         = useState('profile')
+  const [tab, setTab]                         = useState(() => {
+    const sub = new URLSearchParams(window.location.search).get('sub')
+    if (sub === 'friends' || sub === 'connect' || sub === 'platoon') return sub
+    return 'profile'
+  })
   const [profileStatsSub, setProfileStatsSub] = useState('all')
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarKey, setAvatarKey]             = useState(() => Date.now())
@@ -554,6 +558,10 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [sendingTo, setSendingTo]             = useState(null) // userId being added
   const [profileModal, setProfileModal]       = useState(null) // userId string
   const searchTimerRef                        = useRef(null)
+
+  // Own profile — DB-sourced stats (same RPCs as FriendProfileModal)
+  const [ownProfile, setOwnProfile]           = useState(null)
+  const [ownExt, setOwnExt]                   = useState(null)
 
   // ── Stats computation ────────────────────────────────────────────────────
   const myRes = reservations.filter(r => r.userId === user.id)
@@ -634,6 +642,15 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   useEffect(() => {
     if (tab === 'friends' || tab === 'connect') loadFriends()
   }, [tab, loadFriends])
+
+  useEffect(() => {
+    Promise.all([getFriendProfile(user.id), getFriendExtended(user.id)])
+      .then(([{ data: pd }, { data: ed }]) => {
+        const row = Array.isArray(pd) ? pd[0] : pd
+        setOwnProfile(row ?? null)
+        setOwnExt(ed ?? null)
+      })
+  }, [user.id])
 
   useEffect(() => {
     if (tab !== 'connect') return
@@ -1093,22 +1110,39 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           {/* Visuals / Audio */}
           <div style={{ flex: '1 1 200px', minWidth: 0 }}>
             <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.65rem' }}>Env Profile</div>
-            {activeRunArr.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '.3rem' }}>
-                <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.1rem' }}>Visuals</div>
-                <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={envPct(activeRunArr, r => r.visual === 'V')} barColor={VIZ_COLORS.V} />
-                <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'C')} barColor={VIZ_COLORS.C} />
-                <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'R')} barColor={VIZ_COLORS.R} />
-                <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
-                <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'B')} barColor={VIZ_COLORS.B} />
-                <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
-                <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'T')} barColor={AUD_COLORS.T} />
-                <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'C')} barColor={AUD_COLORS.C} />
-                <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'O')} barColor={AUD_COLORS.O} />
-              </div>
-            ) : (
-              <div style={{ fontSize: '.82rem', color: 'var(--muted)', fontStyle: 'italic' }}>No run data yet.</div>
-            )}
+            {(() => {
+              // "all" tab: use DB-sourced ownExt (same data as friend modal)
+              if (profileStatsSub === 'all' && ownExt) return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.3rem' }}>
+                  <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.1rem' }}>Visuals</div>
+                  <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ownExt.viz_std}    barColor={VIZ_COLORS.V} />
+                  <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={ownExt.viz_cosmic} barColor={VIZ_COLORS.C} />
+                  <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={ownExt.viz_rave}   barColor={VIZ_COLORS.R} />
+                  <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ownExt.viz_strobe} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
+                  <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={ownExt.viz_dark}   barColor={VIZ_COLORS.B} />
+                  <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
+                  <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={ownExt.aud_tunes}   barColor={AUD_COLORS.T} />
+                  <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={ownExt.aud_cranked} barColor={AUD_COLORS.C} />
+                  <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={ownExt.aud_off}     barColor={AUD_COLORS.O} />
+                </div>
+              )
+              // coop/versus: local run data
+              if (activeRunArr.length > 0) return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.3rem' }}>
+                  <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.1rem' }}>Visuals</div>
+                  <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={envPct(activeRunArr, r => r.visual === 'V')} barColor={VIZ_COLORS.V} />
+                  <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'C')} barColor={VIZ_COLORS.C} />
+                  <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'R')} barColor={VIZ_COLORS.R} />
+                  <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
+                  <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'B')} barColor={VIZ_COLORS.B} />
+                  <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
+                  <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'T')} barColor={AUD_COLORS.T} />
+                  <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'C')} barColor={AUD_COLORS.C} />
+                  <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'O')} barColor={AUD_COLORS.O} />
+                </div>
+              )
+              return <div style={{ fontSize: '.82rem', color: 'var(--muted)', fontStyle: 'italic' }}>No run data yet.</div>
+            })()}
           </div>
 
         </div>
@@ -1117,17 +1151,25 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
         <div>
           <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.65rem' }}>Match Stats</div>
           <div className="tabs" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--bdr)' }}>
-            <button className={`tab${profileStatsSub === 'all'    ? ' on' : ''}`} onClick={() => setProfileStatsSub('all')}>All ({myRuns.length})</button>
+            <button className={`tab${profileStatsSub === 'all'    ? ' on' : ''}`} onClick={() => setProfileStatsSub('all')}>All ({ownProfile?.total_runs ?? careerRuns ?? myRuns.length})</button>
             <button className={`tab${profileStatsSub === 'coop'   ? ' on' : ''}`} onClick={() => setProfileStatsSub('coop')}>Co-op ({coopRuns.length})</button>
             <button className={`tab${profileStatsSub === 'versus' ? ' on' : ''}`} onClick={() => setProfileStatsSub('versus')}>Versus ({versRuns.length})</button>
           </div>
-          {!activeStats && (
-            <div className="empty" style={{ paddingTop: '1.25rem' }}>
-              <div className="ei">{profileStatsSub === 'coop' ? '🤝' : profileStatsSub === 'versus' ? '⚔' : '🎯'}</div>
-              <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub === 'all' ? '' : profileStatsSub + ' '}runs yet.</p>
+          {profileStatsSub === 'all' && ownExt ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem' }}>
+              <StatCard label="Sessions"   value={ownExt.sessions ?? '—'} />
+              <StatCard label="Total Runs" value={ownProfile?.total_runs ?? careerRuns ?? '—'} />
+              <StatCard label="Best Score" value={ownProfile?.best_run  != null ? Number(ownProfile.best_run).toFixed(1) : '—'} />
+              <StatCard label="Avg Score"  value={ownProfile?.avg_score != null ? Number(ownProfile.avg_score).toFixed(1) : '—'} />
+              <StatCard label="Obj Rate"   value={ownExt.obj_pct != null ? `${ownExt.obj_pct}%` : '—'} />
+              <StatCard label="Avg Time"   value={ownExt.avg_time_sec != null ? fmtSec(ownExt.avg_time_sec) : '—'} />
             </div>
-          )}
-          {activeStats && (
+          ) : !activeStats ? (
+            <div className="empty" style={{ paddingTop: '1.25rem' }}>
+              <div className="ei">{profileStatsSub === 'coop' ? '🤝' : '⚔'}</div>
+              <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub} runs yet.</p>
+            </div>
+          ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem' }}>
               <StatCard label="Sessions"   value={activeStats.sessions} />
               <StatCard label="Total Runs" value={activeStats.runs} />
@@ -1135,7 +1177,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <StatCard label="Avg Score"  value={activeStats.avg.toFixed(1)} />
               <StatCard label="Obj Rate"   value={`${activeStats.objRate}%`} />
               <StatCard label="Avg Time"   value={fmtSec(activeStats.avgTime)} />
-              {(profileStatsSub === 'versus' || profileStatsSub === 'all') && versRuns.length > 0 && <>
+              {profileStatsSub === 'versus' && versRuns.length > 0 && <>
                 <StatCard label="VS Wins"   value={versWins}
                   sub={versWins + versLosses > 0 ? `${Math.round(versWins / (versWins + versLosses) * 100)}% W/L` : undefined} />
                 <StatCard label="VS Losses" value={versLosses} />
@@ -1160,15 +1202,15 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               {receivedRequests.map(req => {
                 const sender = resolveUser(req.from_user_id)
                 return (
-                  <div key={req.from_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+                  <div key={req.from_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)', cursor: 'pointer' }} onClick={() => setProfileModal(req.from_user_id)}>
                     <MiniAvatar url={sender.avatarUrl} hidden={sender.hideAvatar} initials={getInitials(sender.leaderboardName || sender.name)} />
                     <TierIcon runs={friendRunsMap[req.from_user_id]} />
                     <span style={{ flex: 1, fontSize: '.9rem', fontWeight: 700, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {sender.platoonTag && <span style={{ color: sender.platoonBadgeColor || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em' }}>[{sender.platoonTag}]</span>}
                       {sender.leaderboardName || sender.name || 'Operative'}
                     </span>
-                    <button className="btn btn-s" onClick={() => handleAccept(req.from_user_id)} title="Accept" style={{ padding: '3px 10px', fontSize: '.8rem' }}>✓</button>
-                    <button className="btn btn-s btn-sm" onClick={() => handleIgnore(req.from_user_id)} title="Ignore" style={{ padding: '3px 8px', fontSize: '.8rem' }}>✕</button>
+                    <button className="btn btn-s" onClick={e => { e.stopPropagation(); handleAccept(req.from_user_id) }} title="Accept" style={{ padding: '3px 10px', fontSize: '.8rem' }}>✓</button>
+                    <button className="btn btn-s btn-sm" onClick={e => { e.stopPropagation(); handleIgnore(req.from_user_id) }} title="Ignore" style={{ padding: '3px 8px', fontSize: '.8rem' }}>✕</button>
                   </div>
                 )
               })}
@@ -1270,14 +1312,14 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               {sentRequests.map(req => {
                 const recipient = resolveUser(req.to_user_id)
                 return (
-                  <div key={req.to_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+                  <div key={req.to_user_id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)', cursor: 'pointer' }} onClick={() => setProfileModal(req.to_user_id)}>
                     <MiniAvatar url={recipient.avatarUrl} hidden={recipient.hideAvatar} initials={getInitials(recipient.leaderboardName || recipient.name)} />
                     <TierIcon runs={friendRunsMap[req.to_user_id]} />
                     <span style={{ flex: 1, fontSize: '.9rem', fontWeight: 700, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {recipient.platoonTag && <span style={{ color: recipient.platoonBadgeColor || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em' }}>[{recipient.platoonTag}]</span>}
                       {recipient.leaderboardName || recipient.name || 'Operative'}
                     </span>
-                    <button className="btn btn-s btn-sm" onClick={() => handleCancelRequest(req.to_user_id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Cancel</button>
+                    <button className="btn btn-s btn-sm" onClick={e => { e.stopPropagation(); handleCancelRequest(req.to_user_id) }} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Cancel</button>
                   </div>
                 )
               })}
@@ -1300,7 +1342,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                                 receivedRequests.some(r => r.from_user_id === p.id)
               const initials  = getInitials(p.leaderboard_name)
               return (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)' }}>
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)', cursor: 'pointer' }} onClick={() => setProfileModal(p.id)}>
                   <MiniAvatar url={p.avatar_url} hidden={p.hide_avatar} initials={initials} />
                   <TierIcon runs={p.total_runs} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -1318,7 +1360,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   ) : isPending ? (
                     <span style={{ fontSize: '.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Pending</span>
                   ) : (
-                    <button className="btn btn-s" onClick={() => handleSendRequest(p.id)} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Add</button>
+                    <button className="btn btn-s" onClick={e => { e.stopPropagation(); handleSendRequest(p.id) }} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Add</button>
                   )}
                 </div>
               )
@@ -1350,7 +1392,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           PLATOON TAB
       ════════════════════════════════════════════════════════ */}
       {tab === 'platoon' && (
-        <PlatoonPortal user={user} users={users} setUsers={setUsers} onViewProfile={uid => setProfileModal(uid)} />
+        <PlatoonPortal user={user} users={users} setUsers={setUsers} onViewProfile={uid => setProfileModal(uid)}
+          initialSubTab={new URLSearchParams(window.location.search).get('platsub')} />
       )}
     </>
   )
