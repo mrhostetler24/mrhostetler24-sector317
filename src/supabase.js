@@ -1736,6 +1736,7 @@ export const createPlatoon           = (tag, name, desc, isOpen) => rpc('create_
 export const joinPlatoon             = (platoonId)            => rpc('join_platoon',              { p_platoon_id: platoonId })
 export const requestToJoin           = (platoonId, message)   => rpc('request_to_join',           { p_platoon_id: platoonId, p_message: message })
 export const cancelJoinRequest       = (platoonId)            => rpc('cancel_join_request',       { p_platoon_id: platoonId })
+export const getMyJoinRequests       = ()                      => rpc('get_my_join_requests',       {})
 export const approveJoinRequest      = (requestId)            => rpc('approve_join_request',      { p_request_id: requestId })
 export const denyJoinRequest         = (requestId)            => rpc('deny_join_request',         { p_request_id: requestId })
 export const goAwol                  = ()                     => rpc('go_awol',                   {})

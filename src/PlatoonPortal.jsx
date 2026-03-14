@@ -18,7 +18,7 @@ import {
   updatePlatoonTag, updatePlatoonSettings, updatePlatoonBadge, updatePlatoonBadgeColor, uploadPlatoonBadge,
   searchInvitablePlayers, inviteToPlatoon, cancelPlatoonInvite,
   getMyPlatoonInvites, acceptPlatoonInvite, declinePlatoonInvite,
-  getPlatoonPendingInvites,
+  getPlatoonPendingInvites, getMyJoinRequests,
 } from './supabase.js'
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -288,17 +288,20 @@ function InviteModal({ platoon, senderName, onClose }) {
 // ── PlatoonFinder ─────────────────────────────────────────────────────────────
 
 function PlatoonFinder({ userId, currentUser, onJoined }) {
-  const [query,      setQuery]      = useState('')
-  const [results,    setResults]    = useState(null)
-  const [searching,  setSearching]  = useState(false)
-  const [detail,     setDetail]     = useState(null)   // platoon to preview
-  const [showCreate, setShowCreate] = useState(false)
-  const [invites,    setInvites]    = useState([])     // pending invites for this user
-  const [invActing,  setInvActing]  = useState(null)   // invite id being acted on
+  const [query,        setQuery]        = useState('')
+  const [results,      setResults]      = useState(null)
+  const [searching,    setSearching]    = useState(false)
+  const [detail,       setDetail]       = useState(null)   // platoon to preview
+  const [showCreate,   setShowCreate]   = useState(false)
+  const [invites,      setInvites]      = useState([])     // pending invites for this user
+  const [invActing,    setInvActing]    = useState(null)   // invite id being acted on
+  const [myRequests,   setMyRequests]   = useState([])     // outbound pending join requests
+  const [reqActing,    setReqActing]    = useState(null)   // request platoon_id being cancelled
   const debounce = useRef(null)
 
   useEffect(() => {
     getMyPlatoonInvites().then(rows => setInvites(Array.isArray(rows) ? rows : [])).catch(() => {})
+    getMyJoinRequests().then(rows => setMyRequests(Array.isArray(rows) ? rows : [])).catch(() => {})
   }, [])
 
   const doSearch = useCallback(async (q) => {
@@ -335,6 +338,17 @@ function PlatoonFinder({ userId, currentUser, onJoined }) {
     } catch { /* ignore */ }
     setInvActing(null)
   }
+
+  const handleCancelRequest = async (platoonId) => {
+    setReqActing(platoonId)
+    try {
+      await cancelJoinRequest(platoonId)
+      setMyRequests(prev => prev.filter(r => r.platoon_id !== platoonId))
+    } catch { /* ignore */ }
+    setReqActing(null)
+  }
+
+  const pendingPlatoonIds = new Set(myRequests.map(r => r.platoon_id))
 
   return (
     <div>
@@ -374,6 +388,37 @@ function PlatoonFinder({ userId, currentUser, onJoined }) {
                   Decline
                 </button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pending join requests (outbound) */}
+      {myRequests.length > 0 && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <div style={SECTION_HDR}>Pending Requests ({myRequests.length})</div>
+          {myRequests.map(req => (
+            <div key={req.request_id} style={{ display: 'flex', alignItems: 'center', gap: '.85rem', padding: '.65rem', background: 'var(--surf2)', border: '1px solid #f9731644', borderRadius: 8, marginBottom: '.4rem' }}>
+              {req.badge_url
+                ? <img src={req.badge_url} style={{ width: 52, height: 52, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} alt="" />
+                : <div style={{ width: 52, height: 52, borderRadius: 8, background: req.badge_color || 'var(--surf)', border: '1px solid var(--bdr)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0 }}>🎖️</div>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+                  <TagChip tag={req.platoon_tag} style={{ color: req.badge_color || '#94a3b8' }} />
+                  <span style={{ fontFamily: 'var(--fd)', fontSize: '.92rem', color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{req.platoon_name}</span>
+                </div>
+                <div style={{ fontSize: '.72rem', color: '#f97316', marginTop: '.1rem' }}>
+                  Awaiting approval
+                </div>
+              </div>
+              <button
+                className="btn btn-s"
+                style={{ fontSize: '.72rem', padding: '.25rem .6rem', color: '#f87171', borderColor: '#7f1d1d', flexShrink: 0 }}
+                disabled={reqActing === req.platoon_id}
+                onClick={() => handleCancelRequest(req.platoon_id)}
+              >
+                {reqActing === req.platoon_id ? '…' : 'Cancel'}
+              </button>
             </div>
           ))}
         </div>
@@ -422,7 +467,9 @@ function PlatoonFinder({ userId, currentUser, onJoined }) {
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div style={{ fontSize: '.75rem', color: 'var(--muted)' }}>{p.member_count} {p.member_count === 1 ? 'member' : 'members'}</div>
-            <div style={{ fontSize: '.65rem', marginTop: '.2rem', color: p.is_open ? '#4ade80' : '#f97316' }}>{p.is_open ? 'Open' : 'Approval req.'}</div>
+            {pendingPlatoonIds.has(p.id)
+              ? <div style={{ fontSize: '.65rem', marginTop: '.2rem', color: '#f97316' }}>Request pending</div>
+              : <div style={{ fontSize: '.65rem', marginTop: '.2rem', color: p.is_open ? '#4ade80' : '#f97316' }}>{p.is_open ? 'Open' : 'Approval req.'}</div>}
           </div>
         </div>
       ))}

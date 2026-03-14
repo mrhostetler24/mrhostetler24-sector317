@@ -1167,6 +1167,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [resSub,setResSub]=useState("upcoming");
   const [expandedPastId,setExpandedPastId]=useState(null);
   const [expandedUpcomingId,setExpandedUpcomingId]=useState(null);
+  const [expandedLaneId,setExpandedLaneId]=useState(null);
   const [lbPlayerFilter,setLbPlayerFilter]=useState("all");
   const [lbPeriod,setLbPeriod]=useState("alltime");
   const [lbMode,setLbMode]=useState("avg");
@@ -1469,200 +1470,244 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
 
       {/* ── RESERVATIONS TAB ── */}
       {tab==="reservations"&&(()=>{
-        return <>
-          <div className="tabs" style={{marginBottom:"1rem",borderBottom:"1px solid var(--bdr)"}}>
+        const fmtSec=s=>{if(s==null)return null;const m=Math.floor(s/60),sec=s%60;return`${m}:${String(sec).padStart(2,'0')}`;};
+        const VIZ={V:'Standard',C:'Cosmic',R:'Rave',S:'Strobe',CS:'Cosmic+Strobe',B:'Dark'};
+        const AUD={C:'Cranked',O:'Off',T:'Tunes'};
+        const OPD={easy:'Easy',medium:'Medium',hard:'Hard',elite:'Elite'};
+        const TC={1:{name:'Blue',col:'#3b82f6'},2:{name:'Red',col:'#ef4444'}};
+        const audCode=rn=>rn.audio||(rn.cranked?'C':'T');
+        const ns={fontFamily:'var(--fd)',fontSize:'.67rem',fontWeight:700,lineHeight:1};
+        const roleColor=role=>{if(!role)return'var(--muted)';const rl=role.toLowerCase();if(rl.includes('hunt'))return'#c8e03a';if(rl.includes('coyot'))return'#c4a882';return'var(--muted)';};
+        const fmtCard=d=>d?new Date(d+'T00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
+
+        // Group by date+startTime — same-slot multi-lane reservations collapse into one header
+        const groupBySlot=items=>{const map=new Map();items.forEach(r=>{const k=`${r.date}|${r.startTime}`;if(!map.has(k))map.set(k,{key:k,date:r.date,startTime:r.startTime,items:[]});map.get(k).items.push(r);});return[...map.values()];};
+
+        // Run detail panel — identical to prior table expand, now used inside the card
+        const RunDetail=({r,rt})=>{
+          const resRuns=runs.filter(rn=>rn.reservationId===r.id);
+          if(!resRuns.length)return null;
+          const myTeam=r.players.find(p=>p.userId===user.id)?.team??null;
+          if(rt?.mode==='versus'){
+            const grps={};resRuns.forEach(rn=>{const k=rn.runNumber??0;(grps[k]=grps[k]||[]).push(rn);});
+            const sortedGrps=Object.entries(grps).sort(([a],[b])=>Number(a)-Number(b));
+            const mwNum=r.warWinnerTeam!=null?r.warWinnerTeam:null;
+            const iWon=mwNum!=null&&myTeam!=null&&mwNum===Number(myTeam);
+            return<>
+              <div style={{display:'flex',alignItems:'center',gap:'.6rem',marginBottom:'.85rem',flexWrap:'wrap'}}>
+                {myTeam!=null&&<div style={{display:'flex',alignItems:'center',gap:'.35rem',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:4,padding:'.18rem .55rem',fontSize:'.68rem'}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:TC[Number(myTeam)]?.col??'var(--muted)',flexShrink:0}}/>
+                  <span style={{color:'var(--muted)',fontFamily:'var(--fd)',letterSpacing:'.06em',textTransform:'uppercase'}}>Your team:</span>
+                  <span style={{fontWeight:700,color:TC[Number(myTeam)]?.col??'var(--txt)'}}>{TC[Number(myTeam)]?.name??'Team '+myTeam}</span>
+                </div>}
+                {mwNum!=null&&<div style={{display:'flex',alignItems:'center',gap:'.35rem',background:iWon?'rgba(34,197,94,.08)':'var(--bg2)',border:'1px solid '+(iWon?'rgba(34,197,94,.25)':'var(--bdr)'),borderRadius:4,padding:'.18rem .55rem',fontSize:'.68rem'}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:TC[mwNum]?.col??'var(--acc)',flexShrink:0}}/>
+                  <span style={{color:'var(--muted)',fontFamily:'var(--fd)',letterSpacing:'.06em',textTransform:'uppercase'}}>Match:</span>
+                  <span style={{fontWeight:700,color:TC[mwNum]?.col??'var(--acc)'}}>{TC[mwNum]?.name??'Team '+mwNum} wins</span>
+                  {iWon&&<span style={{fontWeight:700,color:'var(--okB)',marginLeft:'.2rem'}}>— You won!</span>}
+                </div>}
+              </div>
+              {sortedGrps.map(([runNum,grp])=>{
+                const teamRuns=[...grp].sort((a,b)=>{if(myTeam==null)return(a.team??0)-(b.team??0);if(Number(a.team)===Number(myTeam))return-1;if(Number(b.team)===Number(myTeam))return 1;return(a.team??0)-(b.team??0);});
+                const runWinTeam=grp[0]?.winningTeam!=null?Number(grp[0].winningTeam):null;
+                const runTime=fmtSec(grp[0]?.elapsedSeconds);
+                const rEnv=grp[0];
+                return<div key={runNum} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
+                  <div style={{background:'var(--bg2)',padding:'.3rem .85rem',fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.3rem'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap'}}>
+                      <span style={{color:'var(--txt)',fontWeight:700}}>Run {runNum}</span>
+                      {rEnv.structure&&<span>Structure: {rEnv.structure}</span>}
+                      {rEnv.visual&&<span style={{marginRight:'.4rem'}}>{vizRenderName(rEnv.visual,VIZ[rEnv.visual]||rEnv.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></span>}
+                      <span style={{marginRight:'.4rem'}}>{audRenderName(audCode(rEnv),AUD[audCode(rEnv)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></span>
+                    </div>
+                    <div style={{display:'flex',gap:'.5rem',alignItems:'center'}}>
+                      {runTime&&<span>{runTime}</span>}
+                      {runWinTeam!=null&&<span style={{color:TC[runWinTeam]?.col??'var(--acc)',fontWeight:700}}>{(TC[runWinTeam]?.name??'Team '+runWinTeam)+' wins'}</span>}
+                    </div>
+                  </div>
+                  <div style={{display:'flex'}}>
+                    {teamRuns.map((rn,ti)=>{
+                      const tc=TC[rn.team]||{name:'Team '+(rn.team??'?'),col:'var(--muted)'};
+                      const isMe=myTeam!=null&&Number(rn.team)===Number(myTeam);
+                      const sc=rn.score??calculateRunScore(rn);
+                      const won=rn.winningTeam!=null&&Number(rn.team)===Number(rn.winningTeam);
+                      const displayRole=rn.role?rn.role.charAt(0).toUpperCase()+rn.role.slice(1):null;
+                      const rc=roleColor(displayRole);
+                      const teamPlayers=r.players.filter(p=>Number(p.team)===Number(rn.team));
+                      return<div key={rn.id} style={{flex:1,padding:'.6rem .9rem',borderLeft:isMe?`3px solid ${tc.col}`:'none',borderRight:ti<teamRuns.length-1?'1px solid var(--bdr)':'none',background:won?tc.col+'18':undefined}}>
+                        <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
+                          <div style={{width:9,height:9,borderRadius:'50%',background:tc.col,flexShrink:0}}/>
+                          <span style={{fontWeight:700,fontSize:'.8rem',color:tc.col}}>{tc.name}</span>
+                          {displayRole&&<span style={{fontSize:'.72rem',fontWeight:700,color:rc,textTransform:'capitalize',letterSpacing:'.03em'}}>· {displayRole}</span>}
+                          {isMe&&<span style={{fontSize:'.62rem',background:'var(--accD)',color:'var(--accB)',padding:'1px 6px',borderRadius:99,marginLeft:'auto',flexShrink:0,whiteSpace:'nowrap'}}>← You</span>}
+                        </div>
+                        <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:won?tc.col:'var(--txt)'}}>{sc}</div>
+                        <div style={{display:'flex',gap:'.25rem',flexWrap:'wrap',marginTop:'.25rem'}}>
+                          {displayRole==='Hunter'&&rn.objectiveComplete!=null&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>}
+                          {won&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:'rgba(34,197,94,.12)',color:'var(--okB)',border:'1px solid rgba(34,197,94,.3)'}}>✓ Won run</span>}
+                        </div>
+                        {teamPlayers.length>0&&<div style={{marginTop:'.4rem',display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{teamPlayers.map((p,pi)=>{const pu=users.find(u=>u.id===p.userId);const ptag=pu?.platoonTag;return<span key={pi} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{ptag&&<span style={{color:pu?.platoonBadgeColor||'#94a3b8',marginRight:'.2rem',fontFamily:'var(--fc)',fontWeight:700,letterSpacing:'.03em'}}>[{ptag}]</span>}{p.name||'—'}</span>;})}</div>}
+                      </div>;
+                    })}
+                  </div>
+                </div>;
+              })}
+            </>;
+          }
+          // Co-op
+          return<>{resRuns.map((rn,i)=>{
+            const sc=rn.score??calculateRunScore(rn);
+            const t=fmtSec(rn.elapsedSeconds);
+            return<div key={rn.id} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
+              <div style={{background:'var(--bg2)',padding:'.3rem .85rem',fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.3rem'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap'}}>
+                  <span style={{color:'var(--txt)',fontWeight:700}}>Run {rn.runNumber??i+1}</span>
+                  {rn.structure&&<span>Structure: {rn.structure}</span>}
+                  {rn.visual&&<span style={{marginRight:'.4rem'}}>{vizRenderName(rn.visual,VIZ[rn.visual]||rn.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></span>}
+                  <span style={{marginRight:'.4rem'}}>{audRenderName(audCode(rn),AUD[audCode(rn)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></span>
+                  {rn.liveOpDifficulty&&<span>OP: {OPD[rn.liveOpDifficulty]||rn.liveOpDifficulty}</span>}
+                </div>
+                {t&&<span>{t}</span>}
+              </div>
+              <div style={{padding:'.6rem .9rem'}}>
+                <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:'var(--txt)',marginBottom:'.25rem'}}>{sc}</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:'.25rem',marginBottom:'.4rem'}}>
+                  <span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.targetsEliminated?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.targetsEliminated?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.targetsEliminated?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.targetsEliminated?'✓ Targets':'✗ Missed'}</span>
+                  <span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>
+                </div>
+                {r.players.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{r.players.map((p,pi)=>{const pu=users.find(u=>u.id===p.userId);const ptag=pu?.platoonTag;return<span key={pi} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{ptag&&<span style={{color:pu?.platoonBadgeColor||'#94a3b8',marginRight:'.2rem',fontFamily:'var(--fc)',fontWeight:700,letterSpacing:'.03em'}}>[{ptag}]</span>}{p.name||'—'}</span>;})}</div>}
+              </div>
+            </div>;
+          })}</>;
+        };
+
+        // Single reservation card — matches platoon SessionCard layout
+        const ResCard=({r,isUpcoming,expandId,togExpand,inGroup})=>{
+          const rt=resTypes.find(x=>x.id===r.typeId);
+          const resRuns=runs.filter(rn=>rn.reservationId===r.id);
+          const openSlots=r.playerCount-(r.players?.length??0);
+          const isExp=expandId===r.id;
+          const hasRuns=!isUpcoming&&resRuns.length>0;
+          const canExp=isUpcoming||hasRuns;
+          return<div style={{background:'var(--surf2)',border:'1px solid var(--bdr)',borderRadius:8,marginBottom:inGroup?'.5rem':'.65rem',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem',padding:'.65rem .85rem',borderBottom:isExp?'1px solid var(--bdr)':'none',cursor:canExp?'pointer':'default',userSelect:'none'}} onClick={()=>canExp&&togExpand(r.id)}>
+              {!inGroup&&<div style={{textAlign:'center',minWidth:52,flexShrink:0}}>
+                <div style={{fontFamily:'var(--fd)',fontSize:'.85rem',color:isUpcoming?'var(--acc)':'var(--txt)',lineHeight:1.2}}>{fmtCard(r.date)}</div>
+                {r.startTime&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginTop:'.1rem'}}>{fmt12(r.startTime)}</div>}
+              </div>}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:'.4rem',marginBottom:'.35rem',flexWrap:'wrap'}}>
+                  <span style={{fontSize:'.88rem',color:'var(--txt)',fontFamily:'var(--fd)'}}>{rt?.name}</span>
+                  <span className={`badge b-${rt?.mode}`}>{rt?.mode}</span>
+                  <span className={`badge b-${rt?.style}`}>{rt?.style}</span>
+                </div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem .65rem',alignItems:'center'}}>
+                  {(r.players??[]).map((p,i)=>{
+                    const u=users.find(x=>x.id===p.userId);
+                    return<div key={i} style={{display:'inline-flex',alignItems:'center',gap:'.3rem',whiteSpace:'nowrap'}}>
+                      {u?.platoonTag&&<span style={{fontSize:'.7rem',fontFamily:'var(--fc)',fontWeight:700,color:u.platoonBadgeColor||'#94a3b8'}}>[{u.platoonTag}]</span>}
+                      <span style={{fontSize:'.8rem',color:'var(--txt)',fontWeight:p.userId===user.id?700:400}}>{p.name||u?.name||'—'}</span>
+                      {p.userId===user.id&&<span style={{fontSize:'.62rem',color:'var(--acc2)'}}>you</span>}
+                    </div>;
+                  })}
+                  {isUpcoming&&openSlots>0&&<span style={{fontSize:'.75rem',color:'var(--warnL)',fontWeight:600}}>⚑ {openSlots} open</span>}
+                </div>
+              </div>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'.3rem',flexShrink:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:'.35rem'}}>
+                  <span style={{fontSize:'.8rem',color:'var(--accB)',fontWeight:600,whiteSpace:'nowrap'}}>{fmtMoney(r.amount)}</span>
+                  <span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span>
+                </div>
+                {canExp&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>{isExp?'▾':'▸'}</span>}
+              </div>
+            </div>
+            {isExp&&isUpcoming&&<div style={{padding:'.85rem 1rem'}}>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'.5rem .65rem',marginBottom:openSlots>0?'.6rem':'.75rem'}}>
+                {(r.players??[]).map((p,i)=>{const u=users.find(x=>x.id===p.userId);return<div key={i} style={{display:'inline-flex',alignItems:'center',gap:'.35rem',background:'var(--surf)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.3rem .65rem'}}>
+                  {u?.platoonTag&&<span style={{fontSize:'.7rem',fontFamily:'var(--fc)',fontWeight:700,color:u.platoonBadgeColor||'#94a3b8'}}>[{u.platoonTag}]</span>}
+                  <span style={{fontSize:'.82rem',color:'var(--txt)',fontWeight:600}}>{p.name||u?.name||'—'}</span>
+                  {p.userId===user.id&&<span style={{fontSize:'.65rem',color:'var(--acc2)'}}>you</span>}
+                </div>;})}
+                {Array.from({length:openSlots}).map((_,i)=><div key={'op'+i} style={{display:'inline-flex',alignItems:'center',gap:'.3rem',background:'rgba(251,191,36,.06)',border:'1px dashed rgba(251,191,36,.4)',borderRadius:6,padding:'.3rem .65rem',color:'var(--warnL)',fontSize:'.78rem',fontWeight:600}}>⚑ Open Slot</div>)}
+              </div>
+              {openSlots>0&&<div style={{fontSize:'.78rem',color:'var(--muted)',marginBottom:'.7rem'}}>{openSlots} unfilled {openSlots===1?'slot':'slots'} — use <strong style={{color:'var(--txt)'}}>Manage Team</strong> to invite your group.</div>}
+              <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
+                {r.status!=="completed"&&r.status!=="no-show"&&<>
+                  <button className="btn btn-s btn-sm" onClick={e=>{e.stopPropagation();setEditResId(r.id);}}>Manage Team</button>
+                  <button className="btn btn-s btn-sm" onClick={e=>{e.stopPropagation();startTransition(()=>setModifyRes({res:r,mode:'reschedule'}));}}>Reschedule</button>
+                  {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={e=>{e.stopPropagation();startTransition(()=>setModifyRes({res:r,mode:'upgrade'}));}}>⬆ Upgrade</button>}
+                </>}
+              </div>
+            </div>}
+            {isExp&&hasRuns&&<div style={{padding:'.85rem 1rem'}}><RunDetail r={r} rt={rt}/></div>}
+          </div>;
+        };
+
+        // Multi-lane timeslot group — matches platoon TimeslotGroup layout
+        const SlotGroup=({group,isUpcoming,expandGrpId,togGrp,expandCardId,togCard})=>{
+          const isOpen=expandGrpId===group.key;
+          const rt=resTypes.find(x=>x.id===group.items[0]?.typeId);
+          const allP=[];const seenP=new Set();
+          group.items.forEach(r=>(r.players??[]).forEach(p=>{const k=p.userId||p.name;if(!seenP.has(k)){seenP.add(k);allP.push(p);}}));
+          const openSlots=group.items.reduce((s,r)=>s+(r.playerCount-(r.players?.length??0)),0);
+          return<div style={{background:'var(--surf2)',border:'1px solid var(--bdr)',borderRadius:8,marginBottom:'.65rem',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem',padding:'.65rem .85rem',cursor:'pointer',userSelect:'none',borderBottom:isOpen?'1px solid var(--bdr)':'none'}} onClick={()=>togGrp(group.key)}>
+              <div style={{textAlign:'center',minWidth:52,flexShrink:0}}>
+                <div style={{fontFamily:'var(--fd)',fontSize:'.85rem',color:isUpcoming?'var(--acc)':'var(--txt)',lineHeight:1.2}}>{fmtCard(group.date)}</div>
+                {group.startTime&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginTop:'.1rem'}}>{fmt12(group.startTime)}</div>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:'.4rem',marginBottom:'.35rem',flexWrap:'wrap'}}>
+                  <span style={{fontSize:'.88rem',color:'var(--txt)',fontFamily:'var(--fd)'}}>{rt?.name}</span>
+                  <span style={{fontSize:'.75rem',color:'var(--muted)',fontWeight:400}}>· {group.items.length} lanes</span>
+                  {isUpcoming&&openSlots>0&&<span style={{fontSize:'.75rem',color:'var(--warnL)',fontWeight:600}}>⚑ {openSlots} open</span>}
+                </div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem .65rem',alignItems:'center'}}>
+                  {allP.map((p,i)=>{const u=users.find(x=>x.id===p.userId);return<div key={i} style={{display:'inline-flex',alignItems:'center',gap:'.3rem',whiteSpace:'nowrap'}}>
+                    {u?.platoonTag&&<span style={{fontSize:'.7rem',fontFamily:'var(--fc)',fontWeight:700,color:u.platoonBadgeColor||'#94a3b8'}}>[{u.platoonTag}]</span>}
+                    <span style={{fontSize:'.8rem',color:'var(--txt)',fontWeight:p.userId===user.id?700:400}}>{p.name||u?.name||'—'}</span>
+                    {p.userId===user.id&&<span style={{fontSize:'.62rem',color:'var(--acc2)'}}>you</span>}
+                  </div>;})}
+                </div>
+              </div>
+              <span style={{fontSize:'.75rem',color:'var(--muted)',flexShrink:0,paddingTop:'.2rem'}}>{isOpen?'▾':'▸'}</span>
+            </div>
+            {isOpen&&<div style={{padding:'.65rem .85rem'}}>
+              {group.items.map((r,i)=>{const rtl=resTypes.find(x=>x.id===r.typeId);return<div key={r.id}>
+                <div style={{fontSize:'.7rem',fontFamily:'var(--fd)',color:'var(--muted)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:'.3rem',marginTop:i>0?'.75rem':0}}>
+                  Lane {i+1}{rtl?.name?` · ${rtl.name}`:''}
+                </div>
+                <ResCard r={r} isUpcoming={isUpcoming} expandId={expandCardId} togExpand={togCard} inGroup={true}/>
+              </div>;})}
+            </div>}
+          </div>;
+        };
+
+        const upGrps=groupBySlot(upcoming);
+        const pastGrps=groupBySlot(past);
+        const togUp=id=>setExpandedUpcomingId(x=>x===id?null:id);
+        const togPast=id=>setExpandedPastId(x=>x===id?null:id);
+        const togLane=id=>setExpandedLaneId(x=>x===id?null:id);
+
+        return<>
+          <div className="tabs" style={{marginBottom:'1rem',borderBottom:'1px solid var(--bdr)'}}>
             <button className={`tab${resSub==="upcoming"?" on":""}`} onClick={()=>setResSub("upcoming")}>Upcoming ({upcoming.length})</button>
             <button className={`tab${resSub==="past"?" on":""}`} onClick={()=>setResSub("past")}>Past ({past.length})</button>
           </div>
-          {resSub==="upcoming"&&(
-            <div className="tw"><table><thead><tr><th>Type</th><th>Date & Time</th><th>Players</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-              <tbody>{upcoming.map(r=>{
-                const rt=resTypes.find(x=>x.id===r.typeId);
-                const openSlots=r.playerCount-(r.players?.length??0);
-                const isExpanded=expandedUpcomingId===r.id;
-                return <Fragment key={r.id}>
-                  <tr style={{cursor:"pointer"}} onClick={()=>setExpandedUpcomingId(isExpanded?null:r.id)}>
-                    <td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td>
-                    <td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td>
-                    <td>
-                      <span style={{color:openSlots>0?"var(--warnL)":"var(--accB)",fontWeight:600}}>{r.players?.length??0}/{r.playerCount}</span>
-                      {openSlots>0&&<div style={{fontSize:".7rem",color:"var(--warnL)",marginTop:".15rem",whiteSpace:"nowrap"}}>⚑ {openSlots} open</div>}
-                    </td>
-                    <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>
-                    <td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td>
-                    <td>
-                      <div style={{display:"flex",gap:".35rem",flexWrap:"wrap",alignItems:"center",justifyContent:"flex-end"}}>
-                        {r.status!=="completed"&&r.status!=="no-show"&&<>
-                          <button className="btn btn-s btn-sm" onClick={e=>{e.stopPropagation();setEditResId(r.id);}}>Manage Team</button>
-                          <button className="btn btn-s btn-sm" onClick={e=>{e.stopPropagation();startTransition(()=>setModifyRes({res:r,mode:"reschedule"}));}}>Reschedule</button>
-                          {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={e=>{e.stopPropagation();startTransition(()=>setModifyRes({res:r,mode:"upgrade"}));}}>⬆ Upgrade</button>}
-                        </>}
-                        <span style={{fontSize:".72rem",color:"var(--muted)",paddingLeft:".2rem"}}>{isExpanded?"▲":"▼"}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  {isExpanded&&<tr key={r.id+"-detail"}><td colSpan={6} style={{background:"var(--surf2)",padding:0,borderBottom:"1px solid var(--bdr)"}}>
-                    <div style={{padding:".85rem 1rem"}}>
-                      {/* Player slots */}
-                      <div style={{display:"flex",flexWrap:"wrap",gap:".5rem .65rem",marginBottom:openSlots>0?".6rem":".75rem"}}>
-                        {(r.players??[]).map((p,i)=>{
-                          const u=users.find(x=>x.id===p.userId);
-                          return <div key={i} style={{display:"inline-flex",alignItems:"center",gap:".35rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".3rem .65rem"}}>
-                            {u?.platoonTag&&<span style={{fontSize:".7rem",fontFamily:"var(--fc)",fontWeight:700,color:u.platoonBadgeColor||"#94a3b8"}}>[{u.platoonTag}]</span>}
-                            <span style={{fontSize:".82rem",color:"var(--txt)",fontWeight:600}}>{p.name||u?.name||"—"}</span>
-                            {p.userId===user.id&&<span style={{fontSize:".65rem",color:"var(--acc2)"}}>you</span>}
-                          </div>;
-                        })}
-                        {Array.from({length:openSlots}).map((_,i)=>(
-                          <div key={"open-"+i} style={{display:"inline-flex",alignItems:"center",gap:".3rem",background:"rgba(251,191,36,.06)",border:"1px dashed rgba(251,191,36,.4)",borderRadius:6,padding:".3rem .65rem",color:"var(--warnL)",fontSize:".78rem",fontWeight:600}}>
-                            ⚑ Open Slot
-                          </div>
-                        ))}
-                      </div>
-                      {openSlots>0&&<div style={{fontSize:".78rem",color:"var(--muted)",marginBottom:".7rem"}}>
-                        {openSlots} unfilled {openSlots===1?"slot":"slots"} — use <strong style={{color:"var(--txt)"}}>Manage Team</strong> to invite your group before your session.
-                      </div>}
-                      <button className="btn btn-s btn-sm" onClick={e=>{e.stopPropagation();setEditResId(r.id);}}>Manage Team</button>
-                    </div>
-                  </td></tr>}
-                </Fragment>;
-              })}
-              </tbody></table>
-              {!upcoming.length&&<div className="empty"><div className="ei">🎯</div><p>No upcoming missions.</p></div>}
-            </div>
-          )}
-          {resSub==="past"&&(()=>{
-            const fmtSec=s=>{if(s==null)return null;const m=Math.floor(s/60),sec=s%60;return`${m}:${String(sec).padStart(2,'0')}`;};
-            const VIZ={V:'Standard',C:'Cosmic',R:'Rave',S:'Strobe',CS:'Cosmic+Strobe',B:'Dark'};
-            const AUD={C:'Cranked',O:'Off',T:'Tunes'};
-            const OPD={easy:'Easy',medium:'Medium',hard:'Hard',elite:'Elite'};
-            const TC={1:{name:'Blue',col:'#3b82f6'},2:{name:'Red',col:'#ef4444'}};
-            const audLbl=rn=>rn.audio?AUD[rn.audio]||rn.audio:(rn.cranked?'Cranked':'Standard');
-            const Pill=({v,children})=><span style={{display:'inline-block',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:4,padding:'1px 7px',fontSize:'.67rem',marginRight:'.3rem',marginBottom:'.2rem'}}>{v!=null?<span style={{color:'var(--muted)'}}>{v}</span>:children}</span>;
-            const ns={fontFamily:'var(--fd)',fontSize:'.67rem',fontWeight:700,lineHeight:1};
-            const audCode=rn=>rn.audio||(rn.cranked?'C':'T');
-            return <div className="tw"><table><thead><tr><th>Type</th><th>Date & Time</th><th>Players</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-              <tbody>{past.map(r=>{
-                const rt=resTypes.find(x=>x.id===r.typeId);
-                const resRuns=runs.filter(rn=>rn.reservationId===r.id);
-                const isExpanded=expandedPastId===r.id;
-                const myTeam=r.players.find(p=>p.userId===user.id)?.team??null;
-                return <Fragment key={r.id}>
-                  <tr style={{cursor:resRuns.length?"pointer":"default"}} onClick={()=>resRuns.length?setExpandedPastId(isExpanded?null:r.id):null}>
-                    <td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td>
-                    <td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td>
-                    <td style={{color:"var(--accB)"}}>{r.players.length}/{r.playerCount}</td>
-                    <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>
-                    <td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td>
-                    <td style={{textAlign:"right"}}>{resRuns.length>0&&<span style={{fontSize:".72rem",color:"var(--accB)",fontWeight:600}}>{isExpanded?"▲":"▼"} Check your scores!</span>}</td>
-                  </tr>
-                  {isExpanded&&resRuns.length>0&&<tr key={r.id+"-runs"}><td colSpan={6} style={{background:"var(--surf2)",padding:0,borderBottom:"1px solid var(--bdr)"}}>
-                    <div style={{padding:".85rem 1rem"}}>
-                      {rt?.mode==='versus'?(()=>{
-                        const roleColor=role=>{if(!role)return'var(--muted)';const r=role.toLowerCase();if(r.includes('hunt'))return'#c8e03a';if(r.includes('coyot'))return'#c4a882';return'var(--muted)';};
-                        const groups={};
-                        resRuns.forEach(rn=>{const k=rn.runNumber??0;(groups[k]=groups[k]||[]).push(rn);});
-                        const sortedGroups=Object.entries(groups).sort(([a],[b])=>Number(a)-Number(b));
-                        // session_runs.team is now the stable original group (1=Blue, 2=Red always).
-                        // winningTeam and role are also stable — no mapping needed.
-                        const mwNum=r.warWinnerTeam!=null?r.warWinnerTeam:null;
-                        const iWon=mwNum!=null&&myTeam!=null&&mwNum===Number(myTeam);
-                        return <>
-                          <div style={{display:'flex',alignItems:'center',gap:'.6rem',marginBottom:'.85rem',flexWrap:'wrap'}}>
-                            {myTeam!=null&&<div style={{display:'flex',alignItems:'center',gap:'.35rem',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:4,padding:'.18rem .55rem',fontSize:'.68rem'}}>
-                              <div style={{width:8,height:8,borderRadius:'50%',background:TC[Number(myTeam)]?.col??'var(--muted)',flexShrink:0}}/>
-                              <span style={{color:'var(--muted)',fontFamily:'var(--fd)',letterSpacing:'.06em',textTransform:'uppercase'}}>Your team:</span>
-                              <span style={{fontWeight:700,color:TC[Number(myTeam)]?.col??'var(--txt)'}}>{TC[Number(myTeam)]?.name??'Team '+myTeam}</span>
-                            </div>}
-                            {mwNum!=null&&<div style={{display:'flex',alignItems:'center',gap:'.35rem',background:iWon?'rgba(34,197,94,.08)':'var(--bg2)',border:'1px solid '+(iWon?'rgba(34,197,94,.25)':'var(--bdr)'),borderRadius:4,padding:'.18rem .55rem',fontSize:'.68rem'}}>
-                              <div style={{width:8,height:8,borderRadius:'50%',background:TC[mwNum]?.col??'var(--acc)',flexShrink:0}}/>
-                              <span style={{color:'var(--muted)',fontFamily:'var(--fd)',letterSpacing:'.06em',textTransform:'uppercase'}}>Match:</span>
-                              <span style={{fontWeight:700,color:TC[mwNum]?.col??'var(--acc)'}}>{TC[mwNum]?.name??'Team '+mwNum} wins</span>
-                              {iWon&&<span style={{fontWeight:700,color:'var(--okB)',marginLeft:'.2rem'}}>— You won!</span>}
-                            </div>}
-                          </div>
-                          {sortedGroups.map(([runNum,grp],runIdx)=>{
-                            const teamRuns=[...grp].sort((a,b)=>{if(myTeam==null)return (a.team??0)-(b.team??0);if(Number(a.team)===Number(myTeam))return -1;if(Number(b.team)===Number(myTeam))return 1;return (a.team??0)-(b.team??0);});
-                            const runWinTeam=grp[0]?.winningTeam!=null?Number(grp[0].winningTeam):null;
-                            const runTime=fmtSec(grp[0]?.elapsedSeconds);
-                            const rEnv=grp[0];
-                            return <div key={runNum} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
-                              <div style={{background:'var(--bg2)',padding:'.3rem .85rem',fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.3rem'}}>
-                                <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap'}}>
-                                  <span style={{color:'var(--txt)',fontWeight:700}}>Run {runNum}</span>
-                                  {rEnv.structure&&<span>Structure: {rEnv.structure}</span>}
-                                  {rEnv.visual&&<span style={{marginRight:'.4rem'}}>{vizRenderName(rEnv.visual,VIZ[rEnv.visual]||rEnv.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></span>}
-                                  <span style={{marginRight:'.4rem'}}>{audRenderName(audCode(rEnv),AUD[audCode(rEnv)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></span>
-                                </div>
-                                <div style={{display:'flex',gap:'.5rem',alignItems:'center'}}>
-                                  {runTime&&<span>{runTime}</span>}
-                                  {runWinTeam!=null&&<span style={{color:TC[runWinTeam]?.col??'var(--acc)',fontWeight:700}}>{(TC[runWinTeam]?.name??'Team '+runWinTeam)+' wins'}</span>}
-                                </div>
-                              </div>
-                              <div style={{display:'flex'}}>
-                                {teamRuns.map((rn,ti)=>{
-                                  const tc=TC[rn.team]||{name:'Team '+(rn.team??'?'),col:'var(--muted)'};
-                                  const isMe=myTeam!=null&&Number(rn.team)===Number(myTeam);
-                                  const sc=rn.score??calculateRunScore(rn);
-                                  const won=rn.winningTeam!=null&&Number(rn.team)===Number(rn.winningTeam);
-                                  const displayRole=rn.role?rn.role.charAt(0).toUpperCase()+rn.role.slice(1):null;
-                                  const rc=roleColor(displayRole);
-                                  const teamPlayers=r.players.filter(p=>Number(p.team)===Number(rn.team));
-                                  return <div key={rn.id} style={{flex:1,padding:'.6rem .9rem',borderLeft:isMe?`3px solid ${tc.col}`:'none',borderRight:ti<teamRuns.length-1?'1px solid var(--bdr)':'none',background:won?tc.col+'18':undefined}}>
-                                    <div style={{display:'flex',alignItems:'center',gap:'.35rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
-                                      <div style={{width:9,height:9,borderRadius:'50%',background:tc.col,flexShrink:0}}/>
-                                      <span style={{fontWeight:700,fontSize:'.8rem',color:tc.col}}>{tc.name}</span>
-                                      {displayRole&&<span style={{fontSize:'.72rem',fontWeight:700,color:rc,textTransform:'capitalize',letterSpacing:'.03em'}}>· {displayRole}</span>}
-                                      {isMe&&<span style={{fontSize:'.62rem',background:'var(--accD)',color:'var(--accB)',padding:'1px 6px',borderRadius:99,marginLeft:'auto',flexShrink:0,whiteSpace:'nowrap'}}>← You</span>}
-                                    </div>
-                                    <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:won?tc.col:'var(--txt)'}}>{sc}</div>
-                                    <div style={{display:'flex',gap:'.25rem',flexWrap:'wrap',marginTop:'.25rem'}}>
-                                      {displayRole==='Hunter'&&rn.objectiveComplete!=null&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>}
-                                      {won&&<span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:'rgba(34,197,94,.12)',color:'var(--okB)',border:'1px solid rgba(34,197,94,.3)'}}>✓ Won run</span>}
-                                    </div>
-                                    {teamPlayers.length>0&&<div style={{marginTop:'.4rem',display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{teamPlayers.map((p,i)=>{const pu=users.find(u=>u.id===p.userId);const ptag=pu?.platoonTag;return <span key={i} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{ptag&&<span style={{color:pu?.platoonBadgeColor||'#94a3b8',marginRight:'.2rem',fontFamily:'var(--fc)',fontWeight:700,letterSpacing:'.03em'}}>[{ptag}]</span>}{p.name||'—'}</span>;})}</div>}
-                                  </div>;
-                                })}
-                              </div>
-                            </div>;
-                          })}
-                        </>;
-                      })():(()=>{
-                        return <>
-                          {resRuns.map((rn,i)=>{
-                            const sc=rn.score??calculateRunScore(rn);
-                            const t=fmtSec(rn.elapsedSeconds);
-                            return <div key={rn.id} style={{marginBottom:'.6rem',border:'1px solid var(--bdr)',borderRadius:7,overflow:'hidden',background:'var(--surf)'}}>
-                              <div style={{background:'var(--bg2)',padding:'.3rem .85rem',fontSize:'.67rem',fontFamily:'var(--fd)',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.3rem'}}>
-                                <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexWrap:'wrap'}}>
-                                  <span style={{color:'var(--txt)',fontWeight:700}}>Run {rn.runNumber??i+1}</span>
-                                  {rn.structure&&<span>Structure: {rn.structure}</span>}
-                                  {rn.visual&&<span style={{marginRight:'.4rem'}}>{vizRenderName(rn.visual,VIZ[rn.visual]||rn.visual,ns)}<span style={{color:'var(--muted)'}}> Viz</span></span>}
-                                  <span style={{marginRight:'.4rem'}}>{audRenderName(audCode(rn),AUD[audCode(rn)]||'Tunes',ns)}<span style={{color:'var(--muted)'}}> Aud</span></span>
-                                  {rn.liveOpDifficulty&&<span>OP: {OPD[rn.liveOpDifficulty]||rn.liveOpDifficulty}</span>}
-                                </div>
-                                {t&&<span>{t}</span>}
-                              </div>
-                              <div style={{padding:'.6rem .9rem'}}>
-                                <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:'var(--txt)',marginBottom:'.25rem'}}>{sc}</div>
-                                <div style={{display:'flex',flexWrap:'wrap',gap:'.25rem',marginBottom:'.4rem'}}>
-                                  <span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.targetsEliminated?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.targetsEliminated?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.targetsEliminated?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.targetsEliminated?'✓ Targets':'✗ Missed'}</span>
-                                  <span style={{fontSize:'.64rem',padding:'1px 6px',borderRadius:3,background:rn.objectiveComplete?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)',color:rn.objectiveComplete?'var(--okB)':'var(--dangerL)',border:'1px solid '+(rn.objectiveComplete?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)')}}>{rn.objectiveComplete?'✓ Objective':'✗ Objective'}</span>
-                                </div>
-                                {r.players.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:'.15rem .5rem'}}>{r.players.map((p,pi)=>{const pu=users.find(u=>u.id===p.userId);const ptag=pu?.platoonTag;return <span key={pi} style={{fontSize:'.68rem',color:p.userId===user.id?'var(--accB)':'var(--muted)',fontWeight:p.userId===user.id?700:400}}>{ptag&&<span style={{color:pu?.platoonBadgeColor||'#94a3b8',marginRight:'.2rem',fontFamily:'var(--fc)',fontWeight:700,letterSpacing:'.03em'}}>[{ptag}]</span>}{p.name||'—'}</span>;})}</div>}
-                              </div>
-                            </div>;
-                          })}
-                        </>;
-                      })()}
-                    </div>
-                  </td></tr>}
-                </Fragment>;
-              })}
-              </tbody></table>
-              {!past.length&&<div className="empty"><div className="ei">🏁</div><p>No past missions yet.</p></div>}
-            </div>;
-          })()}
+          {resSub==="upcoming"&&<div>
+            {upGrps.map(g=>g.items.length===1
+              ?<ResCard key={g.key} r={g.items[0]} isUpcoming expandId={expandedUpcomingId} togExpand={togUp}/>
+              :<SlotGroup key={g.key} group={g} isUpcoming expandGrpId={expandedUpcomingId} togGrp={togUp} expandCardId={expandedLaneId} togCard={togLane}/>
+            )}
+            {!upcoming.length&&<div className="empty"><div className="ei">🎯</div><p>No upcoming missions.</p></div>}
+          </div>}
+          {resSub==="past"&&<div>
+            {pastGrps.map(g=>g.items.length===1
+              ?<ResCard key={g.key} r={g.items[0]} expandId={expandedPastId} togExpand={togPast}/>
+              :<SlotGroup key={g.key} group={g} expandGrpId={expandedPastId} togGrp={togPast} expandCardId={expandedLaneId} togCard={togLane}/>
+            )}
+            {!past.length&&<div className="empty"><div className="ei">🏁</div><p>No past missions yet.</p></div>}
+          </div>}
         </>;
       })()}
 
