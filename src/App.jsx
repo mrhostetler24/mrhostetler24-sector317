@@ -3042,6 +3042,11 @@ useEffect(() => {
     try{
       const existing=await fetchUserByPhone(phone);
       if(existing){
+        // If the existing account already has a different auth identity, block the merge —
+        // this phone belongs to someone else and we must not let a new OAuth user claim it.
+        if(existing.authId&&existing.authId!==pendingUser.authId){
+          throw new Error('This phone number is already linked to another account. Please use a different number or reach out to a Sector 317 team member.');
+        }
         // Phone already in system — link social auth to that guest account via SECURITY DEFINER RPC
         // (direct updateUser is blocked by RLS because the guest row has auth_id = null)
         const merged=await linkAuthToGuest(
