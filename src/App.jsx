@@ -1420,7 +1420,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         </div>
         {user.canBook
           ?<button className="btn btn-p" style={{flexShrink:0}} onClick={()=>setShowBook(true)}>+ Book Mission</button>
-          :<button className="btn btn-s" style={{flexShrink:0,opacity:.6,cursor:"default"}} disabled>Booking agent coming soon!</button>
+          :<button className="btn btn-s sm-hide" style={{flexShrink:0,opacity:.6,cursor:"default"}} disabled>Booking agent coming soon!</button>
         }
       </div>
       {/* ── Top info row: Leaderboard + Rank combined · Store Credits ── */}

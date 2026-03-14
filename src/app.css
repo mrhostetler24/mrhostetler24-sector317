@@ -251,6 +251,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
   .alert-banner{padding:.65rem .85rem;font-size:.78rem;}
   .gd-badge{padding:.5rem .75rem;font-size:.74rem;}
   .pay-sum{padding:.75rem;}
+  .sm-hide{display:none;}
 }
 @media(max-width:480px){
   .content{padding:.75rem .6rem;}
