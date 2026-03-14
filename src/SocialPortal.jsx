@@ -566,7 +566,15 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   // ── Stats computation ────────────────────────────────────────────────────
   const myRes = reservations.filter(r => r.userId === user.id)
   const myResMap = Object.fromEntries(myRes.map(r => [r.id, r]))
-  const myRuns = runs.filter(rn => myResMap[rn.reservationId] && rn.score != null)
+  const myRuns = runs.filter(rn => {
+    if (!myResMap[rn.reservationId] || rn.score == null) return false
+    // For versus, session_runs has one row per team per run — only keep the user's team
+    if (rn.team != null) {
+      const myTeam = myResMap[rn.reservationId]?.players?.find(p => p.userId === user.id)?.team
+      if (myTeam != null && Number(rn.team) !== Number(myTeam)) return false
+    }
+    return true
+  })
 
   const coopResIds = new Set(
     myRes.filter(r => resTypes.find(t => t.id === r.typeId)?.mode === 'coop').map(r => r.id)
