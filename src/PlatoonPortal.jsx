@@ -1063,6 +1063,76 @@ function MenuItem({ label, onClick, danger }) {
 
 const PAGE_SZ = 10
 
+// Group sessions that share the same date+start_time into a single timeslot entry.
+// Order is preserved (sessions arrive sorted newest-first from the RPC).
+function groupByTimeslot(sessions) {
+  const map = new Map()
+  sessions.forEach(s => {
+    const key = `${s.date}|${s.start_time}`
+    if (!map.has(key)) map.set(key, { key, date: s.date, start_time: s.start_time, sessions: [] })
+    map.get(key).sessions.push(s)
+  })
+  return [...map.values()]
+}
+
+function TimeslotGroup({ group, upcoming }) {
+  const [open, setOpen] = useState(false)
+  const dateStr = group.date
+    ? new Date(group.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    : ''
+
+  // Collect unique member avatars across all lanes for the collapsed summary row
+  const allMembers = []
+  const seen = new Set()
+  group.sessions.forEach(s => {
+    const players = upcoming ? (Array.isArray(s.all_players) ? s.all_players : []) : (Array.isArray(s.member_players) ? s.member_players : [])
+    players.forEach(p => {
+      if (p.is_member && !seen.has(p.user_id)) { seen.add(p.user_id); allMembers.push(p) }
+    })
+  })
+
+  return (
+    <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.65rem', overflow: 'hidden' }}>
+      {/* Collapsed timeslot header */}
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.65rem .85rem', cursor: 'pointer', userSelect: 'none', borderBottom: open ? '1px solid var(--bdr)' : 'none' }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <div style={{ textAlign: 'center', minWidth: 52, flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', color: upcoming ? 'var(--acc)' : 'var(--txt)', lineHeight: 1.2 }}>{dateStr}</div>
+          {group.start_time && <div style={{ fontSize: '.7rem', color: 'var(--muted)', marginTop: '.1rem' }}>{group.start_time}</div>}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '.82rem', color: 'var(--txt)', fontFamily: 'var(--fd)', marginBottom: '.35rem' }}>
+            {group.sessions[0]?.type_name}
+            <span style={{ color: 'var(--muted)', fontWeight: 400 }}> · {group.sessions.length} lanes</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.25rem', alignItems: 'center' }}>
+            {allMembers.slice(0, 14).map(p => (
+              <Avatar key={p.user_id} url={p.avatar_url} name={p.leaderboard_name} size={20} />
+            ))}
+            {allMembers.length > 14 && <span style={{ fontSize: '.7rem', color: 'var(--muted)' }}>+{allMembers.length - 14}</span>}
+          </div>
+        </div>
+        <span style={{ fontSize: '.75rem', color: 'var(--muted)', flexShrink: 0 }}>{open ? '▾' : '▸'}</span>
+      </div>
+      {/* Expanded: one SessionCard per lane */}
+      {open && (
+        <div style={{ padding: '.65rem .85rem' }}>
+          {group.sessions.map((s, i) => (
+            <div key={s.reservation_id}>
+              <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.3rem', marginTop: i > 0 ? '.75rem' : 0 }}>
+                Lane {i + 1}{s.type_name ? ` · ${s.type_name}` : ''}
+              </div>
+              <SessionCard session={s} upcoming={upcoming} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SessionsTab({ platoon }) {
   const [sessions, setSessions] = useState([])
   const [loading,  setLoading]  = useState(true)
@@ -1078,14 +1148,17 @@ function SessionsTab({ platoon }) {
   if (loading) return <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1rem' }}>Loading…</div>
   if (sessions.length === 0) return <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1.5rem' }}>No completed sessions yet.</div>
 
-  const totalPages = Math.ceil(sessions.length / PAGE_SZ)
-  const pageRows   = sessions.slice(page * PAGE_SZ, (page + 1) * PAGE_SZ)
+  const groups     = groupByTimeslot(sessions)
+  const totalPages = Math.ceil(groups.length / PAGE_SZ)
+  const pageGroups = groups.slice(page * PAGE_SZ, (page + 1) * PAGE_SZ)
 
   return (
     <div>
-      {pageRows.map(s => (
-        <SessionCard key={s.reservation_id} session={s} />
-      ))}
+      {pageGroups.map(g =>
+        g.sessions.length === 1
+          ? <SessionCard key={g.key} session={g.sessions[0]} />
+          : <TimeslotGroup key={g.key} group={g} />
+      )}
       {totalPages > 1 && (
         <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'center', padding: '.75rem 0', alignItems: 'center' }}>
           <button className="btn btn-sm btn-s" disabled={page === 0} onClick={() => setPage(p => p - 1)}>← Prev</button>
@@ -1112,14 +1185,17 @@ function UpcomingTab({ platoon }) {
   if (loading) return <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1rem' }}>Loading…</div>
   if (sessions.length === 0) return <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1.5rem' }}>No upcoming sessions.</div>
 
-  const totalPages = Math.ceil(sessions.length / PAGE_SZ)
-  const pageRows   = sessions.slice(page * PAGE_SZ, (page + 1) * PAGE_SZ)
+  const groups     = groupByTimeslot(sessions)
+  const totalPages = Math.ceil(groups.length / PAGE_SZ)
+  const pageGroups = groups.slice(page * PAGE_SZ, (page + 1) * PAGE_SZ)
 
   return (
     <div>
-      {pageRows.map(s => (
-        <SessionCard key={s.reservation_id} session={s} upcoming />
-      ))}
+      {pageGroups.map(g =>
+        g.sessions.length === 1
+          ? <SessionCard key={g.key} session={g.sessions[0]} upcoming />
+          : <TimeslotGroup key={g.key} group={g} upcoming />
+      )}
       {totalPages > 1 && (
         <div style={{ display: 'flex', gap: '.5rem', justifyContent: 'center', padding: '.75rem 0', alignItems: 'center' }}>
           <button className="btn btn-sm btn-s" disabled={page === 0} onClick={() => setPage(p => p - 1)}>← Prev</button>
