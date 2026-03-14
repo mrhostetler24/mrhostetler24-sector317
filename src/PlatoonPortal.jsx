@@ -743,7 +743,7 @@ function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLef
 
       <div style={{ textAlign: 'right', marginTop: '1.5rem', paddingTop: '.75rem', borderTop: '1px solid var(--bdr)' }}>
         <button onClick={() => setShowAwolConfirm(true)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '.72rem', cursor: 'pointer', opacity: .5 }}>
-          Leave platoon
+          Go AWOL
         </button>
       </div>
 
@@ -772,7 +772,7 @@ function BoardTab({ platoon, userId }) {
   const [hasMore, setHasMore] = useState(true)
   const [content, setContent] = useState('')
   const [posting, setPosting] = useState(false)
-  const LIMIT = 20
+  const LIMIT = 50
 
   const load = useCallback(async (newOffset = 0) => {
     setLoading(true)
@@ -833,7 +833,7 @@ function BoardTab({ platoon, userId }) {
 
       {hasMore && !loading && (
         <button className="btn btn-s" style={{ width: '100%', marginTop: '.75rem' }} onClick={() => load(offset)}>
-          Load older posts
+          Load More
         </button>
       )}
     </div>
@@ -841,6 +841,16 @@ function BoardTab({ platoon, userId }) {
 }
 
 function PostRow({ post, platoonTag, badgeColor, userId, onDelete }) {
+  // System notes (automated events: join / AWOL) render as a centered info line
+  if (post.user_id === null) {
+    return (
+      <div style={{ textAlign: 'center', padding: '.4rem 0', borderBottom: '1px solid var(--bdr)', color: 'var(--muted)', fontSize: '.75rem', fontStyle: 'italic', letterSpacing: '.01em' }}>
+        {post.content}
+        <span style={{ marginLeft: '.45rem', opacity: .55 }}>· {formatDate(post.created_at)}</span>
+      </div>
+    )
+  }
+
   const initials = post.leaderboard_name ? post.leaderboard_name.slice(0, 2).toUpperCase() : '?'
   const isOwn = post.user_id === userId
 

@@ -1166,6 +1166,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [tab,setTab]=useState("social");
   const [resSub,setResSub]=useState("upcoming");
   const [expandedPastId,setExpandedPastId]=useState(null);
+  const [expandedUpcomingId,setExpandedUpcomingId]=useState(null);
   const [lbPlayerFilter,setLbPlayerFilter]=useState("all");
   const [lbPeriod,setLbPeriod]=useState("alltime");
   const [lbMode,setLbMode]=useState("avg");
@@ -1475,20 +1476,57 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           </div>
           {resSub==="upcoming"&&(
             <div className="tw"><table><thead><tr><th>Type</th><th>Date & Time</th><th>Players</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-              <tbody>{upcoming.map(r=>{const rt=resTypes.find(x=>x.id===r.typeId);return <tr key={r.id}>
-                <td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td>
-                <td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td>
-                <td style={{color:"var(--accB)"}}>{r.players.length}/{r.playerCount}</td>
-                <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>
-                <td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td>
-                <td><div style={{display:"flex",gap:".35rem",flexWrap:"wrap"}}>
-                  {r.status!=="completed"&&r.status!=="no-show"&&<>
-                    <button className="btn btn-s btn-sm" onClick={()=>setEditResId(r.id)}>Manage Team</button>
-                    <button className="btn btn-s btn-sm" onClick={()=>startTransition(()=>setModifyRes({res:r,mode:"reschedule"}))}>Reschedule</button>
-                    {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={()=>startTransition(()=>setModifyRes({res:r,mode:"upgrade"}))}>⬆ Upgrade</button>}
-                  </>}
-                </div></td>
-              </tr>;})}
+              <tbody>{upcoming.map(r=>{
+                const rt=resTypes.find(x=>x.id===r.typeId);
+                const openSlots=r.playerCount-(r.players?.length??0);
+                const isExpanded=expandedUpcomingId===r.id;
+                return <Fragment key={r.id}>
+                  <tr style={{cursor:"pointer"}} onClick={()=>setExpandedUpcomingId(isExpanded?null:r.id)}>
+                    <td><div style={{fontWeight:600}}>{rt?.name}</div><div style={{display:"flex",gap:".3rem",marginTop:".2rem"}}><span className={`badge b-${rt?.mode}`}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></div></td>
+                    <td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td>
+                    <td>
+                      <span style={{color:openSlots>0?"var(--warnL)":"var(--accB)",fontWeight:600}}>{r.players?.length??0}/{r.playerCount}</span>
+                      {openSlots>0&&<div style={{fontSize:".7rem",color:"var(--warnL)",marginTop:".15rem",whiteSpace:"nowrap"}}>⚑ {openSlots} open</div>}
+                    </td>
+                    <td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>
+                    <td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td>
+                    <td>
+                      <div style={{display:"flex",gap:".35rem",flexWrap:"wrap",alignItems:"center",justifyContent:"flex-end"}}>
+                        {r.status!=="completed"&&r.status!=="no-show"&&<>
+                          <button className="btn btn-s btn-sm" onClick={e=>{e.stopPropagation();setEditResId(r.id);}}>Manage Team</button>
+                          <button className="btn btn-s btn-sm" onClick={e=>{e.stopPropagation();startTransition(()=>setModifyRes({res:r,mode:"reschedule"}));}}>Reschedule</button>
+                          {rt?.style==="open"&&<button className="btn btn-ok btn-sm" onClick={e=>{e.stopPropagation();startTransition(()=>setModifyRes({res:r,mode:"upgrade"}));}}>⬆ Upgrade</button>}
+                        </>}
+                        <span style={{fontSize:".72rem",color:"var(--muted)",paddingLeft:".2rem"}}>{isExpanded?"▲":"▼"}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  {isExpanded&&<tr key={r.id+"-detail"}><td colSpan={6} style={{background:"var(--surf2)",padding:0,borderBottom:"1px solid var(--bdr)"}}>
+                    <div style={{padding:".85rem 1rem"}}>
+                      {/* Player slots */}
+                      <div style={{display:"flex",flexWrap:"wrap",gap:".5rem .65rem",marginBottom:openSlots>0?".6rem":".75rem"}}>
+                        {(r.players??[]).map((p,i)=>{
+                          const u=users.find(x=>x.id===p.userId);
+                          return <div key={i} style={{display:"inline-flex",alignItems:"center",gap:".35rem",background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,padding:".3rem .65rem"}}>
+                            {u?.platoonTag&&<span style={{fontSize:".7rem",fontFamily:"var(--fc)",fontWeight:700,color:u.platoonBadgeColor||"#94a3b8"}}>[{u.platoonTag}]</span>}
+                            <span style={{fontSize:".82rem",color:"var(--txt)",fontWeight:600}}>{p.name||u?.name||"—"}</span>
+                            {p.userId===user.id&&<span style={{fontSize:".65rem",color:"var(--acc2)"}}>you</span>}
+                          </div>;
+                        })}
+                        {Array.from({length:openSlots}).map((_,i)=>(
+                          <div key={"open-"+i} style={{display:"inline-flex",alignItems:"center",gap:".3rem",background:"rgba(251,191,36,.06)",border:"1px dashed rgba(251,191,36,.4)",borderRadius:6,padding:".3rem .65rem",color:"var(--warnL)",fontSize:".78rem",fontWeight:600}}>
+                            ⚑ Open Slot
+                          </div>
+                        ))}
+                      </div>
+                      {openSlots>0&&<div style={{fontSize:".78rem",color:"var(--muted)",marginBottom:".7rem"}}>
+                        {openSlots} unfilled {openSlots===1?"slot":"slots"} — use <strong style={{color:"var(--txt)"}}>Manage Team</strong> to invite your group before your session.
+                      </div>}
+                      <button className="btn btn-s btn-sm" onClick={e=>{e.stopPropagation();setEditResId(r.id);}}>Manage Team</button>
+                    </div>
+                  </td></tr>}
+                </Fragment>;
+              })}
               </tbody></table>
               {!upcoming.length&&<div className="empty"><div className="ei">🎯</div><p>No upcoming missions.</p></div>}
             </div>
