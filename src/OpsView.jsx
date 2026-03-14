@@ -25,6 +25,7 @@ import {
   WAR_BONUS,
 } from './scoreUtils.js'
 import { MerchStaffSales } from './MerchPortal.jsx'
+import { vizRenderName, audRenderName } from './envRender.jsx'
 
 // ── Shared utilities (mirrored from App.jsx) ─────────────────────────────────
 const fmtMoney = n => `$${Number(n).toFixed(2)}`
@@ -153,6 +154,19 @@ const AUDIO_OPTIONS=[
   {ui:'TUNES',  code:'T', cranked:false, label:'Tunes',   desc:'Background music'},
   {ui:'CRANKED',code:'C', cranked:true,  label:'Cranked', desc:'Distorted audio (+20%)'},
 ];
+// Per-mode border + background for selected env buttons (matches envRender.jsx palette)
+const VIZ_BTN={
+  V:{selBorder:'rgba(220,227,239,.7)', selBg:'rgba(220,227,239,.1)'},
+  C:{selBorder:'#a78bfa',             selBg:'rgba(167,139,250,.14)'},
+  S:{selBorder:'rgba(255,255,255,.65)',selBg:'rgba(255,255,255,.07)'},
+  B:{selBorder:'rgba(0,255,65,.55)',  selBg:'rgba(0,20,5,.45)'},
+  R:{selBorder:'#c084fc',             selBg:'rgba(244,114,182,.08)'},
+};
+const AUD_BTN={
+  O:{selBorder:'#94a3b8', selBg:'rgba(148,163,184,.1)'},
+  T:{selBorder:'#38bdf8', selBg:'rgba(56,189,248,.12)'},
+  C:{selBorder:'#f97316', selBg:'rgba(249,115,22,.14)'},
+};
 const DIFF_OPTIONS=[
   {value:'NONE',    label:'No Return Fire', desc:'Role players will not engage or interfere.'},
   {value:'HARMLESS',label:'Harmless',desc:'Light return fire with zero tactical skill.'},
@@ -435,19 +449,25 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     const s=settings[run][laneIdx];
     const selVis=VISUAL_OPTIONS.find(v=>v.ui===s.uiVisual)||VISUAL_OPTIONS[0];
     const selAud=AUDIO_OPTIONS.find(a=>a.ui===s.uiAudio)||AUDIO_OPTIONS[1];
+    const lblSel={fontSize:'.8rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em'};
+    const lblOff={fontSize:'.8rem',fontWeight:500,textTransform:'uppercase',letterSpacing:'.04em'};
     return(<>
       <div style={{marginBottom:'.5rem'}}>
         <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
           Visual <span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}>{selVis.desc}</span>
         </div>
         <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem',justifyContent:'center'}}>
-          {VISUAL_OPTIONS.map(v=>{const sel=s.uiVisual===v.ui;return(
-            <button key={v.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiVisual',v.ui);setSetting(laneIdx,'visual',v.code);}}
-              style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
-                border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
-                color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
-              {v.ui}
-            </button>);})}
+          {VISUAL_OPTIONS.map(v=>{
+            const sel=s.uiVisual===v.ui;
+            const c=VIZ_BTN[v.code]||{selBorder:'var(--acc)',selBg:'var(--accD)'};
+            return(
+              <button key={v.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiVisual',v.ui);setSetting(laneIdx,'visual',v.code);}}
+                style={{padding:'.35rem .8rem',borderRadius:16,cursor:'pointer',
+                  border:`2px solid ${sel?c.selBorder:'var(--bdr)'}`,background:sel?c.selBg:'var(--bg2)',
+                  opacity:sel?1:.55}}>
+                {vizRenderName(v.code,v.label,sel?lblSel:lblOff)}
+              </button>);
+          })}
         </div>
       </div>
       <div>
@@ -455,13 +475,17 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
           Audio <span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}>{selAud.desc}</span>
         </div>
         <div style={{display:'flex',gap:'.3rem',justifyContent:'center'}}>
-          {AUDIO_OPTIONS.map(a=>{const sel=s.uiAudio===a.ui;return(
-            <button key={a.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiAudio',a.ui);setSetting(laneIdx,'audio',a.code);setSetting(laneIdx,'cranked',a.cranked);}}
-              style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
-                border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
-                color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
-              {a.ui}
-            </button>);})}
+          {AUDIO_OPTIONS.map(a=>{
+            const sel=s.uiAudio===a.ui;
+            const c=AUD_BTN[a.code]||{selBorder:'var(--acc)',selBg:'var(--accD)'};
+            return(
+              <button key={a.ui} type="button" onClick={()=>{setSetting(laneIdx,'uiAudio',a.ui);setSetting(laneIdx,'audio',a.code);setSetting(laneIdx,'cranked',a.cranked);}}
+                style={{padding:'.35rem .8rem',borderRadius:16,cursor:'pointer',
+                  border:`2px solid ${sel?c.selBorder:'var(--bdr)'}`,background:sel?c.selBg:'var(--bg2)',
+                  opacity:sel?1:.55}}>
+                {audRenderName(a.code,a.label,sel?lblSel:lblOff)}
+              </button>);
+          })}
         </div>
       </div>
     </>);
@@ -1214,6 +1238,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [expandedRes,setExpandedRes]=useState({});
   const [signingFor,setSigningFor]=useState(null);
   const [signedName,setSignedName]=useState("");
+  const [signedNow,setSignedNow]=useState(()=>new Set()); // userIds signed this OpsView session
   const [addingTo,setAddingTo]=useState(null);
   const [addingToTeam,setAddingToTeam]=useState(null);
   const [versusTeams,setVersusTeams]=useState(()=>{
@@ -1317,13 +1342,13 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
     const data={};
     slotTimes.forEach(time=>{
       const{lanes:rawLanes}=buildLanes(viewDate,time,reservations,resTypes,sessionTemplates);
-      data[time]=applyLaneOverrides(rawLanes,laneOverrides,resTypes);
+      data[time]={lanes:applyLaneOverrides(rawLanes,laneOverrides,resTypes),rawLanes};
     });
     return data;
   },[slotTimes,viewDate,reservations,resTypes,sessionTemplates,laneOverrides]);
   // O(1) user lookup instead of linear scan on every player row
   const userMap=useMemo(()=>new Map(users.map(u=>[u.id,u])),[users]);
-  const playerWaiverOk=useCallback(player=>{if(!player.userId)return false;return hasValidWaiver(userMap.get(player.userId),activeWaiverDoc);},[userMap,activeWaiverDoc]);
+  const playerWaiverOk=useCallback(player=>{if(!player.userId)return false;if(signedNow.has(player.userId))return true;return hasValidWaiver(userMap.get(player.userId),activeWaiverDoc);},[userMap,activeWaiverDoc,signedNow]);
   const sBadge=status=>{
     const map={confirmed:{bg:"rgba(58,125,255,.12)",color:"#60a5fa",bdr:"rgba(58,125,255,.25)"},ready:{bg:"rgba(212,236,70,.12)",color:"#d4ec46",bdr:"rgba(212,236,70,.3)"},arrived:{bg:"rgba(212,236,70,.12)",color:"#d4ec46",bdr:"rgba(212,236,70,.3)"},"no-show":{bg:"rgba(220,38,38,.12)",color:"#f87171",bdr:"rgba(220,38,38,.25)"},sent:{bg:"rgba(100,130,240,.18)",color:"#8096f0",bdr:"rgba(100,130,240,.35)"},completed:{bg:"rgba(21,128,61,.12)",color:"#4ade80",bdr:"rgba(21,128,61,.25)"}};
     const label={confirmed:"Confirmed",ready:"Arrived",arrived:"Arrived","no-show":"No Show",sent:"Sent",completed:"Completed"};
@@ -1430,7 +1455,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         const time=entry;const isHist=historySlots.includes(time);
         const slotResItems=todayRes.filter(r=>r.startTime===time);
         const tmpl=todayTmpls.find(t=>t.startTime===time);
-        const lanes=slotLaneData[time]||[];
+        const {lanes=[],rawLanes=[]}=slotLaneData[time]||{};
         const activeLanes=lanes.filter(l=>l.type!==null);
         const laneReady=lane=>lane.reservations.length>0&&lane.reservations.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
         const allLanesReady=activeLanes.length>0?activeLanes.every(laneReady):slotResItems.length>0&&slotResItems.every(r=>r.status==="arrived"||r.status==="ready"||r.status==="no-show");
@@ -1764,7 +1789,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         playerName={signingFor.player.name}
         waiverDoc={activeWaiverDoc}
         onClose={()=>setSigningFor(null)}
-        onSign={async(name)=>{const{player}=signingFor;if(!player.userId)return;try{await signWaiver(player.userId,name,activeWaiverDoc?.id);const ts=new Date().toISOString();setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:name,waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));showMsg("Waiver signed for "+player.name);setSigningFor(null);}catch(e){alert("Waiver save failed: "+e.message);}}}
+        onSign={async(name)=>{const{player}=signingFor;if(!player.userId)return;try{await signWaiver(player.userId,name,activeWaiverDoc?.id);const ts=new Date().toISOString();setSignedNow(prev=>{const next=new Set(prev);next.add(player.userId);return next;});setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:name,waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));showMsg("Waiver signed for "+player.name);setSigningFor(null);}catch(e){alert("Waiver save failed: "+e.message);}}}
       />}
       {sendConfirm&&(
         <div className="mo"><div className="mc">

@@ -406,16 +406,37 @@ export async function linkOAuthUser(id, authId, email, authProvider) {
 }
 
 export async function deleteUser(id) {
-  const { error } = await supabase.from('users').delete().eq('id', id)
+  // Soft-delete only: sets active=false via SECURITY DEFINER RPC.
+  // The user row, signed waivers, payments, and all history are preserved.
+  const { error } = await supabase.rpc('deactivate_user', { p_id: id })
   if (error) throw error
 }
 
 export async function signWaiver(userId, signedName, waiverDocId) {
-  // Use the SECURITY DEFINER RPC so staff can write to rows they don't own (RLS blocks direct update)
+  // SECURITY DEFINER RPC — writes users.waivers JSONB AND a permanent
+  // signed_waivers row with a full body snapshot for legal archiving.
   const { error } = await supabase.rpc('kiosk_sign_waiver', {
     p_user_id: userId, p_signed_name: signedName, p_waiver_doc_id: waiverDocId,
   })
   if (error) throw error
+}
+
+export async function fetchMySignedWaiver(waiverDocId = null) {
+  const { data, error } = await supabase.rpc('get_my_signed_waiver', {
+    p_waiver_doc_id: waiverDocId ?? null,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? (data[0] ?? null) : (data ?? null)
+  if (!row) return null
+  return {
+    id:               row.id,
+    waiverDocId:      row.waiver_doc_id,
+    waiverDocName:    row.waiver_doc_name,
+    waiverDocVersion: row.waiver_doc_version,
+    waiverBody:       row.waiver_body,
+    signedName:       row.signed_name,
+    signedAt:         row.signed_at,
+  }
 }
 
 

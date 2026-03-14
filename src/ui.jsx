@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { hasValidWaiver, latestWaiverEntry, fmtTS, cleanPh, fmt12, addDaysStr, getInitials } from './utils.js';
-import { fetchUserByPhone } from './supabase.js';
+import { fetchUserByPhone, fetchMySignedWaiver } from './supabase.js';
 
 // ── AuthBadge ─────────────────────────────────────────────────────
 export function AuthBadge({provider}){
@@ -155,19 +155,131 @@ export function WaiverModal({playerName,waiverDoc,onClose,onSign}){
 // ── WaiverViewModal ───────────────────────────────────────────────
 export function WaiverViewModal({user,waiverDocs,activeWaiverDoc,onClose}){
   const entry=latestWaiverEntry(user);
-  const doc=waiverDocs?.find(d=>d.id===entry?.waiverDocId)||activeWaiverDoc;
+  const fallbackDoc=waiverDocs?.find(d=>d.id===entry?.waiverDocId)||activeWaiverDoc;
   const valid=hasValidWaiver(user,activeWaiverDoc);
+  const [record,setRecord]=useState(null);  // signed_waivers row (has body snapshot)
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    fetchMySignedWaiver(activeWaiverDoc?.id??null)
+      .then(r=>setRecord(r))
+      .catch(()=>setRecord(null))
+      .finally(()=>setLoading(false));
+  },[]);// eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prefer archived snapshot; fall back to live doc for legacy signings
+  const body        = record?.waiverBody       || fallbackDoc?.body        || "";
+  const docName     = record?.waiverDocName    || fallbackDoc?.name        || "Liability Waiver";
+  const docVersion  = record?.waiverDocVersion || fallbackDoc?.version     || "";
+  const signedName  = record?.signedName       || entry?.signedName        || "";
+  const signedAt    = record?.signedAt         || entry?.signedAt          || null;
+  const recordId    = record?.id               || null;
+
+  const handlePrint=()=>{
+    const dateStr=signedAt?new Date(signedAt).toLocaleString("en-US",{timeZoneName:"short",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"Unknown";
+    const isoStr=signedAt?new Date(signedAt).toISOString():"";
+    const win=window.open("","_blank","width=860,height=1100");
+    if(!win)return;
+    win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Signed Waiver — ${user.name}</title><style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Georgia,"Times New Roman",serif;font-size:14px;line-height:1.6;color:#111;background:#fff;padding:2.5rem 3rem;}
+.hdr{text-align:center;padding-bottom:1.25rem;margin-bottom:1.5rem;border-bottom:3px double #111;}
+.hdr h1{font-size:1.6rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.25rem;}
+.hdr h2{font-size:1.1rem;font-weight:normal;margin-bottom:.15rem;}
+.hdr .sub{font-size:.8rem;color:#555;}
+.doc-body{white-space:pre-wrap;font-size:13px;line-height:1.7;margin-bottom:2.5rem;padding:1rem;border:1px solid #ccc;background:#fafafa;}
+.sig-section{margin-top:2rem;padding-top:1.5rem;border-top:2px solid #111;}
+.sig-section h3{text-transform:uppercase;letter-spacing:.1em;font-size:.85rem;margin-bottom:1.25rem;color:#333;}
+.sig-row{display:flex;gap:2rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+.sig-field{flex:1;min-width:200px;}
+.sig-value{font-size:1.25rem;font-family:"Brush Script MT",cursive,Georgia,serif;padding:.35rem 0;border-bottom:1.5px solid #111;margin-bottom:.25rem;min-height:2rem;}
+.sig-value.mono{font-family:"Courier New",monospace;font-size:.9rem;}
+.sig-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:#666;}
+.legal{margin-top:2rem;padding-top:1rem;border-top:1px solid #ccc;font-size:.72rem;color:#555;line-height:1.5;}
+.record-id{font-family:"Courier New",monospace;font-size:.68rem;color:#777;margin-top:.5rem;}
+@media print{body{padding:1.5rem;}@page{margin:1.5cm;}}
+</style></head><body>
+<div class="hdr">
+  <h1>Sector 317</h1>
+  <h2>${docName}${docVersion?" — Version "+docVersion:""}</h2>
+  <div class="sub">Electronically Signed Liability Waiver — Legal Record</div>
+</div>
+<div class="doc-body">${body.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+<div class="sig-section">
+  <h3>Electronic Signature</h3>
+  <div class="sig-row">
+    <div class="sig-field">
+      <div class="sig-value">${signedName}</div>
+      <div class="sig-label">Participant Full Legal Name (Typed Electronic Signature)</div>
+    </div>
+    <div class="sig-field">
+      <div class="sig-value mono">${dateStr}</div>
+      <div class="sig-label">Date &amp; Time Signed</div>
+    </div>
+  </div>
+  <div class="sig-row">
+    <div class="sig-field">
+      <div class="sig-value mono">${user.id}</div>
+      <div class="sig-label">Account Reference ID</div>
+    </div>
+    ${isoStr?`<div class="sig-field"><div class="sig-value mono">${isoStr}</div><div class="sig-label">ISO 8601 Timestamp (UTC)</div></div>`:""}
+  </div>
+  <div class="legal">
+    This electronic signature is legally binding under the Electronic Signatures in Global and National Commerce Act (E-SIGN Act, 15 U.S.C. § 7001 et seq.) and the Uniform Electronic Transactions Act (UETA). By typing their full legal name, the participant expressly agreed to all terms of this Release of Liability and Waiver and intended their typed name to serve as their electronic signature equivalent to a handwritten signature.
+    ${recordId?`<div class="record-id">Signed Waiver Record ID: ${recordId}</div>`:""}
+  </div>
+</div>
+</body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(()=>win.print(),400);
+  };
+
   return(
-    <div className="mo"><div className="mc" style={{maxWidth:600}}>
-      <div className="mt2">Your Waiver Details</div>
-      <div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".9rem",marginBottom:"1rem",fontSize:".84rem"}}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:".3rem"}}><span style={{color:"var(--muted)"}}>Status</span><span style={{color:valid?"var(--okB)":"var(--dangerL)",fontWeight:700}}>{valid?"✓ Valid":"✗ Not Current"}</span></div>
-        {entry&&<><div style={{display:"flex",justifyContent:"space-between",marginBottom:".3rem"}}><span style={{color:"var(--muted)"}}>Signed On</span><span>{fmtTS(entry.signedAt)}</span></div>
-        {entry.signedName&&<div style={{display:"flex",justifyContent:"space-between",marginBottom:".3rem"}}><span style={{color:"var(--muted)"}}>Name on File</span><span>{entry.signedName}</span></div>}</>}
-        {doc&&<div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>Document</span><span>{doc.name} v{doc.version}</span></div>}
+    <div className="mo"><div className="mc" style={{maxWidth:640}}>
+      <div className="mt2">Waiver on File</div>
+
+      {/* Status row */}
+      <div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".85rem 1rem",marginBottom:"1rem",fontSize:".84rem"}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:".3rem"}}>
+          <span style={{color:"var(--muted)"}}>Status</span>
+          <span style={{color:valid?"var(--okB)":"var(--dangerL)",fontWeight:700}}>{valid?"✓ Valid":"✗ Not Current"}</span>
+        </div>
+        {signedName&&<div style={{display:"flex",justifyContent:"space-between",marginBottom:".3rem"}}>
+          <span style={{color:"var(--muted)"}}>Signed as</span>
+          <span style={{fontWeight:600}}>{signedName}</span>
+        </div>}
+        {signedAt&&<div style={{display:"flex",justifyContent:"space-between",marginBottom:".3rem"}}>
+          <span style={{color:"var(--muted)"}}>Signed on</span>
+          <span>{fmtTS(signedAt)}</span>
+        </div>}
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          <span style={{color:"var(--muted)"}}>Document</span>
+          <span>{docName}{docVersion?" v"+docVersion:""}</span>
+        </div>
+        {!record&&!loading&&<div style={{marginTop:".5rem",fontSize:".72rem",color:"var(--muted)"}}>Legacy signing — archived copy unavailable. Showing current document.</div>}
       </div>
-      {doc&&<div className="wvr-scroll" style={{height:220}}><span className="wvr-title">{doc.name}</span>{doc.body}</div>}
-      <div className="ma"><button className="btn btn-p" onClick={onClose}>Close</button></div>
+
+      {/* Waiver body (snapshot if available) */}
+      {loading
+        ?<div style={{textAlign:"center",padding:"1.5rem 0",color:"var(--muted)",fontSize:".85rem"}}>Loading…</div>
+        :<div className="wvr-scroll" style={{height:240,marginBottom:"1rem"}}>
+          <span className="wvr-title">{docName}</span>
+          {body}
+        </div>
+      }
+
+      {/* Legal sig preview */}
+      {signedName&&signedAt&&!loading&&<div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:5,padding:".75rem 1rem",marginBottom:"1rem",fontSize:".82rem"}}>
+        <div style={{color:"var(--muted)",fontSize:".72rem",textTransform:"uppercase",letterSpacing:".07em",marginBottom:".4rem"}}>Electronic Signature</div>
+        <div style={{fontFamily:"Georgia,serif",fontSize:"1.15rem",marginBottom:".2rem"}}>{signedName}</div>
+        <div style={{fontSize:".72rem",color:"var(--muted)"}}>{new Date(signedAt).toLocaleString("en-US",{timeZoneName:"short",year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+      </div>}
+
+      <div className="ma" style={{gap:".6rem"}}>
+        <button className="btn btn-s" onClick={onClose}>Close</button>
+        {signedName&&signedAt&&!loading&&<button className="btn btn-p" onClick={handlePrint}>🖨 Print / Save PDF</button>}
+      </div>
     </div></div>
   );
 }
