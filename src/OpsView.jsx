@@ -1256,6 +1256,10 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const activeWorkRef=useRef(false);
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
   useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
+  const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  const today=todayStr();
+  const getType=useCallback(id=>resTypes.find(t=>t.id===id),[resTypes]);
+  const todayRes=useMemo(()=>reservations.filter(r=>r.date===viewDate&&r.status!=="cancelled"),[reservations,viewDate]);
   useEffect(()=>{
     if(!expandedSlot)return;
     if(completedRunsCache[expandedSlot]!==undefined)return;
@@ -1267,10 +1271,6 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
     setCompletedRunsCache(prev=>({...prev,[expandedSlot]:null}));
     fetchRunsForReservations(ids).then(runs=>setCompletedRunsCache(prev=>({...prev,[expandedSlot]:runs}))).catch(()=>setCompletedRunsCache(prev=>({...prev,[expandedSlot]:[]})));
   },[expandedSlot,todayRes,completedRunsCache]);
-  const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
-  const today=todayStr();
-  const getType=useCallback(id=>resTypes.find(t=>t.id===id),[resTypes]);
-  const todayRes=useMemo(()=>reservations.filter(r=>r.date===viewDate&&r.status!=="cancelled"),[reservations,viewDate]);
   const todayTmpls=useMemo(()=>sessionTemplates.filter(t=>t.active&&t.dayOfWeek===getDayName(viewDate)),[sessionTemplates,viewDate]);
   const slotTimes=useMemo(()=>[...new Set([...todayTmpls.map(t=>t.startTime),...todayRes.map(r=>r.startTime)])].sort(),[todayTmpls,todayRes]);
   const slotIsHistory=useCallback(time=>{const[h,m]=time.split(':').map(Number);return clock.getHours()*60+clock.getMinutes()>=h*60+m+75;},[clock]);
