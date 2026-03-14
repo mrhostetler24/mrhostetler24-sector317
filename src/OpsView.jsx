@@ -1356,13 +1356,15 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
       }
       // Add to all sessions in parallel; track individual failures
       const targets=wiNewResIds.filter(resId=>{
-        const existing=reservations.find(r=>r.id===resId);
-        return !existing?.players?.some(p=>p.userId===effectiveUserId);
+        const primary=reservations.find(r=>r.id===resId);
+        if(!primary)return false;
+        // Skip if player is already in ANY reservation at this date+time (cross-lane check)
+        const allAtSlot=reservations.filter(r=>r.date===primary.date&&r.startTime===primary.startTime&&r.status!=='cancelled');
+        return !allAtSlot.some(r=>r.players?.some(p=>p.userId===effectiveUserId));
       });
       const results=await Promise.allSettled(targets.map(async resId=>{
-        await addPlayerToReservation(resId,{name,userId:effectiveUserId});
-        const freshPlayers=await fetchPlayersForReservation(resId);
-        setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:freshPlayers}:r));
+        const newPlayer=await addPlayerToReservation(resId,{name,userId:effectiveUserId});
+        setReservations(prev=>prev.map(r=>r.id===resId?{...r,players:[...(r.players||[]),newPlayer]}:r));
         return resId;
       }));
       const failed=results.filter(r=>r.status==='rejected').length;
