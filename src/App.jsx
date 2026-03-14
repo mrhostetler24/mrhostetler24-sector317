@@ -1480,6 +1480,15 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         const roleColor=role=>{if(!role)return'var(--muted)';const rl=role.toLowerCase();if(rl.includes('hunt'))return'#c8e03a';if(rl.includes('coyot'))return'#c4a882';return'var(--muted)';};
         const fmtCard=d=>d?new Date(d+'T00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
 
+        // Inline helpers matching PlatoonPortal pattern
+        const TIER_SHINE_RES={apex:'drop-shadow(0 0 3px rgba(205,127,50,.55)) brightness(1.08)',elite:'drop-shadow(0 0 3px rgba(200,210,220,.6)) brightness(1.13)',legend:'drop-shadow(0 0 4px rgba(245,200,66,.65)) brightness(1.1)'};
+        const tierClsRes=n=>{if(n>=100)return'legend';if(n>=86)return'elite';if(n>=71)return'apex';if(n>=56)return'enforcer';if(n>=40)return'sentinel';if(n>=28)return'vanguard';if(n>=18)return'striker';if(n>=10)return'operator';if(n>=4)return'initiate';return'recruit';};
+        const ResAvatar=({url,hidden,name,sz=18})=>{const ini=name?(name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()):'';return<div style={{width:sz,height:sz,borderRadius:'50%',background:'var(--surf2)',border:'1px solid var(--bdr)',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{url&&!hidden?<img src={url} style={{width:'100%',height:'100%',objectFit:'cover'}} alt=""/>:ini?<span style={{color:'var(--muted)',fontSize:Math.round(sz*.38),lineHeight:1}}>{ini}</span>:<span style={{color:'var(--muted)',fontSize:Math.round(sz*.55)}}>👤</span>}</div>;};
+        const ResTierIcon=({totalRuns,sz=15})=>{const cls=tierClsRes(totalRuns??0);const shine=TIER_SHINE_RES[cls];return<img src={`/${cls}.png`} alt={cls} style={{width:sz,height:sz,objectFit:'contain',flexShrink:0,...(shine?{filter:shine}:{})}}/>;};
+
+        // Reusable player chip — avatar + tier + [tag] + name (name highlighted if current user)
+        const PChip=({p,small=false})=>{const u=users.find(x=>x.id===p.userId);const isMe=p.userId===user.id;const nm=p.name||u?.leaderboardName||u?.name||'—';const sz=small?18:18;return<div style={{display:'inline-flex',alignItems:'center',gap:'.25rem',whiteSpace:'nowrap'}}><ResAvatar url={u?.avatarUrl} hidden={u?.hideAvatar} name={nm} sz={sz}/><ResTierIcon totalRuns={u?.totalRuns??0} sz={15}/>{u?.platoonTag&&<span style={{fontSize:'.68rem',fontFamily:'var(--fc)',fontWeight:700,color:u.platoonBadgeColor||'#94a3b8'}}>[{u.platoonTag}]</span>}<span style={{fontSize:'.8rem',color:isMe?'var(--accB)':'var(--txt)',fontWeight:isMe?700:400}}>{nm}</span></div>;};
+
         // Group by date+startTime — same-slot multi-lane reservations collapse into one header
         const groupBySlot=items=>{const map=new Map();items.forEach(r=>{const k=`${r.date}|${r.startTime}`;if(!map.has(k))map.set(k,{key:k,date:r.date,startTime:r.startTime,items:[]});map.get(k).items.push(r);});return[...map.values()];};
 
@@ -1539,7 +1548,6 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                           <div style={{width:9,height:9,borderRadius:'50%',background:tc.col,flexShrink:0}}/>
                           <span style={{fontWeight:700,fontSize:'.8rem',color:tc.col}}>{tc.name}</span>
                           {displayRole&&<span style={{fontSize:'.72rem',fontWeight:700,color:rc,textTransform:'capitalize',letterSpacing:'.03em'}}>· {displayRole}</span>}
-                          {isMe&&<span style={{fontSize:'.62rem',background:'var(--accD)',color:'var(--accB)',padding:'1px 6px',borderRadius:99,marginLeft:'auto',flexShrink:0,whiteSpace:'nowrap'}}>← You</span>}
                         </div>
                         <div style={{fontFamily:'var(--fd)',fontSize:'1.35rem',fontWeight:700,color:won?tc.col:'var(--txt)'}}>{sc}</div>
                         <div style={{display:'flex',gap:'.25rem',flexWrap:'wrap',marginTop:'.25rem'}}>
@@ -1602,14 +1610,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                   <span className={`badge b-${rt?.style}`}>{rt?.style}</span>
                 </div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem .65rem',alignItems:'center'}}>
-                  {(r.players??[]).map((p,i)=>{
-                    const u=users.find(x=>x.id===p.userId);
-                    return<div key={i} style={{display:'inline-flex',alignItems:'center',gap:'.3rem',whiteSpace:'nowrap'}}>
-                      {u?.platoonTag&&<span style={{fontSize:'.7rem',fontFamily:'var(--fc)',fontWeight:700,color:u.platoonBadgeColor||'#94a3b8'}}>[{u.platoonTag}]</span>}
-                      <span style={{fontSize:'.8rem',color:'var(--txt)',fontWeight:p.userId===user.id?700:400}}>{p.name||u?.name||'—'}</span>
-                      {p.userId===user.id&&<span style={{fontSize:'.62rem',color:'var(--acc2)'}}>you</span>}
-                    </div>;
-                  })}
+                  {(r.players??[]).map((p,i)=><PChip key={i} p={p}/>)}
                   {isUpcoming&&openSlots>0&&<span style={{fontSize:'.75rem',color:'var(--warnL)',fontWeight:600}}>⚑ {openSlots} open</span>}
                 </div>
               </div>
@@ -1623,11 +1624,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             </div>
             {isExp&&isUpcoming&&<div style={{padding:'.85rem 1rem'}}>
               <div style={{display:'flex',flexWrap:'wrap',gap:'.5rem .65rem',marginBottom:openSlots>0?'.6rem':'.75rem'}}>
-                {(r.players??[]).map((p,i)=>{const u=users.find(x=>x.id===p.userId);return<div key={i} style={{display:'inline-flex',alignItems:'center',gap:'.35rem',background:'var(--surf)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.3rem .65rem'}}>
-                  {u?.platoonTag&&<span style={{fontSize:'.7rem',fontFamily:'var(--fc)',fontWeight:700,color:u.platoonBadgeColor||'#94a3b8'}}>[{u.platoonTag}]</span>}
-                  <span style={{fontSize:'.82rem',color:'var(--txt)',fontWeight:600}}>{p.name||u?.name||'—'}</span>
-                  {p.userId===user.id&&<span style={{fontSize:'.65rem',color:'var(--acc2)'}}>you</span>}
-                </div>;})}
+                {(r.players??[]).map((p,i)=><div key={i} style={{display:'inline-flex',alignItems:'center',gap:'.35rem',background:'var(--surf)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.3rem .65rem'}}><PChip p={p}/></div>)}
                 {Array.from({length:openSlots}).map((_,i)=><div key={'op'+i} style={{display:'inline-flex',alignItems:'center',gap:'.3rem',background:'rgba(251,191,36,.06)',border:'1px dashed rgba(251,191,36,.4)',borderRadius:6,padding:'.3rem .65rem',color:'var(--warnL)',fontSize:'.78rem',fontWeight:600}}>⚑ Open Slot</div>)}
               </div>
               {openSlots>0&&<div style={{fontSize:'.78rem',color:'var(--muted)',marginBottom:'.7rem'}}>{openSlots} unfilled {openSlots===1?'slot':'slots'} — use <strong style={{color:'var(--txt)'}}>Manage Team</strong> to invite your group.</div>}
@@ -1663,11 +1660,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                   {isUpcoming&&openSlots>0&&<span style={{fontSize:'.75rem',color:'var(--warnL)',fontWeight:600}}>⚑ {openSlots} open</span>}
                 </div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem .65rem',alignItems:'center'}}>
-                  {allP.map((p,i)=>{const u=users.find(x=>x.id===p.userId);return<div key={i} style={{display:'inline-flex',alignItems:'center',gap:'.3rem',whiteSpace:'nowrap'}}>
-                    {u?.platoonTag&&<span style={{fontSize:'.7rem',fontFamily:'var(--fc)',fontWeight:700,color:u.platoonBadgeColor||'#94a3b8'}}>[{u.platoonTag}]</span>}
-                    <span style={{fontSize:'.8rem',color:'var(--txt)',fontWeight:p.userId===user.id?700:400}}>{p.name||u?.name||'—'}</span>
-                    {p.userId===user.id&&<span style={{fontSize:'.62rem',color:'var(--acc2)'}}>you</span>}
-                  </div>;})}
+                  {allP.map((p,i)=><PChip key={i} p={p}/>)}
                 </div>
               </div>
               <span style={{fontSize:'.75rem',color:'var(--muted)',flexShrink:0,paddingTop:'.2rem'}}>{isOpen?'▾':'▸'}</span>

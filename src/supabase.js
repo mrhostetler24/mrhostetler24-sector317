@@ -64,6 +64,7 @@ const toUser = r => r ? ({
   platoonTag:         r.platoon_tag        ?? null,
   platoonBadgeColor:  r.platoon_badge_color ?? null,
   canBook:            r.can_book           ?? false,
+  totalRuns:          r.total_runs         ?? 0,
 }) : null
 
 const toWaiverDoc = r => r ? ({
@@ -184,13 +185,14 @@ const toLeaderboardEntry = r => r ? ({
 // ============================================================
 
 export async function fetchAllUsers() {
-  const BATCH = 1000
+  const BATCH = 2000
   let all = [], from = 0
   while (true) {
-    const { data, error } = await supabase.from('users').select('*').order('name').range(from, from + BATCH - 1)
+    const { data, error } = await supabase.rpc('get_all_users_with_runs', { p_limit: BATCH, p_offset: from })
     if (error) throw error
-    all = all.concat(data)
-    if (data.length < BATCH) break
+    const rows = Array.isArray(data) ? data : []
+    all = all.concat(rows)
+    if (rows.length < BATCH) break
     from += BATCH
   }
   return all.map(toUser)
