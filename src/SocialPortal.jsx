@@ -463,8 +463,8 @@ function FriendProfileModal({ userId, users, onClose }) {
 
               {/* Co-op block */}
               {ext.coop_runs > 0 && (
-                <div style={{ marginBottom: '.25rem' }}>
-                  <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.3rem' }}>Co-op</div>
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
+                  <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Co-op</div>
                   <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '.8rem' }}>
                       <span style={{ color: 'var(--muted)' }}>Runs </span>
@@ -494,18 +494,13 @@ function FriendProfileModal({ userId, users, onClose }) {
 
               {/* Versus block */}
               {ext.versus_runs > 0 && (
-                <div style={{ marginBottom: '.25rem' }}>
-                  <div style={{ fontSize: '.65rem', color: '#f87171', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.3rem' }}>Versus</div>
-                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
+                  <div style={{ fontSize: '.65rem', color: '#f97316', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Versus</div>
+                  {/* Row 1: Runs, Hunter Avg, Coyote Avg */}
+                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                     <div style={{ fontSize: '.8rem' }}>
                       <span style={{ color: 'var(--muted)' }}>Runs </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_runs}</span>
-                    </div>
-                    <div style={{ fontSize: '.8rem' }}>
-                      <span style={{ color: 'var(--muted)' }}>W-L </span>
-                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
-                      <span style={{ color: 'var(--muted)' }}> – </span>
-                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
                     </div>
                     {ext.versus_hunter_avg_sec != null && (
                       <div style={{ fontSize: '.8rem' }}>
@@ -519,6 +514,15 @@ function FriendProfileModal({ userId, users, onClose }) {
                         <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_coyote_avg_sec)}</span>
                       </div>
                     )}
+                  </div>
+                  {/* Row 2: W-L, Obj Complete */}
+                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '.8rem' }}>
+                      <span style={{ color: 'var(--muted)' }}>W-L </span>
+                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
+                      <span style={{ color: 'var(--muted)' }}> – </span>
+                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
+                    </div>
                     {ext.versus_obj_pct != null && (
                       <div style={{ fontSize: '.8rem' }}>
                         <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
