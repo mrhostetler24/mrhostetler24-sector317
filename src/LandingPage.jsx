@@ -279,6 +279,33 @@ const CSS = `
   .lp-line-2{font-size:clamp(1.15rem,6.5vw,1.5rem);}
   .lp-sdesc{font-size:.9rem;}
 }
+
+/* ── WHAT IS SECTION ── */
+.lp-what{background:linear-gradient(135deg,#1a1b13 0%,#111209 100%);border-top:1px solid rgba(200,224,58,.15);border-bottom:1px solid rgba(200,224,58,.15);padding:5rem 2rem;}
+.lp-what-inner{max-width:1100px;margin:0 auto;}
+.lp-what-title{font-family:'Black Ops One',sans-serif;font-size:clamp(1.6rem,3.5vw,2.4rem);letter-spacing:.06em;color:#e8e4dc;text-align:center;text-transform:uppercase;margin-bottom:2.5rem;}
+.lp-what-title span{color:#c8e03a;}
+.lp-what-cols{display:grid;grid-template-columns:1fr 1px 1fr;margin-bottom:2.75rem;}
+.lp-what-divider{background:linear-gradient(to bottom,transparent,rgba(200,224,58,.25),transparent);}
+.lp-what-col{padding:0 2.5rem;text-align:center;}
+.lp-what-col:first-child{padding-left:0;}
+.lp-what-col:last-child{padding-right:0;}
+.lp-what-col-head{font-family:'Barlow Condensed',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(200,224,58,.55);margin-bottom:.6rem;}
+.lp-what-col-text{font-family:'Barlow',sans-serif;font-size:.9rem;color:rgba(232,228,220,.73);line-height:1.7;text-wrap:balance;}
+.lp-what-mega{position:relative;z-index:1;text-align:center;border-top:1px solid rgba(200,224,58,.12);padding-top:1.75rem;margin-bottom:0;}
+.lp-what-eyebrow{font-family:'Barlow Condensed',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(200,224,58,.4);margin-bottom:.85rem;}
+.lp-what-line{font-family:'Black Ops One',sans-serif;font-size:clamp(1.8rem,3.5vw,2.8rem);color:#e8e4dc;line-height:1.15;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;margin-bottom:.55rem;}
+.lp-what-line:last-child{margin-bottom:0;}
+.lp-what-line span{color:#c8e03a;}
+.lp-what-img{display:block;width:100%;position:relative;z-index:0;margin-top:-15rem;-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 28%);mask-image:linear-gradient(to bottom,transparent 0%,black 28%);opacity:.95;}
+@media(max-width:720px){
+  .lp-what{padding:3rem 1.25rem;}
+  .lp-what-cols{grid-template-columns:1fr;gap:0;margin-bottom:2rem;}
+  .lp-what-divider{height:1px;background:linear-gradient(to right,transparent,rgba(200,224,58,.25),transparent);margin:1.25rem 0;}
+  .lp-what-col{padding:0;}
+  .lp-what-line{white-space:normal;font-size:clamp(1.4rem,6vw,2rem);}
+  .lp-what-img{margin-top:-4rem;-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 20%);mask-image:linear-gradient(to bottom,transparent 0%,black 20%);}
+}
 `;
 
 const FAQS = [
@@ -414,7 +441,7 @@ export default function LandingPage({ onEnterApp, onBookNow, resTypes=[] }) {
         <div className="lp-hero-content">
           <span className="lp-line lp-line-1">Where Friend Groups Become Fire Teams.</span>
           <span className="lp-line lp-line-2">Breach in. Clear out. Kick back.</span>
-          <span className="lp-line lp-line-3">Is your team ready?</span>
+          <span className="lp-line lp-line-3">Coming Soon! Are youready?</span>
           <div className="lp-hero-btns">
             <button className="lp-cta-p" onClick={handleBook}>Book Now</button>
             <button className="lp-cta-s" onClick={onEnterApp}>Sign In / My Account</button>
@@ -444,12 +471,26 @@ export default function LandingPage({ onEnterApp, onBookNow, resTypes=[] }) {
         </div>
       </div>
       {/* What is Sector 317? */}
-      <section style={{background:"linear-gradient(135deg,#1a1b13 0%,#111209 100%)",borderTop:"1px solid rgba(200,224,58,.15)",borderBottom:"1px solid rgba(200,224,58,.15)",padding:"5rem 2rem",textAlign:"center"}}>
-        <div style={{maxWidth:1200,margin:"0 auto",padding:"0 3rem"}}>
-          <div className="lp-soc-title">So what is <span>Sector 317</span></div>
-          <p style={{fontFamily:"’Barlow’,sans-serif",fontSize:"1rem",color:"rgba(232,228,220,.65)",lineHeight:1.7,marginTop:"1.5rem"}}>
-            Sector 317 is an immersive, team-based tactical experience inspired by SWAT-style close-quarters combat operations. You and your team, equipped with specialized tactical gear, will breach doors, eliminate targets, and secure rooms as you advance through thoughtfully designed structures. Choose your group, play mode, environmental conditions, opposition difficulty, and objectives to put your skills to the test. Our competitive scoring system ranks each team’s performance—weighted by run difficulty—to determine their place on the leaderboards. Blending the strategy and coordination of real tactical operations with the excitement of live competition, Sector 317 delivers a fast-paced experience that rewards teamwork, communication, and precision.
-          </p>
+      <section className="lp-what">
+        <div className="lp-what-inner">
+          <div className="lp-what-title">So what is <span>Sector 317</span></div>
+          <div className="lp-what-cols">
+            <div className="lp-what-col">
+              <div className="lp-what-col-head">The Operation</div>
+              <p className="lp-what-col-text">Inspired by SWAT-style close-quarters combat, you and your team — equipped with specialized tactical gear — breach doors, eliminate targets, and secure rooms as you advance through thoughtfully designed structures. Coordination and communication are the difference between winning and wondering what went wrong.</p>
+            </div>
+            <div className="lp-what-divider"></div>
+            <div className="lp-what-col">
+              <div className="lp-what-col-head">The Record</div>
+              <p className="lp-what-col-text">Every run is scored against the conditions your team chose to face — difficulty, environment, opposition. Results are weighted and posted to the leaderboard. This isn’t a one-night experience you leave behind. Your team’s performance follows you. So does the gap between where you finished and where you want to be.</p>
+            </div>
+          </div>
+          <div className="lp-what-mega">
+            <div className="lp-what-eyebrow">Indoor Tactical Simulation</div>
+            <div className="lp-what-line">Real Structures — Real <span>Pressure</span></div>
+            <div className="lp-what-line">Real Stakes</div>
+          </div>
+          <img src="/tactical-banner.png" alt="" className="lp-what-img" />
         </div>
       </section>
       {/* MISSIONS */}
