@@ -18,7 +18,7 @@
 --     versus_runs          — deduplicated run count
 --     versus_hunter_avg_sec — avg elapsed when player's team was hunter
 --     versus_coyote_avg_sec — avg elapsed when player's team was coyote
---     versus_obj_pct       — % versus runs where objective_complete = true
+--     versus_obj_pct       — % hunter runs where objective_complete = true (coyotes have no objective)
 --
 --   NOTE: team=1 is NOT always hunter. sr.role tells the role per run.
 --   Player's team is rp.team; legacy records (rp.team IS NULL) fall back
@@ -135,11 +135,12 @@ LANGUAGE sql SECURITY DEFINER STABLE AS $$
           AND sr.elapsed_seconds IS NOT NULL AND sr.elapsed_seconds > 0
           AND (sr.team = rp.team OR (rp.team IS NULL AND sr.team = 1))))::int         AS versus_coyote_avg_sec,
 
+      -- Only hunter runs have objectives; coyotes are defenders with no objective
       ROUND(100.0 * COUNT(*) FILTER (
-          WHERE sr.objective_complete = true AND sr.role IS NOT NULL
+          WHERE sr.objective_complete = true AND sr.role = 'hunter'
             AND (sr.team = rp.team OR (rp.team IS NULL AND sr.team = 1)))
         / NULLIF(COUNT(*) FILTER (
-            WHERE sr.role IS NOT NULL
+            WHERE sr.role = 'hunter'
               AND (sr.team = rp.team OR (rp.team IS NULL AND sr.team = 1))), 0), 1)   AS versus_obj_pct,
 
       -- ── Visuals (session-level; duplicates cancel in ratios) ─────────────
