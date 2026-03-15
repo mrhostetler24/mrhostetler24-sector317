@@ -509,7 +509,7 @@ function FriendProfileModal({ userId, users, onClose }) {
                   {/* Row 1: Runs, Avg Session */}
                   <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                     <div style={{ fontSize: '.8rem' }}>
-                      <span style={{ color: 'var(--muted)' }}>Runs </span>
+                      <span style={{ color: 'var(--muted)' }}>Sessions </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_runs}</span>
                     </div>
                     {ext.versus_avg_session_score != null && (
@@ -540,6 +540,7 @@ function FriendProfileModal({ userId, users, onClose }) {
                   <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '.8rem' }}>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
+                      {(ext.versus_ties ?? 0) > 0 && (<><span style={{ color: 'var(--muted)' }}> – </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_ties}T</span></>)}
                       <span style={{ color: 'var(--muted)' }}> – </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
                     </div>
@@ -1288,7 +1289,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               {/* Row 1: Runs, Avg Session */}
               <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                 <div style={{ fontSize: '.8rem' }}>
-                  <span style={{ color: 'var(--muted)' }}>Runs </span>
+                  <span style={{ color: 'var(--muted)' }}>Sessions </span>
                   <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.versus_runs}</span>
                 </div>
                 {ownExt.versus_avg_session_score != null && (
@@ -1319,6 +1320,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap' }}>
                 <div style={{ fontSize: '.8rem' }}>
                   <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ownExt.versus_wins ?? 0}W</span>
+                  {(ownExt.versus_ties ?? 0) > 0 && (<><span style={{ color: 'var(--muted)' }}> – </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ownExt.versus_ties}T</span></>)}
                   <span style={{ color: 'var(--muted)' }}> – </span>
                   <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ownExt.versus_losses ?? 0}L</span>
                 </div>
