@@ -465,7 +465,8 @@ function FriendProfileModal({ userId, users, onClose }) {
               {ext.coop_runs > 0 && (
                 <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
                   <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Co-op</div>
-                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+                  {/* Row 1: Runs, Avg Time */}
+                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                     <div style={{ fontSize: '.8rem' }}>
                       <span style={{ color: 'var(--muted)' }}>Runs </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_runs}</span>
@@ -476,14 +477,17 @@ function FriendProfileModal({ userId, users, onClose }) {
                         <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.coop_avg_time_sec)}</span>
                       </div>
                     )}
+                  </div>
+                  {/* Row 2: Targets Elim, Obj Complete — kept together on mobile */}
+                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'nowrap' }}>
                     {ext.coop_targets_pct != null && (
-                      <div style={{ fontSize: '.8rem' }}>
+                      <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}>
                         <span style={{ color: 'var(--muted)' }}>Targets Elim </span>
                         <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_targets_pct}%</span>
                       </div>
                     )}
                     {ext.coop_obj_pct != null && (
-                      <div style={{ fontSize: '.8rem' }}>
+                      <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}>
                         <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
                         <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_obj_pct}%</span>
                       </div>
@@ -515,10 +519,9 @@ function FriendProfileModal({ userId, users, onClose }) {
                       </div>
                     )}
                   </div>
-                  {/* Row 2: W-L, Obj Complete */}
+                  {/* Row 2: Wins/Losses, Obj Complete */}
                   <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '.8rem' }}>
-                      <span style={{ color: 'var(--muted)' }}>W-L </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
                       <span style={{ color: 'var(--muted)' }}> – </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
