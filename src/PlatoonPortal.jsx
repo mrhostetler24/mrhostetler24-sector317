@@ -36,6 +36,24 @@ function Avatar({ url, hidden, name, size = 36 }) {
   )
 }
 
+const TIER_THRESHOLDS = [
+  { key: 'recruit',  min: 0 },  { key: 'initiate', min: 4 },
+  { key: 'operator', min: 10 }, { key: 'striker',  min: 18 },
+  { key: 'vanguard', min: 28 }, { key: 'sentinel', min: 40 },
+  { key: 'enforcer', min: 56 }, { key: 'apex',     min: 71 },
+  { key: 'elite',    min: 86 }, { key: 'legend',   min: 100 },
+]
+function tierKey(runs) {
+  const n = runs ?? 0
+  let key = 'recruit'
+  for (const t of TIER_THRESHOLDS) { if (n >= t.min) key = t.key }
+  return key
+}
+function TierImg({ runs, size = 16 }) {
+  const key = tierKey(runs)
+  return <img src={`/${key}.png`} alt={key} style={{ width: size, height: size, objectFit: 'contain', display: 'block', flexShrink: 0 }} />
+}
+
 function RoleChip({ role }) {
   const c = role === 'admin' ? '#f5c842' : role === 'sergeant' ? '#60a5fa' : '#6b7280'
   const label = role === 'admin' ? 'CO' : role === 'sergeant' ? 'SGT' : 'MBR'
@@ -875,7 +893,7 @@ function BoardTab({ platoon, userId }) {
       {!loading && posts.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1.5rem' }}>No posts yet. Be the first!</div>}
 
       {posts.map(post => (
-        <PostRow key={post.id} post={post} platoonTag={platoon.tag} badgeColor={platoon.badge_color} userId={userId} onDelete={doDelete} />
+        <PostRow key={post.id} post={post} userId={userId} onDelete={doDelete} />
       ))}
 
       {hasMore && !loading && (
@@ -887,7 +905,7 @@ function BoardTab({ platoon, userId }) {
   )
 }
 
-function PostRow({ post, platoonTag, badgeColor, userId, onDelete }) {
+function PostRow({ post, userId, onDelete }) {
   // System notes (automated events: join / AWOL) render as a centered info line
   if (post.user_id === null) {
     return (
@@ -906,8 +924,9 @@ function PostRow({ post, platoonTag, badgeColor, userId, onDelete }) {
       <Avatar url={post.avatar_url} hidden={post.hide_avatar} name={post.leaderboard_name} size={34} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap', marginBottom: '.2rem' }}>
-          <TagChip tag={platoonTag} style={{ color: badgeColor || '#94a3b8' }} />
+          <TierImg runs={post.total_runs} size={16} />
           <span style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', color: 'var(--txt)' }}>{post.leaderboard_name}</span>
+          <RoleChip role={post.member_role || 'member'} />
           <span style={{ fontSize: '.7rem', color: 'var(--muted)', marginLeft: 'auto' }}>{formatDate(post.created_at)}</span>
           {isOwn && (
             <button onClick={() => onDelete(post.id)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: '0 .2rem', fontSize: '.8rem' }} title="Delete">×</button>
