@@ -333,8 +333,8 @@
     <div class="sidebar-section">
       <div class="s-label">Scoring Mode</div>
       <div class="mode-toggle">
-        <button class="mode-btn active" data-mode="avg" onclick="setMode('avg')">Avg Top 50</button>
-        <button class="mode-btn"        data-mode="cum" onclick="setMode('cum')">Cumulative</button>
+        <button class="mode-btn active" data-mode="cum" onclick="setMode('cum')">Cumulative</button>
+        <button class="mode-btn"        data-mode="avg" onclick="setMode('avg')">Avg Top 50</button>
       </div>
       <div class="mode-explain" id="modeExplain">Each player's average score across their top 50 individual runs. Ties broken by fastest average completion time.</div>
     </div>
@@ -415,7 +415,7 @@
 const SUPABASE_URL  = 'https://nvidauvtylloquflklsm.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im52aWRhdXZ0eWxsb3F1ZmxrbHNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NjE2MzUsImV4cCI6MjA4NzAzNzYzNX0.pbL-ClM5qEh5Ggm25R3C_NhE-BqliD1tFocSPkOYdnY'
 
-let currentPeriod = 'alltime', currentMode = 'avg'
+let currentPeriod = 'alltime', currentMode = 'cum'
 let refreshTimer = null, countdown = 300
 
 const VIEW_MAP = {
@@ -639,14 +639,14 @@ function startRefreshCycle(){
 // ── TV Kiosk Auto-scroll ─────────────────────────────────────────
 // Full cycle: all 4 periods in Avg mode, then all 4 in Cumulative, repeat
 const KIOSK_CYCLE = [
-  {mode:'avg', period:'alltime'},
-  {mode:'avg', period:'yearly'},
-  {mode:'avg', period:'monthly'},
-  {mode:'avg', period:'weekly'},
   {mode:'cum', period:'alltime'},
   {mode:'cum', period:'yearly'},
   {mode:'cum', period:'monthly'},
   {mode:'cum', period:'weekly'},
+  {mode:'avg', period:'alltime'},
+  {mode:'avg', period:'yearly'},
+  {mode:'avg', period:'monthly'},
+  {mode:'avg', period:'weekly'},
 ]
 
 const IDLE_ACTIVATE_MS = 30000   // 30s idle → activate kiosk
