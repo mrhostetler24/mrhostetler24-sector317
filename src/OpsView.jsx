@@ -589,17 +589,21 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const t=getLaneTeam(player.id);
       const colorT=getColorTeam(player.id); // persistent Blue(1)/Red(2) for tinting
       const isHunter=t===1;
-      const wl=Number(st.total_runs)>0?`${st.versus_wins??0}-${st.versus_losses??0}`:'—';
-      const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(1):'—';
-      const runs=st.total_runs??0;
+      const vr=Number(st.versus_runs)||0;
+      const wl=Number(st.versus_wins)>0||Number(st.versus_losses)>0?`${st.versus_wins??0}-${st.versus_losses??0}`:'—';
+      const avg=vr>0?Number(st.versus_avg_score||0).toFixed(1):'—';
+      const obj=vr>0?Number(st.versus_obj_pct||0).toFixed(1)+'%':'—';
+      const coyW=vr>0?Number(st.versus_coyote_win_pct||0).toFixed(1)+'%':'—';
       return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.35rem',
           padding:'.3rem .4rem',borderRadius:4,marginBottom:'.15rem',
           background:colorT===1?'rgba(79,195,247,.06)':'rgba(239,154,154,.06)',
           border:`1px solid ${colorT===1?'rgba(79,195,247,.18)':'rgba(239,154,154,.18)'}`}}>
         <span style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:colorT===1?BLUE_COL:RED_COL}}/>
         <span style={{flex:1,minWidth:0,fontSize:'.88rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
-        <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{runs>0?`${runs}r`:'new'}</span>
+        <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{vr>0?`${vr}r`:'new'}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:26,textAlign:'right'}}>{avg}</span>
+        <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{obj}</span>
+        <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{coyW}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{wl}</span>
         <button type="button"
           style={{minWidth:28,padding:'.2rem .4rem',borderRadius:4,fontSize:'.72rem',fontWeight:800,cursor:'pointer',flexShrink:0,
@@ -629,6 +633,16 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
             <span style={{flex:1}}/>
             <span style={{fontSize:'.72rem',color:'var(--muted)'}}>{tPlayers.length}p</span>
           </div>
+          {tPlayers.length>0&&<div style={{fontSize:'.68rem',color:'var(--muted)',display:'flex',gap:'.35rem',paddingBottom:'.2rem',marginBottom:'.1rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+            <span style={{width:6,flexShrink:0}}/>
+            <span style={{flex:1}}>Player</span>
+            <span>Runs</span>
+            <span style={{minWidth:26,textAlign:'right'}}>Avg</span>
+            <span style={{minWidth:28,textAlign:'right'}}>Obj%</span>
+            <span style={{minWidth:28,textAlign:'right'}}>Coy W</span>
+            <span style={{minWidth:28,textAlign:'right'}}>W-L</span>
+            <span style={{minWidth:28}}/>
+          </div>}
           {tPlayers.length===0&&<div style={{fontSize:'.8rem',color:'var(--muted)',padding:'.2rem 0',textAlign:'center'}}>None assigned</div>}
           {tPlayers.map(p=>pRow(p))}
         </div>
@@ -742,18 +756,28 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
           {coopAvg&&<span style={{fontSize:'.75rem',color:'var(--muted)'}}>team avg {coopAvg}</span>}
         </div>
         <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:'.25rem',display:'flex',gap:'.5rem',paddingBottom:'.25rem',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-          <span style={{flex:1}}>Player</span><span>Runs</span><span>Avg</span><span>Coop%</span>
+          <span style={{flex:1}}>Player</span>
+          <span style={{minWidth:28,textAlign:'right'}}>Coop</span>
+          <span style={{minWidth:28,textAlign:'right'}}>Avg</span>
+          <span style={{minWidth:30,textAlign:'right'}}>Tgt%</span>
+          <span style={{minWidth:30,textAlign:'right'}}>Obj%</span>
+          <span style={{minWidth:38,textAlign:'right'}}>Time</span>
         </div>
         {allPlayers.map(player=>{
           const st=playerStats[player.userId]||{};
-          const cr=Number(st.coop_runs)>0?Math.round(Number(st.coop_success)/Number(st.coop_runs)*100)+'%':'—';
-          const avg=Number(st.total_runs)>0?Number(st.avg_score||0).toFixed(1):'—';
-          const runs=st.total_runs??0;
+          const cr=Number(st.coop_runs)||0;
+          const avgS=cr>0?Number(st.coop_avg_score||0).toFixed(1):'—';
+          const tgt=cr>0?Number(st.coop_targets_pct||0).toFixed(1)+'%':'—';
+          const obj=cr>0?Number(st.coop_obj_pct||0).toFixed(1)+'%':'—';
+          const secs=Number(st.coop_avg_seconds)||0;
+          const timeS=cr>0&&secs>0?`${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,'0')}`:'—';
           return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
             <span style={{flex:1,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
-            <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{runs>0?`${runs}r`:'new'}</span>
-            <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:28,textAlign:'right'}}>{avg}</span>
-            <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:32,textAlign:'right'}}>{cr}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{cr>0?`${cr}r`:'new'}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:28,textAlign:'right'}}>{avgS}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:30,textAlign:'right'}}>{tgt}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:30,textAlign:'right'}}>{obj}</span>
+            <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:38,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{timeS}</span>
           </div>);})}
       </div>
       {/* Live Op Difficulty */}
@@ -1644,7 +1668,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                       })}
                     </div>;
                   })()}
-                  {activeLanes.length>1&&hasMatchingModes&&<div style={{display:"flex",justifyContent:"center",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>setShowLaneOverride({time,rawLanes})}>⇄ Arrange Lanes</button></div>}
+                  {activeLanes.length>1&&hasMatchingModes&&!allCompleted&&<div style={{display:"flex",justifyContent:"center",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>setShowLaneOverride({time,rawLanes})}>⇄ Arrange Lanes</button></div>}
                   {activeLanes.length>0?(
                     <div style={{display:"flex",gap:"1rem",alignItems:"flex-start"}}>
                     {activeLanes.map(lane=>(

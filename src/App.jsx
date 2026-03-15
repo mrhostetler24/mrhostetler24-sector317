@@ -2592,13 +2592,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               const ackedFlagRows=flagRows.filter(r=>acknowledgedFlags.has(r.id+r._flag));
               const displayRows=[...visibleFlagRows,...(showAcknowledged?ackedFlagRows:[])];
               return <>
-              {ackedFlagRows.length>0&&<div style={{display:"flex",justifyContent:"flex-end",padding:".35rem .8rem .1rem"}}>
-                <button onClick={()=>setShowAcknowledged(v=>!v)} style={{fontSize:".72rem",padding:".2rem .6rem",borderRadius:4,border:"1px solid var(--bdr)",background:"var(--surf2)",color:"var(--muted)",cursor:"pointer"}}>
-                  {showAcknowledged?"Hide Acknowledged":"Show Acknowledged ("+ackedFlagRows.length+")"}
-                </button>
-              </div>}
               {!displayRows.length&&<div style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem .5rem"}}>No unpaid, cancelled, or no-show reservations to show.</div>}
-              {!!displayRows.length&&<table><thead><tr><th>Session</th><th>Booked</th><th>Customer</th><th>Type</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Flag</th><th></th></tr></thead>
+              {!!displayRows.length&&<table><thead><tr><th>Session</th><th>Booked</th><th>Customer</th><th>Type</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Flag</th><th style={{textAlign:"right"}}>{isManager&&ackedFlagRows.length>0&&<button onClick={()=>setShowAcknowledged(v=>!v)} style={{fontSize:".68rem",padding:".15rem .5rem",borderRadius:4,border:"1px solid var(--bdr)",background:showAcknowledged?"var(--accD)":"var(--surf2)",color:showAcknowledged?"var(--accB)":"var(--muted)",cursor:"pointer",whiteSpace:"nowrap"}}>{showAcknowledged?"Hide Ack'd":"Show Ack'd ("+ackedFlagRows.length+")"}</button>}</th></tr></thead>
                 <tbody>{displayRows.map(r=>{const rt=getType(r.typeId);const fb=flagBadge(r._flag);const isAcked=acknowledgedFlags.has(r.id+r._flag);return <tr key={r.id+r._flag} style={isAcked?{opacity:.45}:{}}>
                   <td><strong style={{fontSize:".88rem"}}>{fmt(r.date)}</strong><br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td>
                   <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{r.createdAt?fmt(r.createdAt.slice(0,10)):""}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td>
