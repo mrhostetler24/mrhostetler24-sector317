@@ -337,6 +337,7 @@ function FriendProfileModal({ userId, users, onClose }) {
   const [profile, setProfile] = useState(null)
   const [ext, setExt]         = useState(null)
   const [loading, setLoading] = useState(true)
+  const [lbMode, setLbMode]   = useState('cum')
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches)
 
   useEffect(() => {
@@ -432,13 +433,26 @@ function FriendProfileModal({ userId, users, onClose }) {
           </div>
 
           {/* ── Leaderboard Rankings ── */}
-          {ext && (ext.rank_all_time || ext.rank_yearly || ext.rank_monthly || ext.rank_weekly) && (<>
-            <div style={FP_SECTION}>Leaderboard Standing</div>
+          {ext && (ext.rank_all_time || ext.rank_cum_all_time || ext.rank_yearly || ext.rank_cum_yearly) && (<>
+            <div style={{ ...FP_SECTION, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.4rem' }}>
+              <span>Leaderboard Standing</span>
+              <div style={{ display: 'flex', gap: '.3rem' }}>
+                <button onClick={() => setLbMode('cum')} style={{ background: lbMode === 'cum' ? 'var(--acc)' : 'var(--surf2)', border: '1px solid ' + (lbMode === 'cum' ? 'var(--acc)' : 'var(--bdr)'), color: lbMode === 'cum' ? 'var(--bg)' : 'var(--muted)', borderRadius: 4, padding: '2px 8px', fontSize: '.65rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '.05em' }}>Cumulative</button>
+                <button onClick={() => setLbMode('avg')} style={{ background: lbMode === 'avg' ? 'var(--acc)' : 'var(--surf2)', border: '1px solid ' + (lbMode === 'avg' ? 'var(--acc)' : 'var(--bdr)'), color: lbMode === 'avg' ? 'var(--bg)' : 'var(--muted)', borderRadius: 4, padding: '2px 8px', fontSize: '.65rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '.05em' }}>Avg Top 50</button>
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: '.4rem' }}>
-              <RankCard label="All-Time"   rank={ext.rank_all_time} score={ext.score_all_time} />
-              <RankCard label="This Year"  rank={ext.rank_yearly}   score={ext.score_yearly} />
-              <RankCard label="This Month" rank={ext.rank_monthly}  score={ext.score_monthly} />
-              <RankCard label="This Week"  rank={ext.rank_weekly}   score={ext.score_weekly} />
+              {lbMode === 'cum' ? <>
+                <RankCard label="All-Time"   rank={ext.rank_cum_all_time} score={ext.score_cum_all_time} />
+                <RankCard label="This Year"  rank={ext.rank_cum_yearly}   score={ext.score_cum_yearly} />
+                <RankCard label="This Month" rank={ext.rank_cum_monthly}  score={ext.score_cum_monthly} />
+                <RankCard label="This Week"  rank={ext.rank_cum_weekly}   score={ext.score_cum_weekly} />
+              </> : <>
+                <RankCard label="All-Time"   rank={ext.rank_all_time} score={ext.score_all_time} />
+                <RankCard label="This Year"  rank={ext.rank_yearly}   score={ext.score_yearly} />
+                <RankCard label="This Month" rank={ext.rank_monthly}  score={ext.score_monthly} />
+                <RankCard label="This Week"  rank={ext.rank_weekly}   score={ext.score_weekly} />
+              </>}
             </div>
           </>)}
 
@@ -449,16 +463,24 @@ function FriendProfileModal({ userId, users, onClose }) {
 
               {/* Quick metrics row */}
               <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.2rem' }}>
-                {ext.sessions != null && (
-                  <div style={{ fontSize: '.8rem' }}>
-                    <span style={{ color: 'var(--muted)' }}>Sessions </span>
-                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.sessions}</span>
-                  </div>
-                )}
                 {ext.avg_time_sec != null && (
                   <div style={{ fontSize: '.8rem' }}>
                     <span style={{ color: 'var(--muted)' }}>Avg Run </span>
                     <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.avg_time_sec)}</span>
+                  </div>
+                )}
+                {ext.coop_pct != null && (
+                  <div style={{ fontSize: '.8rem' }}>
+                    <span style={{ color: 'var(--muted)' }}>Co-op </span>
+                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_pct}%</span>
+                  </div>
+                )}
+                {(ext.versus_wins != null || ext.versus_losses != null) && (
+                  <div style={{ fontSize: '.8rem' }}>
+                    <span style={{ color: 'var(--muted)' }}>Versus </span>
+                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
+                    <span style={{ color: 'var(--muted)' }}> – </span>
+                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
                   </div>
                 )}
                 {ext.obj_pct != null && (

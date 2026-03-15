@@ -1170,7 +1170,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [expandedLaneId,setExpandedLaneId]=useState(null);
   const [lbPlayerFilter,setLbPlayerFilter]=useState("all");
   const [lbPeriod,setLbPeriod]=useState("alltime");
-  const [lbMode,setLbMode]=useState("avg");
+  const [lbMode,setLbMode]=useState("cum");
   const [lbPage,setLbPage]=useState(1);
   const [lbData,setLbData]=useState([]);
   const [lbCareerMap,setLbCareerMap]=useState({});
@@ -1777,8 +1777,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           {/* Mode toggle */}
           <div style={{display:"flex",gap:".4rem",marginBottom:".75rem",flexWrap:"wrap",alignItems:"center"}}>
             <span style={{fontSize:".72rem",color:"var(--muted)",fontFamily:"var(--fc)",letterSpacing:".08em",textTransform:"uppercase",marginRight:".25rem"}}>Mode:</span>
-            <button className={`btn btn-sm ${lbMode==="avg"?"btn-p":"btn-s"}`} onClick={()=>setLbMode("avg")}>Avg Top 50</button>
             <button className={`btn btn-sm ${lbMode==="cum"?"btn-p":"btn-s"}`} onClick={()=>setLbMode("cum")}>Cumulative</button>
+            <button className={`btn btn-sm ${lbMode==="avg"?"btn-p":"btn-s"}`} onClick={()=>setLbMode("avg")}>Avg Top 50</button>
           </div>
           {/* Period sub-tabs */}
           <div className="tabs" style={{marginBottom:"1rem",borderBottom:"1px solid var(--bdr)"}}>
