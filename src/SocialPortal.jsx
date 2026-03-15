@@ -473,7 +473,7 @@ function FriendProfileModal({ userId, users, onClose }) {
               <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ext.viz_std}    barColor={VIZ_COLORS.V} />
               <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={ext.viz_cosmic} barColor={VIZ_COLORS.C} />
               <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={ext.viz_rave}   barColor={VIZ_COLORS.R} />
-              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ext.viz_strobe} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
+              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ext.viz_strobe} barColor={VIZ_COLORS.S} />
               <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={ext.viz_dark}   barColor={VIZ_COLORS.B} />
 
               <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem' }}>Audio</div>
@@ -1142,7 +1142,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ownExt.viz_std}    barColor={VIZ_COLORS.V} />
                   <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={ownExt.viz_cosmic} barColor={VIZ_COLORS.C} />
                   <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={ownExt.viz_rave}   barColor={VIZ_COLORS.R} />
-                  <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ownExt.viz_strobe} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
+                  <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ownExt.viz_strobe} barColor={VIZ_COLORS.S} />
                   <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={ownExt.viz_dark}   barColor={VIZ_COLORS.B} />
                   <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
                   <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={ownExt.aud_tunes}   barColor={AUD_COLORS.T} />
@@ -1157,7 +1157,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={envPct(activeRunArr, r => r.visual === 'V')} barColor={VIZ_COLORS.V} />
                   <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'C')} barColor={VIZ_COLORS.C} />
                   <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'R')} barColor={VIZ_COLORS.R} />
-                  <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} barClass="bar-strobe" />
+                  <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={envPct(activeRunArr, r => r.visual === 'S')} barColor={VIZ_COLORS.S} />
                   <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={envPct(activeRunArr, r => r.visual === 'B')} barColor={VIZ_COLORS.B} />
                   <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem', marginBottom: '.1rem' }}>Audio</div>
                   <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={envPct(activeRunArr, r => audCodeFn(r) === 'T')} barColor={AUD_COLORS.T} />
