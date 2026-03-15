@@ -506,8 +506,8 @@ function FriendProfileModal({ userId, users, onClose }) {
               {ext.versus_runs > 0 && (
                 <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
                   <div style={{ fontSize: '.65rem', color: '#f97316', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Versus</div>
-                  {/* Row 1: Runs, Avg Session, Hunter Avg, Coyote Avg */}
-                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+                  {/* Row 1: Runs, Avg Session */}
+                  <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                     <div style={{ fontSize: '.8rem' }}>
                       <span style={{ color: 'var(--muted)' }}>Runs </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_runs}</span>
@@ -518,21 +518,26 @@ function FriendProfileModal({ userId, users, onClose }) {
                         <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_avg_session_score}</span>
                       </div>
                     )}
-                    {ext.versus_hunter_avg_sec != null && (
-                      <div style={{ fontSize: '.8rem' }}>
-                        <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
-                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_hunter_avg_sec)}</span>
-                      </div>
-                    )}
-                    {ext.versus_coyote_avg_sec != null && (
-                      <div style={{ fontSize: '.8rem' }}>
-                        <span style={{ color: 'var(--muted)' }}>Coyote Avg </span>
-                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_coyote_avg_sec)}</span>
-                      </div>
-                    )}
                   </div>
-                  {/* Row 2: Wins/Losses, Obj Complete */}
-                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+                  {/* Row 2: Hunter Avg, Coyote Avg */}
+                  {(ext.versus_hunter_avg_sec != null || ext.versus_coyote_avg_sec != null) && (
+                    <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+                      {ext.versus_hunter_avg_sec != null && (
+                        <div style={{ fontSize: '.8rem' }}>
+                          <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
+                          <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_hunter_avg_sec)}</span>
+                        </div>
+                      )}
+                      {ext.versus_coyote_avg_sec != null && (
+                        <div style={{ fontSize: '.8rem' }}>
+                          <span style={{ color: 'var(--muted)' }}>Coyote Avg </span>
+                          <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_coyote_avg_sec)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Row 3: Wins/Losses, Obj Complete */}
+                  <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '.8rem' }}>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
                       <span style={{ color: 'var(--muted)' }}> – </span>
@@ -1039,7 +1044,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#1e3a5f', color: '#60a5fa', border: '1px solid #2563eb', borderRadius: '4px', padding: '2px 7px', fontSize: '11px', fontWeight: 700, letterSpacing: '.04em', marginTop: '.4rem' }}>⚔ STAFF</span>
             )}
             {user.motto && !editing && (
-              <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontStyle: 'italic', marginTop: '.4rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{user.motto}"</div>
+              <div style={{ fontSize: '.8rem', color: 'var(--muted)', fontStyle: 'italic', marginTop: '.4rem' }}>"{user.motto}"</div>
             )}
           </div>
         </div>
@@ -1280,7 +1285,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           {ownExt?.versus_runs > 0 && (
             <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
               <div style={{ fontSize: '.65rem', color: '#f97316', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Versus</div>
-              <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+              {/* Row 1: Runs, Avg Session */}
+              <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                 <div style={{ fontSize: '.8rem' }}>
                   <span style={{ color: 'var(--muted)' }}>Runs </span>
                   <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.versus_runs}</span>
@@ -1291,20 +1297,26 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                     <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.versus_avg_session_score}</span>
                   </div>
                 )}
-                {ownExt.versus_hunter_avg_sec != null && (
-                  <div style={{ fontSize: '.8rem' }}>
-                    <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
-                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ownExt.versus_hunter_avg_sec)}</span>
-                  </div>
-                )}
-                {ownExt.versus_coyote_avg_sec != null && (
-                  <div style={{ fontSize: '.8rem' }}>
-                    <span style={{ color: 'var(--muted)' }}>Coyote Avg </span>
-                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ownExt.versus_coyote_avg_sec)}</span>
-                  </div>
-                )}
               </div>
-              <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+              {/* Row 2: Hunter Avg, Coyote Avg */}
+              {(ownExt.versus_hunter_avg_sec != null || ownExt.versus_coyote_avg_sec != null) && (
+                <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+                  {ownExt.versus_hunter_avg_sec != null && (
+                    <div style={{ fontSize: '.8rem' }}>
+                      <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
+                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ownExt.versus_hunter_avg_sec)}</span>
+                    </div>
+                  )}
+                  {ownExt.versus_coyote_avg_sec != null && (
+                    <div style={{ fontSize: '.8rem' }}>
+                      <span style={{ color: 'var(--muted)' }}>Coyote Avg </span>
+                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ownExt.versus_coyote_avg_sec)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Row 3: Wins/Losses, Obj Complete */}
+              <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap' }}>
                 <div style={{ fontSize: '.8rem' }}>
                   <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ownExt.versus_wins ?? 0}W</span>
                   <span style={{ color: 'var(--muted)' }}> – </span>
