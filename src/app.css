@@ -109,7 +109,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .tabs-wrap{margin-bottom:1.4rem;}
 .tabs-wrap .tabs{margin-bottom:0;border-bottom:none;}
 .tabs-wrap .tabs+.tabs{border-bottom:2px solid var(--bdr);margin-top:0;}
-.tab-grp.on{color:var(--txt);border-bottom-color:var(--bdr);}
+
 .desktop-tabs{display:flex;}
 .mobile-tabs{display:none;}
 .toast{position:fixed;bottom:1.75rem;right:1.75rem;background:var(--surf2);border:1px solid var(--acc);color:var(--accB);padding:.75rem 1.25rem;border-radius:5px;font-size:.82rem;font-weight:700;z-index:999;animation:si .3s ease;text-transform:uppercase;max-width:340px;}

@@ -7,11 +7,11 @@
 --
 -- WHAT THIS DOES:
 --   Rebuilds get_friend_extended to add:
---     1. Cumulative leaderboard ranks + scores for all 4 time windows
+--     1. Cumulative leaderboard ranks + scores (all 4 time windows)
 --     2. coop_pct  — % of total runs that are co-op (role IS NULL)
---     3. versus_wins / versus_losses — session-level W/L from leaderboard view
---   Existing fields (avg ranks, env/audio bars, obj_pct, sessions,
---   avg_time_sec) are preserved unchanged.
+--     3. versus_wins / versus_losses — session-level W/L
+--   Uses scalar subqueries + CTE to ensure exactly 1 row is always
+--   returned regardless of whether the player has runs or rankings.
 -- ============================================================
 
 DROP FUNCTION IF EXISTS public.get_friend_extended(uuid);
@@ -56,59 +56,78 @@ RETURNS TABLE (
 LANGUAGE sql SECURITY DEFINER STABLE AS $$
   WITH run_stats AS (
     SELECT
-      COUNT(DISTINCT r.reservation_id)::int AS sessions,
+      COUNT(DISTINCT r.reservation_id)::int                                      AS sessions,
       ROUND(AVG(r.elapsed_seconds) FILTER (
-        WHERE r.elapsed_seconds IS NOT NULL AND r.elapsed_seconds > 0
-      ))::int AS avg_time_sec,
+        WHERE r.elapsed_seconds IS NOT NULL AND r.elapsed_seconds > 0))::int     AS avg_time_sec,
       ROUND(100.0 * COUNT(*) FILTER (WHERE r.objective_complete = true)
-        / NULLIF(COUNT(*), 0), 1) AS obj_pct,
+        / NULLIF(COUNT(*), 0), 1)                                                AS obj_pct,
       ROUND(100.0 * COUNT(*) FILTER (WHERE r.role IS NULL)
-        / NULLIF(COUNT(*), 0), 1) AS coop_pct,
+        / NULLIF(COUNT(*), 0), 1)                                                AS coop_pct,
       -- Visuals (codes: V=Standard C=Cosmic R=Rave S=Strobe B=Dark)
-      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'V') / NULLIF(COUNT(*), 0), 1) AS viz_std,
-      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'C') / NULLIF(COUNT(*), 0), 1) AS viz_cosmic,
-      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'R') / NULLIF(COUNT(*), 0), 1) AS viz_rave,
-      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'S') / NULLIF(COUNT(*), 0), 1) AS viz_strobe,
-      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'B') / NULLIF(COUNT(*), 0), 1) AS viz_dark,
-      -- Audio (T=Tunes C=Cranked O=Off; audio col may be null, cranked bool is fallback)
+      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'V') / NULLIF(COUNT(*),0),1) AS viz_std,
+      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'C') / NULLIF(COUNT(*),0),1) AS viz_cosmic,
+      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'R') / NULLIF(COUNT(*),0),1) AS viz_rave,
+      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'S') / NULLIF(COUNT(*),0),1) AS viz_strobe,
+      ROUND(100.0 * COUNT(*) FILTER (WHERE r.visual = 'B') / NULLIF(COUNT(*),0),1) AS viz_dark,
+      -- Audio (T=Tunes C=Cranked O=Off)
       ROUND(100.0 * COUNT(*) FILTER (WHERE
         COALESCE(r.audio, CASE WHEN r.cranked THEN 'C' ELSE 'T' END) = 'T')
-        / NULLIF(COUNT(*), 0), 1) AS aud_tunes,
+        / NULLIF(COUNT(*),0),1)                                                  AS aud_tunes,
       ROUND(100.0 * COUNT(*) FILTER (WHERE
         COALESCE(r.audio, CASE WHEN r.cranked THEN 'C' ELSE 'T' END) = 'C')
-        / NULLIF(COUNT(*), 0), 1) AS aud_cranked,
+        / NULLIF(COUNT(*),0),1)                                                  AS aud_cranked,
       ROUND(100.0 * COUNT(*) FILTER (WHERE
         COALESCE(r.audio, CASE WHEN r.cranked THEN 'C' ELSE 'T' END) = 'O')
-        / NULLIF(COUNT(*), 0), 1) AS aud_off
+        / NULLIF(COUNT(*),0),1)                                                  AS aud_off
     FROM public.v_player_runs r
     WHERE r.player_id = p_user_id
   )
   SELECT
-    -- Avg leaderboard ranks + scores
-    la.rank_all_time::int,
-    ly.rank_yearly::int,
-    lm.rank_monthly::int,
-    lw.rank_weekly::int,
-    la.leaderboard_score::numeric,
-    ly.leaderboard_score::numeric,
-    lm.leaderboard_score::numeric,
-    lw.leaderboard_score::numeric,
-    -- Cumulative leaderboard ranks + scores
-    lca.rank_all_time::int,
-    lcy.rank_yearly::int,
-    lcm.rank_monthly::int,
-    lcw.rank_weekly::int,
-    lca.leaderboard_score::numeric,
-    lcy.leaderboard_score::numeric,
-    lcm.leaderboard_score::numeric,
-    lcw.leaderboard_score::numeric,
-    -- Tactical
+    -- Avg leaderboard (scalar subqueries — null-safe even if player not ranked)
+    (SELECT la.rank_all_time FROM public.v_leaderboard la
+      WHERE la.player_id = p_user_id)::int,
+    (SELECT ly.rank_yearly  FROM public.v_leaderboard_yearly ly
+      WHERE ly.player_id = p_user_id)::int,
+    (SELECT lm.rank_monthly FROM public.v_leaderboard_monthly lm
+      WHERE lm.player_id = p_user_id)::int,
+    (SELECT lw.rank_weekly  FROM public.v_leaderboard_weekly lw
+      WHERE lw.player_id = p_user_id)::int,
+    (SELECT la.leaderboard_score FROM public.v_leaderboard la
+      WHERE la.player_id = p_user_id)::numeric,
+    (SELECT ly.leaderboard_score FROM public.v_leaderboard_yearly ly
+      WHERE ly.player_id = p_user_id)::numeric,
+    (SELECT lm.leaderboard_score FROM public.v_leaderboard_monthly lm
+      WHERE lm.player_id = p_user_id)::numeric,
+    (SELECT lw.leaderboard_score FROM public.v_leaderboard_weekly lw
+      WHERE lw.player_id = p_user_id)::numeric,
+    -- Cumulative leaderboard
+    (SELECT lca.rank_all_time FROM public.v_leaderboard_cumulative lca
+      WHERE lca.player_id = p_user_id)::int,
+    (SELECT lcy.rank_yearly  FROM public.v_leaderboard_yearly_cumulative lcy
+      WHERE lcy.player_id = p_user_id)::int,
+    (SELECT lcm.rank_monthly FROM public.v_leaderboard_monthly_cumulative lcm
+      WHERE lcm.player_id = p_user_id)::int,
+    (SELECT lcw.rank_weekly  FROM public.v_leaderboard_weekly_cumulative lcw
+      WHERE lcw.player_id = p_user_id)::int,
+    (SELECT lca.leaderboard_score FROM public.v_leaderboard_cumulative lca
+      WHERE lca.player_id = p_user_id)::numeric,
+    (SELECT lcy.leaderboard_score FROM public.v_leaderboard_yearly_cumulative lcy
+      WHERE lcy.player_id = p_user_id)::numeric,
+    (SELECT lcm.leaderboard_score FROM public.v_leaderboard_monthly_cumulative lcm
+      WHERE lcm.player_id = p_user_id)::numeric,
+    (SELECT lcw.leaderboard_score FROM public.v_leaderboard_weekly_cumulative lcw
+      WHERE lcw.player_id = p_user_id)::numeric,
+    -- Tactical (from CTE — always 1 row)
     rs.sessions,
     rs.avg_time_sec,
     rs.obj_pct,
     rs.coop_pct,
-    COALESCE(la.versus_wins,  0)::int AS versus_wins,
-    COALESCE(la.versus_losses, 0)::int AS versus_losses,
+    COALESCE(
+      (SELECT la.versus_wins  FROM public.v_leaderboard la WHERE la.player_id = p_user_id),
+      0)::int,
+    COALESCE(
+      (SELECT la.versus_losses FROM public.v_leaderboard la WHERE la.player_id = p_user_id),
+      0)::int,
     -- Environment
     rs.viz_std,
     rs.viz_cosmic,
@@ -118,15 +137,7 @@ LANGUAGE sql SECURITY DEFINER STABLE AS $$
     rs.aud_tunes,
     rs.aud_cranked,
     rs.aud_off
-  FROM run_stats rs
-  LEFT JOIN public.v_leaderboard                    la  ON la.player_id  = p_user_id
-  LEFT JOIN public.v_leaderboard_yearly             ly  ON ly.player_id  = p_user_id
-  LEFT JOIN public.v_leaderboard_monthly            lm  ON lm.player_id  = p_user_id
-  LEFT JOIN public.v_leaderboard_weekly             lw  ON lw.player_id  = p_user_id
-  LEFT JOIN public.v_leaderboard_cumulative         lca ON lca.player_id = p_user_id
-  LEFT JOIN public.v_leaderboard_yearly_cumulative  lcy ON lcy.player_id = p_user_id
-  LEFT JOIN public.v_leaderboard_monthly_cumulative lcm ON lcm.player_id = p_user_id
-  LEFT JOIN public.v_leaderboard_weekly_cumulative  lcw ON lcw.player_id = p_user_id;
+  FROM run_stats rs;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_friend_extended(uuid) TO authenticated;
