@@ -202,7 +202,9 @@ tr:hover td{background:rgba(255,255,255,.02);}
 @keyframes slideIn{from{transform:translateX(100%);}to{transform:translateX(0);}}
 @keyframes waveRing{0%{transform:scale(1);opacity:.65;}100%{transform:scale(1.5);opacity:0;}}
 @keyframes strobeFlicker{0%,100%{opacity:1;}15%{opacity:.05;}30%{opacity:.9;}45%{opacity:.05;}60%{opacity:1;}}
+@keyframes strobeGlow{0%,100%{text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 8px rgba(255,255,255,.9),0 0 20px rgba(255,255,255,.7);}20%{text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 2px rgba(255,255,255,.2);}45%{text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 14px rgba(255,255,255,1),0 0 30px rgba(255,255,255,.8);}70%{text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff,0 0 1px rgba(255,255,255,.1);}}
 .bar-strobe{animation:strobeFlicker 1.2s step-end infinite;}
+.viz-strobe{color:#000;animation:strobeGlow 1.4s step-end infinite;}
 .aud-cranked{position:relative;display:inline-block;color:#f97316;}
 .aud-cranked::before,.aud-cranked::after{content:'';position:absolute;inset:-2px;border:1.5px solid rgba(249,115,22,.7);border-radius:3px;animation:waveRing 1.8s ease-out infinite;pointer-events:none;}
 .aud-cranked::after{animation-delay:.9s;}

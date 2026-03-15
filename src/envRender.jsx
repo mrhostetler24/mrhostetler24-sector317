@@ -8,16 +8,7 @@ const raveColors = ['#f472b6','#fb923c','#facc15','#4ade80','#60a5fa','#c084fc']
 
 export function vizRenderName(code, name, baseStyle) {
   if (code === 'S') {
-    return (
-      <span style={baseStyle}>
-        {(name || '').split('').map((ch, i) => (
-          <span key={i} style={i % 2 === 0
-            ? { color: '#ffffff', textShadow: '0 0 3px rgba(255,255,255,.5)' }
-            : { color: '#1c2333', textShadow: '-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff', opacity: 0.45 }
-          }>{ch}</span>
-        ))}
-      </span>
-    )
+    return <span style={baseStyle} className="viz-strobe">{name}</span>
   }
   if (code === 'R') {
     return (
