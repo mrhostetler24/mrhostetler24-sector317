@@ -165,7 +165,7 @@ function TierImg({ tierKey, height = 16 }) {
   const filter = TIER_SHINE[tierKey]
   return (
     <img src={`/${tierKey}.png`} alt={tierKey}
-      style={{ height, width: 'auto', maxWidth: height * 2, display: 'block', flexShrink: 0, objectFit: 'contain', ...(filter ? { filter } : {}) }} />
+      style={{ height, width: height, display: 'block', flexShrink: 0, objectFit: 'contain', ...(filter ? { filter } : {}) }} />
   )
 }
 
