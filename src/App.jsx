@@ -3424,14 +3424,11 @@ useEffect(() => {
         {navMenuOpen&&<>
           <div className="nav-mobile-overlay" onClick={()=>setNavMenuOpen(false)}/>
           <div className="nav-mobile-menu">
-            <div className="nav-mobile-row" onClick={()=>{setShowNavAccount(true);setNavMenuOpen(false);}}>
-              <span style={{fontWeight:700,fontSize:".9rem"}}>{liveUser.name}</span>
-              <span style={{fontSize:".75rem",color:"var(--muted)"}}>⚙ Account</span>
+            <div style={{padding:".75rem 1rem .5rem",fontWeight:700,fontSize:".95rem",color:"var(--txt)",wordBreak:"break-word"}}>{liveUser.name}</div>
+            <div className="nav-mobile-row" style={{justifyContent:"space-between"}}>
+              {liveUser.authProvider?<AuthBadge provider={liveUser.authProvider}/>:<span/>}
+              <span style={{fontSize:".75rem",color:"var(--muted)",cursor:"pointer"}} onClick={()=>{setShowNavAccount(true);setNavMenuOpen(false);}}>⚙ Account</span>
             </div>
-            {liveUser.authProvider&&<div className="nav-mobile-row" style={{gap:".5rem"}}>
-              <AuthBadge provider={liveUser.authProvider}/>
-              <span style={{fontSize:".78rem",color:"var(--muted)"}}>{liveUser.authProvider}</span>
-            </div>}
             <div className="nav-mobile-row" style={{justifyContent:"space-between"}}>
               <span style={{fontSize:".78rem",color:"var(--muted)"}}>Role</span>
               <span className={`nbadge al-${liveUser.access}`}>{ACCESS_LEVELS[liveUser.access]?.label}</span>

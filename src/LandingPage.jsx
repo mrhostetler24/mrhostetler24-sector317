@@ -441,7 +441,7 @@ export default function LandingPage({ onEnterApp, onBookNow, resTypes=[] }) {
         <div className="lp-hero-content">
           <span className="lp-line lp-line-1">Where Friend Groups Become Fire Teams.</span>
           <span className="lp-line lp-line-2">Breach in. Clear out. Kick back.</span>
-          <span className="lp-line lp-line-3">Coming Soon! Are youready?</span>
+          <span className="lp-line lp-line-3">Coming Soon! Are you ready?</span>
           <div className="lp-hero-btns">
             <button className="lp-cta-p" onClick={handleBook}>Book Now</button>
             <button className="lp-cta-s" onClick={onEnterApp}>Sign In / My Account</button>
@@ -473,22 +473,22 @@ export default function LandingPage({ onEnterApp, onBookNow, resTypes=[] }) {
       {/* What is Sector 317? */}
       <section className="lp-what">
         <div className="lp-what-inner">
-          <div className="lp-what-title">So what is <span>Sector 317</span></div>
+          <div className="lp-what-title">What is <span>Sector 317</span></div>
           <div className="lp-what-cols">
             <div className="lp-what-col">
               <div className="lp-what-col-head">The Operation</div>
-              <p className="lp-what-col-text">Inspired by SWAT-style close-quarters combat, you and your team — equipped with specialized tactical gear — breach doors, eliminate targets, and secure rooms as you advance through thoughtfully designed structures. Coordination and communication are the difference between winning and wondering what went wrong.</p>
+              <p className="lp-what-col-text">Inspired by SWAT-style close-quarters combat, you and your team — equipped with specialized tactical gear — breach doors, eliminate targets, and secure rooms as you advance through thoughtfully designed structures. Coordination and communication can be the difference between claming victory and accepting defeat.</p>
             </div>
             <div className="lp-what-divider"></div>
             <div className="lp-what-col">
               <div className="lp-what-col-head">The Record</div>
-              <p className="lp-what-col-text">Every run is scored against the conditions your team chose to face — difficulty, environment, opposition. Results are weighted and posted to the leaderboard. This isn’t a one-night experience you leave behind. Your team’s performance follows you. So does the gap between where you finished and where you want to be.</p>
+              <p className="lp-what-col-text">Every run is scored against the conditions your team decides to face — difficulty, environment, opposition. Results are weighted and posted to the leaderboard. This isn’t a one-time experience you leave behind — your performance follows you. As does the gap between where you finished and where you want to be.</p>
             </div>
           </div>
           <div className="lp-what-mega">
             <div className="lp-what-eyebrow">Indoor Tactical Simulation</div>
-            <div className="lp-what-line">Real Structures — Real <span>Pressure</span></div>
-            <div className="lp-what-line">Real Stakes</div>
+            <div className="lp-what-line">Real Scenarios — Real <span>Pressure</span></div>
+            <div className="lp-what-line">Real Fun</div>
           </div>
           <img src="/tactical-banner.png" alt="" className="lp-what-img" />
         </div>
