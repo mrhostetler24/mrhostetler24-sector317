@@ -281,7 +281,7 @@ const CSS = `
 }
 
 /* ── WHAT IS SECTION ── */
-.lp-what{background:linear-gradient(135deg,#1a1b13 0%,#111209 100%);border-top:1px solid rgba(200,224,58,.15);border-bottom:1px solid rgba(200,224,58,.15);padding:5rem 2rem;}
+.lp-what{background:linear-gradient(135deg,#1a1b13 0%,#111209 100%);border-top:1px solid rgba(200,224,58,.15);border-bottom:1px solid rgba(200,224,58,.15);padding:5rem 2rem 0;}
 .lp-what-inner{max-width:1100px;margin:0 auto;}
 .lp-what-title{font-family:'Black Ops One',sans-serif;font-size:clamp(1.6rem,3.5vw,2.4rem);letter-spacing:.06em;color:#e8e4dc;text-align:center;text-transform:uppercase;margin-bottom:2.5rem;}
 .lp-what-title span{color:#c8e03a;}
