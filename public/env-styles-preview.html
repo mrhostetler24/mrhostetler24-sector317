@@ -107,24 +107,22 @@
   }
 
   /* ── STROBE ── */
-  .strobe-on  { color: #ffffff; text-shadow: 0 0 3px rgba(255,255,255,.5); }
-  .strobe-off { color: #1c2333; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; opacity: .45; }
+  @keyframes strobeGlow{0%{text-shadow:0 0 6px rgba(255,255,255,.8),0 0 14px rgba(255,255,255,.5);}12%{text-shadow:0 0 1px rgba(255,255,255,.1);}25%{text-shadow:0 0 10px rgba(255,255,255,1),0 0 22px rgba(255,255,255,.6);}37%{text-shadow:0 0 1px rgba(255,255,255,.05);}50%{text-shadow:0 0 8px rgba(255,255,255,.9),0 0 18px rgba(255,255,255,.5);}62%{text-shadow:0 0 1px rgba(255,255,255,.1);}75%{text-shadow:0 0 12px rgba(255,255,255,1),0 0 24px rgba(255,255,255,.65);}87%{text-shadow:0 0 1px rgba(255,255,255,.05);}100%{text-shadow:0 0 6px rgba(255,255,255,.8),0 0 14px rgba(255,255,255,.5);}}
+  .viz-strobe { color: #000; -webkit-text-stroke: .15px #fff; animation: strobeGlow .55s step-end infinite; }
+
+  /* ── RAVE ── */
+  @keyframes raveGlow{0%{text-shadow:0 0 7px currentColor,0 0 16px currentColor;}35%{text-shadow:0 0 2px currentColor;}55%,100%{text-shadow:none;}}
+
+  /* ── COSMIC ── */
+  @keyframes cosmicPulse{0%,100%{text-shadow:0 0 4px rgba(232,121,249,.65),0 0 10px rgba(192,132,252,.5),0 0 22px rgba(139,92,246,.35),0 0 40px rgba(109,40,217,.2);}50%{text-shadow:0 0 2px rgba(232,121,249,.3),0 0 5px rgba(192,132,252,.25),0 0 12px rgba(139,92,246,.15),0 0 22px rgba(109,40,217,.08);}}
+  .viz-cosmic { color: #e879f9; animation: cosmicPulse 3s ease-in-out infinite; }
 
   /* ── DARK ── */
   .dark { color: #1a2533; text-shadow: 0 0 8px rgba(0,255,65,.9), 0 0 18px rgba(0,255,65,.55), 0 0 32px rgba(0,255,65,.2); }
 
   /* ── CRANKED ── */
-  @keyframes waveRing {
-    0%   { transform: scale(1); opacity: .65; }
-    100% { transform: scale(1.5); opacity: 0; }
-  }
-  .cranked { position: relative; display: inline-block; color: #f97316; }
-  .cranked::before, .cranked::after {
-    content: ''; position: absolute; inset: -2px;
-    border: 1.5px solid rgba(249,115,22,.7); border-radius: 3px;
-    animation: waveRing 1.8s ease-out infinite; pointer-events: none;
-  }
-  .cranked::after { animation-delay: .9s; }
+  @keyframes crankedPound{0%{text-shadow:0 0 1px rgba(249,115,22,.2);transform:scale(1);}8%{text-shadow:0 0 3px #f97316,0 0 10px rgba(249,115,22,.75),0 0 22px rgba(249,115,22,.35);transform:scale(1.06);}40%,100%{text-shadow:0 0 1px rgba(249,115,22,.15);transform:scale(1);}}
+  .cranked { display: inline-block; color: #f97316; animation: crankedPound .85s ease-out infinite; }
 </style>
 </head>
 <body>
@@ -144,39 +142,33 @@
 
   <div class="card">
     <div class="card-label">Cosmic</div>
-    <div class="name" style="color:#a78bfa;">Cosmic</div>
+    <div class="name viz-cosmic">Cosmic</div>
     <div class="code-tag">C</div>
-    <div class="desc">Purple / violet<br><code>#a78bfa</code></div>
+    <div class="desc">Fluorescent magenta-violet + slow UV glow pulse (3s ease-in-out)<br><code>#e879f9</code> + 4-layer purple text-shadow breathing</div>
   </div>
 
   <div class="card">
     <div class="card-label">Rave</div>
     <div class="name">
-      <span style="color:#f472b6;">R</span><span style="color:#fb923c;">a</span><span style="color:#facc15;">v</span><span style="color:#4ade80;">e</span>
+      <span style="color:#f472b6;animation:raveGlow 2s ease-out infinite;animation-delay:0s;">R</span><span style="color:#fb923c;animation:raveGlow 2s ease-out infinite;animation-delay:0.5s;">a</span><span style="color:#facc15;animation:raveGlow 2s ease-out infinite;animation-delay:1s;">v</span><span style="color:#4ade80;animation:raveGlow 2s ease-out infinite;animation-delay:1.5s;">e</span>
     </div>
     <div class="code-tag">R</div>
     <div class="desc">
-      Each letter a different color:<br>
-      <span style="color:#f472b6;">●</span> <code>#f472b6</code> pink<br>
-      <span style="color:#fb923c;">●</span> <code>#fb923c</code> orange<br>
-      <span style="color:#facc15;">●</span> <code>#facc15</code> yellow<br>
-      <span style="color:#4ade80;">●</span> <code>#4ade80</code> green<br>
-      <span style="color:#60a5fa;">●</span> <code>#60a5fa</code> blue<br>
-      <span style="color:#c084fc;">●</span> <code>#c084fc</code> violet (cycles)
+      Per-letter staggered glow chase (2s, 0.5s offset each):<br>
+      <span style="color:#f472b6;">●</span> pink · <span style="color:#fb923c;">●</span> orange · <span style="color:#facc15;">●</span> yellow · <span style="color:#4ade80;">●</span> green<br>
+      <span style="color:#60a5fa;">●</span> blue · <span style="color:#c084fc;">●</span> violet (6-color cycle)<br>
+      Each letter glows its own color via <code>currentColor</code> text-shadow
     </div>
   </div>
 
   <div class="card">
     <div class="card-label">Strobe</div>
-    <div class="name">
-      <span class="strobe-on">S</span><span class="strobe-off">t</span><span class="strobe-on">r</span><span class="strobe-off">o</span><span class="strobe-on">b</span><span class="strobe-off">e</span>
-    </div>
+    <div class="name viz-strobe">Strobe</div>
     <div class="code-tag">S</div>
     <div class="desc">
-      "On" letters: white + subtle glow<br>
-      "Off" letters: dark surface color + 45% opacity + white pixel outline<br>
-      <code>.on { color:#fff; text-shadow:0 0 3px rgba(255,255,255,.5) }</code><br>
-      <code>.off { color:#1c2333; text-shadow:pixel outline; opacity:.45 }</code>
+      Black text + thin white stroke (<code>-webkit-text-stroke:.15px #fff</code>)<br>
+      White glow flickers at ~1.8Hz via <code>step-end</code> keyframes<br>
+      <code>.viz-strobe { color:#000; -webkit-text-stroke:.15px #fff; animation:strobeGlow .55s step-end infinite }</code>
     </div>
   </div>
 
@@ -214,7 +206,7 @@
     <div class="card-label">Cranked</div>
     <div class="name cranked">Cranked</div>
     <div class="code-tag">C</div>
-    <div class="desc">Orange + two radiating border rings (::before / ::after)<br><code>#f97316</code>, rings scale 1→2.6×, staggered .9s</div>
+    <div class="desc">Orange text-shadow radiates from letter outlines, slight scale on beat<br><code>#f97316</code> · 0.85s ease-out pulse · glow follows letter shapes</div>
   </div>
 
 </div>
@@ -227,7 +219,7 @@
     <strong style="color:var(--txt)">Weight:</strong> 700<br>
     <strong style="color:var(--txt)">Line-height:</strong> 1<br>
     <strong style="color:var(--txt)">White-space:</strong> nowrap<br>
-    <em style="color:var(--muted)">Strobe and Rave override per-letter color; all others use a single color on the wrapper span.</em>
+    <em style="color:var(--muted)">Rave overrides per-letter color. Strobe uses black + white stroke + flickering glow on the wrapper span. All others use a single color on the wrapper span.</em>
   </div>
 </div>
 
