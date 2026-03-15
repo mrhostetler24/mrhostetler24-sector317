@@ -297,7 +297,7 @@ const CSS = `
 .lp-what-line{font-family:'Black Ops One',sans-serif;font-size:clamp(1.8rem,3.5vw,2.8rem);color:#e8e4dc;line-height:1.15;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;margin-bottom:.55rem;}
 .lp-what-line:last-child{margin-bottom:0;}
 .lp-what-line span{color:#c8e03a;}
-.lp-what-img{display:block;width:100%;max-height:320px;object-fit:cover;object-position:top center;position:relative;z-index:0;margin-top:-15rem;-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 28%);mask-image:linear-gradient(to bottom,transparent 0%,black 28%);opacity:.95;}
+.lp-what-img{display:block;width:100%;position:relative;z-index:0;margin-top:-15rem;margin-bottom:-5rem;-webkit-mask-image:linear-gradient(to bottom,transparent 0%,black 28%);mask-image:linear-gradient(to bottom,transparent 0%,black 28%);opacity:.95;}
 @media(max-width:720px){
   .lp-what{padding:3rem 1.25rem;}
   .lp-what-cols{grid-template-columns:1fr;gap:0;margin-bottom:2rem;}
