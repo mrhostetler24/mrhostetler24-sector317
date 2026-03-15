@@ -461,35 +461,73 @@ function FriendProfileModal({ userId, users, onClose }) {
             <div style={FP_SECTION}>Tactical Profile</div>
             <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '.45rem' }}>
 
-              {/* Quick metrics row */}
-              <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.2rem' }}>
-                {ext.avg_time_sec != null && (
-                  <div style={{ fontSize: '.8rem' }}>
-                    <span style={{ color: 'var(--muted)' }}>Avg Run </span>
-                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.avg_time_sec)}</span>
+              {/* Co-op block */}
+              {ext.coop_runs > 0 && (
+                <div style={{ marginBottom: '.25rem' }}>
+                  <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.3rem' }}>Co-op</div>
+                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '.8rem' }}>
+                      <span style={{ color: 'var(--muted)' }}>Runs </span>
+                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_runs}</span>
+                    </div>
+                    {ext.coop_avg_time_sec != null && (
+                      <div style={{ fontSize: '.8rem' }}>
+                        <span style={{ color: 'var(--muted)' }}>Avg Time </span>
+                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.coop_avg_time_sec)}</span>
+                      </div>
+                    )}
+                    {ext.coop_targets_pct != null && (
+                      <div style={{ fontSize: '.8rem' }}>
+                        <span style={{ color: 'var(--muted)' }}>Targets Elim </span>
+                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_targets_pct}%</span>
+                      </div>
+                    )}
+                    {ext.coop_obj_pct != null && (
+                      <div style={{ fontSize: '.8rem' }}>
+                        <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
+                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_obj_pct}%</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {ext.coop_pct != null && (
-                  <div style={{ fontSize: '.8rem' }}>
-                    <span style={{ color: 'var(--muted)' }}>Co-op </span>
-                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_pct}%</span>
+                </div>
+              )}
+
+              {/* Versus block */}
+              {ext.versus_runs > 0 && (
+                <div style={{ marginBottom: '.25rem' }}>
+                  <div style={{ fontSize: '.65rem', color: '#f87171', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.3rem' }}>Versus</div>
+                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '.8rem' }}>
+                      <span style={{ color: 'var(--muted)' }}>Runs </span>
+                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_runs}</span>
+                    </div>
+                    <div style={{ fontSize: '.8rem' }}>
+                      <span style={{ color: 'var(--muted)' }}>W-L </span>
+                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
+                      <span style={{ color: 'var(--muted)' }}> – </span>
+                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
+                    </div>
+                    {ext.versus_hunter_avg_sec != null && (
+                      <div style={{ fontSize: '.8rem' }}>
+                        <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
+                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_hunter_avg_sec)}</span>
+                      </div>
+                    )}
+                    {ext.versus_coyote_avg_sec != null && (
+                      <div style={{ fontSize: '.8rem' }}>
+                        <span style={{ color: 'var(--muted)' }}>Coyote Avg </span>
+                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_coyote_avg_sec)}</span>
+                      </div>
+                    )}
+                    {ext.versus_obj_pct != null && (
+                      <div style={{ fontSize: '.8rem' }}>
+                        <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
+                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_obj_pct}%</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {(ext.versus_wins != null || ext.versus_losses != null) && (
-                  <div style={{ fontSize: '.8rem' }}>
-                    <span style={{ color: 'var(--muted)' }}>Versus </span>
-                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
-                    <span style={{ color: 'var(--muted)' }}> – </span>
-                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
-                  </div>
-                )}
-                {ext.obj_pct != null && (
-                  <div style={{ fontSize: '.8rem' }}>
-                    <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
-                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.obj_pct}%</span>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase' }}>Visuals</div>
               <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ext.viz_std}    barColor={VIZ_COLORS.V} />
