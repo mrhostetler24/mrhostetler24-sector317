@@ -1842,7 +1842,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   );
 }
 
-function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,waiverDocs,activeWaiverDoc,shifts,setShifts,runs=[],onSignWaiver,onAddPlayer,onAlert,navTarget,onNavConsumed}){
+function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,setPayments,waiverDocs,activeWaiverDoc,shifts,setShifts,runs=[],onSignWaiver,onAddPlayer,onAlert,navTarget,onNavConsumed}){
   const [tab,setTab]=useState("today");
   const [schedTabOverride,setSchedTabOverride]=useState(null);
   const [showAccount,setShowAccount]=useState(false);
@@ -1851,6 +1851,9 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,
   const today=todayStr();
   const todayRes=[...reservations].filter(r=>r.date===today&&r.status!=="cancelled").sort((a,b)=>a.startTime.localeCompare(b.startTime));
   const upcoming=[...reservations].filter(r=>r.date>today&&r.status!=="cancelled").sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)).slice(0,25);
+  const spEmployeeTabs=["schedule","social"];
+  const spTabGroup=spEmployeeTabs.includes(tab)?"employee":"company";
+  const spSwitchGroup=(g)=>{if(g==="company")setTab("today");if(g==="employee")setTab("social");};
   useEffect(()=>{
     if(navTarget){setTab("schedule");setSchedTabOverride(navTarget);onNavConsumed?.();}
   },[navTarget]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1862,12 +1865,33 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,
   return(
     <div className="content">
       {showAccount&&<AccountPanel user={user} users={users} setUsers={setUsers} onClose={()=>setShowAccount(false)}/>}
-      <div className="tabs">
+      {/* Desktop/tablet: flat single row */}
+      <div className="tabs desktop-tabs">
         <button className={`tab${tab==="today"?" on":""}`} onClick={()=>setTab("today")}>Today ({todayRes.length})</button>
         <button className={`tab${tab==="upcoming"?" on":""}`} onClick={()=>setTab("upcoming")}>Upcoming</button>
+        <button className={`tab${tab==="merch"?" on":""}`} onClick={()=>setTab("merch")}>Merch</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>My Schedule</button>
         <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
-        <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}><span className="ops-full">Operations ↗</span><span className="ops-short">OPS ↗</span></button>
+        <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
+      </div>
+      {/* Mobile: two-row grouped */}
+      <div className="tabs-wrap mobile-tabs">
+        <div className="tabs">
+          <button className={`tab tab-grp${spTabGroup==="company"?" on":""}`} onClick={()=>spSwitchGroup("company")}>Company</button>
+          <button className={`tab tab-grp${spTabGroup==="employee"?" on":""}`} onClick={()=>spSwitchGroup("employee")}>Employee</button>
+          <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>OPS ↗</button>
+        </div>
+        <div className="tabs">
+          {spTabGroup==="company"&&<>
+            <button className={`tab${tab==="today"?" on":""}`} onClick={()=>setTab("today")}>Today ({todayRes.length})</button>
+            <button className={`tab${tab==="upcoming"?" on":""}`} onClick={()=>setTab("upcoming")}>Upcoming</button>
+            <button className={`tab${tab==="merch"?" on":""}`} onClick={()=>setTab("merch")}>Merch</button>
+          </>}
+          {spTabGroup==="employee"&&<>
+            <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>My Schedule</button>
+            <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
+          </>}
+        </div>
       </div>
       {(tab==="today"||tab==="upcoming")&&<>
         {!(tab==="today"?todayRes:upcoming).length&&<div className="empty"><div className="ei">{tab==="today"?"🎯":"📅"}</div><p>No {tab==="today"?"sessions today":"upcoming sessions"}.</p></div>}
@@ -1876,6 +1900,7 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,
             <tbody>{(tab==="today"?todayRes:upcoming).map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} currentUser={user} onAddPlayer={onAddPlayer} onSignWaiver={(uid,name)=>onSignWaiver(uid,name)} onRemovePlayer={async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(p=>p.map(r=>r.id===resId?{...r,players:r.players.filter(x=>x.id!==playerId)}:r));}catch(e){onAlert("Error removing player: "+e.message);}}} onReschedule={(user.access==='manager'||user.access==='admin')?async(resId,date,startTime)=>{try{const updated=await updateReservation(resId,{date,startTime,rescheduled:true});setReservations(p=>p.map(r=>r.id===resId?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true}:r));}catch(e){onAlert("Error rescheduling: "+e.message);}}:undefined}/>)}</tbody>
           </table></div>}
       </>}
+      {tab==="merch"&&<MerchPortal currentUser={user} users={users} setUsers={setUsers} setPayments={setPayments} onAlert={onAlert}/>}
       {tab==="schedule"&&<SchedulePanel currentUser={user} shifts={shifts} setShifts={setShifts} users={users} isManager={false} onAlert={onAlert} tabOverride={schedTabOverride} onTabOverrideConsumed={()=>setSchedTabOverride(null)}/>}
       {tab==="social"&&<SocialPortal user={user} users={users} setUsers={setUsers} reservations={reservations} resTypes={resTypes} runs={runs} careerRuns={careerRuns} onEditProfile={()=>setShowAccount(true)} onFriendsChanged={()=>setFriendsVersion(v=>v+1)}/>}
     </div>
@@ -2003,11 +2028,11 @@ function DeactivateStaffModal({userToDeactivate,futureShifts,users,shifts,onConf
 
 function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,sessionTemplates,setSessionTemplates,waiverDocs,setWaiverDocs,activeWaiverDoc,users,setUsers,shifts,setShifts,payments,setPayments,onAlert,userAuthDates=[],runs=[],staffRoles=[]}){
   const [tab,setTab]=useState("dashboard");
-  const [tabGroup,setTabGroup]=useState("company");
   const [schedTabOverride,setSchedTabOverride]=useState(null);
-  const companyTabs=["dashboard","reservations","customers","types","sessions","waivers","staff","merchandise"];
-  const employeeTabs=["social","schedule"];
-  const switchGroup=(g)=>{setTabGroup(g);if(g==="company"&&employeeTabs.includes(tab))setTab("dashboard");if(g==="employee"&&companyTabs.includes(tab))setTab("social");};
+  const apEmployeeTabs=["social","schedule"];
+  const apAdminTabs=["types","sessions","waivers"];
+  const tabGroup=apAdminTabs.includes(tab)?"admin":apEmployeeTabs.includes(tab)?"employee":"company";
+  const switchGroup=(g)=>{if(g==="company")setTab("dashboard");if(g==="employee")setTab("social");if(g==="admin")setTab("types");};
   const [toastMsg,setToastMsg]=useState(null);
   const [modal,setModal]=useState(null);
   const [deactivateModal,setDeactivateModal]=useState(null);
@@ -2328,26 +2353,44 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <div style={{background:"var(--accD)",border:"1px solid var(--acc2)",borderRadius:5,padding:".7rem",marginBottom:".5rem",display:"flex",justifyContent:"space-between"}}><span style={{color:"var(--muted)"}}>{selWIType?.name} · {wi.playerCount}p</span><strong style={{color:"var(--accB)"}}>{fmtMoney(calcWI(wi.typeId,wi.playerCount))}</strong></div>
         <div className="ma"><button className="btn btn-s" onClick={()=>{setShowWI(false);setWi({customerName:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});}}>Cancel</button><button className="btn btn-p" disabled={!wi.customerName.trim()||!wi.date||(!wi.startTime||(wi.startTime==="custom"&&!wi.customTime))} onClick={()=>{const st=wi.startTime==="custom"?wi.customTime:wi.startTime;setReservations(p=>[...p,{...wi,id:Date.now(),startTime:st,amount:calcWI(wi.typeId,wi.playerCount),players:[],userId:null}]);showToast("Walk-in added");setShowWI(false);setWi({customerName:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});}}>Add</button></div>
       </div></div>}
-      <div className="tabs-wrap">
+      {/* Desktop/tablet: flat single row */}
+      <div className="tabs desktop-tabs">
+        <button className={`tab${tab==="dashboard"?" on":""}`} onClick={()=>setTab("dashboard")}>Dashboard</button>
+        <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
+        <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
+        {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
+        {isAdmin&&<button className={`tab${tab==="types"?" on":""}`} onClick={()=>setTab("types")}>Res. Types</button>}
+        {isAdmin&&<button className={`tab${tab==="sessions"?" on":""}`} onClick={()=>setTab("sessions")}>Sessions</button>}
+        {isAdmin&&<button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>}
+        <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
+        <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
+        {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merch</button>}
+        <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
+      </div>
+      {/* Mobile: two-row grouped */}
+      <div className="tabs-wrap mobile-tabs">
         <div className="tabs">
           <button className={`tab tab-grp${tabGroup==="company"?" on":""}`} onClick={()=>switchGroup("company")}>Company</button>
           <button className={`tab tab-grp${tabGroup==="employee"?" on":""}`} onClick={()=>switchGroup("employee")}>Employee</button>
-          <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}><span className="ops-full">Operations ↗</span><span className="ops-short">OPS ↗</span></button>
+          {isAdmin&&<button className={`tab tab-grp${tabGroup==="admin"?" on":""}`} onClick={()=>switchGroup("admin")}>Admin</button>}
+          <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>OPS ↗</button>
         </div>
         <div className="tabs">
           {tabGroup==="company"&&<>
             <button className={`tab${tab==="dashboard"?" on":""}`} onClick={()=>setTab("dashboard")}>Dashboard</button>
             <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
             {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
-            {isAdmin&&<button className={`tab${tab==="types"?" on":""}`} onClick={()=>setTab("types")}>Res. Types</button>}
-            {isAdmin&&<button className={`tab${tab==="sessions"?" on":""}`} onClick={()=>setTab("sessions")}>Sessions</button>}
-            {isAdmin&&<button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>}
             <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
-            {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merchandise</button>}
+            {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merch</button>}
           </>}
           {tabGroup==="employee"&&<>
             <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
             <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
+          </>}
+          {tabGroup==="admin"&&isAdmin&&<>
+            <button className={`tab${tab==="types"?" on":""}`} onClick={()=>setTab("types")}>Res. Types</button>
+            <button className={`tab${tab==="sessions"?" on":""}`} onClick={()=>setTab("sessions")}>Sessions</button>
+            <button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>
           </>}
         </div>
       </div>
@@ -3467,7 +3510,7 @@ useEffect(() => {
       </nav>
       <div className="main">
         {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} setPayments={setPayments} runs={runs} onAlert={handleAlert}/>}
-        {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} runs={runs} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
+        {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} setUsers={handleSetUsers} setPayments={setPayments} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} runs={runs} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
         {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs} staffRoles={staffRoles}/>}
       </div>
     </div>
