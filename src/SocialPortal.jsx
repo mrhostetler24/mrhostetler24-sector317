@@ -608,18 +608,6 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const coopRuns = myRuns.filter(rn => coopResIds.has(rn.reservationId))
   const versRuns = myRuns.filter(rn => versResIds.has(rn.reservationId))
 
-  // Count sessions (unique reservations) won/lost.
-  // Use reservation-level war_winner_team (correctly accounts for role swap in run 2).
-  const versSessionResults = new Map()
-  myRes.forEach(res => {
-    if (!versResIds.has(res.id) || res.warWinnerTeam == null) return
-    const pl = res.players?.find(p => p.userId === user.id)
-    if (pl?.team == null) return
-    // eslint-disable-next-line eqeqeq
-    versSessionResults.set(res.id, pl.team == res.warWinnerTeam ? 'win' : 'loss')
-  })
-  const versWins   = [...versSessionResults.values()].filter(v => v === 'win').length
-  const versLosses = [...versSessionResults.values()].filter(v => v === 'loss').length
 
   const operatorSince = myRes.length
     ? fmtMonthYear(myRes.reduce((min, r) => r.date < min ? r.date : min, myRes[0].date))
@@ -1216,9 +1204,9 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               <StatCard label="Obj Rate"   value={profileStatsSub === 'all' && ownExt?.obj_pct      != null ? `${ownExt.obj_pct}%`        : `${activeStats.objRate}%`} />
               <StatCard label="Avg Time"   value={profileStatsSub === 'all' && ownExt?.avg_time_sec != null ? fmtSec(ownExt.avg_time_sec)  : fmtSec(activeStats.avgTime)} />
               {(profileStatsSub === 'versus' || profileStatsSub === 'all') && versRuns.length > 0 && <>
-                <StatCard label="VS Wins"   value={versWins}
-                  sub={versWins + versLosses > 0 ? `${Math.round(versWins / (versWins + versLosses) * 100)}% W/L` : undefined} />
-                <StatCard label="VS Losses" value={versLosses} />
+                <StatCard label="VS Wins"   value={ownExt?.versus_wins ?? 0}
+                  sub={(ownExt?.versus_wins ?? 0) + (ownExt?.versus_losses ?? 0) > 0 ? `${Math.round((ownExt?.versus_wins ?? 0) / ((ownExt?.versus_wins ?? 0) + (ownExt?.versus_losses ?? 0)) * 100)}% W/L` : undefined} />
+                <StatCard label="VS Losses" value={ownExt?.versus_losses ?? 0} />
               </>}
             </div>
           )}
