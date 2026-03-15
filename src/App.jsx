@@ -1502,6 +1502,10 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             const sortedGrps=Object.entries(grps).sort(([a],[b])=>Number(a)-Number(b));
             const mwNum=r.warWinnerTeam!=null?r.warWinnerTeam:null;
             const iWon=mwNum!=null&&myTeam!=null&&mwNum===Number(myTeam);
+            const winType=r.warWinType??null;
+            const g1Elapsed=resRuns.find(rn=>rn.runNumber===1&&Number(rn.team)===1)?.elapsedSeconds??null;
+            const g2Elapsed=resRuns.find(rn=>rn.runNumber===2&&Number(rn.team)===2)?.elapsedSeconds??null;
+            const tbDiff=winType==='TIEBREAK'&&g1Elapsed!=null&&g2Elapsed!=null?Math.abs(g1Elapsed-g2Elapsed):null;
             return<>
               <div style={{display:'flex',alignItems:'center',gap:'.6rem',marginBottom:'.85rem',flexWrap:'wrap'}}>
                 {myTeam!=null&&<div style={{display:'flex',alignItems:'center',gap:'.35rem',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:4,padding:'.18rem .55rem',fontSize:'.68rem'}}>
@@ -1513,6 +1517,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
                   <div style={{width:8,height:8,borderRadius:'50%',background:TC[mwNum]?.col??'var(--acc)',flexShrink:0}}/>
                   <span style={{color:'var(--muted)',fontFamily:'var(--fd)',letterSpacing:'.06em',textTransform:'uppercase'}}>Match:</span>
                   <span style={{fontWeight:700,color:TC[mwNum]?.col??'var(--acc)'}}>{TC[mwNum]?.name??'Team '+mwNum} wins</span>
+                  {winType==='SWEEP'&&<span style={{fontSize:'.64rem',color:'var(--muted)',fontWeight:600}}>· Sweep</span>}
+                  {winType==='TIEBREAK'&&<span style={{fontSize:'.64rem',color:'var(--muted)',fontWeight:600}}>· Tiebreaker{tbDiff>0?` (${fmtSec(tbDiff)} faster)`:''}</span>}
                   {iWon&&<span style={{fontWeight:700,color:'var(--okB)',marginLeft:'.2rem'}}>— You won!</span>}
                 </div>}
               </div>
