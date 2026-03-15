@@ -545,6 +545,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [friendships, setFriendships]         = useState([])
   const [receivedRequests, setReceivedRequests] = useState([])
   const [sentRequests, setSentRequests]       = useState([])
+  const [profileCache, setProfileCache]       = useState({})  // id → camelCase profile
   const [recentlyMet, setRecentlyMet]         = useState([])
   const [recentlyMetOffset, setRecentlyMetOffset] = useState(0)
   const [recentlyMetHasMore, setRecentlyMetHasMore] = useState(false)
@@ -607,6 +608,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     friendships.map(f => f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1)
   )
   const resolveUser = id => {
+    if (profileCache[id]) return profileCache[id]
     const u = (users ?? []).find(u => u.id === id)
     return u ?? { id, name: 'Operative', leaderboardName: null, avatarUrl: null, hideAvatar: false }
   }
@@ -634,12 +636,26 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       ]
       const allIds = [...new Set([...friendIds, ...reqIds])]
       const runsMap = {}
+      const pCache = {}
       await Promise.all(allIds.map(async id => {
         const { data } = await getFriendProfile(id)
         const row = Array.isArray(data) ? data[0] : data
-        if (row) runsMap[id] = row.total_runs ?? 0
+        if (row) {
+          runsMap[id] = row.total_runs ?? 0
+          pCache[id] = {
+            id,
+            name:             row.leaderboard_name ?? row.name ?? null,
+            leaderboardName:  row.leaderboard_name ?? null,
+            avatarUrl:        row.avatar_url ?? null,
+            hideAvatar:       row.hide_avatar ?? false,
+            platoonTag:       row.platoon_tag ?? null,
+            platoonBadgeColor:row.platoon_badge_color ?? null,
+            access:           row.access ?? null,
+          }
+        }
       }))
       setFriendRunsMap(runsMap)
+      setProfileCache(pCache)
     } catch (e) {
       setFriendError(e.message)
     } finally {
@@ -1340,6 +1356,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               const isFriend  = friendIds.has(p.id)
               const isPending = sentRequests.some(r => r.to_user_id === p.id) ||
                                 receivedRequests.some(r => r.from_user_id === p.id)
+              if (isFriend || isPending) return null
               const initials  = getInitials(p.leaderboard_name)
               return (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.55rem 0', borderBottom: '1px solid var(--bdr)', cursor: 'pointer' }} onClick={() => setProfileModal(p.id)}>
