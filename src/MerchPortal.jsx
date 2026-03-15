@@ -728,7 +728,7 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   return (
-    <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 560, maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+    <div className="mo"><div className="mc" style={{ maxWidth: 560, maxHeight: '85vh', overflowY: 'auto' }}>
       <div className="mt2">{product.id ? 'Edit Product' : 'New Product'}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.75rem' }}>
         <div className="f" style={{ gridColumn: '1/-1' }}><label>Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Product name" /></div>
