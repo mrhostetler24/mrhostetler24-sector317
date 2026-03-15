@@ -465,12 +465,18 @@ function FriendProfileModal({ userId, users, onClose }) {
               {ext.coop_runs > 0 && (
                 <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
                   <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Co-op</div>
-                  {/* Row 1: Runs, Avg Time */}
+                  {/* Row 1: Runs, Avg Score, Avg Time */}
                   <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                     <div style={{ fontSize: '.8rem' }}>
                       <span style={{ color: 'var(--muted)' }}>Runs </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_runs}</span>
                     </div>
+                    {ext.coop_avg_score != null && (
+                      <div style={{ fontSize: '.8rem' }}>
+                        <span style={{ color: 'var(--muted)' }}>Avg Score </span>
+                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_avg_score}</span>
+                      </div>
+                    )}
                     {ext.coop_avg_time_sec != null && (
                       <div style={{ fontSize: '.8rem' }}>
                         <span style={{ color: 'var(--muted)' }}>Avg Time </span>
@@ -500,12 +506,18 @@ function FriendProfileModal({ userId, users, onClose }) {
               {ext.versus_runs > 0 && (
                 <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
                   <div style={{ fontSize: '.65rem', color: '#f97316', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Versus</div>
-                  {/* Row 1: Runs, Hunter Avg, Coyote Avg */}
+                  {/* Row 1: Runs, Avg Session, Hunter Avg, Coyote Avg */}
                   <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                     <div style={{ fontSize: '.8rem' }}>
                       <span style={{ color: 'var(--muted)' }}>Runs </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_runs}</span>
                     </div>
+                    {ext.versus_avg_session_score != null && (
+                      <div style={{ fontSize: '.8rem' }}>
+                        <span style={{ color: 'var(--muted)' }}>Avg Session </span>
+                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_avg_session_score}</span>
+                      </div>
+                    )}
                     {ext.versus_hunter_avg_sec != null && (
                       <div style={{ fontSize: '.8rem' }}>
                         <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
@@ -594,7 +606,6 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     if (sub === 'friends' || sub === 'connect' || sub === 'platoon') return sub
     return 'profile'
   })
-  const [profileStatsSub, setProfileStatsSub] = useState('all')
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarKey, setAvatarKey]             = useState(() => Date.now())
   const [editing, setEditing]                 = useState(false)
@@ -887,10 +898,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     }
   }
 
-  const activeStats = profileStatsSub === 'coop' ? computeStats(coopRuns)
-    : profileStatsSub === 'versus' ? computeStats(versRuns)
-    : computeStats(myRuns)
-  const activeRunArr = profileStatsSub === 'coop' ? coopRuns : profileStatsSub === 'versus' ? versRuns : myRuns
+  const activeRunArr = myRuns
   const envPct = (arr, test) => arr.length ? Math.round(arr.filter(test).length / arr.length * 100) : 0
   const audCodeFn = rn => rn.audio || (rn.cranked ? 'C' : 'T')
 
@@ -1191,7 +1199,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.65rem' }}>Env Profile</div>
             {(() => {
               // "all" tab: use DB-sourced ownExt (same data as friend modal)
-              if (profileStatsSub === 'all' && ownExt) return (
+              if (ownExt) return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '.3rem' }}>
                   <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.1rem' }}>Visuals</div>
                   <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ownExt.viz_std}    barColor={VIZ_COLORS.V} />
@@ -1229,42 +1237,21 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
         {/* Match Stats */}
         <div>
           <div style={{ fontSize: '.7rem', fontFamily: 'var(--fd)', letterSpacing: '.1em', color: 'var(--acc2)', textTransform: 'uppercase', marginBottom: '.65rem' }}>Match Stats</div>
-          <div className="tabs" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--bdr)' }}>
-            <button className={`tab${profileStatsSub === 'all'    ? ' on' : ''}`} onClick={() => setProfileStatsSub('all')}>All ({myRuns.length})</button>
-            <button className={`tab${profileStatsSub === 'coop'   ? ' on' : ''}`} onClick={() => setProfileStatsSub('coop')}>Co-op ({coopRuns.length})</button>
-            <button className={`tab${profileStatsSub === 'versus' ? ' on' : ''}`} onClick={() => setProfileStatsSub('versus')}>Versus ({versRuns.length})</button>
-          </div>
-          {!activeStats ? (
-            <div className="empty" style={{ paddingTop: '1.25rem' }}>
-              <div className="ei">{profileStatsSub === 'coop' ? '🤝' : profileStatsSub === 'versus' ? '⚔' : '🎯'}</div>
-              <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>No {profileStatsSub === 'all' ? '' : profileStatsSub + ' '}runs yet.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '.5rem' }}>
-              {/* Sessions / Obj Rate / Avg Time: use fuller DB values on "all" tab */}
-              <StatCard label="Sessions"   value={profileStatsSub === 'all' && ownExt?.sessions     != null ? ownExt.sessions            : activeStats.sessions} />
-              <StatCard label="Total Runs" value={activeStats.runs} />
-              <StatCard label="Best Score" value={activeStats.best.toFixed(1)} />
-              <StatCard label="Avg Score"  value={activeStats.avg.toFixed(1)} />
-              <StatCard label="Obj Rate"   value={profileStatsSub === 'all' && ownExt?.obj_pct      != null ? `${ownExt.obj_pct}%`        : `${activeStats.objRate}%`} />
-              <StatCard label="Avg Time"   value={profileStatsSub === 'all' && ownExt?.avg_time_sec != null ? fmtSec(ownExt.avg_time_sec)  : fmtSec(activeStats.avgTime)} />
-              {(profileStatsSub === 'versus' || profileStatsSub === 'all') && versRuns.length > 0 && <>
-                <StatCard label="VS Wins"   value={ownExt?.versus_wins ?? 0}
-                  sub={(ownExt?.versus_wins ?? 0) + (ownExt?.versus_losses ?? 0) > 0 ? `${Math.round((ownExt?.versus_wins ?? 0) / ((ownExt?.versus_wins ?? 0) + (ownExt?.versus_losses ?? 0)) * 100)}% W/L` : undefined} />
-                <StatCard label="VS Losses" value={ownExt?.versus_losses ?? 0} />
-              </>}
-            </div>
-          )}
-
           {/* Co-op breakdown block */}
-          {ownExt?.coop_runs > 0 && (profileStatsSub === 'all' || profileStatsSub === 'coop') && (
-            <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem', marginTop: '.75rem' }}>
+          {ownExt?.coop_runs > 0 && (
+            <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem', marginBottom: '.5rem' }}>
               <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Co-op</div>
               <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                 <div style={{ fontSize: '.8rem' }}>
                   <span style={{ color: 'var(--muted)' }}>Runs </span>
                   <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.coop_runs}</span>
                 </div>
+                {ownExt.coop_avg_score != null && (
+                  <div style={{ fontSize: '.8rem' }}>
+                    <span style={{ color: 'var(--muted)' }}>Avg Score </span>
+                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.coop_avg_score}</span>
+                  </div>
+                )}
                 {ownExt.coop_avg_time_sec != null && (
                   <div style={{ fontSize: '.8rem' }}>
                     <span style={{ color: 'var(--muted)' }}>Avg Time </span>
@@ -1290,14 +1277,20 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           )}
 
           {/* Versus breakdown block */}
-          {ownExt?.versus_runs > 0 && (profileStatsSub === 'all' || profileStatsSub === 'versus') && (
-            <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem', marginTop: '.75rem' }}>
+          {ownExt?.versus_runs > 0 && (
+            <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
               <div style={{ fontSize: '.65rem', color: '#f97316', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Versus</div>
               <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
                 <div style={{ fontSize: '.8rem' }}>
                   <span style={{ color: 'var(--muted)' }}>Runs </span>
                   <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.versus_runs}</span>
                 </div>
+                {ownExt.versus_avg_session_score != null && (
+                  <div style={{ fontSize: '.8rem' }}>
+                    <span style={{ color: 'var(--muted)' }}>Avg Session </span>
+                    <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.versus_avg_session_score}</span>
+                  </div>
+                )}
                 {ownExt.versus_hunter_avg_sec != null && (
                   <div style={{ fontSize: '.8rem' }}>
                     <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
