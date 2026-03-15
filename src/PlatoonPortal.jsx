@@ -800,7 +800,7 @@ function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLef
         ))}
       </div>
 
-      {subTab === 'board'    && <BoardTab    platoon={platoon} userId={userId} />}
+      {subTab === 'board'    && <BoardTab    platoon={platoon} userId={userId} myRole={myRole} />}
       {subTab === 'members'  && <MembersTab  platoon={platoon} myRole={myRole} userId={userId} currentUser={currentUser} onChanged={onChanged} onViewProfile={onViewProfile} />}
       {subTab === 'sessions' && <SessionsTab platoon={platoon} />}
       {subTab === 'upcoming' && <UpcomingTab platoon={platoon} />}
@@ -830,7 +830,7 @@ function PlatoonHome({ platoon, myRole, userId, currentUser, pendingCount, onLef
 
 // ── BoardTab ──────────────────────────────────────────────────────────────────
 
-function BoardTab({ platoon, userId }) {
+function BoardTab({ platoon, userId, myRole }) {
   const [posts,   setPosts]   = useState([])
   const [loading, setLoading] = useState(true)
   const [offset,  setOffset]  = useState(0)
@@ -893,7 +893,7 @@ function BoardTab({ platoon, userId }) {
       {!loading && posts.length === 0 && <div style={{ color: 'var(--muted)', fontSize: '.85rem', textAlign: 'center', paddingTop: '1.5rem' }}>No posts yet. Be the first!</div>}
 
       {posts.map(post => (
-        <PostRow key={post.id} post={post} userId={userId} onDelete={doDelete} />
+        <PostRow key={post.id} post={post} userId={userId} myRole={myRole} onDelete={doDelete} />
       ))}
 
       {hasMore && !loading && (
@@ -905,7 +905,7 @@ function BoardTab({ platoon, userId }) {
   )
 }
 
-function PostRow({ post, userId, onDelete }) {
+function PostRow({ post, userId, myRole, onDelete }) {
   // System notes (automated events: join / AWOL) render as a centered info line
   if (post.user_id === null) {
     return (
@@ -918,6 +918,7 @@ function PostRow({ post, userId, onDelete }) {
 
   const initials = post.leaderboard_name ? post.leaderboard_name.slice(0, 2).toUpperCase() : '?'
   const isOwn = post.user_id === userId
+  const canDelete = isOwn || myRole === 'admin' || myRole === 'sergeant'
 
   return (
     <div style={{ display: 'flex', gap: '.75rem', padding: '.65rem 0', borderBottom: '1px solid var(--bdr)' }}>
@@ -928,7 +929,7 @@ function PostRow({ post, userId, onDelete }) {
           <span style={{ fontFamily: 'var(--fd)', fontSize: '.85rem', color: 'var(--txt)' }}>{post.leaderboard_name}</span>
           <RoleChip role={post.member_role || 'member'} />
           <span style={{ fontSize: '.7rem', color: 'var(--muted)', marginLeft: 'auto' }}>{formatDate(post.created_at)}</span>
-          {isOwn && (
+          {canDelete && (
             <button onClick={() => onDelete(post.id)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: '0 .2rem', fontSize: '.8rem' }} title="Delete">×</button>
           )}
         </div>

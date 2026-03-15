@@ -1635,35 +1635,63 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                         const mode=lane.mode;
                         return<div key={lane.laneNum} style={{flex:1,minWidth:180,background:"var(--bg2)",border:"1px solid rgba(74,222,128,.25)",borderRadius:8,padding:".65rem .85rem"}}>
                           <div style={{fontSize:".72rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:".6rem"}}>Lane {lane.laneNum} · {mode} · Scores</div>
-                          {[1,2].map(runNum=>{
-                            const recs=laneRuns.filter(r=>r.runNumber===runNum);
-                            if(!recs.length)return null;
-                            if(mode==="versus"){
-                              const blue=recs.find(r=>r.team===1);
-                              const red=recs.find(r=>r.team===2);
-                              const winner=blue?.winningTeam??red?.winningTeam??null;
-                              return<div key={runNum} style={{marginBottom:".5rem"}}>
-                                <div style={{fontSize:".68rem",color:"var(--muted)",fontWeight:600,marginBottom:".25rem"}}>Run {runNum}</div>
-                                <div style={{display:"flex",gap:".4rem",alignItems:"center"}}>
-                                  <div style={{flex:1,textAlign:"center",background:"rgba(59,130,246,.08)",border:`1px solid ${winner===1?"#3b82f6":"rgba(59,130,246,.2)"}`,borderRadius:5,padding:".3rem .5rem"}}>
-                                    <div style={{fontSize:".62rem",color:"#60a5fa",fontWeight:700,textTransform:"uppercase",marginBottom:".1rem"}}>Blue{winner===1?" ✓":""}</div>
-                                    <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:winner===1?"#3b82f6":"var(--txt)"}}>{blue?.score!=null?Number(blue.score).toFixed(1):"—"}</div>
-                                  </div>
-                                  <div style={{fontSize:".75rem",color:"var(--muted)",fontWeight:700,flexShrink:0}}>vs</div>
-                                  <div style={{flex:1,textAlign:"center",background:"rgba(239,68,68,.08)",border:`1px solid ${winner===2?"#ef4444":"rgba(239,68,68,.2)"}`,borderRadius:5,padding:".3rem .5rem"}}>
-                                    <div style={{fontSize:".62rem",color:"#f87171",fontWeight:700,textTransform:"uppercase",marginBottom:".1rem"}}>Red{winner===2?" ✓":""}</div>
-                                    <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:winner===2?"#ef4444":"var(--txt)"}}>{red?.score!=null?Number(red.score).toFixed(1):"—"}</div>
-                                  </div>
-                                </div>
-                              </div>;
-                            }else{
-                              const rec=recs[0];
-                              return<div key={runNum} style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".35rem",padding:".3rem .45rem",background:"rgba(212,236,70,.06)",border:"1px solid rgba(212,236,70,.15)",borderRadius:5}}>
-                                <div style={{fontSize:".72rem",color:"var(--muted)",fontWeight:600}}>Run {runNum}</div>
-                                <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:"var(--acc)"}}>{rec?.score!=null?Number(rec.score).toFixed(1):"—"}</div>
-                              </div>;
-                            }
-                          })}
+                          {(()=>{
+                            const run1Rows=laneRuns.filter(r=>r.runNumber===1);
+                            const run2Rows=laneRuns.filter(r=>r.runNumber===2);
+                            const warResult=mode==="versus"?calcWarOutcome({
+                              run1WinnerTeam:run1Rows[0]?.winningTeam??null,
+                              run2WinnerTeam:run2Rows[0]?.winningTeam??null,
+                              group1HunterElapsed:run1Rows.find(r=>r.team===1)?.elapsedSeconds??null,
+                              group2HunterElapsed:run2Rows.find(r=>r.team===2)?.elapsedSeconds??null,
+                            }):null;
+                            return<>
+                              {[1,2].map(runNum=>{
+                                const recs=laneRuns.filter(r=>r.runNumber===runNum);
+                                if(!recs.length)return null;
+                                const elapsed=recs.find(r=>r.elapsedSeconds>0)?.elapsedSeconds??null;
+                                if(mode==="versus"){
+                                  const blue=recs.find(r=>r.team===1);
+                                  const red=recs.find(r=>r.team===2);
+                                  const winner=blue?.winningTeam??red?.winningTeam??null;
+                                  return<div key={runNum} style={{marginBottom:".5rem"}}>
+                                    <div style={{fontSize:".68rem",color:"var(--muted)",fontWeight:600,marginBottom:".2rem",display:"flex",gap:".35rem",alignItems:"center"}}>
+                                      <span>Run {runNum}</span>
+                                      {elapsed>0&&<span style={{fontWeight:400}}>· ⏱ {fmtSecMS(elapsed)}</span>}
+                                    </div>
+                                    <div style={{display:"flex",gap:".4rem",alignItems:"center"}}>
+                                      <div style={{flex:1,textAlign:"center",background:"rgba(59,130,246,.08)",border:`1px solid ${winner===1?"#3b82f6":"rgba(59,130,246,.2)"}`,borderRadius:5,padding:".3rem .5rem"}}>
+                                        <div style={{fontSize:".62rem",color:"#60a5fa",fontWeight:700,textTransform:"uppercase",marginBottom:".1rem"}}>Blue{winner===1?" ✓":""}</div>
+                                        <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:winner===1?"#3b82f6":"var(--txt)"}}>{blue?.score!=null?Number(blue.score).toFixed(1):"—"}</div>
+                                      </div>
+                                      <div style={{fontSize:".75rem",color:"var(--muted)",fontWeight:700,flexShrink:0}}>vs</div>
+                                      <div style={{flex:1,textAlign:"center",background:"rgba(239,68,68,.08)",border:`1px solid ${winner===2?"#ef4444":"rgba(239,68,68,.2)"}`,borderRadius:5,padding:".3rem .5rem"}}>
+                                        <div style={{fontSize:".62rem",color:"#f87171",fontWeight:700,textTransform:"uppercase",marginBottom:".1rem"}}>Red{winner===2?" ✓":""}</div>
+                                        <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:winner===2?"#ef4444":"var(--txt)"}}>{red?.score!=null?Number(red.score).toFixed(1):"—"}</div>
+                                      </div>
+                                    </div>
+                                  </div>;
+                                }else{
+                                  const rec=recs[0];
+                                  return<div key={runNum} style={{marginBottom:".4rem",padding:".35rem .5rem",background:"rgba(212,236,70,.06)",border:"1px solid rgba(212,236,70,.15)",borderRadius:5}}>
+                                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                                      <div style={{fontSize:".72rem",color:"var(--muted)",fontWeight:600}}>Run {runNum}</div>
+                                      <div style={{fontFamily:"var(--fd)",fontSize:"1.1rem",fontWeight:800,color:"var(--acc)"}}>{rec?.score!=null?Number(rec.score).toFixed(1):"—"}</div>
+                                    </div>
+                                    <div style={{display:"flex",gap:".5rem",marginTop:".15rem"}}>
+                                      {elapsed>0&&<span style={{fontSize:".62rem",color:"var(--muted)"}}>⏱ {fmtSecMS(elapsed)}</span>}
+                                      <span style={{fontSize:".62rem",fontWeight:600,color:rec?.targetsEliminated?"#4ade80":"#f87171"}}>T: {rec?.targetsEliminated?"✓":"✗"}</span>
+                                      <span style={{fontSize:".62rem",fontWeight:600,color:rec?.objectiveComplete?"#4ade80":"#f87171"}}>O: {rec?.objectiveComplete?"✓":"✗"}</span>
+                                    </div>
+                                  </div>;
+                                }
+                              })}
+                              {warResult&&<div style={{marginTop:".35rem",padding:".3rem .5rem",background:warResult.warWinner===1?"rgba(59,130,246,.1)":"rgba(239,68,68,.1)",border:`1px solid ${warResult.warWinner===1?"rgba(59,130,246,.35)":"rgba(239,68,68,.35)"}`,borderRadius:5,textAlign:"center"}}>
+                                <span style={{fontSize:".7rem",fontWeight:700,color:warResult.warWinner===1?"#60a5fa":"#f87171",textTransform:"uppercase",letterSpacing:".05em"}}>
+                                  {warResult.warWinner===1?"Blue":"Red"} Wins · {warResult.warWinType==="SWEEP"?"Sweep":"Tiebreaker"}{warResult.timeDiff>0?` (${fmtSecMS(warResult.timeDiff)} faster)`:""}
+                                </span>
+                              </div>}
+                            </>;
+                          })()}
                         </div>;
                       })}
                     </div>;
