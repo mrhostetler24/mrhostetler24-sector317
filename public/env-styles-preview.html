@@ -108,7 +108,7 @@
 
   /* ── STROBE ── */
   @keyframes strobeGlow{0%{text-shadow:0 0 6px rgba(255,255,255,.8),0 0 14px rgba(255,255,255,.5);}12%{text-shadow:0 0 1px rgba(255,255,255,.1);}25%{text-shadow:0 0 10px rgba(255,255,255,1),0 0 22px rgba(255,255,255,.6);}37%{text-shadow:0 0 1px rgba(255,255,255,.05);}50%{text-shadow:0 0 8px rgba(255,255,255,.9),0 0 18px rgba(255,255,255,.5);}62%{text-shadow:0 0 1px rgba(255,255,255,.1);}75%{text-shadow:0 0 12px rgba(255,255,255,1),0 0 24px rgba(255,255,255,.65);}87%{text-shadow:0 0 1px rgba(255,255,255,.05);}100%{text-shadow:0 0 6px rgba(255,255,255,.8),0 0 14px rgba(255,255,255,.5);}}
-  .viz-strobe { color: #000; -webkit-text-stroke: .15px #fff; animation: strobeGlow .55s step-end infinite; }
+  .viz-strobe { color: #000; animation: strobeGlow .55s step-end infinite; }
 
   /* ── RAVE ── */
   @keyframes raveGlow{0%{text-shadow:0 0 7px currentColor,0 0 16px currentColor;}35%{text-shadow:0 0 2px currentColor;}55%,100%{text-shadow:none;}}
@@ -166,9 +166,8 @@
     <div class="name viz-strobe">Strobe</div>
     <div class="code-tag">S</div>
     <div class="desc">
-      Black text + thin white stroke (<code>-webkit-text-stroke:.15px #fff</code>)<br>
-      White glow flickers at ~1.8Hz via <code>step-end</code> keyframes<br>
-      <code>.viz-strobe { color:#000; -webkit-text-stroke:.15px #fff; animation:strobeGlow .55s step-end infinite }</code>
+      Black text + white glow flickers behind it at ~1.8Hz via <code>step-end</code> keyframes<br>
+      <code>.viz-strobe { color:#000; animation:strobeGlow .55s step-end infinite }</code>
     </div>
   </div>
 

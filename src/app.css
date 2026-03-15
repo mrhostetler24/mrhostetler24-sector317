@@ -202,7 +202,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 @keyframes slideIn{from{transform:translateX(100%);}to{transform:translateX(0);}}
 @keyframes waveRing{0%{transform:scale(1);opacity:.65;}100%{transform:scale(1.5);opacity:0;}}
 @keyframes strobeGlow{0%{text-shadow:0 0 6px rgba(255,255,255,.8),0 0 14px rgba(255,255,255,.5);}12%{text-shadow:0 0 1px rgba(255,255,255,.1);}25%{text-shadow:0 0 10px rgba(255,255,255,1),0 0 22px rgba(255,255,255,.6);}37%{text-shadow:0 0 1px rgba(255,255,255,.05);}50%{text-shadow:0 0 8px rgba(255,255,255,.9),0 0 18px rgba(255,255,255,.5);}62%{text-shadow:0 0 1px rgba(255,255,255,.1);}75%{text-shadow:0 0 12px rgba(255,255,255,1),0 0 24px rgba(255,255,255,.65);}87%{text-shadow:0 0 1px rgba(255,255,255,.05);}100%{text-shadow:0 0 6px rgba(255,255,255,.8),0 0 14px rgba(255,255,255,.5);}}
-.viz-strobe{color:#000;-webkit-text-stroke:.15px #fff;animation:strobeGlow .55s step-end infinite;}
+.viz-strobe{color:#000;animation:strobeGlow .55s step-end infinite;}
 @keyframes cosmicPulse{0%,100%{text-shadow:0 0 4px rgba(232,121,249,.65),0 0 10px rgba(192,132,252,.5),0 0 22px rgba(139,92,246,.35),0 0 40px rgba(109,40,217,.2);}50%{text-shadow:0 0 2px rgba(232,121,249,.3),0 0 5px rgba(192,132,252,.25),0 0 12px rgba(139,92,246,.15),0 0 22px rgba(109,40,217,.08);}}
 .viz-cosmic{color:#e879f9;animation:cosmicPulse 3s ease-in-out infinite;}
 @keyframes raveGlow{0%{text-shadow:0 0 7px currentColor,0 0 16px currentColor;}35%{text-shadow:0 0 2px currentColor;}55%,100%{text-shadow:none;}}
