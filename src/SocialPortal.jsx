@@ -357,7 +357,7 @@ function FriendProfileModal({ userId, users, onClose }) {
     ]).then(([{ data: pd }, { data: ed }]) => {
       const row = Array.isArray(pd) ? pd[0] : pd
       setProfile(row ?? null)
-      setExt(ed ?? null)
+      setExt(Array.isArray(ed) ? ed[0] ?? null : ed ?? null)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [userId])
@@ -694,7 +694,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       .then(([{ data: pd }, { data: ed }]) => {
         const row = Array.isArray(pd) ? pd[0] : pd
         setOwnProfile(row ?? null)
-        setOwnExt(ed ?? null)
+        setOwnExt(Array.isArray(ed) ? ed[0] ?? null : ed ?? null)
       })
   }, [user.id])
 
