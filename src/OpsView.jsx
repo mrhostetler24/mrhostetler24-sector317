@@ -264,7 +264,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const mode=rt?.mode||'coop';
       const customerNames=allRes.map(r=>r.customerName).filter(Boolean);
       const s=settings[runNum||run][laneIdx];
-      activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList).catch(()=>{});
+      activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList).catch(e=>console.error('activateStructureRun failed:',e));
     });
   };
 

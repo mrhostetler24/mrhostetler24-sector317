@@ -116,6 +116,17 @@ export default function StructurePage({ structure }) {
     return () => supabase.removeChannel(ch)
   }, [phase, structure]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Polling fallback — re-read every 5s in case Realtime drops ──
+  useEffect(() => {
+    if (phase !== 'ready') return
+    const id = setInterval(async () => {
+      const { data } = await supabase
+        .from('structures').select('*').eq('id', structure).maybeSingle()
+      if (data) applyRow(data)
+    }, 5000)
+    return () => clearInterval(id)
+  }, [phase, structure]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Write selection back to structures (picked up by scoring table) ──
   const pick = async (field, value) => {
     const nv = field === 'visual'      ? value : visual
