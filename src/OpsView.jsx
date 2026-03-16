@@ -262,12 +262,13 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   // settingsMap: if provided, use these lane settings instead of reading from state (for run flip,
   //              where setSettings() hasn't committed yet when activateStructures is called).
   const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null)=>{
-    const objsList=(objs||objectives).map(o=>({id:o.id,name:o.name,description:o.description??null}));
+    const allObjs=objs||objectives;
     lanes.forEach((lane,laneIdx)=>{
       const allRes=lane.reservations;if(!allRes.length)return;
       const structure=(order||structOrder)[laneIdx];
       const rt=resTypes.find(x=>x.id===allRes[0].typeId);
       const mode=rt?.mode||'coop';
+      const objsList=allObjs.filter(o=>o.mode==='all'||o.mode===mode).map(o=>({id:o.id,name:o.name,description:o.description??null}));
       const customerNames=allRes.map(r=>r.customerName).filter(Boolean);
       const s=(settingsMap??settings[runNum||run])[laneIdx];
       // Build per-player data for structure screen display
@@ -590,13 +591,15 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
 
   const renderObjSelect=(laneIdx)=>{
     const s=settings[run][laneIdx];
-    const selObj=objectives.find(o=>o.id===s.objectiveId);
+    const laneMode=lanes[laneIdx]?.mode||'coop';
+    const visibleObjectives=objectives.filter(o=>o.mode==='all'||o.mode===laneMode);
+    const selObj=visibleObjectives.find(o=>o.id===s.objectiveId);
     return(<div>
       <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
         Objective{selObj&&selObj.description?<span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}> · {selObj.description}</span>:''}
       </div>
       <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem',justifyContent:'center'}}>
-        {objectives.map(o=>{const sel=s.objectiveId===o.id;return(
+        {visibleObjectives.map(o=>{const sel=s.objectiveId===o.id;return(
           <button key={o.id} type="button" onClick={()=>setSetting(laneIdx,'objectiveId',o.id)}
             style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
               border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
