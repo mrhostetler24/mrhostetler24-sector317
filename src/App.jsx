@@ -10,6 +10,7 @@ import LandingPage from "./LandingPage.jsx";
 import MerchPortal from "./MerchPortal.jsx";
 import OpsView from "./OpsView.jsx";
 import KioskPage from "./KioskPage.jsx";
+import StructurePage from "./StructurePage.jsx";
 import StaffingScheduler from "./StaffingScheduler.jsx";
 import SocialPortal from "./SocialPortal.jsx";
 import {
@@ -3375,7 +3376,9 @@ useEffect(() => {
     return()=>el?.removeEventListener('scroll',handler);
   },[liveUser]);
 
-  if(window.location.pathname==='/kiosk')return <><KioskPage/></>;
+  if(window.location.pathname==='/kiosk') return <><KioskPage/></>
+  if(window.location.pathname==='/alpha') return <><StructurePage structure="Alpha"/></>
+  if(window.location.pathname==='/bravo') return <><StructurePage structure="Bravo"/></>;
 
   if(loading)return(
     <>

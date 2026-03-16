@@ -2266,6 +2266,39 @@ export async function redeemGiftCode(code, redeemedBy, amountToRedeem) {
 }
 
 // ============================================================
+// STRUCTURES
+// ============================================================
+
+export async function fetchStructures() {
+  const { data, error } = await supabase.from('structures').select('*').order('id')
+  if (error) throw error
+  return data || []
+}
+
+// Called by OpsView when a scoring session loads or when "Log Run 1 → Run 2" fires.
+export async function activateStructureRun(structure, reservationId, runNumber, visual = 'V', audio = 'T') {
+  const { error } = await supabase.rpc('activate_structure_run', {
+    p_structure:      structure,
+    p_reservation_id: reservationId,
+    p_run_number:     runNumber,
+    p_visual:         visual,
+    p_audio:          audio,
+  })
+  if (error) throw error
+}
+
+// Called by the scoring table when staff changes visual/audio outside the tablet.
+export async function setStructureEnvironment(structure, visual, audio) {
+  const { error } = await supabase.rpc('set_structure_environment', {
+    p_structure: structure,
+    p_visual:    visual,
+    p_audio:     audio,
+    p_source:    'scoring',
+  })
+  if (error) throw error
+}
+
+// ============================================================
 // EMAIL PREFERENCES
 // ============================================================
 
