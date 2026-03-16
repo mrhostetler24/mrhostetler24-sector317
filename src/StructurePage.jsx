@@ -149,18 +149,13 @@ export default function StructurePage({ structure }) {
   const selObj    = objectives.find(o => o.id === objectiveId)
   const selDiff   = DIFF_OPTS.find(d => d.value === difficulty) ?? DIFF_OPTS[0]
 
-  // Button styles — no fixed px, everything flex-relative
-  const envBtn = sel => ({
+  // Env option — no outlines, text-only with accent indicator
+  const envOpt = sel => ({
     flex: 1,
-    background:  sel ? 'var(--surf)' : 'var(--bg2)',
-    border:      `2px solid ${sel ? 'var(--acc)' : 'var(--bdr)'}`,
-    borderRadius: '1vw',
-    cursor: 'pointer',
-    boxShadow:   sel ? '0 0 0 1px var(--acc)' : 'none',
-    transition:  'border-color .15s',
-    touchAction: 'manipulation',
+    background: 'none', border: 'none',
+    cursor: 'pointer', touchAction: 'manipulation',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    gap: '.4vh', padding: '0 .5vw',
+    gap: '.25vh', padding: '0 .5vw',
   })
 
   const secLabel = {
@@ -298,11 +293,12 @@ export default function StructurePage({ structure }) {
             <div style={{ flexShrink: 0, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.75vh 2vw' }}>
               <div style={secLabel}>Opponent Difficulty</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '2vw' }}>
-                <div style={{ flexShrink: 0, minWidth: '12vw', textAlign: 'right' }}>
+                {/* Fixed-width left panel — static height prevents slider jump */}
+                <div style={{ flexShrink: 0, width: '18vw', textAlign: 'right' }}>
                   <div style={{ fontSize: 'clamp(.9rem,2vw,2rem)', fontWeight: 800, color: 'var(--acc)', textTransform: 'uppercase', letterSpacing: '.05em', lineHeight: 1 }}>
                     {selDiff.label}
                   </div>
-                  <div style={{ fontSize: 'clamp(.55rem,.85vw,.85rem)', color: 'var(--muted)', fontStyle: 'italic', marginTop: '.2vh', lineHeight: 1.3 }}>
+                  <div style={{ fontSize: 'clamp(.55rem,.85vw,.85rem)', color: 'var(--muted)', fontStyle: 'italic', marginTop: '.2vh', lineHeight: 1.3, height: '2.6vh', overflow: 'hidden' }}>
                     {selDiff.desc}
                   </div>
                 </div>
@@ -329,21 +325,22 @@ export default function StructurePage({ structure }) {
             </div>
           )}
 
-          {/* Env buttons — fill remaining vertical space */}
+          {/* Env controls — fill remaining vertical space */}
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '1vh' }}>
 
             {/* Visual mode */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               <div style={secLabel}>Visual Mode</div>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: '1vw' }}>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
                 {VIZ_OPTS.map(opt => {
                   const sel = visual === opt.code
                   return (
-                    <button key={opt.code} onClick={() => pick('visual', opt.code)} style={envBtn(sel)}>
-                      <div style={{ fontSize: 'clamp(.85rem,1.3vw,1.3rem)', fontWeight: 700 }}>
-                        {vizRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: 'clamp(.85rem,1.3vw,1.3rem)', fontWeight: 700 })}
+                    <button key={opt.code} onClick={() => pick('visual', opt.code)} style={envOpt(sel)}>
+                      <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'color .15s, font-weight .1s' }}>
+                        {vizRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: 'clamp(1rem,1.8vw,1.8rem)', fontWeight: sel ? 800 : 400 })}
                       </div>
-                      <div style={{ fontSize: 'clamp(.55rem,.8vw,.8rem)', color: 'var(--muted)' }}>{opt.desc}</div>
+                      <div style={{ fontSize: 'clamp(.5rem,.75vw,.75rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.55, transition: 'color .15s' }}>{opt.desc}</div>
+                      <div style={{ width: sel ? '2vw' : '0', height: 2, background: 'var(--acc)', borderRadius: 1, transition: 'width .2s', marginTop: '.15vh' }} />
                     </button>
                   )
                 })}
@@ -353,15 +350,16 @@ export default function StructurePage({ structure }) {
             {/* Audio mode */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               <div style={secLabel}>Audio Mode</div>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: '1vw' }}>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
                 {AUD_OPTS.map(opt => {
                   const sel = audio === opt.code
                   return (
-                    <button key={opt.code} onClick={() => pick('audio', opt.code)} style={envBtn(sel)}>
-                      <div style={{ fontSize: 'clamp(.85rem,1.3vw,1.3rem)', fontWeight: 700 }}>
-                        {audRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: 'clamp(.85rem,1.3vw,1.3rem)', fontWeight: 700 })}
+                    <button key={opt.code} onClick={() => pick('audio', opt.code)} style={envOpt(sel)}>
+                      <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'color .15s, font-weight .1s' }}>
+                        {audRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: 'clamp(1rem,1.8vw,1.8rem)', fontWeight: sel ? 800 : 400 })}
                       </div>
-                      <div style={{ fontSize: 'clamp(.55rem,.8vw,.8rem)', color: 'var(--muted)' }}>{opt.desc}</div>
+                      <div style={{ fontSize: 'clamp(.5rem,.75vw,.75rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.55, transition: 'color .15s' }}>{opt.desc}</div>
+                      <div style={{ width: sel ? '2vw' : '0', height: 2, background: 'var(--acc)', borderRadius: 1, transition: 'width .2s', marginTop: '.15vh' }} />
                     </button>
                   )
                 })}
@@ -370,11 +368,10 @@ export default function StructurePage({ structure }) {
 
           </div>
 
-          {saving && (
-            <div style={{ flexShrink: 0, fontSize: 'clamp(.55rem,.8vw,.8rem)', color: 'var(--muted)', letterSpacing: '.06em', textAlign: 'center' }}>
-              UPDATING…
-            </div>
-          )}
+          {/* Always-reserved space for UPDATING alert — visibility keeps layout stable */}
+          <div style={{ flexShrink: 0, height: '2vh', display: 'flex', alignItems: 'center', justifyContent: 'center', visibility: saving ? 'visible' : 'hidden' }}>
+            <span style={{ fontSize: 'clamp(.5rem,.8vw,.8rem)', color: 'var(--muted)', letterSpacing: '.08em' }}>UPDATING…</span>
+          </div>
 
         </div>
       )}
