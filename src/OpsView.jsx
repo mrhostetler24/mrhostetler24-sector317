@@ -1367,14 +1367,31 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [addingTo,setAddingTo]=useState(null);
   const [addingToTeam,setAddingToTeam]=useState(null);
   const [versusTeams,setVersusTeams]=useState(()=>{
-    // Seed ALL players at mount time so positional fallback is never used during render.
-    // Removing a player later will orphan their entry but never shift other players' assignments.
+    // Group versus reservations by (date|startTime) and compute per-reservation default
+    // team via calcResVsTeams, exactly the same logic used by the ops-card and scoring
+    // table fallbacks.  The old idx<6?1:2 heuristic put every player on team 1 because
+    // idx resets to 0 for each reservation — causing all reservations to land on team 1.
+    const vsSlotMap={};
+    for(const res of reservations){
+      if(res.status==='cancelled')continue;
+      const rt=resTypes.find(x=>x.id===res.typeId);
+      if(rt?.mode!=='versus')continue;
+      const key=`${res.date}|${res.startTime}`;
+      if(!vsSlotMap[key])vsSlotMap[key]=[];
+      vsSlotMap[key].push(res);
+    }
+    const resDefaultTeam={};
+    for(const group of Object.values(vsSlotMap)){
+      const tm=calcResVsTeams(group);
+      Object.entries(tm).forEach(([id,team])=>{resDefaultTeam[id]=team;});
+    }
     const init={};
     for(const res of reservations){
       const players=res.players||[];
-      players.forEach((player,idx)=>{
+      const defaultTeam=resDefaultTeam[res.id]??1;
+      players.forEach(player=>{
         if(!init[res.id])init[res.id]={};
-        init[res.id][player.id]=player.team!=null?player.team:(idx<6?1:2);
+        init[res.id][player.id]=player.team!=null?player.team:defaultTeam;
       });
     }
     return init;
