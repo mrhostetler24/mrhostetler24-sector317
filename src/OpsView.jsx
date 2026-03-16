@@ -259,9 +259,8 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   // preservePicks=true: restore objectiveId+difficulty after activation (swap or versus run flip).
   // settingsMap: if provided, use these lane settings instead of reading from state (for run flip,
   //              where setSettings() hasn't committed yet when activateStructures is called).
-  const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null,statsOverride=null)=>{
+  const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null)=>{
     const objsList=(objs||objectives).map(o=>({id:o.id,name:o.name,description:o.description??null}));
-    const stats=statsOverride||playerStats;
     lanes.forEach((lane,laneIdx)=>{
       const allRes=lane.reservations;if(!allRes.length)return;
       const structure=(order||structOrder)[laneIdx];
@@ -276,9 +275,8 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
         const ownerRes=allRes.find(r=>(r.players||[]).some(pl=>pl.id===p.id));
         const vt=versusTeams?.[ownerRes?.id]?.[p.id];
         const team=vt!=null?vt:p.team!=null?p.team:(laneResTeams[ownerRes?.id]??1);
-        const st=stats[p.userId]||{};
-        const tier=getTierInfo(Number(st.total_runs||0)).current;
         const u=p.userId?(users||[]).find(x=>x.id===p.userId):null;
+        const tier=getTierInfo(Number(u?.totalRuns||0)).current;
         return{id:p.id,name:p.name||'—',team:mode==='versus'?team:1,tierKey:tier.key,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null,platoonBadgeColor:u?.platoonBadgeColor??null,leaderboardName:u?.leaderboardName??null};
       });
       const runActivate=activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList,playersList);
@@ -295,11 +293,10 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   // Fetch objectives + player stats on mount, then activate structure tablets
   useEffect(()=>{
     const uids=[...new Set(lanes.flatMap(l=>l.reservations.flatMap(r=>(r.players||[]).map(p=>p.userId).filter(Boolean))))];
-    const statsP=uids.length?fetchPlayerScoringStats(uids):Promise.resolve({});
-    Promise.all([fetchObjectives(),statsP]).then(([objs,stats])=>{
+    if(uids.length)fetchPlayerScoringStats(uids).then(setPlayerStats).catch(()=>{});
+    fetchObjectives().then(objs=>{
       setObjectives(objs);
-      setPlayerStats(stats);
-      activateStructures(objs,1,['Alpha','Bravo'],false,null,stats);
+      activateStructures(objs,1,['Alpha','Bravo']);
     }).catch(()=>{});
     // Deactivate both structures when modal unmounts
     return()=>{

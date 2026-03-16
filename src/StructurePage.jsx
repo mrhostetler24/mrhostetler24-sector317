@@ -228,24 +228,47 @@ export default function StructurePage({ structure }) {
 
           {/* Team / player list */}
           {mode === 'versus' ? (
-            <div style={{ flexShrink: 0, display: 'flex', gap: '2vw', alignItems: 'flex-start' }}>
-              {[{label:blueLabel,color:BLUE,bg:BLUE_BG,team:1},{label:redLabel,color:RED,bg:RED_BG,team:2}].map(({label,color,bg,team})=>{
+            <div style={{ flexShrink: 0, display: 'flex', gap: '1.5vw', alignItems: 'stretch' }}>
+              {[{label:blueLabel,color:BLUE,team:1},{label:redLabel,color:RED,team:2}].map(({label,color,team},ti)=>{
                 const tp = players.filter(p=>p.team===team)
                 return (
-                  <div key={team} style={{ flex: 1, background: bg, border: `2px solid ${color}`, borderRadius: '1vw', padding: '.5vh 1.2vw', overflow: 'hidden' }}>
-                    <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', color, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 800, marginBottom: '.4vh' }}>
-                      {label}
+                  <div key={team} style={{
+                    flex: 1,
+                    background: `linear-gradient(150deg, ${color}1E 0%, ${color}0A 45%, rgba(0,0,0,0) 100%)`,
+                    border: `1.5px solid ${color}99`,
+                    borderRadius: '1.2vw',
+                    padding: '.6vh 1.3vw .7vh',
+                    overflow: 'hidden',
+                    boxShadow: `0 0 22px ${color}2A, inset 0 0 40px ${color}0A`,
+                    position: 'relative',
+                  }}>
+                    {/* corner accent */}
+                    <div style={{ position:'absolute', top:0, [ti===0?'right':'left']:0, width:'28%', height:'2px', background:`linear-gradient(${ti===0?'to left':'to right'}, transparent, ${color}88)` }}/>
+                    <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:'.5vh' }}>
+                      <div style={{ fontSize:'clamp(1.1rem,2vw,2rem)', color, letterSpacing:'.18em', textTransform:'uppercase', fontWeight:900, textShadow:`0 0 14px ${color}88, 0 0 28px ${color}44`, lineHeight:1 }}>
+                        {label}
+                      </div>
+                      <div style={{ fontSize:'clamp(.55rem,.85vw,.85rem)', color:`${color}99`, letterSpacing:'.08em', fontWeight:600, fontFamily:'var(--fd)' }}>
+                        {tp.length}P
+                      </div>
                     </div>
-                    <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 2.6vh)' }}>
+                    <div style={{ overflow:'hidden', maxHeight:'calc(6 * 2.8vh)' }}>
                       {tp.length === 0
-                        ? <div style={{ fontSize: 'clamp(.65rem,.9vw,.9rem)', color: 'var(--muted)', fontStyle: 'italic' }}>—</div>
-                        : tp.map(p => (
-                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.5vw', padding: '.18vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                            <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,1.8vw,18px)', width: 'clamp(14px,1.8vw,18px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
-                            {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.65vw,.68rem)', color: p.platoonBadgeColor||color, flexShrink: 0, letterSpacing: '.04em', fontWeight: 700 }}>[{p.platoonTag}]</span>}
-                            <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 400, color: 'rgba(255,255,255,.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        ? <div style={{ fontSize:'clamp(.65rem,.9vw,.9rem)', color:'var(--muted)', fontStyle:'italic', padding:'.3vh 0' }}>—</div>
+                        : tp.map((p,i) => (
+                          <div key={p.id} style={{
+                            display:'flex', alignItems:'center', gap:'.55vw',
+                            padding:'.28vh .4vw',
+                            borderRadius:'.3vw',
+                            background: i%2===0 ? `${color}08` : 'transparent',
+                            borderLeft:`2px solid ${color}55`,
+                            marginBottom:'.1vh',
+                          }}>
+                            <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height:'clamp(14px,1.8vw,18px)', width:'clamp(14px,1.8vw,18px)', objectFit:'contain', flexShrink:0, ...(TIER_SHINE[p.tierKey]?{filter:TIER_SHINE[p.tierKey]}:{}) }} />
+                            {p.platoonTag && <span style={{ fontSize:'clamp(.4rem,.6vw,.62rem)', color:p.platoonBadgeColor||color, flexShrink:0, letterSpacing:'.04em', fontWeight:700, opacity:.9 }}>[{p.platoonTag}]</span>}
+                            <span style={{ flex:1, minWidth:0, fontSize:'clamp(.72rem,1.05vw,1.05rem)', fontWeight:400, color:'rgba(255,255,255,.78)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                               {p.leaderboardName || p.name}
-                              {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
+                              {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color:'rgba(255,255,255,.35)', fontWeight:400, marginLeft:'.3vw', fontSize:'clamp(.5rem,.78vw,.8rem)' }}>({p.name})</span>}
                             </span>
                           </div>
                         ))
@@ -253,8 +276,16 @@ export default function StructurePage({ structure }) {
                     </div>
                   </div>
                 )
-              })}
-            </div>
+              }).reduce((acc,el,i)=>i===0?[el]:[...acc,
+                <div key="vs" style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, width:'2.8vw' }}>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'.3vh' }}>
+                    <div style={{ width:1, flex:1, background:'linear-gradient(to bottom, transparent, rgba(255,255,255,.12), transparent)', minHeight:'3vh' }}/>
+                    <span style={{ fontSize:'clamp(.7rem,1.4vw,1.4rem)', fontWeight:900, color:'rgba(255,255,255,.18)', letterSpacing:'.12em', fontFamily:'var(--fd)' }}>VS</span>
+                    <div style={{ width:1, flex:1, background:'linear-gradient(to bottom, transparent, rgba(255,255,255,.12), transparent)', minHeight:'3vh' }}/>
+                  </div>
+                </div>,
+                el
+              ],[])}</div>
           ) : players.length > 0 ? (
             <div style={{ flexShrink: 0, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.5vh 1.5vw', overflow: 'hidden' }}>
               <div style={{ fontSize: 'clamp(.5rem,.7vw,.72rem)', color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '.4vh' }}>Team</div>
