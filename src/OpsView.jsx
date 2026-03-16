@@ -256,7 +256,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
 
   // Helper: activate both structures with current run context
   const activateStructures=(objs,runNum,order)=>{
-    const objsList=(objs||objectives).map(o=>({id:o.id,name:o.name}));
+    const objsList=(objs||objectives).map(o=>({id:o.id,name:o.name,description:o.description??null}));
     lanes.forEach((lane,laneIdx)=>{
       const allRes=lane.reservations;if(!allRes.length)return;
       const structure=(order||structOrder)[laneIdx];
@@ -292,14 +292,17 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
         const curRun=runRef.current;
         setSettings(prev=>{
           const cur=prev[curRun]?.[laneIdx]||dfltLane();
+          const newVis=row.visual??cur.visual;
+          const newAud=row.audio??cur.audio;
           return{...prev,[curRun]:{...prev[curRun],[laneIdx]:{
             ...cur,
-            visual:    row.visual    ??cur.visual,
-            audio:     row.audio     ??cur.audio,
-            cranked:   (row.audio??cur.audio)==='C',
-            // Only update objectiveId if the column is present in the payload
+            visual:   newVis,
+            uiVisual: VISUAL_OPTIONS.find(v=>v.code===newVis)?.ui??cur.uiVisual,
+            audio:    newAud,
+            uiAudio:  AUDIO_OPTIONS.find(a=>a.code===newAud)?.ui??cur.uiAudio,
+            cranked:  newAud==='C',
             ...(row.objective_id!==undefined?{objectiveId:row.objective_id}:{}),
-            ...(row.difficulty    !==undefined?{difficulty:row.difficulty}:{}),
+            ...(row.difficulty   !==undefined?{difficulty:row.difficulty}:{}),
           }}};
         });
       })

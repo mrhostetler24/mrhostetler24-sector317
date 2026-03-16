@@ -17,12 +17,12 @@ const AUD_OPTS = [
 ]
 
 const DIFF_OPTS = [
-  { value: 'NONE',     label: 'No Return Fire' },
-  { value: 'HARMLESS', label: 'Harmless'       },
-  { value: 'EASY',     label: 'Easy'           },
-  { value: 'MEDIUM',   label: 'Medium'         },
-  { value: 'HARD',     label: 'Hard'           },
-  { value: 'EXPERT',   label: 'Expert'         },
+  { value: 'NONE',     label: 'No Return Fire', desc: 'Role players will not engage or interfere.'         },
+  { value: 'HARMLESS', label: 'Harmless',        desc: 'Light return fire with zero tactical skill.'       },
+  { value: 'EASY',     label: 'Easy',            desc: 'Light return fire with basic tactical skill.'      },
+  { value: 'MEDIUM',   label: 'Medium',          desc: 'Return fire with basic tactical skill.'            },
+  { value: 'HARD',     label: 'Hard',            desc: 'Return fire with high tactical skill.'             },
+  { value: 'EXPERT',   label: 'Expert',          desc: 'Give me your best shot!'                           },
 ]
 
 const BLUE = '#4fc3f7'
@@ -64,10 +64,10 @@ export default function StructurePage({ structure }) {
   const applyRow = row => {
     if (row.active    !== undefined) setActive(!!row.active)
     if (row.mode      !== undefined) setMode(row.mode)
-    if (row.visual    !== undefined) setVisual(row.visual)
-    if (row.audio     !== undefined) setAudio(row.audio)
+    if (row.visual    != null) setVisual(row.visual)
+    if (row.audio     != null) setAudio(row.audio)
     if (row.objective_id !== undefined) setObjectiveId(row.objective_id)
-    if (row.difficulty   !== undefined) setDifficulty(row.difficulty ?? 'NONE')
+    if (row.difficulty   != null) setDifficulty(row.difficulty)
     if (row.customer_names !== undefined) setCustomerNames(row.customer_names ?? [])
     if (row.objectives    !== undefined) setObjectives(row.objectives ?? [])
     if (row.active_run_number !== undefined) setRunNumber(row.active_run_number ?? 1)
@@ -210,7 +210,7 @@ export default function StructurePage({ structure }) {
       <div style={{ letterSpacing: '.2em', fontSize: '.8rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '.25rem' }}>
         Structure
       </div>
-      <div style={{ fontSize: '3rem', fontWeight: 900, letterSpacing: '.15em', color: 'var(--acc)', textTransform: 'uppercase', lineHeight: 1, marginBottom: active ? '1.5rem' : '3rem' }}>
+      <div style={{ fontSize: '3.2rem', fontFamily: "'Black Ops One', var(--fd)", letterSpacing: '.12em', color: 'var(--acc)', textTransform: 'uppercase', lineHeight: 1, marginBottom: active ? '1.5rem' : '3rem' }}>
         {structure}
       </div>
 
@@ -268,10 +268,14 @@ export default function StructurePage({ structure }) {
                   return (
                     <button key={obj.id} onClick={() => pick('objectiveId', sel ? null : obj.id)} style={{
                       ...card(sel, 'var(--acc)'),
-                      padding: '.7rem 1.1rem', minWidth: 110,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.2rem',
+                      padding: '.7rem 1.1rem', minWidth: 120, maxWidth: 220,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.25rem',
+                      textAlign: 'center',
                     }}>
                       <div style={{ fontSize: '.9rem', fontWeight: 700, color: sel ? 'var(--acc)' : 'var(--txt)' }}>{obj.name}</div>
+                      {obj.description && (
+                        <div style={{ fontSize: '.65rem', color: sel ? 'var(--acc)' : 'var(--muted)', lineHeight: 1.35 }}>{obj.description}</div>
+                      )}
                     </button>
                   )
                 })}
@@ -279,12 +283,15 @@ export default function StructurePage({ structure }) {
             </div>
           )}
 
-          {/* Difficulty slider (coop only) */}
+          {/* Difficulty (coop only) */}
           {mode === 'coop' && (
             <div style={{ marginBottom: '2rem' }}>
-              <div style={{ fontSize: '.68rem', letterSpacing: '.12em', color: 'var(--muted)', textTransform: 'uppercase', textAlign: 'center', marginBottom: '.5rem' }}>
+              <div style={{ fontSize: '.68rem', letterSpacing: '.12em', color: 'var(--muted)', textTransform: 'uppercase', textAlign: 'center', marginBottom: '.25rem' }}>
                 Opponent Difficulty
               </div>
+              {(() => { const selD = DIFF_OPTS.find(d => d.value === difficulty); return selD?.desc ? (
+                <div style={{ fontSize: '.72rem', color: 'var(--acc)', textAlign: 'center', marginBottom: '.55rem', minHeight: '1em' }}>{selD.desc}</div>
+              ) : <div style={{ marginBottom: '.55rem' }} /> })()}
               <div style={{ display: 'flex', gap: '.4rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                 {DIFF_OPTS.map(d => {
                   const sel = difficulty === d.value
