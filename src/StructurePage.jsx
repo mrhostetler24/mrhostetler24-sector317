@@ -149,13 +149,15 @@ export default function StructurePage({ structure }) {
   const selObj    = objectives.find(o => o.id === objectiveId)
   const selDiff   = DIFF_OPTS.find(d => d.value === difficulty) ?? DIFF_OPTS[0]
 
-  // Env option — no outlines, text-only with accent indicator
+  // Env option — selected item grows to 2× width via flex
   const envOpt = sel => ({
-    flex: 1,
+    flex: sel ? 2 : 1,
     background: 'none', border: 'none',
     cursor: 'pointer', touchAction: 'manipulation',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     gap: '.25vh', padding: '0 .5vw',
+    transition: 'flex .25s ease',
+    overflow: 'hidden',
   })
 
   const secLabel = {
@@ -266,8 +268,8 @@ export default function StructurePage({ structure }) {
                   )
                 })}
               </div>
-              {/* Selected display */}
-              <div style={{ textAlign: 'center', minHeight: '4vh' }}>
+              {/* Selected display — fixed height prevents layout jump on first selection */}
+              <div style={{ height: '8vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                 {selObj ? (
                   <>
                     <div style={{ fontSize: 'clamp(1.1rem,2.5vw,2.5rem)', fontWeight: 800, color: 'var(--acc)', letterSpacing: '.04em', lineHeight: 1.1 }}>
@@ -280,7 +282,7 @@ export default function StructurePage({ structure }) {
                     )}
                   </>
                 ) : (
-                  <div style={{ fontSize: 'clamp(.7rem,1vw,1rem)', color: 'var(--muted)', fontStyle: 'italic', paddingTop: '.5vh' }}>
+                  <div style={{ fontSize: 'clamp(.7rem,1vw,1rem)', color: 'var(--muted)', fontStyle: 'italic' }}>
                     Select a mission objective above
                   </div>
                 )}
@@ -329,41 +331,39 @@ export default function StructurePage({ structure }) {
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '1vh' }}>
 
             {/* Visual mode */}
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-              <div style={secLabel}>Visual Mode</div>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-                {VIZ_OPTS.map(opt => {
-                  const sel = visual === opt.code
-                  return (
-                    <button key={opt.code} onClick={() => pick('visual', opt.code)} style={envOpt(sel)}>
-                      <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'color .15s, font-weight .1s' }}>
-                        {vizRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: 'clamp(1rem,1.8vw,1.8rem)', fontWeight: sel ? 800 : 400 })}
-                      </div>
-                      <div style={{ fontSize: 'clamp(.5rem,.75vw,.75rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.55, transition: 'color .15s' }}>{opt.desc}</div>
-                      <div style={{ width: sel ? '2vw' : '0', height: 2, background: 'var(--acc)', borderRadius: 1, transition: 'width .2s', marginTop: '.15vh' }} />
-                    </button>
-                  )
-                })}
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch' }}>
+              <div style={{ flexShrink: 0, width: '2.5vw', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--bdr)', marginRight: '.5vw' }}>
+                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 'clamp(.45rem,.65vw,.65rem)', letterSpacing: '.15em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Visual Mode</span>
               </div>
+              {VIZ_OPTS.map(opt => {
+                const sel = visual === opt.code
+                return (
+                  <button key={opt.code} onClick={() => pick('visual', opt.code)} style={envOpt(sel)}>
+                    <div style={{ fontSize: sel ? 'clamp(1.2rem,2.2vw,2.2rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'font-size .25s, color .15s' }}>
+                      {vizRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: sel ? 'clamp(1.2rem,2.2vw,2.2rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400 })}
+                    </div>
+                    <div style={{ fontSize: sel ? 'clamp(.6rem,.9vw,.9rem)' : 'clamp(.45rem,.65vw,.65rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.35, transition: 'font-size .25s, color .15s, opacity .15s', whiteSpace: 'nowrap', overflow: 'hidden' }}>{opt.desc}</div>
+                  </button>
+                )
+              })}
             </div>
 
             {/* Audio mode */}
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-              <div style={secLabel}>Audio Mode</div>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-                {AUD_OPTS.map(opt => {
-                  const sel = audio === opt.code
-                  return (
-                    <button key={opt.code} onClick={() => pick('audio', opt.code)} style={envOpt(sel)}>
-                      <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'color .15s, font-weight .1s' }}>
-                        {audRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: 'clamp(1rem,1.8vw,1.8rem)', fontWeight: sel ? 800 : 400 })}
-                      </div>
-                      <div style={{ fontSize: 'clamp(.5rem,.75vw,.75rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.55, transition: 'color .15s' }}>{opt.desc}</div>
-                      <div style={{ width: sel ? '2vw' : '0', height: 2, background: 'var(--acc)', borderRadius: 1, transition: 'width .2s', marginTop: '.15vh' }} />
-                    </button>
-                  )
-                })}
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch' }}>
+              <div style={{ flexShrink: 0, width: '2.5vw', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--bdr)', marginRight: '.5vw' }}>
+                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 'clamp(.45rem,.65vw,.65rem)', letterSpacing: '.15em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Audio Mode</span>
               </div>
+              {AUD_OPTS.map(opt => {
+                const sel = audio === opt.code
+                return (
+                  <button key={opt.code} onClick={() => pick('audio', opt.code)} style={envOpt(sel)}>
+                    <div style={{ fontSize: sel ? 'clamp(1.2rem,2.2vw,2.2rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'font-size .25s, color .15s' }}>
+                      {audRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: sel ? 'clamp(1.2rem,2.2vw,2.2rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400 })}
+                    </div>
+                    <div style={{ fontSize: sel ? 'clamp(.6rem,.9vw,.9rem)' : 'clamp(.45rem,.65vw,.65rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.35, transition: 'font-size .25s, color .15s, opacity .15s', whiteSpace: 'nowrap', overflow: 'hidden' }}>{opt.desc}</div>
+                  </button>
+                )
+              })}
             </div>
 
           </div>
