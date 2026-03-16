@@ -874,8 +874,12 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
           value={DIFF_OPTIONS.findIndex(d=>d.value===s.difficulty)}
           onChange={e=>setSetting(laneIdx,'difficulty',DIFF_OPTIONS[+e.target.value].value)}
           style={{width:'100%',accentColor:'var(--acc)',cursor:'pointer',margin:'.1rem 0'}}/>
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.62rem',color:'var(--muted)',marginBottom:'.35rem'}}>
-          {DIFF_OPTIONS.map(d=><span key={d.value}>{d.label}</span>)}
+        <div style={{position:'relative',height:'1rem',marginBottom:'.35rem'}}>
+          {DIFF_OPTIONS.map((d,i)=>{
+            const pct=i/(DIFF_OPTIONS.length-1)*100;
+            const xform=i===0?'none':i===DIFF_OPTIONS.length-1?'translateX(-100%)':'translateX(-50%)';
+            return(<span key={d.value} style={{position:'absolute',left:`${pct}%`,transform:xform,fontSize:'.62rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{d.label}</span>);
+          })}
         </div>
         <div style={{fontSize:'.78rem',color:'var(--muted)',lineHeight:1.5,fontStyle:'italic',textAlign:'center'}}>{selDiff.desc}</div>
       </div>
