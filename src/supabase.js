@@ -185,7 +185,7 @@ const toLeaderboardEntry = r => r ? ({
 // ============================================================
 
 export async function fetchAllUsers() {
-  const BATCH = 2000
+  const BATCH = 999
   let all = [], from = 0
   while (true) {
     const { data, error } = await supabase.rpc('get_all_users_with_runs', { p_limit: BATCH, p_offset: from })
