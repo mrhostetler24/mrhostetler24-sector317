@@ -254,8 +254,11 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   useEffect(()=>{structOrderRef.current=structOrder;},[structOrder]);
   useEffect(()=>{runRef.current=run;},[run]);
 
-  // Helper: activate both structures with current run context
-  const activateStructures=(objs,runNum,order)=>{
+  // Helper: activate both structures with current run context.
+  // preservePicks=true: restore objectiveId+difficulty after activation (swap or versus run flip).
+  // settingsMap: if provided, use these lane settings instead of reading from state (for run flip,
+  //              where setSettings() hasn't committed yet when activateStructures is called).
+  const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null)=>{
     const objsList=(objs||objectives).map(o=>({id:o.id,name:o.name,description:o.description??null}));
     lanes.forEach((lane,laneIdx)=>{
       const allRes=lane.reservations;if(!allRes.length)return;
@@ -263,8 +266,15 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const rt=resTypes.find(x=>x.id===allRes[0].typeId);
       const mode=rt?.mode||'coop';
       const customerNames=allRes.map(r=>r.customerName).filter(Boolean);
-      const s=settings[runNum||run][laneIdx];
-      activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList).catch(e=>console.error('activateStructureRun failed:',e));
+      const s=(settingsMap??settings[runNum||run])[laneIdx];
+      const runActivate=activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList);
+      if(preservePicks){
+        runActivate
+          .then(()=>setStructureEnvironment(structure,s?.visual||'V',s?.audio||'T',s?.objectiveId??null,s?.difficulty??'NONE'))
+          .catch(e=>console.error('activateStructureRun failed:',e));
+      } else {
+        runActivate.catch(e=>console.error('activateStructureRun failed:',e));
+      }
     });
   };
 
@@ -428,8 +438,10 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     // Swap structures
     const newOrder=[structOrder[1],structOrder[0]];
     setStructOrder(()=>newOrder);
-    // Activate tablets with run 2 context (swapped structures)
-    activateStructures(null,2,newOrder);
+    // Activate tablets with run 2 context (swapped structures).
+    // Pass newSettings2 directly (settings state hasn't committed yet) and preserve
+    // picks so versus objective carries over to run 2.
+    activateStructures(null,2,newOrder,true,newSettings2);
     // Swap hunters/coyotes for versus
     const newTeams2={};
     lanes.forEach((lane,li)=>{
@@ -1002,7 +1014,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       </div>
       {/* Swap structures */}
       <div style={{padding:'.5rem 1.2rem',background:'var(--surf)',borderBottom:'1px solid var(--bdr)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-        <button className="btn btn-s" style={{fontSize:'.82rem',padding:'.35rem .9rem'}} onClick={()=>{const newOrder=[structOrder[1],structOrder[0]];setStructOrder(()=>newOrder);activateStructures(null,null,newOrder);}}>⇄ Swap Structures</button>
+        <button className="btn btn-s" style={{fontSize:'.82rem',padding:'.35rem .9rem'}} onClick={()=>{const newOrder=[structOrder[1],structOrder[0]];setStructOrder(()=>newOrder);activateStructures(null,null,newOrder,true);}}>⇄ Swap Structures</button>
       </div>
       {/* Lane cards — Alpha always left, Bravo always right */}
       <div style={{flex:1,overflowY:'auto',padding:'1rem 1.2rem'}}>
