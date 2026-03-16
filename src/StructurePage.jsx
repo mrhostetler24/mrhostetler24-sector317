@@ -217,7 +217,7 @@ export default function StructurePage({ structure }) {
 
       {/* ── ACTIVE ── */}
       {active && (
-        <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '1.2vh' }}>
+        <div style={{ flex: 1, minHeight: 0, width: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '1.2vh' }}>
 
           {/* Session mode label */}
           <div style={{ flexShrink: 0, textAlign: 'center', marginBottom: '.2vh' }}>
@@ -338,7 +338,7 @@ export default function StructurePage({ structure }) {
 
           {/* Mission Objective */}
           {objectives.length > 0 && (
-            <div style={{ flexShrink: 0 }}>
+            <div style={{ flexShrink: 0, paddingTop: '1vh', paddingBottom: '1vh' }}>
               <div style={secLabel}>Mission Objective</div>
               {/* Pill row */}
               <div style={{ display: 'flex', gap: '.6vw', justifyContent: 'center', flexWrap: 'nowrap', marginBottom: '.4vh' }}>
@@ -421,8 +421,9 @@ export default function StructurePage({ structure }) {
             </div>
           )}
 
-          {/* Env controls — fixed height, does not grow into player list space */}
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.5vh', height: '60vh' }}>
+          {/* Env controls — fills remaining space */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: 'calc(2 * clamp(220px, 38vw, 560px) + 2.8vw)', display: 'flex', flexDirection: 'column', gap: '.5vh' }}>
 
             {/* Visual mode */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
@@ -460,6 +461,7 @@ export default function StructurePage({ structure }) {
               })}
             </div>
 
+          </div>
           </div>
 
           {/* Always-reserved space for UPDATING alert — visibility keeps layout stable */}
