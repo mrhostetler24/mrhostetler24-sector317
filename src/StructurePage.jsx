@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase.js'
 import { vizRenderName, audRenderName } from './envRender.jsx'
+import { getTierInfo, TIER_COLORS } from './utils.js'
 
 const VIZ_OPTS = [
   { code: 'V', name: 'Standard', desc: '6000K House Lighting' },
@@ -47,6 +48,7 @@ export default function StructurePage({ structure }) {
   const [audio,       setAudio]       = useState('T')
   const [objectiveId, setObjectiveId] = useState(null)
   const [difficulty,  setDifficulty]  = useState('NONE')
+  const [players,     setPlayers]     = useState([])
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement)
@@ -66,6 +68,7 @@ export default function StructurePage({ structure }) {
     if (row.customer_names    !== undefined) setCustomerNames(row.customer_names ?? [])
     if (row.objectives        !== undefined) setObjectives(row.objectives ?? [])
     if (row.active_run_number !== undefined) setRunNumber(row.active_run_number ?? 1)
+    if (row.players           !== undefined) setPlayers(row.players ?? [])
   }
 
   useEffect(() => {
@@ -151,7 +154,7 @@ export default function StructurePage({ structure }) {
 
   // Env option — selected item grows to 2× width via flex
   const envOpt = sel => ({
-    flex: sel ? 3 : 1,
+    flex: sel ? 5 : 1,
     background: 'none', border: 'none',
     cursor: 'pointer', touchAction: 'manipulation',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -216,31 +219,57 @@ export default function StructurePage({ structure }) {
       {active && (
         <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '1vh' }}>
 
-          {/* Session names */}
-          {customerNames.length > 0 && (
-            <div style={{ flexShrink: 0, textAlign: 'center' }}>
-              {mode === 'versus' ? (
-                <div style={{ display: 'flex', gap: '2vw', alignItems: 'stretch' }}>
-                  <div style={{ flex: 1, background: BLUE_BG, border: `2px solid ${BLUE}`, borderRadius: '1vw', padding: '.6vh 1.5vw', textAlign: 'center' }}>
-                    <div style={{ fontSize: 'clamp(.55rem,.75vw,.75rem)', color: BLUE, letterSpacing: '.1em', textTransform: 'uppercase' }}>Blue — {blueLabel}</div>
-                    <div style={{ fontSize: 'clamp(1rem,2vw,2rem)', fontWeight: 700, color: 'var(--txt)' }}>{customerNames[0] || '—'}</div>
+          {/* Session mode label */}
+          <div style={{ flexShrink: 0, textAlign: 'center', marginBottom: '.2vh' }}>
+            <div style={{ fontSize: 'clamp(.5rem,.75vw,.72rem)', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase' }}>
+              {mode === 'coop' ? 'Co-Op Mission' : mode === 'versus' ? `Versus · Run ${runNumber}` : ''}
+            </div>
+          </div>
+
+          {/* Team / player list */}
+          {mode === 'versus' ? (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: '2vw', alignItems: 'stretch' }}>
+              {[{label:blueLabel,color:BLUE,bg:BLUE_BG,team:1},{label:redLabel,color:RED,bg:RED_BG,team:2}].map(({label,color,bg,team})=>{
+                const tp = players.filter(p=>p.team===team)
+                return (
+                  <div key={team} style={{ flex: 1, background: bg, border: `2px solid ${color}`, borderRadius: '1vw', padding: '.5vh 1.2vw', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ fontSize: 'clamp(.5rem,.7vw,.72rem)', color, letterSpacing: '.12em', textTransform: 'uppercase', fontWeight: 700, marginBottom: '.4vh', flexShrink: 0 }}>
+                      {label}
+                    </div>
+                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                      {tp.length === 0
+                        ? <div style={{ fontSize: 'clamp(.65rem,.9vw,.9rem)', color: 'var(--muted)', fontStyle: 'italic' }}>—</div>
+                        : tp.map(p => (
+                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.6vw', padding: '.2vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.2vw,1.2rem)', fontWeight: 600, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                            {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.62vw,.65rem)', color, opacity: .9, letterSpacing: '.04em', flexShrink: 0 }}>[{p.platoonTag}]</span>}
+                            <span style={{ fontSize: 'clamp(.45rem,.62vw,.65rem)', color: p.tierColor||'var(--muted)', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '.06em' }}>{p.tierName}</span>
+                          </div>
+                        ))
+                      }
+                    </div>
                   </div>
-                  <div style={{ fontSize: 'clamp(1rem,2vw,2rem)', color: 'var(--muted)', alignSelf: 'center', fontWeight: 300 }}>vs</div>
-                  <div style={{ flex: 1, background: RED_BG, border: `2px solid ${RED}`, borderRadius: '1vw', padding: '.6vh 1.5vw', textAlign: 'center' }}>
-                    <div style={{ fontSize: 'clamp(.55rem,.75vw,.75rem)', color: RED, letterSpacing: '.1em', textTransform: 'uppercase' }}>Red — {redLabel}</div>
-                    <div style={{ fontSize: 'clamp(1rem,2vw,2rem)', fontWeight: 700, color: 'var(--txt)' }}>{customerNames[1] || customerNames[0] || '—'}</div>
+                )
+              })}
+            </div>
+          ) : players.length > 0 ? (
+            <div style={{ flex: 1, minHeight: 0, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.5vh 1.5vw', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: 'clamp(.5rem,.7vw,.72rem)', color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '.4vh', flexShrink: 0 }}>Team</div>
+              <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                {players.map(p => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.6vw', padding: '.2vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.2vw,1.2rem)', fontWeight: 600, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                    {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.62vw,.65rem)', color: 'var(--acc)', opacity: .9, letterSpacing: '.04em', flexShrink: 0 }}>[{p.platoonTag}]</span>}
+                    <span style={{ fontSize: 'clamp(.45rem,.62vw,.65rem)', color: p.tierColor||'var(--muted)', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '.06em' }}>{p.tierName}</span>
                   </div>
-                </div>
-              ) : (
-                <div style={{ fontSize: 'clamp(1rem,2vw,2rem)', fontWeight: 700, color: 'var(--txt)' }}>
-                  {customerNames.join(' · ')}
-                </div>
-              )}
-              <div style={{ fontSize: 'clamp(.5rem,.75vw,.72rem)', color: 'var(--muted)', marginTop: '.2vh', letterSpacing: '.06em', textTransform: 'uppercase' }}>
-                {mode === 'coop' ? 'Co-Op Mission' : mode === 'versus' ? `Versus · Run ${runNumber}` : ''}
+                ))}
               </div>
             </div>
-          )}
+          ) : customerNames.length > 0 ? (
+            <div style={{ flexShrink: 0, textAlign: 'center' }}>
+              <div style={{ fontSize: 'clamp(1rem,2vw,2rem)', fontWeight: 700, color: 'var(--txt)' }}>{customerNames.join(' · ')}</div>
+            </div>
+          ) : null}
 
           {/* Mission Objective */}
           {objectives.length > 0 && (
@@ -327,11 +356,11 @@ export default function StructurePage({ structure }) {
             </div>
           )}
 
-          {/* Env controls — fill remaining vertical space */}
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '1vh' }}>
+          {/* Env controls — fixed height, does not grow into player list space */}
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.75vh', height: '20vh' }}>
 
             {/* Visual mode */}
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
               <div style={{ flexShrink: 0, width: '2.5vw', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--bdr)', marginRight: '.5vw' }}>
                 <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 'clamp(.45rem,.65vw,.65rem)', letterSpacing: '.15em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Visual Mode</span>
               </div>
@@ -339,17 +368,17 @@ export default function StructurePage({ structure }) {
                 const sel = visual === opt.code
                 return (
                   <button key={opt.code} onClick={() => pick('visual', opt.code)} style={envOpt(sel)}>
-                    <div style={{ fontSize: sel ? 'clamp(1.2rem,2.2vw,2.2rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'font-size .25s, color .15s' }}>
-                      {vizRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: sel ? 'clamp(1.2rem,2.2vw,2.2rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400 })}
+                    <div style={{ fontSize: sel ? 'clamp(1.6rem,3vw,3rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'font-size .25s, color .15s' }}>
+                      {vizRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: sel ? 'clamp(1.6rem,3vw,3rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400 })}
                     </div>
-                    <div style={{ fontSize: sel ? 'clamp(.6rem,.9vw,.9rem)' : 'clamp(.45rem,.65vw,.65rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.35, transition: 'font-size .25s, color .15s, opacity .15s', whiteSpace: 'nowrap', overflow: 'hidden' }}>{opt.desc}</div>
+                    <div style={{ fontSize: sel ? 'clamp(.75rem,1.1vw,1.1rem)' : 'clamp(.45rem,.65vw,.65rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.35, transition: 'font-size .25s, color .15s, opacity .15s', whiteSpace: 'nowrap', overflow: 'hidden' }}>{opt.desc}</div>
                   </button>
                 )
               })}
             </div>
 
             {/* Audio mode */}
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
               <div style={{ flexShrink: 0, width: '2.5vw', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--bdr)', marginRight: '.5vw' }}>
                 <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 'clamp(.45rem,.65vw,.65rem)', letterSpacing: '.15em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Audio Mode</span>
               </div>
@@ -357,10 +386,10 @@ export default function StructurePage({ structure }) {
                 const sel = audio === opt.code
                 return (
                   <button key={opt.code} onClick={() => pick('audio', opt.code)} style={envOpt(sel)}>
-                    <div style={{ fontSize: sel ? 'clamp(1.2rem,2.2vw,2.2rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'font-size .25s, color .15s' }}>
-                      {audRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: sel ? 'clamp(1.2rem,2.2vw,2.2rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400 })}
+                    <div style={{ fontSize: sel ? 'clamp(1.6rem,3vw,3rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400, color: sel ? 'var(--acc)' : 'var(--muted)', transition: 'font-size .25s, color .15s' }}>
+                      {audRenderName(opt.code, opt.name, { fontFamily: fd, fontSize: sel ? 'clamp(1.6rem,3vw,3rem)' : 'clamp(.9rem,1.5vw,1.5rem)', fontWeight: sel ? 800 : 400 })}
                     </div>
-                    <div style={{ fontSize: sel ? 'clamp(.6rem,.9vw,.9rem)' : 'clamp(.45rem,.65vw,.65rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.35, transition: 'font-size .25s, color .15s, opacity .15s', whiteSpace: 'nowrap', overflow: 'hidden' }}>{opt.desc}</div>
+                    <div style={{ fontSize: sel ? 'clamp(.75rem,1.1vw,1.1rem)' : 'clamp(.45rem,.65vw,.65rem)', color: sel ? 'var(--acc)' : 'var(--muted)', opacity: sel ? 1 : 0.35, transition: 'font-size .25s, color .15s, opacity .15s', whiteSpace: 'nowrap', overflow: 'hidden' }}>{opt.desc}</div>
                   </button>
                 )
               })}

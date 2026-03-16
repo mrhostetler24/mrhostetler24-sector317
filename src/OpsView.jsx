@@ -30,6 +30,7 @@ import {
 } from './scoreUtils.js'
 import { MerchStaffSales } from './MerchPortal.jsx'
 import { vizRenderName, audRenderName } from './envRender.jsx'
+import { getTierInfo, TIER_COLORS } from './utils.js'
 
 // ── Shared utilities (mirrored from App.jsx) ─────────────────────────────────
 const fmtMoney = n => `$${Number(n).toFixed(2)}`
@@ -212,7 +213,7 @@ function calcVsSlotWarn(date,startTime,newCount,reservations,resTypes){
   return`Heads up: your group of ${newCount} can't all be on the same team. ${big} will go to Team ${bigT} and ${small} to Team ${3-bigT}. Staff will arrange teams on arrival.`;
 }
 
-function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit}){
+function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCommit}){
   const [run,setRun]=useState(1);
   const [masterTenths,setMasterTenths]=useState(0);
   const [masterRunning,setMasterRunning]=useState(false);
@@ -267,7 +268,19 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       const mode=rt?.mode||'coop';
       const customerNames=allRes.map(r=>r.customerName).filter(Boolean);
       const s=(settingsMap??settings[runNum||run])[laneIdx];
-      const runActivate=activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList);
+      // Build per-player data for structure screen display
+      const allPlayers=allRes.flatMap(r=>r.players||[]);
+      const laneResTeams=calcResVsTeams(allRes);
+      const playersList=allPlayers.map(p=>{
+        const ownerRes=allRes.find(r=>(r.players||[]).some(pl=>pl.id===p.id));
+        const vt=versusTeams?.[ownerRes?.id]?.[p.id];
+        const team=vt!=null?vt:p.team!=null?p.team:(laneResTeams[ownerRes?.id]??1);
+        const st=playerStats[p.userId]||{};
+        const tier=getTierInfo(Number(st.total_runs||0)).current;
+        const u=p.userId?(users||[]).find(x=>x.id===p.userId):null;
+        return{id:p.id,name:p.name||'—',team:mode==='versus'?team:1,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null};
+      });
+      const runActivate=activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList,playersList);
       if(preservePicks){
         runActivate
           .then(()=>setStructureEnvironment(structure,s?.visual||'V',s?.audio||'T',s?.objectiveId??null,s?.difficulty??'NONE'))
@@ -627,12 +640,14 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     // Lane-scoped team getter: default splits by overall position across all players
     // Check ALL reservations in lane for versusTeams (not just allRes[0])
     const vtForPid=pid=>{for(const r of allRes){const v=versusTeams?.[r.id]?.[pid];if(v!==undefined)return v;}return undefined;};
+    // Use same slotReses as the ops card fallback so auto-team assignments are consistent
+    const slotResesForTeam=reservations.filter(r=>r.date===allRes[0]?.date&&r.startTime===allRes[0]?.startTime&&r.status!=='cancelled');
     const getLaneTeam=pid=>{
       const ov=runTeams[run]?.[laneIdx]?.[pid];if(ov!==undefined)return ov;
       const vt=vtForPid(pid);if(vt!==undefined)return vt;
       const pObj=allPlayers.find(p=>p.id===pid);if(pObj?.team!=null)return pObj.team;
       const ownerRes=allRes.find(r=>(r.players||[]).some(p=>p.id===pid));
-      return calcResVsTeams(allRes)[ownerRes?.id]??1;
+      return calcResVsTeams(slotResesForTeam)[ownerRes?.id]??1;
     };
     // Row tint: Blue(1)/Red(2) — locked to run 1 identity, never changes in run 2.
     // In run 2, invert the run 2 assignment (doLogRun flipped T1↔T2) to recover run 1 color.
@@ -1962,6 +1977,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         lanes={scoringSlot.lanes}
         resTypes={resTypes}
         versusTeams={versusTeams}
+        users={users}
         currentUser={currentUser}
         onClose={async()=>{
           setScoringSlot(null);

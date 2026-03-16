@@ -2279,7 +2279,7 @@ export async function fetchStructures() {
 // mode: 'coop' | 'versus' | null
 // customerNames: string[] — reservation names shown on tablet
 // objectives: {id, name}[] — selectable objectives
-export async function activateStructureRun(structure, reservationId, runNumber, visual = 'V', audio = 'T', mode = null, customerNames = [], objectives = []) {
+export async function activateStructureRun(structure, reservationId, runNumber, visual = 'V', audio = 'T', mode = null, customerNames = [], objectives = [], players = []) {
   const { error } = await supabase.rpc('activate_structure_run', {
     p_structure:      structure,
     p_reservation_id: reservationId,
@@ -2289,6 +2289,7 @@ export async function activateStructureRun(structure, reservationId, runNumber, 
     p_mode:           mode,
     p_customer_names: customerNames,
     p_objectives:     objectives,
+    p_players:        players,
   })
   if (error) throw error
 }
