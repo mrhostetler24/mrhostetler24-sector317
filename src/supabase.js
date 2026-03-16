@@ -1816,6 +1816,7 @@ const toMerchProduct = r => r ? ({
   shippable: r.shippable, pickupOnly: r.pickup_only, returnable: r.returnable,
   returnWindowDays: r.return_window_days, restockable: r.restockable,
   returnPolicyNote: r.type !== 'bundle' ? (r.return_policy_note || null) : null,
+  internalNotes: r.internal_notes ?? null,
   active: r.active, archived: r.archived,
   sortOrder: r.sort_order, createdAt: r.created_at,
   variants: (r.variants || []).map(v => ({
@@ -2056,6 +2057,7 @@ export async function upsertMerchProduct(product) {
       ? (product.bundleSavingsPct != null ? String(product.bundleSavingsPct) : null)
       : (product.returnPolicyNote || null),
     active: product.active ?? true, archived: product.archived ?? false, sort_order: product.sortOrder ?? 0,
+    internal_notes: product.internalNotes || null,
   }
   if (product.id) row.id = product.id
   const { data, error } = await supabase.from('merch_products').upsert(row).select().single()

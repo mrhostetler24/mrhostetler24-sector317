@@ -938,6 +938,7 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
       categoryId: '', imageUrls: [], storefrontVisible: true, staffVisible: true,
       shippable: true, pickupOnly: false, returnable: true, returnWindowDays: 30,
       restockable: true, returnPolicyNote: '', active: true, archived: false, sortOrder: 0,
+      internalNotes: '',
       ...product }
     return {
       ...base,
@@ -993,6 +994,15 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
           <div className="f" style={{ flex: 2 }}><label>Return Policy Note</label><input value={form.returnPolicyNote || ''} onChange={e => set('returnPolicyNote', e.target.value)} placeholder="E.g. No returns on worn items." /></div>
         </div>}
       </>}
+      {(form.type === 'physical' || form.type === 'bundle') && (
+        <div className="f" style={{ marginTop: '.75rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+            Internal Notes <span style={{ fontSize: '.75rem', color: 'var(--muted)', fontWeight: 400 }}>(staff only — never shown to customers)</span>
+          </label>
+          <textarea value={form.internalNotes || ''} onChange={e => set('internalNotes', e.target.value)}
+            rows={3} style={{ resize: 'vertical' }} placeholder="Supplier notes, handling instructions, internal reminders…" />
+        </div>
+      )}
       <div className="ma" style={{ marginTop: '1rem' }}>
         <button className="btn btn-s" onClick={onClose}>Cancel</button>
         <button className="btn btn-p" disabled={!form.name || !form.basePrice}
