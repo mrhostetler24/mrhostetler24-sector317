@@ -1842,7 +1842,33 @@ const toMerchOrder = r => r ? ({
   shippingAddress: r.shipping_address, shippingCharge: Number(r.shipping_charge || 0),
   discountId: r.discount_id, discountAmount: Number(r.discount_amount || 0),
   notes: r.notes, createdAt: r.created_at,
+  trackingNumber: r.tracking_number ?? null,
+  carrier: r.carrier ?? null,
+  fulfilledAt: r.fulfilled_at ?? null,
+  fulfillmentNotes: r.fulfillment_notes ?? null,
   items: (r.items || []).map(toMerchOrderItem),
+}) : null
+
+const toMerchPO = r => r ? ({
+  id: r.id,
+  vendorId: r.vendor_id,
+  vendorName: r.vendor?.name ?? null,
+  status: r.status,
+  expectedBy: r.expected_by ?? null,
+  notes: r.notes ?? null,
+  createdBy: r.created_by ?? null,
+  createdAt: r.created_at,
+  lines: (r.lines || []).map(l => ({
+    id: l.id, poId: l.po_id, variantId: l.variant_id,
+    variantLabel: l.variant?.label ?? null,
+    variantSku:   l.variant?.sku ?? null,
+    productName:  l.variant?.product?.name ?? null,
+    qtyOrdered:   l.qty_ordered,
+    unitCost:     l.unit_cost != null ? Number(l.unit_cost) : null,
+    qtyReceived:  l.qty_received,
+    receiveLocationId: l.receive_location_id ?? null,
+    notes: l.notes ?? null,
+  })),
 }) : null
 
 const toMerchOrderItem = r => r ? ({
@@ -1953,6 +1979,24 @@ export async function fetchMerchReturns() {
   const { data, error } = await supabase.from('merch_returns').select('*').order('created_at', { ascending: false })
   if (error) throw error
   return (data || []).map(toMerchReturn)
+}
+
+export async function fetchPurchaseOrders() {
+  const { data, error } = await supabase
+    .from('merch_purchase_orders')
+    .select('*, vendor:merch_vendors(name), lines:merch_po_lines(*, variant:merch_variants(id, label, sku, product:merch_products(name)))')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []).map(toMerchPO)
+}
+
+export async function fetchVariantLocations(variantId) {
+  const { data, error } = await supabase
+    .from('merch_inventory')
+    .select('quantity, location:merch_stock_locations(id, name)')
+    .eq('variant_id', variantId)
+  if (error) throw error
+  return (data || []).map(r => ({ quantity: r.quantity, locationId: r.location.id, locationName: r.location.name }))
 }
 
 export async function fetchMerchVendors() {
@@ -2148,6 +2192,54 @@ export async function processMerchReturn(params) {
     p_created_by: params.createdBy ?? null,
   })
   if (error) throw error
+}
+
+export async function createPurchaseOrder(po) {
+  const { data, error } = await supabase.rpc('create_purchase_order', {
+    p_vendor_id:   po.vendorId,
+    p_expected_by: po.expectedBy || null,
+    p_notes:       po.notes     || null,
+    p_lines:       po.lines     || [],
+  })
+  if (error) throw error
+  return data
+}
+
+export async function receivePOLine(poLineId, qty, locationId, notes) {
+  const { error } = await supabase.rpc('receive_po_line', {
+    p_po_line_id:  poLineId,
+    p_qty:         qty,
+    p_location_id: locationId || null,
+    p_notes:       notes      || null,
+  })
+  if (error) throw error
+}
+
+export async function updatePOStatus(poId, status) {
+  const { error } = await supabase.rpc('update_po_status', { p_po_id: poId, p_status: status })
+  if (error) throw error
+}
+
+export async function fulfillMerchOrder(orderId, { trackingNumber, carrier, notes } = {}) {
+  const { error } = await supabase.rpc('fulfill_merch_order', {
+    p_order_id:        orderId,
+    p_tracking_number: trackingNumber || null,
+    p_carrier:         carrier        || null,
+    p_notes:           notes          || null,
+  })
+  if (error) throw error
+}
+
+export async function transferMerchInventory(variantId, fromLocationId, toLocationId, qty, notes) {
+  const { data, error } = await supabase.rpc('transfer_merch_inventory', {
+    p_variant_id:       variantId,
+    p_from_location_id: fromLocationId,
+    p_to_location_id:   toLocationId,
+    p_qty:              qty,
+    p_notes:            notes || null,
+  })
+  if (error) throw error
+  return data
 }
 
 export async function redeemGiftCode(code, redeemedBy, amountToRedeem) {

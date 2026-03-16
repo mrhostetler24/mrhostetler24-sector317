@@ -9,6 +9,8 @@ import {
   upsertMerchDiscount, upsertStockLocation, upsertBundleComponents,
   fetchBundleComponents, uploadMerchImage,
   fetchMerchVendors, upsertMerchVendor, deleteMerchVendor,
+  fetchPurchaseOrders, createPurchaseOrder, receivePOLine, updatePOStatus,
+  fulfillMerchOrder, transferMerchInventory,
   adjustMerchInventory, validateMerchDiscount, createMerchOrder,
   processMerchReturn, voidGiftCode, updateMerchOrderStatus,
   fetchUserByPhone, createGuestUser, createPayment, deductUserCredits, linkOAuthUser,
@@ -248,7 +250,15 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
   const [editDiscount, setEditDiscount] = useState(null)
   const [editLocation, setEditLocation] = useState(null)
   const [editVendor, setEditVendor] = useState(null)
+  const [purchaseOrders, setPurchaseOrders] = useState([])
+  const [inventoryByVariant, setInventoryByVariant] = useState({}) // { variantId: [{locationId, locationName, quantity}] }
   const [adjustModal, setAdjustModal] = useState(null) // {variant, productName}
+  const [transferModal, setTransferModal] = useState(null) // {variant, productName}
+  const [fulfillModal, setFulfillModal] = useState(null) // order object
+  const [purchaseOrderModal, setPurchaseOrderModal] = useState(null) // null | {} | {id,...}
+  const [receivePOModal, setReceivePOModal] = useState(null) // {line, poId}
+  const [expandedPO, setExpandedPO] = useState(null)
+  const [poStatusFilter, setPoStatusFilter] = useState('')
   const [returnModal, setReturnModal] = useState(null) // {order, item}
   const [expandedProduct, setExpandedProduct] = useState(null)
   const [expandedOrder, setExpandedOrder] = useState(null)
@@ -261,7 +271,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [p, c, l, v, d, o, gc, r] = await Promise.all([
+      const [p, c, l, v, d, o, gc, r, pos, inv] = await Promise.all([
         fetchMerchCatalog('all'),
         fetchMerchCategories(),
         fetchStockLocations(),
@@ -270,9 +280,20 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
         fetchMerchOrders(),
         fetchMerchGiftCodes(),
         fetchMerchReturns(),
+        fetchPurchaseOrders(),
+        fetchMerchInventory(),
       ])
       setCatalog(p); setCategories(c); setLocations(l); setVendors(v)
       setDiscounts(d); setOrders(o); setGiftCodes(gc); setReturns(r)
+      setPurchaseOrders(pos)
+      // Build variantId → [{locationId, locationName, quantity}] lookup
+      const byVariant = {}
+      for (const row of inv) {
+        const loc = l.find(x => x.id === row.locationId)
+        if (!byVariant[row.variantId]) byVariant[row.variantId] = []
+        byVariant[row.variantId].push({ locationId: row.locationId, locationName: loc?.name || row.locationId, quantity: row.quantity })
+      }
+      setInventoryByVariant(byVariant)
     } catch (e) { onAlert?.('Error loading merch data: ' + e.message) }
     setLoading(false)
   }
@@ -281,6 +302,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
     ['products', '📦 Products'],
     ...(isAdmin ? [['bundles', '🎁 Bundles']] : []),
     ['inventory', '📊 Inventory'],
+    ...(isAdmin ? [['purchasing', '🛒 Purchasing']] : []),
     ['orders', '🧾 Orders'],
     ['discounts', '🏷 Discounts'],
     ['returns', '↩ Returns'],
@@ -442,24 +464,40 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
                 <div style={{ fontWeight: 700, marginBottom: '.5rem' }}>{p.name}</div>
                 {p.variants.map(v => {
                   const threshold = v.reorderPoint ?? 5
+                  const vLocs = inventoryByVariant[v.id] || []
                   return (
-                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.4rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.88rem' }}>
-                      <span style={{ flex: 1 }}>{v.label}</span>
-                      {v.sku && <span style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{v.sku}</span>}
-                      {v.reorderPoint != null && <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>reorder ≤{v.reorderPoint}</span>}
-                      <span style={{ minWidth: 80, textAlign: 'center', fontWeight: 700, color: v.inventory <= 0 ? 'var(--danger)' : v.inventory <= threshold ? 'var(--warn)' : 'var(--ok)' }}>
-                        {v.inventory} in stock
-                      </span>
-                      {isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
-                        onClick={() => setAdjustModal({ variant: v, productName: p.name, locationId: null })}>Adjust</button>}
-                      {!isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
-                        onClick={async () => {
-                          if (!confirm(`Flag "${v.label}" for reorder?`)) return
-                          try {
-                            await adjustMerchInventory(v.id, null, 0, 'reorder_flag', 'Flagged for reorder', currentUser?.id)
-                            onAlert?.('Flagged for reorder.')
-                          } catch (e) { onAlert?.('Error: ' + e.message) }
-                        }}>Flag Reorder</button>}
+                    <div key={v.id} style={{ padding: '.5rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.88rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>
+                        <span style={{ flex: 1 }}>{v.label}</span>
+                        {v.sku && <span style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{v.sku}</span>}
+                        {v.reorderPoint != null && <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>reorder ≤{v.reorderPoint}</span>}
+                        <span style={{ fontWeight: 700, color: v.inventory <= 0 ? 'var(--danger)' : v.inventory <= threshold ? 'var(--warn)' : 'var(--ok)' }}>
+                          {v.inventory} total
+                        </span>
+                        {isAdmin && <>
+                          <button className="btn btn-sm btn-s" style={{ fontSize: '.72rem' }}
+                            onClick={() => setAdjustModal({ variant: v, productName: p.name, locationId: null })}>Adjust / Stock</button>
+                          {vLocs.length > 1 && <button className="btn btn-sm btn-s" style={{ fontSize: '.72rem' }}
+                            onClick={() => setTransferModal({ variant: v, productName: p.name })}>Transfer</button>}
+                        </>}
+                        {!isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
+                          onClick={async () => {
+                            if (!confirm(`Flag "${v.label}" for reorder?`)) return
+                            try {
+                              await adjustMerchInventory(v.id, null, 0, 'reorder_flag', 'Flagged for reorder', currentUser?.id)
+                              onAlert?.('Flagged for reorder.')
+                            } catch (e) { onAlert?.('Error: ' + e.message) }
+                          }}>Flag Reorder</button>}
+                      </div>
+                      {vLocs.length > 0 && (
+                        <div style={{ display: 'flex', gap: '.4rem', marginTop: '.3rem', flexWrap: 'wrap' }}>
+                          {vLocs.map(loc => (
+                            <span key={loc.locationId} style={{ fontSize: '.72rem', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 4, padding: '1px 7px', color: 'var(--muted)' }}>
+                              {loc.locationName}: <strong style={{ color: 'var(--txt)' }}>{loc.quantity}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -472,6 +510,65 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
           </div>
         )
       })()}
+
+      {/* ── Purchasing Tab ──────────────────────────── */}
+      {tab === 'purchasing' && (<>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '.5rem' }}>
+          <select value={poStatusFilter} onChange={e => setPoStatusFilter(e.target.value)}
+            style={{ background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.4rem .6rem', color: 'var(--txt)', fontSize: '.88rem' }}>
+            <option value="">All Statuses</option>
+            {['draft','sent','partially_received','received','cancelled'].map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
+          </select>
+          <button className="btn btn-p btn-sm" onClick={() => setPurchaseOrderModal({})}>+ Create PO</button>
+        </div>
+        {purchaseOrders.filter(po => !poStatusFilter || po.status === poStatusFilter).length === 0 && (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>No purchase orders yet.</div>
+        )}
+        {purchaseOrders.filter(po => !poStatusFilter || po.status === poStatusFilter).map(po => {
+          const totalLines = po.lines.length
+          const receivedLines = po.lines.filter(l => l.qtyReceived >= l.qtyOrdered).length
+          const totalOrdered = po.lines.reduce((s, l) => s + l.qtyOrdered, 0)
+          const totalReceived = po.lines.reduce((s, l) => s + l.qtyReceived, 0)
+          const PO_BADGE = { draft:'b-open', sent:'b-open', partially_received:'b-warn', received:'b-ok', cancelled:'b-closed' }
+          return (
+            <div key={po.id} style={{ background: 'var(--surf)', border: `1px solid ${expandedPO === po.id ? 'var(--acc)' : 'var(--bdr)'}`, borderRadius: 8, marginBottom: '.6rem', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '.65rem 1rem', gap: '.75rem', cursor: 'pointer', flexWrap: 'wrap' }}
+                onClick={() => setExpandedPO(expandedPO === po.id ? null : po.id)}>
+                <span className={`badge ${PO_BADGE[po.status] || 'b-open'}`} style={{ fontSize: '.65rem' }}>{po.status.replace(/_/g,' ')}</span>
+                <span style={{ fontWeight: 600, flex: 1 }}>{po.vendorName || 'Unknown Vendor'}</span>
+                {po.expectedBy && <span style={{ fontSize: '.78rem', color: 'var(--muted)' }}>expected {po.expectedBy}</span>}
+                <span style={{ fontSize: '.78rem', color: 'var(--muted)' }}>{totalReceived}/{totalOrdered} units · {receivedLines}/{totalLines} lines</span>
+              </div>
+              {expandedPO === po.id && (
+                <div style={{ borderTop: '1px solid var(--bdr)', padding: '1rem' }}>
+                  {po.notes && <div style={{ fontSize: '.82rem', color: 'var(--muted)', marginBottom: '.75rem' }}>{po.notes}</div>}
+                  {po.lines.map(line => (
+                    <div key={line.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.4rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.85rem', flexWrap: 'wrap' }}>
+                      <span style={{ flex: 1 }}><strong>{line.productName}</strong> · {line.variantLabel}</span>
+                      {line.unitCost != null && <span style={{ color: 'var(--muted)', fontSize: '.78rem' }}>${Number(line.unitCost).toFixed(2)}/unit</span>}
+                      <span style={{ color: line.qtyReceived >= line.qtyOrdered ? 'var(--ok)' : line.qtyReceived > 0 ? 'var(--warn)' : 'var(--muted)' }}>
+                        {line.qtyReceived}/{line.qtyOrdered} received
+                      </span>
+                      {po.status !== 'cancelled' && line.qtyReceived < line.qtyOrdered && (
+                        <button className="btn btn-sm btn-ok" style={{ fontSize: '.72rem' }}
+                          onClick={() => setReceivePOModal({ line, poId: po.id })}>Receive</button>
+                      )}
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: '.5rem', marginTop: '.75rem' }}>
+                    {po.status === 'draft' && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
+                      onClick={async () => { try { await updatePOStatus(po.id, 'sent'); await loadAll() } catch (e) { onAlert?.('Error: ' + e.message) } }}>Mark Sent</button>}
+                    {po.status !== 'cancelled' && po.status !== 'received' && (
+                      <button className="btn btn-sm btn-d" style={{ fontSize: '.75rem' }}
+                        onClick={async () => { if (!confirm('Cancel this PO?')) return; try { await updatePOStatus(po.id, 'cancelled'); await loadAll() } catch (e) { onAlert?.('Error: ' + e.message) } }}>Cancel PO</button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </>)}
 
       {/* ── Orders Tab ──────────────────────────────── */}
       {tab === 'orders' && (<>
@@ -508,9 +605,16 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
                   <span>Discount</span><span>-{fmtMoney(o.discountAmount)}</span></div>}
                 {o.shippingCharge > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '.35rem 0', fontSize: '.88rem' }}>
                   <span>Shipping</span><span>{fmtMoney(o.shippingCharge)}</span></div>}
+                {o.trackingNumber && (
+                  <div style={{ marginTop: '.5rem', fontSize: '.8rem', color: 'var(--muted)' }}>
+                    📦 {o.carrier && <strong>{o.carrier}: </strong>}
+                    <span style={{ fontFamily: 'monospace', color: 'var(--accB)' }}>{o.trackingNumber}</span>
+                    {o.fulfilledAt && <span> · fulfilled {fmtDate(o.fulfilledAt)}</span>}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: '.5rem', marginTop: '.75rem', flexWrap: 'wrap' }}>
-                  {o.status === 'paid' && <button className="btn btn-sm btn-ok" style={{ fontSize: '.75rem' }}
-                    onClick={async () => { try { await updateMerchOrderStatus(o.id, 'fulfilled'); setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: 'fulfilled' } : x)) } catch (e) { onAlert?.('Error: ' + e.message) } }}>Mark Fulfilled</button>}
+                  {(o.status === 'paid' || o.status === 'pending') && <button className="btn btn-sm btn-ok" style={{ fontSize: '.75rem' }}
+                    onClick={() => setFulfillModal(o)}>Mark Fulfilled</button>}
                   {(o.status === 'paid' || o.status === 'fulfilled') && o.items.map(item => (
                     <button key={item.id} className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
                       onClick={() => setReturnModal({ order: o, item })}>Return Item</button>
@@ -735,6 +839,45 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
           onAlert={onAlert} />
       )}
 
+      {transferModal && (
+        <InventoryTransferModal variant={transferModal.variant} productName={transferModal.productName}
+          locations={locations} inventoryByVariant={inventoryByVariant}
+          onClose={() => setTransferModal(null)}
+          onComplete={async () => { await loadAll(); setTransferModal(null); onAlert?.('Transfer complete.') }}
+          onAlert={onAlert} />
+      )}
+
+      {fulfillModal && (
+        <FulfillOrderModal order={fulfillModal}
+          onSave={async ({ trackingNumber, carrier, notes }) => {
+            try {
+              await fulfillMerchOrder(fulfillModal.id, { trackingNumber, carrier, notes })
+              await loadAll(); setFulfillModal(null); onAlert?.('Order fulfilled.')
+            } catch (e) { onAlert?.('Error: ' + e.message) }
+          }}
+          onClose={() => setFulfillModal(null)} />
+      )}
+
+      {purchaseOrderModal !== null && (
+        <PurchaseOrderModal po={purchaseOrderModal} vendors={vendors} catalog={catalog} locations={locations}
+          onSave={async (po) => {
+            try { await createPurchaseOrder(po); await loadAll(); setPurchaseOrderModal(null); onAlert?.('Purchase order created.') }
+            catch (e) { onAlert?.('Error: ' + e.message) }
+          }}
+          onClose={() => setPurchaseOrderModal(null)} />
+      )}
+
+      {receivePOModal && (
+        <ReceivePOLineModal line={receivePOModal.line} locations={locations}
+          onSave={async ({ qty, locationId, notes }) => {
+            try {
+              await receivePOLine(receivePOModal.line.id, qty, locationId, notes)
+              await loadAll(); setReceivePOModal(null); onAlert?.(`Received ${qty} units.`)
+            } catch (e) { onAlert?.('Error: ' + e.message) }
+          }}
+          onClose={() => setReceivePOModal(null)} />
+      )}
+
       {returnModal && (
         <ReturnModal order={returnModal.order} item={returnModal.item}
           catalog={catalog} currentUser={currentUser}
@@ -910,6 +1053,7 @@ function VariantEditModal({ variant, vendors = [], onSave, onDelete, onClose, on
                 <option value="">— None —</option>
                 {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
               </select>
+              {vendors.length === 0 && <span style={{ fontSize: '.72rem', color: 'var(--muted)', alignSelf: 'center' }}>Add vendors in Settings first</span>}
               {onAddVendor && <button type="button" className="btn btn-s btn-sm" style={{ fontSize: '.75rem', whiteSpace: 'nowrap' }} onClick={onAddVendor}>＋ Add</button>}
             </div>
           </div>
@@ -934,6 +1078,198 @@ function VariantEditModal({ variant, vendors = [], onSave, onDelete, onClose, on
               vendorSku:      form.vendorSku || null,
             })}>Save Variant</button>
         </div>
+      </div>
+    </div></div>
+  )
+}
+
+// ─── FulfillOrderModal ───────────────────────────────────────
+function FulfillOrderModal({ order, onSave, onClose }) {
+  const isShip = order.fulfillmentType === 'ship'
+  const [trackingNumber, setTrackingNumber] = useState('')
+  const [carrier, setCarrier] = useState('')
+  const [notes, setNotes] = useState('')
+  return (
+    <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+      <div className="mt2">Mark Fulfilled — {order.customerName}</div>
+      <div style={{ fontSize: '.85rem', color: 'var(--muted)', marginBottom: '1rem' }}>
+        {isShip ? '📦 Shipment' : '🏪 Pickup'} · {order.items?.length || 0} item(s)
+      </div>
+      {isShip && <>
+        <div className="f"><label>Carrier</label>
+          <select value={carrier} onChange={e => setCarrier(e.target.value)}>
+            <option value="">— Select —</option>
+            {['UPS','FedEx','USPS','DHL','Other'].map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="f"><label>Tracking Number</label>
+          <input value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} placeholder="1Z999AA10123456784" />
+        </div>
+      </>}
+      <div className="f"><label>Notes</label>
+        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional fulfillment notes" />
+      </div>
+      <div className="ma">
+        <button className="btn btn-s" onClick={onClose}>Cancel</button>
+        <button className="btn btn-ok" disabled={isShip && !trackingNumber}
+          onClick={() => onSave({ trackingNumber: trackingNumber || null, carrier: carrier || null, notes: notes || null })}>
+          Confirm Fulfilled
+        </button>
+      </div>
+    </div></div>
+  )
+}
+
+// ─── InventoryTransferModal ───────────────────────────────────
+function InventoryTransferModal({ variant, productName, locations, inventoryByVariant, onClose, onComplete, onAlert }) {
+  const vLocs = (inventoryByVariant[variant.id] || []).filter(l => l.quantity > 0)
+  const [fromLocationId, setFromLocationId] = useState(vLocs[0]?.locationId || '')
+  const [toLocationId, setToLocationId] = useState('')
+  const [qty, setQty] = useState('')
+  const [notes, setNotes] = useState('')
+  const [busy, setBusy] = useState(false)
+  const fromQty = vLocs.find(l => l.locationId === fromLocationId)?.quantity || 0
+
+  const doTransfer = async () => {
+    const q = parseInt(qty)
+    if (!q || q <= 0 || !fromLocationId || !toLocationId) return
+    if (fromLocationId === toLocationId) { onAlert?.('Source and destination must differ.'); return }
+    setBusy(true)
+    try {
+      await transferMerchInventory(variant.id, fromLocationId, toLocationId, q, notes || null)
+      await onComplete()
+    } catch (e) { onAlert?.('Error: ' + e.message) }
+    setBusy(false)
+  }
+
+  return (
+    <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+      <div className="mt2">Transfer Stock</div>
+      <div style={{ fontSize: '.88rem', color: 'var(--muted)', marginBottom: '1rem' }}>{productName} · {variant.label}</div>
+      <div className="f"><label>From Location</label>
+        <select value={fromLocationId} onChange={e => setFromLocationId(e.target.value)}>
+          {vLocs.map(l => <option key={l.locationId} value={l.locationId}>{l.locationName} ({l.quantity} avail.)</option>)}
+        </select>
+      </div>
+      <div className="f"><label>To Location</label>
+        <select value={toLocationId} onChange={e => setToLocationId(e.target.value)}>
+          <option value="">— Select —</option>
+          {locations.filter(l => l.id !== fromLocationId).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+        </select>
+      </div>
+      <div className="f"><label>Quantity</label>
+        <input type="number" min="1" max={fromQty} value={qty} onChange={e => setQty(e.target.value)} placeholder={`Max ${fromQty}`} />
+      </div>
+      <div className="f"><label>Notes</label>
+        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+      </div>
+      <div className="ma">
+        <button className="btn btn-s" onClick={onClose}>Cancel</button>
+        <button className="btn btn-p" disabled={busy || !qty || !fromLocationId || !toLocationId}
+          onClick={doTransfer}>{busy ? 'Transferring…' : 'Transfer'}</button>
+      </div>
+    </div></div>
+  )
+}
+
+// ─── PurchaseOrderModal ───────────────────────────────────────
+function PurchaseOrderModal({ po, vendors, catalog, locations, onSave, onClose }) {
+  const defaultLocId = locations.find(l => l.isDefault)?.id || locations[0]?.id || ''
+  const [vendorId, setVendorId] = useState(po.vendorId || '')
+  const [expectedBy, setExpectedBy] = useState(po.expectedBy || '')
+  const [notes, setNotes] = useState(po.notes || '')
+  const [lines, setLines] = useState(po.lines || [{ variantId: '', qtyOrdered: 1, unitCost: '', receiveLocationId: defaultLocId }])
+
+  // Flat list of all variants for picker
+  const allVariants = catalog.flatMap(p => p.variants.map(v => ({ id: v.id, label: `${p.name} — ${v.label}`, sku: v.sku })))
+
+  const addLine = () => setLines(l => [...l, { variantId: '', qtyOrdered: 1, unitCost: '', receiveLocationId: defaultLocId }])
+  const removeLine = i => setLines(l => l.filter((_, idx) => idx !== i))
+  const setLine = (i, k, v) => setLines(l => l.map((line, idx) => idx === i ? { ...line, [k]: v } : line))
+
+  const canSave = vendorId && lines.length > 0 && lines.every(l => l.variantId && l.qtyOrdered > 0)
+
+  return (
+    <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+      <div className="mt2">Create Purchase Order</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.75rem' }}>
+        <div className="f" style={{ gridColumn: '1/-1' }}><label>Vendor *</label>
+          <select value={vendorId} onChange={e => setVendorId(e.target.value)}>
+            <option value="">— Select Vendor —</option>
+            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+          </select>
+        </div>
+        <div className="f"><label>Expected Delivery</label><input type="date" value={expectedBy} onChange={e => setExpectedBy(e.target.value)} /></div>
+        <div className="f"><label>Notes</label><input value={notes} onChange={e => setNotes(e.target.value)} /></div>
+      </div>
+      <div style={{ fontSize: '.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.5rem' }}>Line Items</div>
+      {lines.map((line, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 60px 90px 1fr 28px', gap: '.4rem', marginBottom: '.4rem', alignItems: 'end' }}>
+          <div className="f" style={{ marginBottom: 0 }}>
+            <select value={line.variantId} onChange={e => setLine(i, 'variantId', e.target.value)} style={{ fontSize: '.82rem' }}>
+              <option value="">— Variant —</option>
+              {allVariants.map(v => <option key={v.id} value={v.id}>{v.label}{v.sku ? ` (${v.sku})` : ''}</option>)}
+            </select>
+          </div>
+          <div className="f" style={{ marginBottom: 0 }}><input type="number" min="1" value={line.qtyOrdered} onChange={e => setLine(i, 'qtyOrdered', parseInt(e.target.value) || 1)} placeholder="Qty" /></div>
+          <div className="f" style={{ marginBottom: 0 }}><input type="number" min="0" step="0.01" value={line.unitCost} onChange={e => setLine(i, 'unitCost', e.target.value)} placeholder="Cost $" /></div>
+          <div className="f" style={{ marginBottom: 0 }}>
+            <select value={line.receiveLocationId} onChange={e => setLine(i, 'receiveLocationId', e.target.value)} style={{ fontSize: '.82rem' }}>
+              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </div>
+          <button type="button" className="btn btn-d btn-sm" style={{ fontSize: '.75rem', padding: '3px 7px' }} onClick={() => removeLine(i)}>✕</button>
+        </div>
+      ))}
+      <button type="button" className="btn btn-s btn-sm" style={{ fontSize: '.78rem', marginBottom: '.75rem' }} onClick={addLine}>+ Add Line</button>
+      <div className="ma">
+        <button className="btn btn-s" onClick={onClose}>Cancel</button>
+        <button className="btn btn-p" disabled={!canSave}
+          onClick={() => onSave({
+            vendorId,
+            expectedBy: expectedBy || null,
+            notes: notes || null,
+            lines: lines.map(l => ({
+              variant_id: l.variantId,
+              qty_ordered: parseInt(l.qtyOrdered) || 1,
+              unit_cost: l.unitCost !== '' ? l.unitCost : null,
+              receive_location_id: l.receiveLocationId || null,
+            }))
+          })}>Create PO</button>
+      </div>
+    </div></div>
+  )
+}
+
+// ─── ReceivePOLineModal ───────────────────────────────────────
+function ReceivePOLineModal({ line, locations, onSave, onClose }) {
+  const remaining = line.qtyOrdered - line.qtyReceived
+  const defaultLocId = line.receiveLocationId || locations.find(l => l.isDefault)?.id || locations[0]?.id || ''
+  const [qty, setQty] = useState(String(remaining))
+  const [locationId, setLocationId] = useState(defaultLocId)
+  const [notes, setNotes] = useState('')
+  return (
+    <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+      <div className="mt2">Receive Stock</div>
+      <div style={{ fontSize: '.88rem', color: 'var(--muted)', marginBottom: '1rem' }}>
+        <strong>{line.productName}</strong> · {line.variantLabel}<br />
+        Ordered: {line.qtyOrdered} · Already received: {line.qtyReceived} · Remaining: {remaining}
+      </div>
+      <div className="f"><label>Qty to Receive *</label>
+        <input type="number" min="1" max={remaining} value={qty} onChange={e => setQty(e.target.value)} />
+      </div>
+      <div className="f"><label>Stock into Location *</label>
+        <select value={locationId} onChange={e => setLocationId(e.target.value)}>
+          {locations.map(l => <option key={l.id} value={l.id}>{l.name}{l.isDefault ? ' (default)' : ''}</option>)}
+        </select>
+      </div>
+      <div className="f"><label>Notes</label>
+        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional receiving notes" />
+      </div>
+      <div className="ma">
+        <button className="btn btn-s" onClick={onClose}>Cancel</button>
+        <button className="btn btn-ok" disabled={!qty || parseInt(qty) <= 0 || !locationId}
+          onClick={() => onSave({ qty: parseInt(qty), locationId, notes: notes || null })}>Receive</button>
       </div>
     </div></div>
   )
