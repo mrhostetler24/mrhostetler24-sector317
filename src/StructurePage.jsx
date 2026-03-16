@@ -233,7 +233,7 @@ export default function StructurePage({ structure }) {
                 const tp = players.filter(p=>p.team===team)
                 return (
                   <div key={team} style={{ flex: 1, background: bg, border: `2px solid ${color}`, borderRadius: '1vw', padding: '.5vh 1.2vw', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ fontSize: 'clamp(.5rem,.7vw,.72rem)', color, letterSpacing: '.12em', textTransform: 'uppercase', fontWeight: 700, marginBottom: '.4vh', flexShrink: 0 }}>
+                    <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', color, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 800, marginBottom: '.5vh', flexShrink: 0 }}>
                       {label}
                     </div>
                     <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>

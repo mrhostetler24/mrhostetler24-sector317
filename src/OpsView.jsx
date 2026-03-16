@@ -640,14 +640,12 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     // Lane-scoped team getter: default splits by overall position across all players
     // Check ALL reservations in lane for versusTeams (not just allRes[0])
     const vtForPid=pid=>{for(const r of allRes){const v=versusTeams?.[r.id]?.[pid];if(v!==undefined)return v;}return undefined;};
-    // Use same slotReses as the ops card fallback so auto-team assignments are consistent
-    const slotResesForTeam=reservations.filter(r=>r.date===allRes[0]?.date&&r.startTime===allRes[0]?.startTime&&r.status!=='cancelled');
     const getLaneTeam=pid=>{
       const ov=runTeams[run]?.[laneIdx]?.[pid];if(ov!==undefined)return ov;
       const vt=vtForPid(pid);if(vt!==undefined)return vt;
       const pObj=allPlayers.find(p=>p.id===pid);if(pObj?.team!=null)return pObj.team;
       const ownerRes=allRes.find(r=>(r.players||[]).some(p=>p.id===pid));
-      return calcResVsTeams(slotResesForTeam)[ownerRes?.id]??1;
+      return calcResVsTeams(allRes)[ownerRes?.id]??1;
     };
     // Row tint: Blue(1)/Red(2) — locked to run 1 identity, never changes in run 2.
     // In run 2, invert the run 2 assignment (doLogRun flipped T1↔T2) to recover run 1 color.
