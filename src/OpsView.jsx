@@ -1002,7 +1002,7 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
       </div>
       {/* Swap structures */}
       <div style={{padding:'.5rem 1.2rem',background:'var(--surf)',borderBottom:'1px solid var(--bdr)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-        <button className="btn btn-s" style={{fontSize:'.82rem',padding:'.35rem .9rem'}} onClick={()=>setStructOrder(p=>[p[1],p[0]])}>⇄ Swap Structures</button>
+        <button className="btn btn-s" style={{fontSize:'.82rem',padding:'.35rem .9rem'}} onClick={()=>{const newOrder=[structOrder[1],structOrder[0]];setStructOrder(()=>newOrder);activateStructures(null,null,newOrder);}}>⇄ Swap Structures</button>
       </div>
       {/* Lane cards — Alpha always left, Bravo always right */}
       <div style={{flex:1,overflowY:'auto',padding:'1rem 1.2rem'}}>
