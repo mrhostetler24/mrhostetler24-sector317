@@ -25,7 +25,7 @@ export function hasValidWaiver(user, activeWaiverDoc) {
   if(!user||!user.waivers||!user.waivers.length) return false;
   if(activeWaiverDoc && user.needsRewaiverDocId === activeWaiverDoc.id) return false;
   const latest = user.waivers.reduce((a,b)=>a.signedAt>b.signedAt?a:b);
-  if(activeWaiverDoc && latest.waiverDocId !== activeWaiverDoc.id) return false;
+  if(activeWaiverDoc && latest.waiverDocId && latest.waiverDocId !== activeWaiverDoc.id) return false;
   return Date.now() - new Date(latest.signedAt).getTime() < 365*864e5;
 }
 export const latestWaiverDate  = user => user?.waivers?.length ? user.waivers.reduce((a,b)=>a.signedAt>b.signedAt?a:b).signedAt : null;
