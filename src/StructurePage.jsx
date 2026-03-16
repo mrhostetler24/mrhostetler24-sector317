@@ -228,22 +228,22 @@ export default function StructurePage({ structure }) {
 
           {/* Team / player list */}
           {mode === 'versus' ? (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: '2vw', alignItems: 'stretch' }}>
+            <div style={{ flexShrink: 0, display: 'flex', gap: '2vw', alignItems: 'flex-start' }}>
               {[{label:blueLabel,color:BLUE,bg:BLUE_BG,team:1},{label:redLabel,color:RED,bg:RED_BG,team:2}].map(({label,color,bg,team})=>{
                 const tp = players.filter(p=>p.team===team)
                 return (
-                  <div key={team} style={{ flex: 1, background: bg, border: `2px solid ${color}`, borderRadius: '1vw', padding: '.5vh 1.2vw', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', color, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 800, marginBottom: '.5vh', flexShrink: 0 }}>
+                  <div key={team} style={{ flex: 1, background: bg, border: `2px solid ${color}`, borderRadius: '1vw', padding: '.5vh 1.2vw', overflow: 'hidden' }}>
+                    <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', color, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 800, marginBottom: '.4vh' }}>
                       {label}
                     </div>
-                    <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 3.2vh)' }}>
+                    <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 2.6vh)' }}>
                       {tp.length === 0
                         ? <div style={{ fontSize: 'clamp(.65rem,.9vw,.9rem)', color: 'var(--muted)', fontStyle: 'italic' }}>—</div>
                         : tp.map(p => (
-                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.5vw', padding: '.25vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                            <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,2vw,20px)', width: 'clamp(14px,2vw,20px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
+                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.5vw', padding: '.18vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                            <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,1.8vw,18px)', width: 'clamp(14px,1.8vw,18px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
                             {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.65vw,.68rem)', color: p.platoonBadgeColor||color, flexShrink: 0, letterSpacing: '.04em', fontWeight: 700 }}>[{p.platoonTag}]</span>}
-                            <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 600, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 400, color: 'rgba(255,255,255,.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {p.leaderboardName || p.name}
                               {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
                             </span>
@@ -256,14 +256,14 @@ export default function StructurePage({ structure }) {
               })}
             </div>
           ) : players.length > 0 ? (
-            <div style={{ flex: 1, minHeight: 0, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.5vh 1.5vw', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontSize: 'clamp(.5rem,.7vw,.72rem)', color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '.4vh', flexShrink: 0 }}>Team</div>
-              <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 3.2vh)' }}>
+            <div style={{ flexShrink: 0, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.5vh 1.5vw', overflow: 'hidden' }}>
+              <div style={{ fontSize: 'clamp(.5rem,.7vw,.72rem)', color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '.4vh' }}>Team</div>
+              <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 2.6vh)' }}>
                 {players.map(p => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.5vw', padding: '.25vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                    <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,2vw,20px)', width: 'clamp(14px,2vw,20px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.5vw', padding: '.18vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                    <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,1.8vw,18px)', width: 'clamp(14px,1.8vw,18px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
                     {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.65vw,.68rem)', color: p.platoonBadgeColor||'var(--acc)', flexShrink: 0, letterSpacing: '.04em', fontWeight: 700 }}>[{p.platoonTag}]</span>}
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 600, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 400, color: 'rgba(255,255,255,.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {p.leaderboardName || p.name}
                       {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
                     </span>
