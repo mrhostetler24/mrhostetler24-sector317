@@ -372,6 +372,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
                   <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.4rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.85rem' }}>
                     <span style={{ flex: 1 }}>{v.label}</span>
                     {v.sku && <span style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{v.sku}</span>}
+                    {v.discontinued && <span style={{ background: 'var(--danger)', color: '#fff', fontSize: '.6rem', fontWeight: 800, padding: '2px 6px', borderRadius: 99, letterSpacing: '.04em' }}>DISC</span>}
                     <span style={{ color: 'var(--acc)', fontWeight: 700 }}>{v.priceOverride != null ? fmtMoney(v.priceOverride) : 'Base'}</span>
                     {p.type === 'physical' && <span style={{ minWidth: 60, textAlign: 'right', color: v.inventory <= 0 ? 'var(--danger)' : v.inventory < 5 ? 'var(--warn)' : 'var(--ok)' }}>{v.inventory} in stock</span>}
                     {p.type === 'physical' && isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.7rem' }}
@@ -425,7 +426,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
         const physicals = catalog.filter(p => p.type === 'physical')
         const reorderNeeded = physicals.flatMap(p =>
           p.variants
-            .filter(v => v.reorderPoint != null && v.inventory <= v.reorderPoint)
+            .filter(v => !v.discontinued && v.reorderPoint != null && v.inventory <= v.reorderPoint)
             .map(v => ({ ...v, productName: p.name, product: p }))
         ).sort((a, b) => a.inventory - b.inventory)
         return (
@@ -470,7 +471,8 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
                       <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>
                         <span style={{ flex: 1 }}>{v.label}</span>
                         {v.sku && <span style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{v.sku}</span>}
-                        {v.reorderPoint != null && <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>reorder ≤{v.reorderPoint}</span>}
+                        {v.discontinued && <span style={{ background: 'var(--danger)', color: '#fff', fontSize: '.6rem', fontWeight: 800, padding: '2px 6px', borderRadius: 99, letterSpacing: '.04em' }}>DISC</span>}
+                        {!v.discontinued && v.reorderPoint != null && <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>reorder ≤{v.reorderPoint}</span>}
                         <span style={{ fontWeight: 700, color: v.inventory <= 0 ? 'var(--danger)' : v.inventory <= threshold ? 'var(--warn)' : 'var(--ok)' }}>
                           {v.inventory} total
                         </span>
@@ -1039,6 +1041,7 @@ function VariantEditModal({ variant, vendors = [], productSku = null, onSave, on
   const [form, setForm] = useState(() => {
     const base = { label: '', sku: '', skuSuffix: '', priceOverride: '', shippingCharge: '0',
       storefrontVisible: true, staffVisible: true, active: true, sortOrder: 0,
+      discontinued: false, discontinuedAt: null,
       reorderPoint: '', reorderQty: '', cost: '', leadTimeDays: '', vendorId: '', vendorSku: '',
       ...variant }
     return { ...base,
@@ -1089,10 +1092,26 @@ function VariantEditModal({ variant, vendors = [], productSku = null, onSave, on
             <input type="checkbox" checked={!!form[k]} onChange={e => set(k, e.target.checked)} />{lbl}
           </label>
         ))}
+        <label style={{ display: 'flex', alignItems: 'center', gap: '.4rem', fontSize: '.88rem', cursor: 'pointer',
+          color: form.discontinued ? 'var(--danger)' : undefined }}>
+          <input type="checkbox" checked={!!form.discontinued} onChange={e => set('discontinued', e.target.checked)} />
+          Discontinued
+        </label>
       </div>
+      {form.discontinued && (
+        <div style={{ background: 'rgba(220,50,50,.08)', border: '1px solid rgba(220,50,50,.25)', borderRadius: 6,
+          padding: '.5rem .75rem', marginBottom: '.75rem', fontSize: '.82rem', color: 'var(--danger)' }}>
+          Sell through remaining stock only — hidden from storefront automatically. Reorder fields will be ignored.
+          {form.discontinuedAt && <span style={{ marginLeft: '.5rem', color: 'var(--muted)' }}>
+            Discontinued {new Date(form.discontinuedAt).toLocaleDateString()}
+          </span>}
+        </div>
+      )}
       {/* ── Inventory & Ordering ── */}
       <div style={{ borderTop: '1px solid var(--bdr)', paddingTop: '.75rem', marginBottom: '.75rem' }}>
-        <div style={{ fontSize: '.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.6rem' }}>Inventory &amp; Ordering</div>
+        <div style={{ fontSize: '.78rem', fontWeight: 700, color: form.discontinued ? 'var(--danger)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.6rem' }}>
+          Inventory &amp; Ordering {form.discontinued && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(reorder alerts suppressed)</span>}
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
           <div className="f"><label>Reorder Point</label><input type="number" min="0" value={form.reorderPoint} onChange={e => set('reorderPoint', e.target.value)} placeholder="Alert when qty ≤ this" /></div>
           <div className="f"><label>Reorder Qty</label><input type="number" min="0" value={form.reorderQty} onChange={e => set('reorderQty', e.target.value)} placeholder="Units to order" /></div>

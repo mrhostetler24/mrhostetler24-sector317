@@ -1826,6 +1826,7 @@ const toMerchProduct = r => r ? ({
     priceOverride: v.price_override != null ? Number(v.price_override) : null,
     shippingCharge: Number(v.shipping_charge || 0),
     active: v.active, storefrontVisible: v.storefront_visible, staffVisible: v.staff_visible,
+    discontinued: v.discontinued ?? false, discontinuedAt: v.discontinued_at ?? null,
     sortOrder: v.sort_order, inventory: Number(v.inventory || 0),
     cost:          v.cost          != null ? Number(v.cost)          : null,
     reorderPoint:  v.reorder_point != null ? Number(v.reorder_point) : null,
@@ -2085,6 +2086,11 @@ export async function upsertMerchVariant(variant) {
     reorder_point:  variant.reorderPoint  != null && variant.reorderPoint  !== '' ? parseInt(variant.reorderPoint)  : null,
     reorder_qty:    variant.reorderQty    != null && variant.reorderQty    !== '' ? parseInt(variant.reorderQty)    : null,
     lead_time_days: variant.leadTimeDays  != null && variant.leadTimeDays  !== '' ? parseInt(variant.leadTimeDays)  : null,
+    discontinued: variant.discontinued ?? false,
+    // Preserve original timestamp if already discontinued; set now on first toggle
+    discontinued_at: variant.discontinued
+      ? (variant.discontinuedAt || new Date().toISOString())
+      : null,
   }
   if (variant.id) row.id = variant.id
   const { data, error } = await supabase.from('merch_variants').upsert(row).select().single()
