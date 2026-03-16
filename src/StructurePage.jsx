@@ -265,7 +265,7 @@ export default function StructurePage({ structure }) {
                             marginBottom:'.1vh',
                           }}>
                             <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height:'clamp(14px,1.8vw,18px)', width:'clamp(14px,1.8vw,18px)', objectFit:'contain', flexShrink:0, ...(TIER_SHINE[p.tierKey]?{filter:TIER_SHINE[p.tierKey]}:{}) }} />
-                            {p.platoonTag && <span style={{ fontSize:'clamp(.72rem,1.05vw,1.05rem)', color:p.platoonBadgeColor||color, flexShrink:0, letterSpacing:'.04em', fontWeight:700, opacity:.9 }}>[{p.platoonTag}]</span>}
+                            {p.platoonTag && <span style={{ fontSize:'clamp(.72rem,1.05vw,1.05rem)', color:p.platoonBadgeColor||color, flexShrink:0, letterSpacing:'.04em', fontWeight:500, opacity:.9 }}>[{p.platoonTag}]</span>}
                             <span style={{ flex:1, minWidth:0, fontSize:'clamp(.72rem,1.05vw,1.05rem)', fontWeight:400, color:'rgba(255,255,255,.78)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                               {p.leaderboardName || p.name}
                               {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color:'rgba(255,255,255,.35)', fontWeight:400, marginLeft:'.3vw', fontSize:'clamp(.5rem,.78vw,.8rem)' }}>({p.name})</span>}
@@ -319,7 +319,7 @@ export default function StructurePage({ structure }) {
                       marginBottom: '.1vh',
                     }}>
                       <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,1.8vw,18px)', width: 'clamp(14px,1.8vw,18px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
-                      {p.platoonTag && <span style={{ fontSize: 'clamp(.75rem,1.1vw,1.1rem)', color: p.platoonBadgeColor || 'var(--acc)', flexShrink: 0, letterSpacing: '.04em', fontWeight: 700 }}>[{p.platoonTag}]</span>}
+                      {p.platoonTag && <span style={{ fontSize: 'clamp(.75rem,1.1vw,1.1rem)', color: p.platoonBadgeColor || 'var(--acc)', flexShrink: 0, letterSpacing: '.04em', fontWeight: 500 }}>[{p.platoonTag}]</span>}
                       <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 400, color: 'rgba(255,255,255,.78)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {p.leaderboardName || p.name}
                         {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'rgba(255,255,255,.35)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
