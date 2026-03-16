@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
+  supabase,
   fetchReservations,
   createReservation,
   updateReservation,
@@ -16,6 +17,9 @@ import {
   finalizeVersusWar,
   createPayment,
   fetchRunsForReservations,
+  activateStructureRun,
+  setStructureEnvironment,
+  deactivateStructure,
 } from './supabase.js'
 import { processPayment } from './payments.js'
 import {
@@ -244,13 +248,64 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
   const openTimePicker=laneIdx=>{const ft=laneFinish[laneIdx]??0;setTimePicker({laneIdx,mins:Math.floor(ft/600),secs:Math.floor((ft%600)/10),tenths:ft%10});};
   const tpSet=field=>v=>setTimePicker(p=>({...p,[field]:v}));
   const [showExitGuard,setShowExitGuard]=useState(false);
+  // Refs so Realtime closure always sees current run/structOrder without re-subscribing
+  const structOrderRef=useRef(structOrder);
+  const runRef=useRef(run);
+  useEffect(()=>{structOrderRef.current=structOrder;},[structOrder]);
+  useEffect(()=>{runRef.current=run;},[run]);
 
-  // Fetch objectives and player stats on mount
+  // Helper: activate both structures with current run context
+  const activateStructures=(objs,runNum,order)=>{
+    const objsList=(objs||objectives).map(o=>({id:o.id,name:o.name}));
+    lanes.forEach((lane,laneIdx)=>{
+      const allRes=lane.reservations;if(!allRes.length)return;
+      const structure=(order||structOrder)[laneIdx];
+      const rt=resTypes.find(x=>x.id===allRes[0].typeId);
+      const mode=rt?.mode||'coop';
+      const customerNames=allRes.map(r=>r.customerName).filter(Boolean);
+      const s=settings[runNum||run][laneIdx];
+      activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList).catch(()=>{});
+    });
+  };
+
+  // Fetch objectives + player stats on mount, then activate structure tablets
   useEffect(()=>{
-    fetchObjectives().then(setObjectives).catch(()=>{});
+    fetchObjectives().then(objs=>{
+      setObjectives(objs);
+      activateStructures(objs,1,['Alpha','Bravo']);
+    }).catch(()=>{});
     const uids=[...new Set(lanes.flatMap(l=>l.reservations.flatMap(r=>(r.players||[]).map(p=>p.userId).filter(Boolean))))];
     if(uids.length)fetchPlayerScoringStats(uids).then(setPlayerStats).catch(()=>{});
-  },[]);
+    // Deactivate both structures when modal unmounts
+    return()=>{
+      deactivateStructure('Alpha').catch(()=>{});
+      deactivateStructure('Bravo').catch(()=>{});
+    };
+  },[]);// eslint-disable-line react-hooks/exhaustive-deps
+
+  // Realtime — tablet changes push back to scoring modal via structures table
+  useEffect(()=>{
+    const ch=supabase.channel('scoring-structures')
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'structures'},({new:row})=>{
+        const laneIdx=structOrderRef.current.indexOf(row.id);
+        if(laneIdx===-1)return;
+        const curRun=runRef.current;
+        setSettings(prev=>{
+          const cur=prev[curRun]?.[laneIdx]||dfltLane();
+          return{...prev,[curRun]:{...prev[curRun],[laneIdx]:{
+            ...cur,
+            visual:    row.visual    ??cur.visual,
+            audio:     row.audio     ??cur.audio,
+            cranked:   (row.audio??cur.audio)==='C',
+            // Only update objectiveId if the column is present in the payload
+            ...(row.objective_id!==undefined?{objectiveId:row.objective_id}:{}),
+            ...(row.difficulty    !==undefined?{difficulty:row.difficulty}:{}),
+          }}};
+        });
+      })
+      .subscribe();
+    return()=>supabase.removeChannel(ch);
+  },[]);// eslint-disable-line react-hooks/exhaustive-deps
 
   // Master clock interval
   useEffect(()=>{
@@ -270,7 +325,18 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
 
   const tryClose=()=>setShowExitGuard(true);
 
-  const setSetting=(laneIdx,key,val)=>setSettings(p=>({...p,[run]:{...p[run],[laneIdx]:{...p[run][laneIdx],[key]:val}}}));
+  const setSetting=(laneIdx,key,val)=>{
+    setSettings(p=>({...p,[run]:{...p[run],[laneIdx]:{...p[run][laneIdx],[key]:val}}}));
+    // Push customer-selectable env fields to structures table so tablets stay in sync
+    if(['visual','audio','objectiveId','difficulty'].includes(key)){
+      const cur=settings[run][laneIdx]||dfltLane();
+      const nv=key==='visual'?val:cur.visual;
+      const na=key==='audio'?val:cur.audio;
+      const no=key==='objectiveId'?val:(cur.objectiveId??null);
+      const nd=key==='difficulty'?val:(cur.difficulty??'NONE');
+      setStructureEnvironment(structOrder[laneIdx],nv,na,no,nd).catch(()=>{});
+    }
+  };
 
   const getTeam=(laneIdx,res,pid)=>{
     const rt=runTeams[run][laneIdx]||{};
@@ -357,7 +423,10 @@ function ScoringModal({lanes,resTypes,versusTeams,currentUser,onClose,onCommit})
     lanes.forEach((_,i)=>{newSettings2[i]={...settings[1][i],winnerTeam:undefined};});
     setSettings(p=>({...p,2:newSettings2}));
     // Swap structures
-    setStructOrder(p=>[p[1],p[0]]);
+    const newOrder=[structOrder[1],structOrder[0]];
+    setStructOrder(()=>newOrder);
+    // Activate tablets with run 2 context (swapped structures)
+    activateStructures(null,2,newOrder);
     // Swap hunters/coyotes for versus
     const newTeams2={};
     lanes.forEach((lane,li)=>{

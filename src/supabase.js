@@ -2276,25 +2276,41 @@ export async function fetchStructures() {
 }
 
 // Called by OpsView when a scoring session loads or when "Log Run 1 → Run 2" fires.
-export async function activateStructureRun(structure, reservationId, runNumber, visual = 'V', audio = 'T') {
+// mode: 'coop' | 'versus' | null
+// customerNames: string[] — reservation names shown on tablet
+// objectives: {id, name}[] — selectable objectives
+export async function activateStructureRun(structure, reservationId, runNumber, visual = 'V', audio = 'T', mode = null, customerNames = [], objectives = []) {
   const { error } = await supabase.rpc('activate_structure_run', {
     p_structure:      structure,
     p_reservation_id: reservationId,
     p_run_number:     runNumber,
     p_visual:         visual,
     p_audio:          audio,
+    p_mode:           mode,
+    p_customer_names: customerNames,
+    p_objectives:     objectives,
   })
   if (error) throw error
 }
 
-// Called by the scoring table when staff changes visual/audio outside the tablet.
-export async function setStructureEnvironment(structure, visual, audio) {
+// Called by the scoring table env controls or by the tablet on any selection.
+// objectiveId: uuid | null (null = clear selection)
+// difficulty: 'NONE' | 'HARMLESS' | 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT'
+export async function setStructureEnvironment(structure, visual, audio, objectiveId = null, difficulty = 'NONE', source = 'scoring') {
   const { error } = await supabase.rpc('set_structure_environment', {
-    p_structure: structure,
-    p_visual:    visual,
-    p_audio:     audio,
-    p_source:    'scoring',
+    p_structure:    structure,
+    p_visual:       visual,
+    p_audio:        audio,
+    p_source:       source,
+    p_objective_id: objectiveId ?? null,
+    p_difficulty:   difficulty ?? 'NONE',
   })
+  if (error) throw error
+}
+
+// Called when the scoring modal closes or commits — shows standby on tablets.
+export async function deactivateStructure(structure) {
+  const { error } = await supabase.rpc('deactivate_structure', { p_structure: structure })
   if (error) throw error
 }
 
