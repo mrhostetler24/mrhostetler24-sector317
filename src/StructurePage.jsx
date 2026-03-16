@@ -166,7 +166,7 @@ export default function StructurePage({ structure }) {
   const secLabel = {
     fontSize: 'clamp(.55rem,.8vw,.8rem)', letterSpacing: '.12em',
     color: 'var(--muted)', textTransform: 'uppercase', textAlign: 'center',
-    marginBottom: '.25vh', flexShrink: 0,
+    marginBottom: '.4vh', flexShrink: 0,
   }
 
   return (
@@ -217,7 +217,7 @@ export default function StructurePage({ structure }) {
 
       {/* ── ACTIVE ── */}
       {active && (
-        <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '.6vh' }}>
+        <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '1.2vh' }}>
 
           {/* Session mode label */}
           <div style={{ flexShrink: 0, textAlign: 'center', marginBottom: '.2vh' }}>
@@ -228,12 +228,13 @@ export default function StructurePage({ structure }) {
 
           {/* Team / player list */}
           {mode === 'versus' ? (
-            <div style={{ flexShrink: 0, display: 'flex', gap: '1.5vw', alignItems: 'stretch' }}>
+            <div style={{ flexShrink: 0, display: 'flex', gap: '1.5vw', alignItems: 'stretch', justifyContent: 'center' }}>
               {[{label:blueLabel,color:BLUE,team:1},{label:redLabel,color:RED,team:2}].map(({label,color,team},ti)=>{
                 const tp = players.filter(p=>p.team===team)
                 return (
                   <div key={team} style={{
-                    flex: 1,
+                    width: 'clamp(220px, 38vw, 560px)',
+                    flexShrink: 0,
                     background: `linear-gradient(150deg, ${color}1E 0%, ${color}0A 45%, rgba(0,0,0,0) 100%)`,
                     border: `1.5px solid ${color}99`,
                     borderRadius: '1.2vw',
@@ -244,7 +245,7 @@ export default function StructurePage({ structure }) {
                   }}>
                     {/* corner accent */}
                     <div style={{ position:'absolute', top:0, [ti===0?'right':'left']:0, width:'28%', height:'2px', background:`linear-gradient(${ti===0?'to left':'to right'}, transparent, ${color}88)` }}/>
-                    <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:'.5vh' }}>
+                    <div style={{ display:'flex', alignItems:'baseline', justifyContent:'center', gap:'.6vw', marginBottom:'.5vh' }}>
                       <div style={{ fontSize:'clamp(1.1rem,2vw,2rem)', color, letterSpacing:'.18em', textTransform:'uppercase', fontWeight:900, textShadow:`0 0 14px ${color}88, 0 0 28px ${color}44`, lineHeight:1 }}>
                         {label}
                       </div>
@@ -300,9 +301,9 @@ export default function StructurePage({ structure }) {
                 position: 'relative',
               }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(to right, transparent, color-mix(in srgb, var(--acc) 55%, transparent), transparent)' }} />
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '.5vh' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '.6vw', marginBottom: '.5vh' }}>
                   <div style={{ fontSize: 'clamp(.9rem,1.5vw,1.5rem)', color: 'var(--acc)', letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 900, textShadow: '0 0 14px color-mix(in srgb, var(--acc) 55%, transparent)', lineHeight: 1 }}>
-                    Squad
+                    Hunters
                   </div>
                   <div style={{ fontSize: 'clamp(.55rem,.85vw,.85rem)', color: 'color-mix(in srgb, var(--acc) 60%, transparent)', letterSpacing: '.08em', fontWeight: 600, fontFamily: 'var(--fd)' }}>
                     {players.length}P
@@ -362,7 +363,7 @@ export default function StructurePage({ structure }) {
                 })}
               </div>
               {/* Selected display — fixed height prevents layout jump on first selection */}
-              <div style={{ height: '5vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ height: '7vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                 {selObj ? (
                   <>
                     <div style={{ fontSize: 'clamp(1.1rem,2.5vw,2.5rem)', fontWeight: 800, color: 'var(--acc)', letterSpacing: '.04em', lineHeight: 1.1 }}>
@@ -421,7 +422,7 @@ export default function StructurePage({ structure }) {
           )}
 
           {/* Env controls — fixed height, does not grow into player list space */}
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.5vh', height: '15vh' }}>
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.5vh', height: '60vh' }}>
 
             {/* Visual mode */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
