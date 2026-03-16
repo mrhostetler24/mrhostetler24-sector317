@@ -228,12 +228,13 @@ export default function StructurePage({ structure }) {
 
           {/* Team / player list */}
           {mode === 'versus' ? (
-            <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '1.5vw', alignItems: 'stretch' }}>
+            <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '1.5vw', alignItems: 'stretch', minWidth: 'calc(2 * clamp(220px, 38vw, 560px) + 2.8vw)', width: 'fit-content' }}>
               {[{label:blueLabel,color:BLUE,team:1},{label:redLabel,color:RED,team:2}].map(({label,color,team},ti)=>{
                 const tp = players.filter(p=>p.team===team)
                 return (
                   <div key={team} style={{
-                    minWidth: 'clamp(200px, 28vw, 420px)',
+                    flex: 1, minWidth: 0,
                     background: `linear-gradient(150deg, ${color}1E 0%, ${color}0A 45%, rgba(0,0,0,0) 100%)`,
                     border: `1.5px solid ${color}99`,
                     borderRadius: '1.2vw',
@@ -252,7 +253,7 @@ export default function StructurePage({ structure }) {
                         {tp.length}P
                       </div>
                     </div>
-                    <div style={{ overflow:'hidden', maxHeight:'calc(6 * 2.8vh)' }}>
+                    <div style={{ overflow:'hidden', maxHeight:'calc(6 * 3.4vh)' }}>
                       {tp.length === 0
                         ? <div style={{ fontSize:'clamp(.65rem,.9vw,.9rem)', color:'var(--muted)', fontStyle:'italic', padding:'.3vh 0' }}>—</div>
                         : tp.map((p,i) => (
@@ -286,6 +287,7 @@ export default function StructurePage({ structure }) {
                 </div>,
                 el
               ],[])}</div>
+            </div>
           ) : players.length > 0 ? (
             <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
               <div style={{
@@ -294,7 +296,7 @@ export default function StructurePage({ structure }) {
                 background: 'linear-gradient(150deg, color-mix(in srgb, var(--acc) 12%, transparent) 0%, transparent 100%)',
                 border: '1.5px solid color-mix(in srgb, var(--acc) 60%, transparent)',
                 borderRadius: '1.2vw',
-                padding: '.6vh 1.3vw .7vh',
+                padding: '.6vh 1.3vw 1.4vh',
                 overflow: 'hidden',
                 boxShadow: '0 0 22px color-mix(in srgb, var(--acc) 16%, transparent), inset 0 0 40px color-mix(in srgb, var(--acc) 6%, transparent)',
                 position: 'relative',
@@ -308,7 +310,7 @@ export default function StructurePage({ structure }) {
                     {players.length}P
                   </div>
                 </div>
-                <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 2.8vh)' }}>
+                <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 3.4vh)' }}>
                   {players.map((p, i) => (
                     <div key={p.id} style={{
                       display: 'flex', alignItems: 'center', gap: '.55vw',
