@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase.js'
 import { vizRenderName, audRenderName } from './envRender.jsx'
-import { getTierInfo, TIER_COLORS } from './utils.js'
+import { getTierInfo, TIER_COLORS, TIER_SHINE } from './utils.js'
 
 const VIZ_OPTS = [
   { code: 'V', name: 'Standard', desc: '6000K House Lighting' },
@@ -236,14 +236,17 @@ export default function StructurePage({ structure }) {
                     <div style={{ fontSize: 'clamp(1rem,1.8vw,1.8rem)', color, letterSpacing: '.15em', textTransform: 'uppercase', fontWeight: 800, marginBottom: '.5vh', flexShrink: 0 }}>
                       {label}
                     </div>
-                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 3.2vh)' }}>
                       {tp.length === 0
                         ? <div style={{ fontSize: 'clamp(.65rem,.9vw,.9rem)', color: 'var(--muted)', fontStyle: 'italic' }}>—</div>
                         : tp.map(p => (
-                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.6vw', padding: '.2vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                            <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.2vw,1.2rem)', fontWeight: 600, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                            {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.62vw,.65rem)', color, opacity: .9, letterSpacing: '.04em', flexShrink: 0 }}>[{p.platoonTag}]</span>}
-                            <span style={{ fontSize: 'clamp(.45rem,.62vw,.65rem)', color: p.tierColor||'var(--muted)', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '.06em' }}>{p.tierName}</span>
+                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.5vw', padding: '.25vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                            <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,2vw,20px)', width: 'clamp(14px,2vw,20px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
+                            {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.65vw,.68rem)', color: p.platoonBadgeColor||color, flexShrink: 0, letterSpacing: '.04em', fontWeight: 700 }}>[{p.platoonTag}]</span>}
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 600, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.leaderboardName || p.name}
+                              {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
+                            </span>
                           </div>
                         ))
                       }
@@ -255,12 +258,15 @@ export default function StructurePage({ structure }) {
           ) : players.length > 0 ? (
             <div style={{ flex: 1, minHeight: 0, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.5vh 1.5vw', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <div style={{ fontSize: 'clamp(.5rem,.7vw,.72rem)', color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '.4vh', flexShrink: 0 }}>Team</div>
-              <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 3.2vh)' }}>
                 {players.map(p => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.6vw', padding: '.2vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.2vw,1.2rem)', fontWeight: 600, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                    {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.62vw,.65rem)', color: 'var(--acc)', opacity: .9, letterSpacing: '.04em', flexShrink: 0 }}>[{p.platoonTag}]</span>}
-                    <span style={{ fontSize: 'clamp(.45rem,.62vw,.65rem)', color: p.tierColor||'var(--muted)', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '.06em' }}>{p.tierName}</span>
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.5vw', padding: '.25vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                    <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,2vw,20px)', width: 'clamp(14px,2vw,20px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
+                    {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.65vw,.68rem)', color: p.platoonBadgeColor||'var(--acc)', flexShrink: 0, letterSpacing: '.04em', fontWeight: 700 }}>[{p.platoonTag}]</span>}
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 600, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.leaderboardName || p.name}
+                      {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
+                    </span>
                   </div>
                 ))}
               </div>

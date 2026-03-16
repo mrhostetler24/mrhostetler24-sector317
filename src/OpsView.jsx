@@ -278,7 +278,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
         const st=playerStats[p.userId]||{};
         const tier=getTierInfo(Number(st.total_runs||0)).current;
         const u=p.userId?(users||[]).find(x=>x.id===p.userId):null;
-        return{id:p.id,name:p.name||'—',team:mode==='versus'?team:1,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null};
+        return{id:p.id,name:p.name||'—',team:mode==='versus'?team:1,tierKey:tier.key,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null,platoonBadgeColor:u?.platoonBadgeColor??null,leaderboardName:u?.leaderboardName??null};
       });
       const runActivate=activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList,playersList);
       if(preservePicks){
