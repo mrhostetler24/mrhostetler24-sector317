@@ -30,7 +30,7 @@ import {
 } from './scoreUtils.js'
 import { MerchStaffSales } from './MerchPortal.jsx'
 import { vizRenderName, audRenderName } from './envRender.jsx'
-import { getTierInfo, TIER_COLORS } from './utils.js'
+import { getTierInfo, TIER_COLORS, TIER_SHINE } from './utils.js'
 
 // ── Shared utilities (mirrored from App.jsx) ─────────────────────────────────
 const fmtMoney = n => `$${Number(n).toFixed(2)}`
@@ -212,6 +212,8 @@ function calcVsSlotWarn(date,startTime,newCount,reservations,resTypes){
   if(big<=0)return`This time slot is at capacity — no room for additional players.`;
   return`Heads up: your group of ${newCount} can't all be on the same team. ${big} will go to Team ${bigT} and ${small} to Team ${3-bigT}. Staff will arrange teams on arrival.`;
 }
+
+const fmtSecMS=s=>{if(s==null)return'—';const t=Math.round(s);return`${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`;};
 
 function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCommit}){
   const [run,setRun]=useState(1);
@@ -519,7 +521,6 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
 
   // Render helpers
   const BLUE_COL='#4fc3f7',RED_COL='#ef9a9a',BLUE_BG='rgba(79,195,247,.15)',RED_BG='rgba(239,154,154,.15)';
-  const fmtSecMS=s=>{if(s==null)return'—';const t=Math.round(s);return`${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`;};
   const teamCol=(t)=>t===1?BLUE_COL:RED_COL;const teamBg=(t)=>t===1?BLUE_BG:RED_BG;
   const teamAvg=(players)=>{
     const w=players.filter(p=>p.userId&&Number(playerStats[p.userId]?.total_runs)>0);
@@ -695,6 +696,8 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           background:colorT===1?'rgba(79,195,247,.06)':'rgba(239,154,154,.06)',
           border:`1px solid ${colorT===1?'rgba(79,195,247,.18)':'rgba(239,154,154,.18)'}`}}>
         <span style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:colorT===1?BLUE_COL:RED_COL}}/>
+        {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<img src={`/${tier.key}.png`} alt={tier.key} style={{height:14,width:14,objectFit:'contain',flexShrink:0,...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}}/>;})()}
+        {(()=>{const u=users?.find(x=>x.id===player.userId);return u?.platoonTag?<span style={{fontSize:'.72rem',fontWeight:500,color:u.platoonBadgeColor||'var(--acc)',flexShrink:0,letterSpacing:'.03em'}}>[{u.platoonTag}]</span>:null;})()}
         <span style={{flex:1,minWidth:0,fontSize:'.88rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{vr>0?`${vr}r`:'new'}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:26,textAlign:'right'}}>{avg}</span>
@@ -868,6 +871,8 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           const secs=Number(st.coop_avg_seconds)||0;
           const timeS=cr>0&&secs>0?`${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,'0')}`:'—';
           return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
+            {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<img src={`/${tier.key}.png`} alt={tier.key} style={{height:14,width:14,objectFit:'contain',flexShrink:0,...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}}/>;})()}
+            {(()=>{const u=users?.find(x=>x.id===player.userId);return u?.platoonTag?<span style={{fontSize:'.75rem',fontWeight:500,color:u.platoonBadgeColor||'var(--acc)',flexShrink:0,letterSpacing:'.03em'}}>[{u.platoonTag}]</span>:null;})()}
             <span style={{flex:1,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
             <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{cr>0?`${cr}r`:'new'}</span>
             <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:28,textAlign:'right'}}>{avgS}</span>
