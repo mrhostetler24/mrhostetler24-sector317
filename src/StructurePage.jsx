@@ -3,26 +3,26 @@ import { supabase } from './supabase.js'
 import { vizRenderName, audRenderName } from './envRender.jsx'
 
 const VIZ_OPTS = [
-  { code: 'V', name: 'Standard', desc: 'Normal lighting'  },
-  { code: 'C', name: 'Cosmic',   desc: 'UV blacklight'    },
-  { code: 'S', name: 'Strobe',   desc: 'Flash pulse'      },
-  { code: 'B', name: 'Dark',     desc: 'Lights off'       },
-  { code: 'R', name: 'Rave',     desc: 'UV + strobe'      },
+  { code: 'V', name: 'Standard', desc: '6000K House Lighting' },
+  { code: 'C', name: 'Cosmic',   desc: 'UV Blacklighting'     },
+  { code: 'S', name: 'Strobe',   desc: 'Flash Pulse'          },
+  { code: 'B', name: 'Dark',     desc: 'Lights Off'           },
+  { code: 'R', name: 'Rave',     desc: 'Party Lighting'       },
 ]
 
 const AUD_OPTS = [
-  { code: 'T', name: 'Tunes',   desc: 'Background music'  },
-  { code: 'C', name: 'Cranked', desc: 'Distorted audio'   },
-  { code: 'O', name: 'Off',     desc: 'Silent'            },
+  { code: 'T', name: 'Tunes',   desc: 'Background Music' },
+  { code: 'C', name: 'Cranked', desc: 'Loud Music'       },
+  { code: 'O', name: 'Off',     desc: 'Silent'           },
 ]
 
 const DIFF_OPTS = [
-  { value: 'NONE',     label: 'No Return Fire', desc: 'Role players will not engage or interfere.'    },
+  { value: 'NONE',     label: 'No Return Fire', desc: 'Role players will not engage.'                },
   { value: 'HARMLESS', label: 'Harmless',        desc: 'Light return fire with zero tactical skill.'  },
   { value: 'EASY',     label: 'Easy',            desc: 'Light return fire with basic tactical skill.' },
   { value: 'MEDIUM',   label: 'Medium',          desc: 'Return fire with basic tactical skill.'       },
   { value: 'HARD',     label: 'Hard',            desc: 'Return fire with high tactical skill.'        },
-  { value: 'EXPERT',   label: 'Expert',          desc: 'Give me your best shot!'                      },
+  { value: 'EXPERT',   label: 'Expert',          desc: 'Everything you can handle!'                   },
 ]
 
 const BLUE    = '#4fc3f7'
@@ -173,7 +173,7 @@ export default function StructurePage({ structure }) {
         height: '100vh', width: '100vw', overflow: 'hidden',
         background: 'var(--bg)', color: 'var(--txt)',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        padding: '1.5vh 2.5vw', boxSizing: 'border-box',
+        padding: '3.5vh 3vw 1.5vh', boxSizing: 'border-box',
         userSelect: 'none', cursor: !isFullscreen ? 'pointer' : 'default',
         fontFamily: fd,
       }}

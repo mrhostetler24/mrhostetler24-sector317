@@ -147,16 +147,16 @@ function WaiverModal({playerName,waiverDoc,onClose,onSign}){
 
 // ── Scoring Modal constants ────────────────────────────────────────────────────
 const VISUAL_OPTIONS=[
-  {ui:'Standard', code:'V', label:'Standard', desc:'Normal lighting'},
-  {ui:'COSMIC',code:'C', label:'Cosmic',   desc:'Black-light UV (+20%)'},
-  {ui:'STROBE',code:'S', label:'Strobe',   desc:'Flash pulse (+40%)'},
-  {ui:'DARK',  code:'B', label:'Dark',     desc:'Lights off (+80%)'},
-  {ui:'RAVE',  code:'R', label:'Rave',     desc:'UV + strobe (+20%)'},
+  {ui:'Standard', code:'V', label:'Standard', desc:'6000K House Lighting'},
+  {ui:'COSMIC',code:'C', label:'Cosmic',   desc:'UV Blacklighting (+20%)'},
+  {ui:'STROBE',code:'S', label:'Strobe',   desc:'Flash Pulse (+40%)'},
+  {ui:'DARK',  code:'B', label:'Dark',     desc:'Lights Off (+80%)'},
+  {ui:'RAVE',  code:'R', label:'Rave',     desc:'Party Lighting (+20%)'},
 ];
 const AUDIO_OPTIONS=[
   {ui:'OFF',    code:'O', cranked:false, label:'Off',     desc:'Silent'},
-  {ui:'TUNES',  code:'T', cranked:false, label:'Tunes',   desc:'Background music'},
-  {ui:'CRANKED',code:'C', cranked:true,  label:'Cranked', desc:'Distorted audio (+20%)'},
+  {ui:'TUNES',  code:'T', cranked:false, label:'Tunes',   desc:'Background Music'},
+  {ui:'CRANKED',code:'C', cranked:true,  label:'Cranked', desc:'Loud Music (+20%)'},
 ];
 // Per-mode border + background for selected env buttons (matches envRender.jsx palette)
 const VIZ_BTN={
@@ -172,12 +172,12 @@ const AUD_BTN={
   C:{selBorder:'#f97316', selBg:'rgba(249,115,22,.14)'},
 };
 const DIFF_OPTIONS=[
-  {value:'NONE',    label:'No Return Fire', desc:'Role players will not engage or interfere.'},
+  {value:'NONE',    label:'No Return Fire', desc:'Role players will not engage.'},
   {value:'HARMLESS',label:'Harmless',desc:'Light return fire with zero tactical skill.'},
   {value:'EASY',    label:'Easy',    desc:'Light return fire with basic tactical skill.'},
   {value:'MEDIUM',  label:'Medium',  desc:'Return fire with basic tactical skill.'},
   {value:'HARD',    label:'Hard',    desc:'Return fire with high tactical skill.'},
-  {value:'EXPERT',  label:'Expert',  desc:'Give me your best shot!'},
+  {value:'EXPERT',  label:'Expert',  desc:'Everything you can handle!'},
 ];
 const MAX_TENTHS=6000; // 10 minutes in tenths of a second
 const fmtTenths=t=>{const min=Math.floor(t/600),sec=Math.floor((t%600)/10),tenth=t%10;return`${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${tenth}`;};
