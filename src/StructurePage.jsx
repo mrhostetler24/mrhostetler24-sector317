@@ -390,7 +390,7 @@ export default function StructurePage({ structure }) {
               <div style={secLabel}>Opponent Difficulty</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5vw' }}>
                 {/* Fixed-width left panel — static height prevents layout jump on selection change */}
-                <div style={{ flexShrink: 0, width: '22vw', textAlign: 'right' }}>
+                <div style={{ flexShrink: 0, width: '19vw', textAlign: 'right' }}>
                   <div style={{ fontSize: 'clamp(.9rem,1.8vw,1.8rem)', fontWeight: 800, color: 'var(--acc)', textTransform: 'uppercase', letterSpacing: '.05em', lineHeight: 1 }}>
                     {selDiff.label}
                   </div>
