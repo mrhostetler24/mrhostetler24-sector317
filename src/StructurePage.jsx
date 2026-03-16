@@ -154,11 +154,11 @@ export default function StructurePage({ structure }) {
 
   // Env option — selected item grows to 2× width via flex
   const envOpt = sel => ({
-    flex: sel ? 5 : 1,
+    flex: sel ? 2.5 : 1,
     background: 'none', border: 'none',
     cursor: 'pointer', touchAction: 'manipulation',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    gap: '.25vh', padding: '0 .5vw',
+    gap: '.2vh', padding: '0 .25vw',
     transition: 'flex .25s ease',
     overflow: 'hidden',
   })
@@ -166,7 +166,7 @@ export default function StructurePage({ structure }) {
   const secLabel = {
     fontSize: 'clamp(.55rem,.8vw,.8rem)', letterSpacing: '.12em',
     color: 'var(--muted)', textTransform: 'uppercase', textAlign: 'center',
-    marginBottom: '.4vh', flexShrink: 0,
+    marginBottom: '.25vh', flexShrink: 0,
   }
 
   return (
@@ -217,7 +217,7 @@ export default function StructurePage({ structure }) {
 
       {/* ── ACTIVE ── */}
       {active && (
-        <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '1vh' }}>
+        <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '.6vh' }}>
 
           {/* Session mode label */}
           <div style={{ flexShrink: 0, textAlign: 'center', marginBottom: '.2vh' }}>
@@ -287,19 +287,46 @@ export default function StructurePage({ structure }) {
                 el
               ],[])}</div>
           ) : players.length > 0 ? (
-            <div style={{ flexShrink: 0, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.5vh 1.5vw', overflow: 'hidden' }}>
-              <div style={{ fontSize: 'clamp(.5rem,.7vw,.72rem)', color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '.4vh' }}>Team</div>
-              <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 2.6vh)' }}>
-                {players.map(p => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '.5vw', padding: '.18vh 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                    <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,1.8vw,18px)', width: 'clamp(14px,1.8vw,18px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
-                    {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.65vw,.68rem)', color: p.platoonBadgeColor||'var(--acc)', flexShrink: 0, letterSpacing: '.04em', fontWeight: 700 }}>[{p.platoonTag}]</span>}
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 400, color: 'rgba(255,255,255,.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.leaderboardName || p.name}
-                      {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
-                    </span>
+            <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+              <div style={{
+                width: 'clamp(220px, 36vw, 480px)',
+                background: 'linear-gradient(150deg, var(--acc-rgb, 255 165 0 / .12) 0%, rgba(0,0,0,0) 100%)',
+                background: 'linear-gradient(150deg, color-mix(in srgb, var(--acc) 12%, transparent) 0%, transparent 100%)',
+                border: '1.5px solid color-mix(in srgb, var(--acc) 60%, transparent)',
+                borderRadius: '1.2vw',
+                padding: '.6vh 1.3vw .7vh',
+                overflow: 'hidden',
+                boxShadow: '0 0 22px color-mix(in srgb, var(--acc) 16%, transparent), inset 0 0 40px color-mix(in srgb, var(--acc) 6%, transparent)',
+                position: 'relative',
+              }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(to right, transparent, color-mix(in srgb, var(--acc) 55%, transparent), transparent)' }} />
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '.5vh' }}>
+                  <div style={{ fontSize: 'clamp(.9rem,1.5vw,1.5rem)', color: 'var(--acc)', letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 900, textShadow: '0 0 14px color-mix(in srgb, var(--acc) 55%, transparent)', lineHeight: 1 }}>
+                    Squad
                   </div>
-                ))}
+                  <div style={{ fontSize: 'clamp(.55rem,.85vw,.85rem)', color: 'color-mix(in srgb, var(--acc) 60%, transparent)', letterSpacing: '.08em', fontWeight: 600, fontFamily: 'var(--fd)' }}>
+                    {players.length}P
+                  </div>
+                </div>
+                <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 2.8vh)' }}>
+                  {players.map((p, i) => (
+                    <div key={p.id} style={{
+                      display: 'flex', alignItems: 'center', gap: '.55vw',
+                      padding: '.28vh .4vw',
+                      borderRadius: '.3vw',
+                      background: i % 2 === 0 ? 'color-mix(in srgb, var(--acc) 5%, transparent)' : 'transparent',
+                      borderLeft: '2px solid color-mix(in srgb, var(--acc) 33%, transparent)',
+                      marginBottom: '.1vh',
+                    }}>
+                      <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,1.8vw,18px)', width: 'clamp(14px,1.8vw,18px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
+                      {p.platoonTag && <span style={{ fontSize: 'clamp(.45rem,.65vw,.68rem)', color: p.platoonBadgeColor || 'var(--acc)', flexShrink: 0, letterSpacing: '.04em', fontWeight: 700 }}>[{p.platoonTag}]</span>}
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 400, color: 'rgba(255,255,255,.78)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.leaderboardName || p.name}
+                        {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'rgba(255,255,255,.35)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ) : customerNames.length > 0 ? (
@@ -313,7 +340,7 @@ export default function StructurePage({ structure }) {
             <div style={{ flexShrink: 0 }}>
               <div style={secLabel}>Mission Objective</div>
               {/* Pill row */}
-              <div style={{ display: 'flex', gap: '.75vw', justifyContent: 'center', flexWrap: 'nowrap', marginBottom: '.75vh' }}>
+              <div style={{ display: 'flex', gap: '.6vw', justifyContent: 'center', flexWrap: 'nowrap', marginBottom: '.4vh' }}>
                 {objectives.map(obj => {
                   const sel = objectiveId === obj.id
                   return (
@@ -335,7 +362,7 @@ export default function StructurePage({ structure }) {
                 })}
               </div>
               {/* Selected display — fixed height prevents layout jump on first selection */}
-              <div style={{ height: '8vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+              <div style={{ height: '5vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                 {selObj ? (
                   <>
                     <div style={{ fontSize: 'clamp(1.1rem,2.5vw,2.5rem)', fontWeight: 800, color: 'var(--acc)', letterSpacing: '.04em', lineHeight: 1.1 }}>
@@ -394,12 +421,12 @@ export default function StructurePage({ structure }) {
           )}
 
           {/* Env controls — fixed height, does not grow into player list space */}
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.75vh', height: '20vh' }}>
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '.5vh', height: '15vh' }}>
 
             {/* Visual mode */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
               <div style={{ flexShrink: 0, width: '2.5vw', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--bdr)', marginRight: '.5vw' }}>
-                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 'clamp(.45rem,.65vw,.65rem)', letterSpacing: '.15em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Visual Mode</span>
+                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 'clamp(.45rem,.65vw,.65rem)', letterSpacing: '.15em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Visual</span>
               </div>
               {VIZ_OPTS.map(opt => {
                 const sel = visual === opt.code
@@ -417,7 +444,7 @@ export default function StructurePage({ structure }) {
             {/* Audio mode */}
             <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
               <div style={{ flexShrink: 0, width: '2.5vw', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--bdr)', marginRight: '.5vw' }}>
-                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 'clamp(.45rem,.65vw,.65rem)', letterSpacing: '.15em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Audio Mode</span>
+                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 'clamp(.45rem,.65vw,.65rem)', letterSpacing: '.15em', color: 'var(--muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Audio</span>
               </div>
               {AUD_OPTS.map(opt => {
                 const sel = audio === opt.code
