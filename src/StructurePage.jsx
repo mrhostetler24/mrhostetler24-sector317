@@ -228,13 +228,12 @@ export default function StructurePage({ structure }) {
 
           {/* Team / player list */}
           {mode === 'versus' ? (
-            <div style={{ flexShrink: 0, display: 'flex', gap: '1.5vw', alignItems: 'stretch', justifyContent: 'center' }}>
+            <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '1.5vw', alignItems: 'stretch' }}>
               {[{label:blueLabel,color:BLUE,team:1},{label:redLabel,color:RED,team:2}].map(({label,color,team},ti)=>{
                 const tp = players.filter(p=>p.team===team)
                 return (
                   <div key={team} style={{
-                    width: 'clamp(220px, 38vw, 560px)',
-                    flexShrink: 0,
+                    minWidth: 'clamp(200px, 28vw, 420px)',
                     background: `linear-gradient(150deg, ${color}1E 0%, ${color}0A 45%, rgba(0,0,0,0) 100%)`,
                     border: `1.5px solid ${color}99`,
                     borderRadius: '1.2vw',
@@ -290,7 +289,7 @@ export default function StructurePage({ structure }) {
           ) : players.length > 0 ? (
             <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
               <div style={{
-                width: 'clamp(220px, 36vw, 480px)',
+                minWidth: 'clamp(220px, 36vw, 480px)',
                 background: 'linear-gradient(150deg, var(--acc-rgb, 255 165 0 / .12) 0%, rgba(0,0,0,0) 100%)',
                 background: 'linear-gradient(150deg, color-mix(in srgb, var(--acc) 12%, transparent) 0%, transparent 100%)',
                 border: '1.5px solid color-mix(in srgb, var(--acc) 60%, transparent)',
@@ -386,26 +385,28 @@ export default function StructurePage({ structure }) {
 
           {/* Opponent Difficulty — coop only */}
           {mode === 'coop' && (
-            <div style={{ flexShrink: 0, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.75vh 2vw' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: 'calc(2 * clamp(220px, 38vw, 560px) + 2.8vw)', background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: '1vw', padding: '.75vh 1.5vw' }}>
               <div style={secLabel}>Opponent Difficulty</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2vw' }}>
-                {/* Fixed-width left panel — static height prevents slider jump */}
-                <div style={{ flexShrink: 0, width: '18vw', textAlign: 'right' }}>
-                  <div style={{ fontSize: 'clamp(.9rem,2vw,2rem)', fontWeight: 800, color: 'var(--acc)', textTransform: 'uppercase', letterSpacing: '.05em', lineHeight: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5vw' }}>
+                {/* Fixed-width left panel — static height prevents layout jump on selection change */}
+                <div style={{ flexShrink: 0, width: '14vw', textAlign: 'right' }}>
+                  <div style={{ fontSize: 'clamp(.9rem,1.8vw,1.8rem)', fontWeight: 800, color: 'var(--acc)', textTransform: 'uppercase', letterSpacing: '.05em', lineHeight: 1 }}>
                     {selDiff.label}
                   </div>
                   <div style={{ fontSize: 'clamp(.55rem,.85vw,.85rem)', color: 'var(--muted)', fontStyle: 'italic', marginTop: '.2vh', lineHeight: 1.3, height: '2.6vh', overflow: 'hidden' }}>
                     {selDiff.desc}
                   </div>
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <input
                     type="range" min={0} max={DIFF_OPTS.length - 1}
                     value={DIFF_OPTS.findIndex(d => d.value === difficulty)}
                     onChange={e => pick('difficulty', DIFF_OPTS[+e.target.value].value)}
                     style={{ width: '100%', accentColor: 'var(--acc)', cursor: 'pointer', margin: '.2vh 0', height: '2vh', touchAction: 'manipulation' }}
                   />
-                  <div style={{ position: 'relative', height: '1.5vh', marginTop: '.25vh' }}>
+                  {/* Labels: padded to match range thumb inset so text aligns with tick marks */}
+                  <div style={{ position: 'relative', height: '1.5vh', marginTop: '.25vh', padding: '0 9px', boxSizing: 'border-box' }}>
                     {DIFF_OPTS.map((d, i) => {
                       const pct = i / (DIFF_OPTS.length - 1) * 100
                       const xform = i === 0 ? 'none' : i === DIFF_OPTS.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)'
@@ -418,6 +419,7 @@ export default function StructurePage({ structure }) {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           )}
 
