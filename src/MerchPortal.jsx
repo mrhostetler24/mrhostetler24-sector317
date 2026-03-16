@@ -8,6 +8,7 @@ import {
   upsertMerchCategory, upsertMerchProduct, upsertMerchVariant, deleteMerchVariant,
   upsertMerchDiscount, upsertStockLocation, upsertBundleComponents,
   fetchBundleComponents, uploadMerchImage,
+  fetchMerchVendors, upsertMerchVendor, deleteMerchVendor,
   adjustMerchInventory, validateMerchDiscount, createMerchOrder,
   processMerchReturn, voidGiftCode, updateMerchOrderStatus,
   fetchUserByPhone, createGuestUser, createPayment, deductUserCredits, linkOAuthUser,
@@ -235,6 +236,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
   const [catalog, setCatalog] = useState([])
   const [categories, setCategories] = useState([])
   const [locations, setLocations] = useState([])
+  const [vendors, setVendors] = useState([])
   const [discounts, setDiscounts] = useState([])
   const [orders, setOrders] = useState([])
   const [giftCodes, setGiftCodes] = useState([])
@@ -245,6 +247,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
   const [editCategory, setEditCategory] = useState(null)
   const [editDiscount, setEditDiscount] = useState(null)
   const [editLocation, setEditLocation] = useState(null)
+  const [editVendor, setEditVendor] = useState(null)
   const [adjustModal, setAdjustModal] = useState(null) // {variant, productName}
   const [returnModal, setReturnModal] = useState(null) // {order, item}
   const [expandedProduct, setExpandedProduct] = useState(null)
@@ -258,16 +261,17 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [p, c, l, d, o, gc, r] = await Promise.all([
+      const [p, c, l, v, d, o, gc, r] = await Promise.all([
         fetchMerchCatalog('all'),
         fetchMerchCategories(),
         fetchStockLocations(),
+        fetchMerchVendors(),
         fetchMerchDiscounts(),
         fetchMerchOrders(),
         fetchMerchGiftCodes(),
         fetchMerchReturns(),
       ])
-      setCatalog(p); setCategories(c); setLocations(l)
+      setCatalog(p); setCategories(c); setLocations(l); setVendors(v)
       setDiscounts(d); setOrders(o); setGiftCodes(gc); setReturns(r)
     } catch (e) { onAlert?.('Error loading merch data: ' + e.message) }
     setLoading(false)
@@ -395,38 +399,79 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
       </>)}
 
       {/* ── Inventory Tab ───────────────────────────── */}
-      {tab === 'inventory' && (
-        <div>
-          {catalog.filter(p => p.type === 'physical').map(p => (
-            <div key={p.id} style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.75rem', padding: '1rem' }}>
-              <div style={{ fontWeight: 700, marginBottom: '.5rem' }}>{p.name}</div>
-              {p.variants.map(v => (
-                <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.4rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.88rem' }}>
-                  <span style={{ flex: 1 }}>{v.label}</span>
-                  {v.sku && <span style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{v.sku}</span>}
-                  <span style={{ minWidth: 80, textAlign: 'center', fontWeight: 700, color: v.inventory <= 0 ? 'var(--danger)' : v.inventory < 5 ? 'var(--warn)' : 'var(--ok)' }}>
-                    {v.inventory} in stock
-                  </span>
-                  {isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
-                    onClick={() => setAdjustModal({ variant: v, productName: p.name, locationId: null })}>Adjust</button>}
-                  {!isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
-                    onClick={async () => {
-                      if (!confirm(`Flag "${v.label}" for reorder?`)) return
-                      try {
-                        await adjustMerchInventory(v.id, null, 0, 'reorder_flag', 'Flagged for reorder', currentUser?.id)
-                        onAlert?.('Flagged for reorder.')
-                      } catch (e) { onAlert?.('Error: ' + e.message) }
-                    }}>Flag Reorder</button>}
+      {tab === 'inventory' && (() => {
+        const physicals = catalog.filter(p => p.type === 'physical')
+        const reorderNeeded = physicals.flatMap(p =>
+          p.variants
+            .filter(v => v.reorderPoint != null && v.inventory <= v.reorderPoint)
+            .map(v => ({ ...v, productName: p.name, product: p }))
+        ).sort((a, b) => a.inventory - b.inventory)
+        return (
+          <div>
+            {reorderNeeded.length > 0 && (
+              <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.35)', borderRadius: 8, padding: '1rem', marginBottom: '1rem' }}>
+                <div style={{ fontWeight: 700, color: 'var(--danger)', fontSize: '.8rem', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '.6rem' }}>
+                  ⚠ Reorder Needed — {reorderNeeded.length} variant{reorderNeeded.length !== 1 ? 's' : ''}
                 </div>
-              ))}
-              {p.variants.length === 0 && <div style={{ fontSize: '.85rem', color: 'var(--muted)' }}>No variants defined.</div>}
-            </div>
-          ))}
-          {catalog.filter(p => p.type === 'physical').length === 0 && (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>No physical products yet.</div>
-          )}
-        </div>
-      )}
+                {reorderNeeded.map(v => (
+                  <div key={v.id} style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.6rem .85rem', marginBottom: '.5rem', fontSize: '.83rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700 }}>{v.productName} · {v.label}</span>
+                      <span style={{ color: v.inventory <= 0 ? 'var(--danger)' : 'var(--warn)', fontWeight: 700 }}>{v.inventory} in stock</span>
+                      <span style={{ color: 'var(--muted)' }}>reorder at ≤{v.reorderPoint}</span>
+                      {v.reorderQty && <span style={{ color: 'var(--accB)' }}>order {v.reorderQty} units</span>}
+                      {isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.72rem', marginLeft: 'auto' }}
+                        onClick={() => setAdjustModal({ variant: v, productName: v.productName, locationId: null })}>Adjust</button>}
+                    </div>
+                    {(v.vendorName || v.vendorSku || v.leadTimeDays) && (
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '.35rem', color: 'var(--muted)', flexWrap: 'wrap' }}>
+                        {v.vendorName && <span>Vendor: <span style={{ color: 'var(--txt)' }}>{v.vendorName}</span></span>}
+                        {v.vendorEmail && <a href={`mailto:${v.vendorEmail}`} style={{ color: 'var(--accB)', textDecoration: 'none' }}>{v.vendorEmail}</a>}
+                        {v.vendorPhone && <span>{v.vendorPhone}</span>}
+                        {v.vendorSku && <span>SKU: <span style={{ color: 'var(--txt)', fontFamily: 'monospace' }}>{v.vendorSku}</span></span>}
+                        {v.leadTimeDays && <span>{v.leadTimeDays}d lead time</span>}
+                        {v.cost != null && <span>Cost: ${Number(v.cost).toFixed(2)}</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {physicals.map(p => (
+              <div key={p.id} style={{ background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 8, marginBottom: '.75rem', padding: '1rem' }}>
+                <div style={{ fontWeight: 700, marginBottom: '.5rem' }}>{p.name}</div>
+                {p.variants.map(v => {
+                  const threshold = v.reorderPoint ?? 5
+                  return (
+                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.4rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.88rem' }}>
+                      <span style={{ flex: 1 }}>{v.label}</span>
+                      {v.sku && <span style={{ color: 'var(--muted)', fontSize: '.75rem' }}>{v.sku}</span>}
+                      {v.reorderPoint != null && <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>reorder ≤{v.reorderPoint}</span>}
+                      <span style={{ minWidth: 80, textAlign: 'center', fontWeight: 700, color: v.inventory <= 0 ? 'var(--danger)' : v.inventory <= threshold ? 'var(--warn)' : 'var(--ok)' }}>
+                        {v.inventory} in stock
+                      </span>
+                      {isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
+                        onClick={() => setAdjustModal({ variant: v, productName: p.name, locationId: null })}>Adjust</button>}
+                      {!isAdmin && <button className="btn btn-sm btn-s" style={{ fontSize: '.75rem' }}
+                        onClick={async () => {
+                          if (!confirm(`Flag "${v.label}" for reorder?`)) return
+                          try {
+                            await adjustMerchInventory(v.id, null, 0, 'reorder_flag', 'Flagged for reorder', currentUser?.id)
+                            onAlert?.('Flagged for reorder.')
+                          } catch (e) { onAlert?.('Error: ' + e.message) }
+                        }}>Flag Reorder</button>}
+                    </div>
+                  )
+                })}
+                {p.variants.length === 0 && <div style={{ fontSize: '.85rem', color: 'var(--muted)' }}>No variants defined.</div>}
+              </div>
+            ))}
+            {physicals.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>No physical products yet.</div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── Orders Tab ──────────────────────────────── */}
       {tab === 'orders' && (<>
@@ -578,6 +623,22 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
             </div>
           ))}
         </div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.75rem' }}>
+            <div style={{ fontWeight: 700 }}>Vendors / Suppliers</div>
+            <button className="btn btn-p btn-sm" style={{ fontSize: '.75rem' }} onClick={() => setEditVendor({})}>+ Add Vendor</button>
+          </div>
+          {vendors.length === 0 && <div style={{ fontSize: '.85rem', color: 'var(--muted)' }}>No vendors yet.</div>}
+          {vendors.map(v => (
+            <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.45rem 0', borderBottom: '1px solid var(--bdr)', fontSize: '.88rem', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 600, minWidth: 120 }}>{v.name}</span>
+              {v.email && <a href={`mailto:${v.email}`} style={{ color: 'var(--accB)', textDecoration: 'none', fontSize: '.8rem' }}>{v.email}</a>}
+              {v.phone && <span style={{ color: 'var(--muted)', fontSize: '.8rem' }}>{v.phone}</span>}
+              {v.website && <a href={v.website} target="_blank" rel="noreferrer" style={{ color: 'var(--muted)', fontSize: '.75rem' }}>🔗 site</a>}
+              <button className="btn btn-sm btn-s" style={{ fontSize: '.7rem', marginLeft: 'auto' }} onClick={() => setEditVendor(v)}>Edit</button>
+            </div>
+          ))}
+        </div>
       </div>)}
 
       {/* ── Modals ──────────────────────────────────── */}
@@ -607,7 +668,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
       )}
 
       {editVariant !== null && (
-        <VariantEditModal variant={editVariant}
+        <VariantEditModal variant={editVariant} vendors={vendors}
           onSave={async (v) => {
             try {
               await upsertMerchVariant(v)
@@ -621,6 +682,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
             try { await deleteMerchVariant(editVariant.id); await loadAll(); setEditVariant(null) }
             catch (e) { onAlert?.('Error: ' + e.message) }
           } : undefined}
+          onAddVendor={() => setEditVendor({})}
           onClose={() => setEditVariant(null)} />
       )}
 
@@ -649,6 +711,20 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
             catch (e) { onAlert?.('Error: ' + e.message) }
           }}
           onClose={() => setEditLocation(null)} />
+      )}
+
+      {editVendor !== null && (
+        <VendorEditModal vendor={editVendor}
+          onSave={async (v) => {
+            try { await upsertMerchVendor(v); await loadAll(); setEditVendor(null); onAlert?.('Vendor saved.') }
+            catch (e) { onAlert?.('Error: ' + e.message) }
+          }}
+          onDelete={editVendor.id ? async () => {
+            if (!confirm('Deactivate this vendor?')) return
+            try { await deleteMerchVendor(editVendor.id); await loadAll(); setEditVendor(null); onAlert?.('Vendor deactivated.') }
+            catch (e) { onAlert?.('Error: ' + e.message) }
+          } : undefined}
+          onClose={() => setEditVendor(null)} />
       )}
 
       {adjustModal && (
@@ -784,17 +860,26 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
 }
 
 // ─── VariantEditModal ─────────────────────────────────────────
-function VariantEditModal({ variant, onSave, onDelete, onClose }) {
+function VariantEditModal({ variant, vendors = [], onSave, onDelete, onClose, onAddVendor }) {
   const [form, setForm] = useState(() => {
     const base = { label: '', sku: '', priceOverride: '', shippingCharge: '0',
-      storefrontVisible: true, staffVisible: true, active: true, sortOrder: 0, ...variant }
+      storefrontVisible: true, staffVisible: true, active: true, sortOrder: 0,
+      reorderPoint: '', reorderQty: '', cost: '', leadTimeDays: '', vendorId: '', vendorSku: '',
+      ...variant }
     return { ...base,
-      priceOverride: variant.priceOverride != null ? String(variant.priceOverride) : '',
-      shippingCharge: variant.shippingCharge != null ? String(variant.shippingCharge) : '0' }
+      priceOverride:  variant.priceOverride  != null ? String(variant.priceOverride)  : '',
+      shippingCharge: variant.shippingCharge != null ? String(variant.shippingCharge) : '0',
+      reorderPoint:   variant.reorderPoint   != null ? String(variant.reorderPoint)   : '',
+      reorderQty:     variant.reorderQty     != null ? String(variant.reorderQty)     : '',
+      cost:           variant.cost           != null ? String(variant.cost)           : '',
+      leadTimeDays:   variant.leadTimeDays   != null ? String(variant.leadTimeDays)   : '',
+      vendorId:       variant.vendorId       ?? '',
+      vendorSku:      variant.vendorSku      ?? '',
+    }
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   return (
-    <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+    <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
       <div className="mt2">{variant.id ? 'Edit Variant' : 'New Variant'}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.75rem' }}>
         <div className="f" style={{ gridColumn: '1/-1' }}><label>Label *</label><input value={form.label} onChange={e => set('label', e.target.value)} placeholder='e.g. "Black / XL"' /></div>
@@ -803,12 +888,38 @@ function VariantEditModal({ variant, onSave, onDelete, onClose }) {
         <div className="f"><label>Shipping Charge ($)</label><input type="number" min="0" step="0.01" value={form.shippingCharge} onChange={e => set('shippingCharge', e.target.value)} /></div>
         <div className="f"><label>Sort Order</label><input type="number" value={form.sortOrder} onChange={e => set('sortOrder', parseInt(e.target.value) || 0)} /></div>
       </div>
-      <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '.75rem', flexWrap: 'wrap' }}>
         {[['active','Active'],['storefrontVisible','On Storefront'],['staffVisible','Staff Sales']].map(([k,lbl]) => (
           <label key={k} style={{ display: 'flex', alignItems: 'center', gap: '.4rem', fontSize: '.88rem', cursor: 'pointer' }}>
             <input type="checkbox" checked={!!form[k]} onChange={e => set(k, e.target.checked)} />{lbl}
           </label>
         ))}
+      </div>
+      {/* ── Inventory & Ordering ── */}
+      <div style={{ borderTop: '1px solid var(--bdr)', paddingTop: '.75rem', marginBottom: '.75rem' }}>
+        <div style={{ fontSize: '.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.6rem' }}>Inventory &amp; Ordering</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
+          <div className="f"><label>Reorder Point</label><input type="number" min="0" value={form.reorderPoint} onChange={e => set('reorderPoint', e.target.value)} placeholder="Alert when qty ≤ this" /></div>
+          <div className="f"><label>Reorder Qty</label><input type="number" min="0" value={form.reorderQty} onChange={e => set('reorderQty', e.target.value)} placeholder="Units to order" /></div>
+          <div className="f"><label>Cost / Unit ($)</label><input type="number" min="0" step="0.0001" value={form.cost} onChange={e => set('cost', e.target.value)} placeholder="Your cost" /></div>
+          <div className="f"><label>Lead Time (days)</label><input type="number" min="0" value={form.leadTimeDays} onChange={e => set('leadTimeDays', e.target.value)} placeholder="Delivery days" /></div>
+          <div className="f" style={{ gridColumn: '1/-1' }}>
+            <label>Vendor</label>
+            <div style={{ display: 'flex', gap: '.4rem' }}>
+              <select value={form.vendorId} onChange={e => set('vendorId', e.target.value)} style={{ flex: 1 }}>
+                <option value="">— None —</option>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+              {onAddVendor && <button type="button" className="btn btn-s btn-sm" style={{ fontSize: '.75rem', whiteSpace: 'nowrap' }} onClick={onAddVendor}>＋ Add</button>}
+            </div>
+          </div>
+          {form.vendorId && (
+            <div className="f" style={{ gridColumn: '1/-1' }}>
+              <label>Vendor SKU</label>
+              <input value={form.vendorSku} onChange={e => set('vendorSku', e.target.value)} placeholder="Supplier's part number" />
+            </div>
+          )}
+        </div>
       </div>
       <div className="ma" style={{ justifyContent: onDelete ? 'space-between' : 'flex-end', marginTop: '.5rem' }}>
         {onDelete && <button className="btn btn-d btn-sm" style={{ fontSize: '.8rem' }} onClick={onDelete}>Delete Variant</button>}
@@ -817,9 +928,41 @@ function VariantEditModal({ variant, onSave, onDelete, onClose }) {
           <button className="btn btn-p" disabled={!form.label}
             onClick={() => onSave({
               ...form,
-              priceOverride: form.priceOverride !== '' ? parseFloat(form.priceOverride) : null,
+              priceOverride:  form.priceOverride  !== '' ? parseFloat(form.priceOverride)  : null,
               shippingCharge: parseFloat(form.shippingCharge) || 0,
+              vendorId:       form.vendorId || null,
+              vendorSku:      form.vendorSku || null,
             })}>Save Variant</button>
+        </div>
+      </div>
+    </div></div>
+  )
+}
+
+// ─── VendorEditModal ──────────────────────────────────────────
+function VendorEditModal({ vendor, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', website: '', notes: '', active: true, ...vendor })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  return (
+    <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+      <div className="mt2">{vendor.id ? 'Edit Vendor' : 'Add Vendor'}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.75rem' }}>
+        <div className="f" style={{ gridColumn: '1/-1' }}><label>Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} /></div>
+        <div className="f"><label>Email</label><input type="email" value={form.email || ''} onChange={e => set('email', e.target.value)} /></div>
+        <div className="f"><label>Phone</label><input value={form.phone || ''} onChange={e => set('phone', e.target.value)} /></div>
+        <div className="f" style={{ gridColumn: '1/-1' }}><label>Website</label><input value={form.website || ''} onChange={e => set('website', e.target.value)} placeholder="https://..." /></div>
+        <div className="f" style={{ gridColumn: '1/-1' }}><label>Notes</label><textarea rows={2} value={form.notes || ''} onChange={e => set('notes', e.target.value)} style={{ resize: 'vertical' }} /></div>
+      </div>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '.75rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '.4rem', fontSize: '.88rem', cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!form.active} onChange={e => set('active', e.target.checked)} />Active
+        </label>
+      </div>
+      <div className="ma" style={{ justifyContent: onDelete ? 'space-between' : 'flex-end' }}>
+        {onDelete && <button className="btn btn-d btn-sm" style={{ fontSize: '.8rem' }} onClick={onDelete}>Deactivate</button>}
+        <div style={{ display: 'flex', gap: '.5rem' }}>
+          <button className="btn btn-s" onClick={onClose}>Cancel</button>
+          <button className="btn btn-p" disabled={!form.name} onClick={() => onSave(form)}>Save Vendor</button>
         </div>
       </div>
     </div></div>

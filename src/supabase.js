@@ -1824,6 +1824,15 @@ const toMerchProduct = r => r ? ({
     shippingCharge: Number(v.shipping_charge || 0),
     active: v.active, storefrontVisible: v.storefront_visible, staffVisible: v.staff_visible,
     sortOrder: v.sort_order, inventory: Number(v.inventory || 0),
+    cost:          v.cost          != null ? Number(v.cost)          : null,
+    reorderPoint:  v.reorder_point != null ? Number(v.reorder_point) : null,
+    reorderQty:    v.reorder_qty   != null ? Number(v.reorder_qty)   : null,
+    leadTimeDays:  v.lead_time_days != null ? Number(v.lead_time_days) : null,
+    vendorId:      v.vendor_id   ?? null,
+    vendorSku:     v.vendor_sku  ?? null,
+    vendorName:    v.vendor_name ?? null,
+    vendorEmail:   v.vendor_email ?? null,
+    vendorPhone:   v.vendor_phone ?? null,
   })),
 }) : null
 
@@ -1946,6 +1955,34 @@ export async function fetchMerchReturns() {
   return (data || []).map(toMerchReturn)
 }
 
+export async function fetchMerchVendors() {
+  const { data, error } = await supabase.from('merch_vendors').select('*').eq('active', true).order('name')
+  if (error) throw error
+  return (data || []).map(v => ({
+    id: v.id, name: v.name, email: v.email, phone: v.phone,
+    website: v.website, notes: v.notes, active: v.active,
+  }))
+}
+
+export async function upsertMerchVendor(vendor) {
+  const { data, error } = await supabase.rpc('upsert_merch_vendor', {
+    p_id:      vendor.id      || null,
+    p_name:    vendor.name,
+    p_email:   vendor.email   || null,
+    p_phone:   vendor.phone   || null,
+    p_website: vendor.website || null,
+    p_notes:   vendor.notes   || null,
+    p_active:  vendor.active  ?? true,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function deleteMerchVendor(id) {
+  const { error } = await supabase.rpc('delete_merch_vendor', { p_id: id })
+  if (error) throw error
+}
+
 // ─── Direct mutations (manager/admin via RLS) ─────────────────
 export async function upsertMerchCategory(cat) {
   const row = {
@@ -1989,6 +2026,12 @@ export async function upsertMerchVariant(variant) {
     shipping_charge: variant.shippingCharge ?? 0,
     active: variant.active ?? true, storefront_visible: variant.storefrontVisible ?? true,
     staff_visible: variant.staffVisible ?? true, sort_order: variant.sortOrder ?? 0,
+    vendor_id:      variant.vendorId      || null,
+    vendor_sku:     variant.vendorSku     || null,
+    cost:           variant.cost != null && variant.cost !== '' ? parseFloat(variant.cost) : null,
+    reorder_point:  variant.reorderPoint  != null && variant.reorderPoint  !== '' ? parseInt(variant.reorderPoint)  : null,
+    reorder_qty:    variant.reorderQty    != null && variant.reorderQty    !== '' ? parseInt(variant.reorderQty)    : null,
+    lead_time_days: variant.leadTimeDays  != null && variant.leadTimeDays  !== '' ? parseInt(variant.leadTimeDays)  : null,
   }
   if (variant.id) row.id = variant.id
   const { data, error } = await supabase.from('merch_variants').upsert(row).select().single()
