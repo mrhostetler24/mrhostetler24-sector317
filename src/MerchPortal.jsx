@@ -773,6 +773,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
 
       {editVariant !== null && (
         <VariantEditModal variant={editVariant} vendors={vendors}
+          productSku={catalog.find(p => p.id === editVariant?.productId)?.sku || null}
           onSave={async (v) => {
             try {
               await upsertMerchVariant(v)
@@ -934,7 +935,7 @@ function ImageUploader({ images, onChange, maxImages = 5 }) {
 // ─── ProductEditModal ─────────────────────────────────────────
 function ProductEditModal({ product, categories, onSave, onClose }) {
   const [form, setForm] = useState(() => {
-    const base = { type: 'physical', name: '', description: '', sku: '', basePrice: '',
+    const base = { type: 'physical', name: '', description: '', sku: '', skuFamilyCode: '', basePrice: '',
       categoryId: '', imageUrls: [], storefrontVisible: true, staffVisible: true,
       shippable: true, pickupOnly: false, returnable: true, returnWindowDays: 30,
       restockable: true, returnPolicyNote: '', active: true, archived: false, sortOrder: 0,
@@ -947,6 +948,9 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
     }
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const selectedCat = categories.find(c => c.id === form.categoryId)
+  const suggestedSku = selectedCat?.skuCode && form.skuFamilyCode
+    ? `${selectedCat.skuCode}-${form.skuFamilyCode}` : null
   return (
     <div className="mo"><div className="mc" style={{ maxWidth: 560, maxHeight: '85vh', overflowY: 'auto' }}>
       <div className="mt2">{product.id ? 'Edit Product' : 'New Product'}</div>
@@ -960,11 +964,29 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
         <div className="f"><label>Category</label>
           <select value={form.categoryId || ''} onChange={e => set('categoryId', e.target.value || null)}>
             <option value="">— None —</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}{c.skuCode ? ` [${c.skuCode}]` : ''}</option>)}
           </select>
         </div>
         <div className="f"><label>Base Price ($) *</label><input type="number" min="0" step="0.01" value={form.basePrice} onChange={e => set('basePrice', e.target.value)} placeholder="0.00" /></div>
-        <div className="f"><label>SKU</label><input value={form.sku || ''} onChange={e => set('sku', e.target.value)} placeholder="Optional" /></div>
+        <div className="f">
+          <label>Product Family Code <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '.78rem' }}>2–8 chars (e.g. RAID, ICON, HPA)</span></label>
+          <input value={form.skuFamilyCode || ''} maxLength={8} style={{ textTransform: 'uppercase', width: 120 }}
+            onChange={e => {
+              const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+              set('skuFamilyCode', v)
+              if (selectedCat?.skuCode && v) set('sku', `${selectedCat.skuCode}-${v}`)
+            }}
+            placeholder="e.g. RAID" />
+        </div>
+        <div className="f">
+          <label>Base SKU {suggestedSku && suggestedSku !== form.sku && (
+            <button type="button" style={{ marginLeft: '.5rem', fontSize: '.72rem', padding: '1px 6px', cursor: 'pointer' }}
+              onClick={() => set('sku', suggestedSku)}>Use {suggestedSku}</button>
+          )}</label>
+          <input value={form.sku || ''} style={{ textTransform: 'uppercase' }}
+            onChange={e => set('sku', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+            placeholder={suggestedSku || 'e.g. APP-RAID'} />
+        </div>
         <div className="f" style={{ gridColumn: '1/-1' }}><label>Description</label><textarea value={form.description || ''} onChange={e => set('description', e.target.value)} rows={2} style={{ resize: 'vertical' }} /></div>
         <div className="f" style={{ gridColumn: '1/-1' }}>
           <label>Images (up to 5)</label>
@@ -1013,9 +1035,9 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
 }
 
 // ─── VariantEditModal ─────────────────────────────────────────
-function VariantEditModal({ variant, vendors = [], onSave, onDelete, onClose, onAddVendor }) {
+function VariantEditModal({ variant, vendors = [], productSku = null, onSave, onDelete, onClose, onAddVendor }) {
   const [form, setForm] = useState(() => {
-    const base = { label: '', sku: '', priceOverride: '', shippingCharge: '0',
+    const base = { label: '', sku: '', skuSuffix: '', priceOverride: '', shippingCharge: '0',
       storefrontVisible: true, staffVisible: true, active: true, sortOrder: 0,
       reorderPoint: '', reorderQty: '', cost: '', leadTimeDays: '', vendorId: '', vendorSku: '',
       ...variant }
@@ -1028,15 +1050,35 @@ function VariantEditModal({ variant, vendors = [], onSave, onDelete, onClose, on
       leadTimeDays:   variant.leadTimeDays   != null ? String(variant.leadTimeDays)   : '',
       vendorId:       variant.vendorId       ?? '',
       vendorSku:      variant.vendorSku      ?? '',
+      skuSuffix:      variant.skuSuffix      ?? '',
     }
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const suggestedSku = productSku && form.skuSuffix ? `${productSku}-${form.skuSuffix}` : null
   return (
     <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
       <div className="mt2">{variant.id ? 'Edit Variant' : 'New Variant'}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.75rem' }}>
         <div className="f" style={{ gridColumn: '1/-1' }}><label>Label *</label><input value={form.label} onChange={e => set('label', e.target.value)} placeholder='e.g. "Black / XL"' /></div>
-        <div className="f"><label>SKU</label><input value={form.sku || ''} onChange={e => set('sku', e.target.value)} /></div>
+        <div className="f">
+          <label>SKU Suffix <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '.78rem' }}>variant codes (e.g. BLK-LG, 68, 2000)</span></label>
+          <input value={form.skuSuffix || ''} maxLength={20} style={{ textTransform: 'uppercase' }}
+            onChange={e => {
+              const v = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '')
+              set('skuSuffix', v)
+              if (productSku && v) set('sku', `${productSku}-${v}`)
+            }}
+            placeholder="e.g. BLK-LG" />
+        </div>
+        <div className="f">
+          <label>Full SKU {suggestedSku && suggestedSku !== form.sku && (
+            <button type="button" style={{ marginLeft: '.5rem', fontSize: '.72rem', padding: '1px 6px', cursor: 'pointer' }}
+              onClick={() => set('sku', suggestedSku)}>Use {suggestedSku}</button>
+          )}</label>
+          <input value={form.sku || ''} style={{ textTransform: 'uppercase' }}
+            onChange={e => set('sku', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+            placeholder={productSku ? `${productSku}-…` : 'e.g. APP-RAID-BLK-LG'} />
+        </div>
         <div className="f"><label>Price Override ($)</label><input type="number" min="0" step="0.01" value={form.priceOverride} onChange={e => set('priceOverride', e.target.value)} placeholder="Leave blank = base price" /></div>
         <div className="f"><label>Shipping Charge ($)</label><input type="number" min="0" step="0.01" value={form.shippingCharge} onChange={e => set('shippingCharge', e.target.value)} /></div>
         <div className="f"><label>Sort Order</label><input type="number" value={form.sortOrder} onChange={e => set('sortOrder', parseInt(e.target.value) || 0)} /></div>
@@ -1317,13 +1359,19 @@ function VendorEditModal({ vendor, onSave, onDelete, onClose }) {
 
 // ─── CategoryEditModal ────────────────────────────────────────
 function CategoryEditModal({ category, onSave, onClose }) {
-  const [form, setForm] = useState({ name: '', slug: '', sortOrder: 0, active: true, storefrontVisible: true, staffVisible: true, ...category })
+  const [form, setForm] = useState({ name: '', slug: '', skuCode: '', sortOrder: 0, active: true, storefrontVisible: true, staffVisible: true, ...category })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   return (
     <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
       <div className="mt2">{category.id ? 'Edit Category' : 'New Category'}</div>
       <div style={{ marginBottom: '.75rem' }}>
         <div className="f"><label>Name *</label><input value={form.name} onChange={e => set('name', e.target.value)} /></div>
+        <div className="f">
+          <label>SKU Code <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '.78rem' }}>2–6 chars, uppercase — first segment of every product SKU in this category (e.g. APP, HDR, TNK)</span></label>
+          <input value={form.skuCode || ''} maxLength={6} style={{ textTransform: 'uppercase', width: 100 }}
+            onChange={e => set('skuCode', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+            placeholder="e.g. APP" />
+        </div>
         <div className="f"><label>Slug</label><input value={form.slug || ''} onChange={e => set('slug', e.target.value)} placeholder="Auto-generated if blank" /></div>
         <div className="f"><label>Sort Order</label><input type="number" value={form.sortOrder} onChange={e => set('sortOrder', parseInt(e.target.value) || 0)} /></div>
       </div>

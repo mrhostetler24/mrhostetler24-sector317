@@ -1795,7 +1795,8 @@ export const uploadPlatoonBadge = async (platoonId, file) => {
 // ============================================================
 
 const toMerchCategory = r => r ? ({
-  id: r.id, name: r.name, slug: r.slug, sortOrder: r.sort_order,
+  id: r.id, name: r.name, slug: r.slug, skuCode: r.sku_code ?? null,
+  sortOrder: r.sort_order,
   active: r.active, storefrontVisible: r.storefront_visible, staffVisible: r.staff_visible,
   createdAt: r.created_at,
 }) : null
@@ -1808,6 +1809,7 @@ const parseImageUrls = v => {
 const toMerchProduct = r => r ? ({
   id: r.id, categoryId: r.category_id, categoryName: r.category_name,
   type: r.type, name: r.name, description: r.description, sku: r.sku,
+  skuFamilyCode: r.sku_family_code ?? null,
   basePrice: Number(r.base_price),
   imageUrl: r.image_url?.startsWith('[') ? ((() => { try { return JSON.parse(r.image_url)[0] } catch { return null } })()) : (r.image_url || null),
   imageUrls: parseImageUrls(r.image_url),
@@ -1820,7 +1822,7 @@ const toMerchProduct = r => r ? ({
   active: r.active, archived: r.archived,
   sortOrder: r.sort_order, createdAt: r.created_at,
   variants: (r.variants || []).map(v => ({
-    id: v.id, label: v.label, sku: v.sku,
+    id: v.id, label: v.label, sku: v.sku, skuSuffix: v.sku_suffix ?? null,
     priceOverride: v.price_override != null ? Number(v.price_override) : null,
     shippingCharge: Number(v.shipping_charge || 0),
     active: v.active, storefrontVisible: v.storefront_visible, staffVisible: v.staff_visible,
@@ -2032,6 +2034,7 @@ export async function deleteMerchVendor(id) {
 export async function upsertMerchCategory(cat) {
   const row = {
     name: cat.name, slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+    sku_code: cat.skuCode ? cat.skuCode.toUpperCase() : null,
     sort_order: cat.sortOrder ?? 0, active: cat.active ?? true,
     storefront_visible: cat.storefrontVisible ?? true, staff_visible: cat.staffVisible ?? true,
   }
@@ -2047,7 +2050,9 @@ export async function upsertMerchProduct(product) {
   const row = {
     category_id: product.categoryId || null, type: product.type,
     name: product.name, description: product.description || null,
-    sku: product.sku || null, base_price: product.basePrice ?? 0,
+    sku: product.sku ? product.sku.toUpperCase() : null,
+    sku_family_code: product.skuFamilyCode ? product.skuFamilyCode.toUpperCase() : null,
+    base_price: product.basePrice ?? 0,
     image_url: imageUrlVal,
     storefront_visible: product.storefrontVisible ?? true, staff_visible: product.staffVisible ?? true,
     shippable: product.shippable ?? true, pickup_only: product.pickupOnly ?? false,
@@ -2068,7 +2073,9 @@ export async function upsertMerchProduct(product) {
 export async function upsertMerchVariant(variant) {
   const row = {
     product_id: variant.productId, label: variant.label,
-    sku: variant.sku || null, price_override: variant.priceOverride ?? null,
+    sku: variant.sku ? variant.sku.toUpperCase() : null,
+    sku_suffix: variant.skuSuffix ? variant.skuSuffix.toUpperCase() : null,
+    price_override: variant.priceOverride ?? null,
     shipping_charge: variant.shippingCharge ?? 0,
     active: variant.active ?? true, storefront_visible: variant.storefrontVisible ?? true,
     staff_visible: variant.staffVisible ?? true, sort_order: variant.sortOrder ?? 0,
