@@ -151,7 +151,7 @@ export default function StructurePage({ structure }) {
 
   // Env option — selected item grows to 2× width via flex
   const envOpt = sel => ({
-    flex: sel ? 2 : 1,
+    flex: sel ? 3 : 1,
     background: 'none', border: 'none',
     cursor: 'pointer', touchAction: 'manipulation',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
