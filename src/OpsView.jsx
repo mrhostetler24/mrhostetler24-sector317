@@ -1678,7 +1678,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                     {/* ── Players — always visible ── */}
                     <div style={{borderTop:"1px solid var(--bdr)",padding:".65rem 1rem"}}>
                       {rt?.mode==="versus"?(()=>{
-                        const getTeam=pid=>{if(versusTeams[res.id]?.[pid]!==undefined)return versusTeams[res.id][pid];const pObj=players.find(p=>p.id===pid);if(pObj?.team!=null)return pObj.team;const slotReses=reservations.filter(r=>r.date===res.date&&r.startTime===res.startTime&&r.status!=='cancelled');return calcResVsTeams(slotReses)[res.id]??1;};
+                        const getTeam=pid=>{if(versusTeams[res.id]?.[pid]!==undefined)return versusTeams[res.id][pid];const pObj=players.find(p=>p.id===pid);if(pObj?.team!=null)return pObj.team;const slotReses=reservations.filter(r=>r.date===res.date&&r.startTime===res.startTime&&r.status!=='cancelled'&&resTypes.find(rt=>rt.id===r.typeId)?.mode==='versus');return calcResVsTeams(slotReses)[res.id]??1;};
                         const t1=players.filter(p=>getTeam(p.id)===1);
                         const t2=players.filter(p=>getTeam(p.id)===2);
                         const switchT=pid=>{const newTeam=getTeam(pid)===1?2:1;setVersusTeams(prev=>({...prev,[res.id]:{...(prev[res.id]||{}),[pid]:newTeam}}));setReservations(prev=>prev.map(r=>r.id===res.id?{...r,players:(r.players||[]).map(p=>p.id===pid?{...p,team:newTeam}:p)}:r));updateReservationPlayer(pid,{team:newTeam}).catch(()=>{});};
