@@ -3337,15 +3337,9 @@ useEffect(() => {
     setWaiverDocs(next);
   };
 
-  const handleSetUsers=async(updater)=>{
-    const next=typeof updater==="function"?updater(users):updater;
-    setUsers(next);
-  };
+  const handleSetUsers=(updater)=>setUsers(updater);
 
-  const handleSetReservations=async(updater)=>{
-    const next=typeof updater==="function"?updater(reservations):updater;
-    setReservations(next);
-  };
+  const handleSetReservations=(updater)=>setReservations(updater);
 
   const handleSetShifts=async(updater)=>{
     const next=typeof updater==="function"?updater(shifts):updater;
