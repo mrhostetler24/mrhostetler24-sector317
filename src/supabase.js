@@ -1018,6 +1018,25 @@ export async function fetchObjectives() {
   return data ?? []
 }
 
+export async function fetchAllObjectives() {
+  const { data, error } = await supabase.from('objectives').select('*').order('name')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function upsertObjective(obj) {
+  const row = { name: obj.name, description: obj.description ?? null, mode: obj.mode ?? 'all', active: obj.active ?? true }
+  if (obj.id) row.id = obj.id
+  const { data, error } = await supabase.from('objectives').upsert(row).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteObjective(id) {
+  const { error } = await supabase.from('objectives').delete().eq('id', id)
+  if (error) throw error
+}
+
 // ============================================================
 // PLAYER SCORING STATS (for scoring modal player cards)
 // ============================================================

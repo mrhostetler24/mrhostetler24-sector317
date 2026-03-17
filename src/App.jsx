@@ -24,6 +24,7 @@ import {
   fetchShifts, createShift, updateShift, deleteShift, claimShift, flagShiftConflict,
   approveShiftConflict, declineShiftConflict, assignShift, adminEditShift,
   createPayment, fetchPayments, mergeUsers, linkAuthToGuest,
+  fetchObjectives as fetchObjectivesActive, fetchAllObjectives, upsertObjective, deleteObjective,
   fetchRunsForReservations, fetchUserAuthDates, calculateRunScore,
   fetchShiftTemplates, fetchTemplateSlots, fetchSlotAssignments,
   fetchStaffBlocks, fetchAllStaffBlocks, createStaffBlock, updateStaffBlock, deleteStaffBlock,
@@ -2031,7 +2032,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [tab,setTab]=useState("dashboard");
   const [schedTabOverride,setSchedTabOverride]=useState(null);
   const apEmployeeTabs=["social","schedule"];
-  const apAdminTabs=["types","sessions","waivers"];
+  const apAdminTabs=["types","sessions","waivers","objectives"];
   const tabGroup=apAdminTabs.includes(tab)?"admin":apEmployeeTabs.includes(tab)?"employee":"company";
   const switchGroup=(g)=>{if(g==="company")setTab("dashboard");if(g==="employee")setTab("social");if(g==="admin")setTab("types");};
   const [toastMsg,setToastMsg]=useState(null);
@@ -2138,6 +2139,23 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [newShift,setNewShift]=useState({staffId:"",date:"",start:"10:00",end:"18:00"});
   const [editWaiver,setEditWaiver]=useState(null);
   const [newWaiver,setNewWaiver]=useState({name:"",version:"1.0",body:"",active:false});
+  const [adminObjectives,setAdminObjectives]=useState([]);
+  const [editObj,setEditObj]=useState(null);
+  const [newObj,setNewObj]=useState({name:"",description:"",mode:"all",active:true});
+  const objF=editObj||newObj;const setObjF=fn=>editObj?setEditObj(p=>({...(typeof fn==="function"?fn(p):fn)})):setNewObj(p=>({...(typeof fn==="function"?fn(p):fn)}));
+  useEffect(()=>{if(tab==="objectives"&&isAdmin)fetchAllObjectives().then(setAdminObjectives).catch(()=>{});},[tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  const saveObj=async()=>{
+    try{
+      const saved=await upsertObjective(objF);
+      if(editObj)setAdminObjectives(p=>p.map(o=>o.id===saved.id?saved:o));
+      else setAdminObjectives(p=>[...p,saved].sort((a,b)=>a.name.localeCompare(b.name)));
+      showToast(editObj?"Updated":"Created");setModal(null);setEditObj(null);
+    }catch(e){showToast("Error: "+e.message);}
+  };
+  const doDeleteObj=async(id)=>{
+    try{await deleteObjective(id);setAdminObjectives(p=>p.filter(o=>o.id!==id));showToast("Deleted");}
+    catch(e){showToast("Error: "+e.message);}
+  };
   const [resSubTab,setResSubTab]=useState("upcoming");
   const [showWI,setShowWI]=useState(false);
   const [wi,setWi]=useState({customerName:"",typeId:"coop-open",date:"",startTime:"",playerCount:1,status:"confirmed"});
@@ -2244,6 +2262,15 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         <div className="f"><label>Max Concurrent Open-Play</label><input type="number" min={1} max={10} value={stF.maxSessions} onChange={e=>setSTF(p=>({...p,maxSessions:+e.target.value}))}/></div>
         <div className="f"><label>Status</label><select value={stF.active?"active":"inactive"} onChange={e=>setSTF(p=>({...p,active:e.target.value==="active"}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
         <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditST(null);}}>Cancel</button><button className="btn btn-p" onClick={saveST}>Save</button></div>
+      </div></div>}
+      {modal==="obj"&&<div className="mo"><div className="mc"><div className="mt2">{editObj?"Edit":"New"} Objective</div>
+        <div className="f"><label>Name</label><input value={objF.name} onChange={e=>setObjF(p=>({...p,name:e.target.value}))}/></div>
+        <div className="f"><label>Description</label><textarea value={objF.description||""} onChange={e=>setObjF(p=>({...p,description:e.target.value}))} rows={2}/></div>
+        <div className="g2">
+          <div className="f"><label>Mode</label><select value={objF.mode} onChange={e=>setObjF(p=>({...p,mode:e.target.value}))}><option value="all">All Modes</option><option value="coop">Coop Only</option><option value="versus">Versus Only</option></select></div>
+          <div className="f"><label>Status</label><select value={objF.active?"active":"inactive"} onChange={e=>setObjF(p=>({...p,active:e.target.value==="active"}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+        </div>
+        <div className="ma"><button className="btn btn-s" onClick={()=>{setModal(null);setEditObj(null);}}>Cancel</button><button className="btn btn-p" disabled={!objF.name.trim()} onClick={saveObj}>Save</button></div>
       </div></div>}
       {deactivateModal&&<DeactivateStaffModal
         userToDeactivate={deactivateModal.user}
@@ -2363,6 +2390,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         {isAdmin&&<button className={`tab${tab==="types"?" on":""}`} onClick={()=>setTab("types")}>Res. Types</button>}
         {isAdmin&&<button className={`tab${tab==="sessions"?" on":""}`} onClick={()=>setTab("sessions")}>Sessions</button>}
         {isAdmin&&<button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>}
+        {isAdmin&&<button className={`tab${tab==="objectives"?" on":""}`} onClick={()=>setTab("objectives")}>Objectives</button>}
         <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
         {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merch</button>}
@@ -2392,6 +2420,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             <button className={`tab${tab==="types"?" on":""}`} onClick={()=>setTab("types")}>Res. Types</button>
             <button className={`tab${tab==="sessions"?" on":""}`} onClick={()=>setTab("sessions")}>Sessions</button>
             <button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>
+            <button className={`tab${tab==="objectives"?" on":""}`} onClick={()=>setTab("objectives")}>Objectives</button>
           </>}
         </div>
       </div>
@@ -2745,6 +2774,24 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       {tab==="waivers"&&<>
         <div className="ph"><div className="ph-left"><div className="pt">Waivers</div><div className="ps">Waiver history is permanent. Only admins can add or edit.</div></div>{isAdmin&&<button className="btn btn-p" onClick={()=>{setEditWaiver(null);setNewWaiver({name:"",version:"1.0",body:"",active:false});setModal("waiver");}}>+ New</button>}</div>
         {[...waiverDocs].sort((a,b)=>{if(a.active&&!b.active)return -1;if(!a.active&&b.active)return 1;return (b.createdAt||"").localeCompare(a.createdAt||"");}).map(w=><div key={w.id} className="waiver-doc-card" style={{borderLeftColor:w.active?"var(--acc)":"var(--bdr)"}}><div className="fb" style={{marginBottom:".6rem"}}><div><div style={{fontFamily:"var(--fd)",fontSize:"1.05rem",fontWeight:700,textTransform:"uppercase"}}>{w.name} <span style={{fontWeight:400,color:"var(--muted)"}}>v{w.version}</span></div><div style={{fontSize:".74rem",color:"var(--muted)",marginTop:".1rem"}}>Created {fmtTS(w.createdAt)}</div></div><div style={{display:"flex",gap:".5rem",alignItems:"center"}}>{w.active?<span className="badge b-ok">● Active</span>:<span className="badge" style={{background:"var(--surf2)",color:"var(--muted)"}}>Inactive</span>}</div></div><div style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".75rem",fontSize:".78rem",color:"var(--muted)",maxHeight:100,overflowY:"auto",whiteSpace:"pre-wrap",lineHeight:1.6,marginBottom:".75rem"}}>{w.body.slice(0,350)}{w.body.length>350?"…":""}</div><div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>{isAdmin&&<button className="btn btn-sm btn-s" onClick={()=>{setEditWaiver({...w});setModal("waiver");}}>Edit</button>}{!w.active&&isAdmin&&<button className="btn btn-sm btn-ok" onClick={()=>setActiveWaiver(w.id)}>Set Active</button>}{w.active&&<span style={{fontSize:".74rem",color:"var(--muted)",fontStyle:"italic",padding:".3rem .5rem"}}>🔒 Cannot delete active version</span>}</div></div>)}
+      </>}
+
+      {tab==="objectives"&&isAdmin&&<>
+        <div className="ph"><div className="ph-left"><div className="pt">Mission Objectives</div><div className="ps">Control which objectives appear in each game mode.</div></div><button className="btn btn-p" onClick={()=>{setEditObj(null);setNewObj({name:"",description:"",mode:"all",active:true});setModal("obj");}}>+ Add</button></div>
+        {adminObjectives.length===0&&<div style={{color:"var(--muted)",fontSize:".85rem",padding:"1rem 0"}}>No objectives yet.</div>}
+        <div className="tw"><table><thead><tr><th>Name</th><th>Description</th><th>Mode</th><th>Status</th><th></th></tr></thead>
+          <tbody>{adminObjectives.map(o=><tr key={o.id}>
+            <td><strong>{o.name}</strong></td>
+            <td style={{color:"var(--muted)",fontSize:".83rem"}}>{o.description||"—"}</td>
+            <td><span className={`badge b-${o.mode==="all"?"open":o.mode}`} style={{textTransform:"capitalize"}}>{o.mode==="all"?"All Modes":o.mode==="coop"?"Coop Only":"Versus Only"}</span></td>
+            <td><span className={`badge ${o.active?"b-ok":"b-cancel"}`}>{o.active?"Active":"Inactive"}</span></td>
+            <td><div style={{display:"flex",gap:".4rem"}}>
+              <button className="btn btn-sm btn-s" onClick={()=>{setEditObj({...o});setModal("obj");}}>Edit</button>
+              <button className="btn btn-sm btn-d" onClick={()=>{if(window.confirm(`Delete "${o.name}"?`))doDeleteObj(o.id);}}>Delete</button>
+            </div></td>
+          </tr>)}
+          </tbody>
+        </table></div>
       </>}
 
       {tab==="staff"&&<>
