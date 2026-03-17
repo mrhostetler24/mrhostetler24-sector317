@@ -34,10 +34,6 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dashPeriod,setDashPeriod]=useState("all");
   const [dashFrom,setDashFrom]=useState("");
   const [dashTo,setDashTo]=useState("");
-  const [recentPage,setRecentPage]=useState(0);
-  const [runPage,setRunPage]=useState(0);
-  const [userPage,setUserPage]=useState(0);
-  const [dashViewTab,setDashViewTab]=useState("bookings");
   const [acknowledgedFlags,setAcknowledgedFlags]=useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("ack-flags")||"[]"))}catch{return new Set()}});
   const [showAcknowledged,setShowAcknowledged]=useState(false);
   const [dismissedDups,setDismissedDups]=useState([]);
@@ -601,23 +597,25 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         </div>
 
         {(()=>{
-          const thirtyAgo=new Date();thirtyAgo.setDate(thirtyAgo.getDate()-30);const t30=thirtyAgo.toISOString().slice(0,10);
-          // ── Bookings
-          const recentSorted=[...reservations].filter(r=>r.createdAt&&r.createdAt.slice(0,10)>=t30).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
-          const pageSize=50;const totalPages=Math.ceil(recentSorted.length/pageSize)||1;
-          const pageRows=recentSorted.slice(recentPage*pageSize,(recentPage+1)*pageSize);
-          // ── Runs
-          const recentRuns=[...runs].filter(r=>r.createdAt&&r.createdAt.slice(0,10)>=t30).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
-          const resMap=Object.fromEntries(reservations.map(r=>[r.id,r]));
-          const vizLabel={V:"Standard",C:"Cosmic",R:"Rave",S:"Strobe",B:"Dark"};
-          const audLabel=r=>{if(r.audio==="O")return"Off";if(r.audio==="C")return"Cranked";if(r.audio==="T")return"Tunes";return r.cranked?"Cranked":"Tunes";};
-          const fmtRunSec=s=>s==null?"—":`${String(Math.floor(s/60)).padStart(2,"0")}:${String(Math.floor(s%60)).padStart(2,"0")}`;
-          // ── New Users
-          const recentUsers=[...users].filter(u=>u.createdAt&&u.createdAt.slice(0,10)>=t30).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
-          const userById=Object.fromEntries(users.map(u=>[u.id,u]));
-          // ── Flags: unpaid (all-time active), cancelled + no-show (last 90 days)
-          const ninetyAgo=new Date();ninetyAgo.setDate(ninetyAgo.getDate()-90);const t90=ninetyAgo.toISOString().slice(0,10);
           const today=new Date().toISOString().slice(0,10);
+          // ── Today's Schedule ──
+          const todaySlots=getSessionsForDate(sessionTemplates,today).filter(s=>s.active!==false);
+          const todayRes=reservations.filter(r=>r.date===today&&r.status!=="cancelled");
+          const slotBookings=slot=>todayRes.filter(r=>r.startTime===slot.startTime).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
+          const totalTodayPlayers=todayRes.reduce((s,r)=>s+(r.players?.length||r.playerCount||0),0);
+          // ── Today's Staff ──
+          const todayShifts=shifts.filter(s=>s.date===today);
+          const openShifts=todayShifts.filter(s=>s.open);
+          const assignedShifts=todayShifts.filter(s=>!s.open&&s.staffId);
+          const roleGroups={};
+          assignedShifts.forEach(s=>{const r=s.role||"General";if(!roleGroups[r])roleGroups[r]=[];roleGroups[r].push(s);});
+          // ── Waiver Coverage ──
+          const waiverIssues=todayRes.filter(r=>r.players?.length>0).map(r=>{
+            const missing=r.players.filter(p=>{const u=users.find(x=>x.id===p.userId);return u&&!hasValidWaiver(u,activeWaiverDoc);});
+            return missing.length>0?{res:r,missing,total:r.players.length}:null;
+          }).filter(Boolean);
+          // ── Flags ──
+          const ninetyAgo=new Date();ninetyAgo.setDate(ninetyAgo.getDate()-90);const t90=ninetyAgo.toISOString().slice(0,10);
           const unpaidRows=reservations.filter(r=>r.paid===false&&r.status!=="cancelled").map(r=>({...r,_flag:"unpaid"}));
           const cancelledRows=reservations.filter(r=>r.status==="cancelled"&&r.date>=t90).map(r=>({...r,_flag:"cancelled"}));
           const noshowRows=reservations.filter(r=>r.status==="no-show"&&r.date>=t90).map(r=>({...r,_flag:"no-show"}));
@@ -626,91 +624,126 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const visibleFlagRows=flagRows.filter(r=>!acknowledgedFlags.has(r.id+r._flag));
           const ackFlag=key=>{const next=new Set(acknowledgedFlags);next.add(key);setAcknowledgedFlags(next);try{localStorage.setItem("ack-flags",JSON.stringify([...next]))}catch{}};
           const flagBadge=flag=>flag==="unpaid"?{bg:"rgba(192,57,43,.15)",color:"#e07060",label:"Unpaid"}:flag==="rescheduled"?{bg:"rgba(58,130,200,.15)",color:"var(--accB)",label:"Rescheduled"}:flag==="no-show"?{bg:"rgba(180,120,0,.15)",color:"var(--warnL)",label:"No-Show"}:{bg:"var(--surf2)",color:"var(--muted)",label:"Cancelled"};
-          const tabBtnStyle=active=>({padding:".35rem .9rem",borderRadius:20,fontSize:".78rem",fontWeight:active?700:500,cursor:"pointer",border:`1px solid ${active?"var(--acc)":"var(--bdr)"}`,background:active?"var(--accD)":"var(--surf)",color:active?"var(--accB)":"var(--muted)"});
-          return <div className="tw">
-            <div className="th" style={{gap:".5rem",flexWrap:"wrap"}}>
-              <button style={tabBtnStyle(dashViewTab==="bookings")} onClick={()=>{setDashViewTab("bookings");setRecentPage(0);}}>Bookings <span style={{opacity:.65}}>({recentSorted.length})</span></button>
-              <button style={tabBtnStyle(dashViewTab==="runs")} onClick={()=>{setDashViewTab("runs");setRunPage(0);}}>Runs <span style={{opacity:.65}}>({recentRuns.length})</span></button>
-              <button style={tabBtnStyle(dashViewTab==="users")} onClick={()=>{setDashViewTab("users");setUserPage(0);}}>New Users <span style={{opacity:.65}}>({recentUsers.length})</span></button>
-              <button style={{...tabBtnStyle(dashViewTab==="flags"),borderColor:visibleFlagRows.length>0&&dashViewTab!=="flags"?"#e07060":"",color:visibleFlagRows.length>0&&dashViewTab!=="flags"?"#e07060":""}} onClick={()=>setDashViewTab("flags")}>⚑ Flags <span style={{opacity:.65}}>({visibleFlagRows.length})</span></button>
-              <span style={{marginLeft:"auto",fontSize:".73rem",color:"var(--muted)"}}>last 30 days</span>
+          const sectionHead=(label,meta,alert)=>(
+            <div style={{display:"flex",alignItems:"center",gap:".6rem",padding:".45rem .85rem",borderBottom:"1px solid var(--bdr)",background:"var(--bg)"}}>
+              <span style={{fontWeight:700,fontSize:".75rem",color:alert?"#e07060":"var(--muted)",textTransform:"uppercase",letterSpacing:".06em"}}>{label}</span>
+              {meta&&<span style={{fontSize:".73rem",color:"var(--muted)"}}>{meta}</span>}
+            </div>
+          );
+          return <div style={{display:"flex",flexDirection:"column",gap:"1rem"}}>
+
+            {/* ── Today's Schedule ── */}
+            <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,overflow:"hidden"}}>
+              {sectionHead("Today's Schedule",`${new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})} · ${todayRes.length} session${todayRes.length!==1?"s":""} · ${totalTodayPlayers} players`)}
+              {!todaySlots.length
+                ?<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No sessions offered today.</div>
+                :<table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+                    <th style={{padding:".35rem .85rem",fontSize:".68rem",color:"var(--muted)",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",textAlign:"left",width:"5.5rem"}}>Time</th>
+                    <th style={{padding:".35rem .85rem",fontSize:".68rem",color:"var(--muted)",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",textAlign:"left"}}>Lane 1</th>
+                    <th style={{padding:".35rem .85rem",fontSize:".68rem",color:"var(--muted)",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",textAlign:"left",borderLeft:"1px solid rgba(255,255,255,.06)"}}>Lane 2</th>
+                  </tr></thead>
+                  <tbody>{todaySlots.map(slot=>{
+                    const booked=slotBookings(slot);
+                    const renderLane=res=>{
+                      if(!res)return<span style={{fontSize:".78rem",color:"rgba(255,255,255,.2)",fontStyle:"italic"}}>── open ──</span>;
+                      const rt=getType(res.typeId);
+                      const pc=res.players?.length||res.playerCount||0;
+                      return<div style={{display:"flex",alignItems:"center",gap:".4rem"}}>
+                        <span className={`badge b-${rt?.mode}`} style={{fontSize:".66rem"}}>{rt?.mode||"?"}</span>
+                        <span className={`badge b-${rt?.style}`} style={{fontSize:".66rem"}}>{rt?.style||"?"}</span>
+                        <span style={{fontSize:".8rem",color:"var(--txt)",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{res.customerName}</span>
+                        <span style={{fontSize:".72rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{pc}p</span>
+                      </div>;
+                    };
+                    return<tr key={slot.startTime} style={{borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                      <td style={{padding:".4rem .85rem",fontSize:".82rem",fontWeight:700,color:"var(--accB)",whiteSpace:"nowrap"}}>{fmt12(slot.startTime)}</td>
+                      <td style={{padding:".4rem .85rem"}}>{renderLane(booked[0]||null)}</td>
+                      <td style={{padding:".4rem .85rem",borderLeft:"1px solid rgba(255,255,255,.04)"}}>{renderLane(booked[1]||null)}</td>
+                    </tr>;
+                  })}</tbody>
+                </table>}
             </div>
 
-            {dashViewTab==="bookings"&&<>
-              <table><thead><tr><th>Booked</th><th>Customer</th><th>Type</th><th>Session</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Status</th></tr></thead>
-                <tbody>{pageRows.map(r=>{const rt=getType(r.typeId);return <tr key={r.id}><td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{fmt(r.createdAt?.slice(0,10))}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td><td>{r.customerName}</td><td><span className={`badge b-${rt?.mode}`} style={{marginRight:".3rem"}}>{rt?.mode}</span><span className={`badge b-${rt?.style}`}>{rt?.style}</span></td><td>{fmt(r.date)}<br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td><td>{r.playerCount}</td>{isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}<td><span className={`badge ${r.status==="confirmed"?"b-ok":r.status==="completed"?"b-done":r.status==="no-show"?"b-noshow":"b-cancel"}`}>{r.status}</span></td></tr>;})}
-                </tbody>
-              </table>
-              {totalPages>1&&<div style={{display:"flex",gap:".5rem",justifyContent:"center",padding:".75rem 0",alignItems:"center"}}>
-                <button className="btn btn-sm btn-s" disabled={recentPage===0} onClick={()=>setRecentPage(p=>p-1)}>← Prev</button>
-                <span style={{fontSize:".8rem",color:"var(--muted)"}}>{recentPage+1} / {totalPages}</span>
-                <button className="btn btn-sm btn-s" disabled={recentPage>=totalPages-1} onClick={()=>setRecentPage(p=>p+1)}>Next →</button>
-              </div>}
-            </>}
+            {/* ── Today's Staff ── */}
+            <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,overflow:"hidden"}}>
+              {sectionHead("Today's Staff",openShifts.length>0?`${openShifts.length} open shift${openShifts.length!==1?"s":""} unfilled`:null,openShifts.length>0)}
+              {!todayShifts.length
+                ?<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No shifts scheduled today.</div>
+                :<div style={{padding:".5rem .85rem",display:"flex",flexDirection:"column",gap:".3rem"}}>
+                  {Object.entries(roleGroups).map(([role,roleShifts])=>(
+                    <div key={role} style={{display:"flex",alignItems:"flex-start",gap:".75rem",padding:".25rem 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                      <span style={{fontSize:".7rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".04em",width:"7rem",flexShrink:0,paddingTop:".15rem"}}>{role}</span>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:".3rem"}}>
+                        {roleShifts.map(s=>{
+                          const u=users.find(x=>x.id===s.staffId);
+                          const time=s.start&&s.end?` · ${fmt12(s.start)}–${fmt12(s.end)}`:"";
+                          return<span key={s.id} style={{fontSize:".78rem",color:"var(--txt)",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".15rem .5rem"}}>
+                            {u?.name||"—"}<span style={{color:"var(--muted)"}}>{time}</span>
+                          </span>;
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {openShifts.length>0&&<div style={{display:"flex",alignItems:"center",gap:".5rem",padding:".3rem 0",marginTop:".1rem"}}>
+                    <span style={{fontSize:".7rem",fontWeight:700,color:"#e07060",textTransform:"uppercase",letterSpacing:".04em",width:"7rem",flexShrink:0}}>Unfilled</span>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:".3rem"}}>
+                      {openShifts.map(s=>{
+                        const time=s.start&&s.end?`${fmt12(s.start)}–${fmt12(s.end)}`:"";
+                        return<span key={s.id} style={{fontSize:".78rem",color:"#e07060",background:"rgba(192,57,43,.1)",border:"1px solid rgba(192,57,43,.25)",borderRadius:4,padding:".15rem .5rem"}}>
+                          {s.role||"General"}{time&&<span style={{opacity:.7}}> · {time}</span>}
+                        </span>;
+                      })}
+                    </div>
+                  </div>}
+                </div>}
+            </div>
 
-            {dashViewTab==="runs"&&(()=>{const rpSize=50;const rpTotal=Math.ceil(recentRuns.length/rpSize)||1;const rpRows=recentRuns.slice(runPage*rpSize,(runPage+1)*rpSize);return<>
-              <table><thead><tr><th>Scored</th><th>Customer</th><th>Session</th><th>Visual</th><th>Audio</th><th>Time</th><th>Score</th></tr></thead>
-                <tbody>{!recentRuns.length&&<tr><td colSpan={7} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No runs in last 30 days.</td></tr>}
-                {rpRows.map(r=>{const res=resMap[r.reservationId];const rt=res?getType(res.typeId):null;return <tr key={r.id}>
-                  <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{r.createdAt?fmt(r.createdAt.slice(0,10)):""}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td>
-                  <td><div>{res?.customerName||"—"}</div><div style={{fontSize:".72rem",color:"var(--muted)"}}>{res?`${fmt(res.date)} ${fmt12(res.startTime)}`:""}</div></td>
-                  <td>{rt&&<><span className={`badge b-${rt.mode}`} style={{marginRight:".3rem"}}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}</td>
-                  <td>{r.visual?vizRenderName(r.visual,vizLabel[r.visual]||r.visual,{fontFamily:'var(--fd)',fontSize:'.82rem',fontWeight:700}):<span style={{color:'var(--muted)'}}>—</span>}</td>
-                  <td>{(()=>{const ac=r.audio||(r.cranked?'C':'T');return audRenderName(ac,audLabel(r),{fontFamily:'var(--fd)',fontSize:'.82rem',fontWeight:700});})()}</td>
-                  <td style={{fontFamily:"var(--fd)",color:"var(--accB)"}}>{fmtRunSec(r.elapsedSeconds)}</td>
-                  <td style={{fontFamily:"var(--fd)",fontWeight:700,color:r.score!=null?"var(--txt)":"var(--muted)"}}>{r.score!=null?Number(r.score).toFixed(1):"—"}</td>
-                </tr>;})}
-                </tbody>
-              </table>
-              {rpTotal>1&&<div style={{display:"flex",gap:".5rem",justifyContent:"center",padding:".75rem 0",alignItems:"center"}}>
-                <button className="btn btn-sm btn-s" disabled={runPage===0} onClick={()=>setRunPage(p=>p-1)}>← Prev</button>
-                <span style={{fontSize:".8rem",color:"var(--muted)"}}>{runPage+1} / {rpTotal}</span>
-                <button className="btn btn-sm btn-s" disabled={runPage>=rpTotal-1} onClick={()=>setRunPage(p=>p+1)}>Next →</button>
-              </div>}
-            </>;})()}
-
-            {dashViewTab==="flags"&&(()=>{
-              const ackedFlagRows=flagRows.filter(r=>acknowledgedFlags.has(r.id+r._flag));
-              const displayRows=[...visibleFlagRows,...(showAcknowledged?ackedFlagRows:[])];
-              return <>
-              {!displayRows.length&&<div style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem .5rem"}}>No unpaid, cancelled, or no-show reservations to show.</div>}
-              {!!displayRows.length&&<table><thead><tr><th>Session</th><th>Booked</th><th>Customer</th><th>Type</th><th>Players</th>{isAdmin&&<th>Amount</th>}<th>Flag</th><th style={{textAlign:"right"}}>{isManager&&ackedFlagRows.length>0&&<button onClick={()=>setShowAcknowledged(v=>!v)} style={{fontSize:".68rem",padding:".15rem .5rem",borderRadius:4,border:"1px solid var(--bdr)",background:showAcknowledged?"var(--accD)":"var(--surf2)",color:showAcknowledged?"var(--accB)":"var(--muted)",cursor:"pointer",whiteSpace:"nowrap"}}>{showAcknowledged?"Hide Ack'd":"Show Ack'd ("+ackedFlagRows.length+")"}</button>}</th></tr></thead>
-                <tbody>{displayRows.map(r=>{const rt=getType(r.typeId);const fb=flagBadge(r._flag);const isAcked=acknowledgedFlags.has(r.id+r._flag);return <tr key={r.id+r._flag} style={isAcked?{opacity:.45}:{}}>
-                  <td><strong style={{fontSize:".88rem"}}>{fmt(r.date)}</strong><br/><span style={{fontSize:".76rem",color:"var(--muted)"}}>{fmt12(r.startTime)}</span></td>
-                  <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{r.createdAt?fmt(r.createdAt.slice(0,10)):""}<br/>{r.createdAt?new Date(r.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</td>
-                  <td>{r.customerName}</td>
-                  <td>{rt&&<><span className={`badge b-${rt.mode}`} style={{marginRight:".3rem"}}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}</td>
-                  <td>{r.playerCount}</td>
-                  {isAdmin&&<td style={{color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}
-                  <td><span style={{fontSize:".75rem",padding:".2rem .55rem",borderRadius:4,fontWeight:700,background:fb.bg,color:fb.color}}>{fb.label}</span></td>
-                  <td>{isAcked?<span style={{fontSize:".72rem",color:"var(--muted)"}}>✓ Done</span>:<button onClick={()=>ackFlag(r.id+r._flag)} style={{fontSize:".72rem",padding:".2rem .55rem",borderRadius:4,border:"1px solid var(--bdr)",background:"var(--surf2)",color:"var(--muted)",cursor:"pointer"}}>Acknowledge</button>}</td>
-                </tr>;})}
-                </tbody>
-              </table>}
-              <div style={{fontSize:".72rem",color:"var(--muted)",padding:".6rem .8rem",borderTop:"1px solid var(--bdr)",marginTop:".25rem"}}>
-                Unpaid: all-time active bookings. Rescheduled, cancelled &amp; no-show: last 90 days.
+            {/* ── Missing Waivers ── */}
+            {waiverIssues.length>0&&<div style={{background:"rgba(180,120,0,.07)",border:"1px solid rgba(180,120,0,.28)",borderRadius:6,overflow:"hidden"}}>
+              {sectionHead(`⚠ Missing Waivers (${waiverIssues.length} session${waiverIssues.length!==1?"s":""})`,null,true)}
+              <div style={{padding:".5rem .85rem",display:"flex",flexDirection:"column",gap:".2rem"}}>
+                {waiverIssues.map(({res,missing,total})=>(
+                  <div key={res.id} style={{display:"flex",alignItems:"center",gap:".6rem",padding:".25rem 0",borderBottom:"1px solid rgba(180,120,0,.1)",fontSize:".8rem"}}>
+                    <span style={{fontWeight:700,color:"var(--accB)",whiteSpace:"nowrap"}}>{fmt12(res.startTime)}</span>
+                    <span style={{color:"var(--txt)",flex:1}}>{res.customerName}</span>
+                    <span style={{color:"var(--warnL)",fontWeight:600,whiteSpace:"nowrap"}}>{missing.length}/{total} unsigned</span>
+                  </div>
+                ))}
               </div>
-            </>;})()}
+            </div>}
 
-            {dashViewTab==="users"&&(()=>{const upSize=50;const upTotal=Math.ceil(recentUsers.length/upSize)||1;const upRows=recentUsers.slice(userPage*upSize,(userPage+1)*upSize);return<>
-              <table><thead><tr><th>Created</th><th>Name</th><th>Phone</th><th>Access</th><th>Auth</th><th>Created By</th></tr></thead>
-                <tbody>{!recentUsers.length&&<tr><td colSpan={6} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No new users in last 30 days.</td></tr>}
-                {upRows.map(u=>{const creator=u.createdByUserId?userById[u.createdByUserId]:null;return <tr key={u.id}>
-                  <td style={{fontSize:".76rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{fmt(u.createdAt.slice(0,10))}<br/>{new Date(u.createdAt).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</td>
-                  <td><strong>{u.name||"—"}</strong><div style={{fontSize:".72rem",color:"var(--muted)"}}>{u.email||""}</div></td>
-                  <td style={{fontFamily:"monospace",fontSize:".83rem"}}>{fmtPhone(u.phone)}</td>
-                  <td><span className={`badge al-${u.access}`}>{ACCESS_LEVELS[u.access]?.label||u.access}</span></td>
-                  <td><AuthBadge provider={u.authProvider}/></td>
-                  <td style={{fontSize:".82rem"}}>{creator?<span title={creator.email||""}>{creator.name}</span>:<span style={{color:"var(--muted)",fontStyle:"italic"}}>{u.createdByUserId?"Unknown":"Self / System"}</span>}</td>
-                </tr>;})}
-                </tbody>
-              </table>
-              {upTotal>1&&<div style={{display:"flex",gap:".5rem",justifyContent:"center",padding:".75rem 0",alignItems:"center"}}>
-                <button className="btn btn-sm btn-s" disabled={userPage===0} onClick={()=>setUserPage(p=>p-1)}>← Prev</button>
-                <span style={{fontSize:".8rem",color:"var(--muted)"}}>{userPage+1} / {upTotal}</span>
-                <button className="btn btn-sm btn-s" disabled={userPage>=upTotal-1} onClick={()=>setUserPage(p=>p+1)}>Next →</button>
-              </div>}
-            </>;})()}
+            {/* ── Flags ── */}
+            <div style={{background:"var(--surf)",border:`1px solid ${visibleFlagRows.length>0?"rgba(192,57,43,.35)":"var(--bdr)"}`,borderRadius:6,overflow:"hidden"}}>
+              {(()=>{
+                const ackedCount=flagRows.filter(r=>acknowledgedFlags.has(r.id+r._flag)).length;
+                return sectionHead(
+                  visibleFlagRows.length>0?`⚑ Flags (${visibleFlagRows.length})`:"Flags",
+                  ackedCount>0?<button onClick={()=>setShowAcknowledged(v=>!v)} style={{fontSize:".68rem",padding:".12rem .45rem",borderRadius:4,border:"1px solid var(--bdr)",background:showAcknowledged?"var(--accD)":"var(--surf2)",color:showAcknowledged?"var(--accB)":"var(--muted)",cursor:"pointer"}}>{showAcknowledged?`Hide Ack'd`:`Show Ack'd (${ackedCount})`}</button>:null,
+                  visibleFlagRows.length>0
+                );
+              })()}
+              {(()=>{
+                const ackedFlagRows=flagRows.filter(r=>acknowledgedFlags.has(r.id+r._flag));
+                const displayRows=[...visibleFlagRows,...(showAcknowledged?ackedFlagRows:[])];
+                if(!displayRows.length)return<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No flags to review.</div>;
+                return<table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <tbody>{displayRows.map(r=>{
+                    const rt=getType(r.typeId);const fb=flagBadge(r._flag);const isAcked=acknowledgedFlags.has(r.id+r._flag);
+                    return<tr key={r.id+r._flag} style={{borderBottom:"1px solid rgba(255,255,255,.04)",opacity:isAcked?.5:1}}>
+                      <td style={{padding:".4rem .85rem",whiteSpace:"nowrap"}}><strong style={{fontSize:".82rem"}}>{fmt(r.date)}</strong><span style={{fontSize:".73rem",color:"var(--muted)",marginLeft:".4rem"}}>{fmt12(r.startTime)}</span></td>
+                      <td style={{padding:".4rem .85rem",fontSize:".83rem"}}>{r.customerName}</td>
+                      <td style={{padding:".4rem .85rem"}}>{rt&&<><span className={`badge b-${rt.mode}`} style={{marginRight:".3rem"}}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}</td>
+                      <td style={{padding:".4rem .85rem"}}><span style={{fontSize:".75rem",padding:".2rem .55rem",borderRadius:4,fontWeight:700,background:fb.bg,color:fb.color}}>{fb.label}</span></td>
+                      {isAdmin&&<td style={{padding:".4rem .85rem",color:"var(--accB)",fontWeight:600}}>{fmtMoney(r.amount)}</td>}
+                      <td style={{padding:".4rem .85rem",textAlign:"right"}}>{isAcked?<span style={{fontSize:".72rem",color:"var(--muted)"}}>✓ Done</span>:<button onClick={()=>ackFlag(r.id+r._flag)} style={{fontSize:".72rem",padding:".2rem .55rem",borderRadius:4,border:"1px solid var(--bdr)",background:"var(--surf2)",color:"var(--muted)",cursor:"pointer"}}>Acknowledge</button>}</td>
+                    </tr>;
+                  })}</tbody>
+                </table>;
+              })()}
+              <div style={{fontSize:".68rem",color:"var(--muted)",padding:".4rem .85rem",borderTop:"1px solid rgba(255,255,255,.04)"}}>Unpaid: all-time active. Rescheduled, cancelled &amp; no-show: last 90 days.</div>
+            </div>
+
           </div>;
         })()}
 

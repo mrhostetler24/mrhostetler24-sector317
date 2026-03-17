@@ -652,7 +652,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
       <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem',justifyContent:'center'}}>
         {visibleObjectives.map(o=>{const sel=s.objectiveId===o.id;return(
           <button key={o.id} type="button" onClick={()=>setSetting(laneIdx,'objectiveId',o.id)}
-            style={{padding:'.35rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
+            style={{padding:'.55rem .8rem',borderRadius:16,fontSize:'.8rem',fontWeight:sel?700:500,
               border:`2px solid ${sel?'var(--acc)':'var(--bdr)'}`,background:sel?'var(--accD)':'var(--bg2)',
               color:sel?'var(--accB)':'var(--txt)',cursor:'pointer',textTransform:'uppercase',letterSpacing:'.03em'}}>
             {o.name}
@@ -750,20 +750,22 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           background:colorT===1?'rgba(79,195,247,.06)':'rgba(239,154,154,.06)',
           border:`1px solid ${colorT===1?'rgba(79,195,247,.18)':'rgba(239,154,154,.18)'}`}}>
         <span style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:colorT===1?BLUE_COL:RED_COL}}/>
-        {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.72rem',fontWeight:500}}/></>;})()}
-        <span style={{flex:1,minWidth:0,fontSize:'.88rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
+        <div style={{flex:1,display:'flex',alignItems:'center',gap:'.25rem',minWidth:0}}>
+          {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.72rem',fontWeight:500}}/></>;})()}
+          <span style={{flex:1,minWidth:0,fontSize:'.88rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
+        </div>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{vr>0?`${vr}r`:'new'}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:26,textAlign:'right'}}>{avg}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{obj}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{coyW}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{wl}</span>
         <button type="button"
-          style={{minWidth:28,padding:'.2rem .4rem',borderRadius:4,fontSize:'.72rem',fontWeight:800,cursor:'pointer',flexShrink:0,
+          style={{minWidth:28,padding:'.2rem .4rem',borderRadius:4,fontSize:'.72rem',fontWeight:800,cursor:'pointer',flexShrink:0,marginLeft:'.35rem',
             border:`1px solid ${isHunter?'var(--acc)':'var(--warn)'}`,
             background:isHunter?'var(--accD)':'rgba(184,150,12,.15)',
             color:isHunter?'var(--accB)':'var(--warnL)'}}
           onClick={()=>setPlayerTeam(laneIdx,player.id,isHunter?2:1)}>
-          {isHunter?'H':'C'}
+          {isHunter?'↓':'↑'}
         </button>
       </div>);
     };
@@ -793,7 +795,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
             <span style={{minWidth:28,textAlign:'right'}}>Obj%</span>
             <span style={{minWidth:28,textAlign:'right'}}>Coy W</span>
             <span style={{minWidth:28,textAlign:'right'}}>W-L</span>
-            <span style={{minWidth:28}}/>
+            <span style={{minWidth:28,marginLeft:'.35rem'}}/>
           </div>}
           {tPlayers.length===0&&<div style={{fontSize:'.8rem',color:'var(--muted)',padding:'.2rem 0',textAlign:'center'}}>None assigned</div>}
           {tPlayers.map(p=>pRow(p))}
@@ -924,8 +926,10 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           const secs=Number(st.coop_avg_seconds)||0;
           const timeS=cr>0&&secs>0?`${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,'0')}`:'—';
           return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-            {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.75rem',fontWeight:500}}/></>;})()}
-            <span style={{flex:1,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
+            <div style={{flex:1,display:'flex',alignItems:'center',gap:'.25rem',minWidth:0}}>
+              {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.75rem',fontWeight:500}}/></>;})()}
+              <span style={{flex:1,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
+            </div>
             <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{cr>0?`${cr}r`:'new'}</span>
             <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:28,textAlign:'right'}}>{avgS}</span>
             <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:30,textAlign:'right'}}>{tgt}</span>
@@ -1057,12 +1061,12 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           <div style={{fontWeight:800,fontSize:'1.2rem',color:'var(--acc)',letterSpacing:'.06em',textTransform:'uppercase'}}>Scoring Table</div>
           <div style={{display:'flex',gap:'.4rem'}}>
             {[1,2].map(r=>(
-              <button key={r} onClick={()=>setRun(r)}
+              <span key={r}
                 style={{padding:'.4rem 1rem',borderRadius:20,fontWeight:run===r?800:500,fontSize:'.88rem',
                   border:`2px solid ${run===r?'var(--acc)':'var(--bdr)'}`,background:run===r?'var(--accD)':'var(--bg2)',
-                  color:run===r?'var(--accB)':'var(--txt)',cursor:'pointer'}}>
+                  color:run===r?'var(--accB)':'var(--muted)'}}>
                 Run {r}
-              </button>))}
+              </span>))}
           </div>
         </div>
         {/* Center: master clock */}
