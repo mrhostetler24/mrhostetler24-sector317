@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback, useEffect } from "react"
+import { useState, useRef, useCallback, useEffect, Fragment } from "react"
 import { hasValidWaiver, fmt, fmtMoney, fmtPhone, fmt12, todayStr, cleanPh, getInitials } from "./utils.js"
 import { WaiverModal } from "./ui.jsx"
-import { fetchUserByPhone, createGuestUser, fetchRunsForReservation } from "./supabase.js"
+import { fetchUserByPhone, createGuestUser, fetchRunsForReservation, fetchObjectives } from "./supabase.js"
 import ReservationModifyWizard from "./ReservationModifyWizard.jsx"
 
 function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,isAdmin=false,currentUser=null,sessionTemplates=[],reservations=[],isStaff=false,onAddPlayer,onSignWaiver,onCancel,onRemovePlayer,onReschedule}){
@@ -16,12 +16,13 @@ function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage
   const [showReschedModal,setShowReschedModal]=useState(false);
   const [runs,setRuns]=useState(null);
   const [runsLoading,setRunsLoading]=useState(false);
+  const [objectives,setObjectives]=useState([]);
 
   useEffect(()=>{
     if(open&&res.status==='completed'&&runs===null&&!runsLoading){
       setRunsLoading(true);
-      fetchRunsForReservation(res.id)
-        .then(r=>setRuns(r))
+      Promise.all([fetchRunsForReservation(res.id),fetchObjectives()])
+        .then(([r,objs])=>{setRuns(r);setObjectives(objs);})
         .catch(()=>setRuns([]))
         .finally(()=>setRunsLoading(false));
     }
@@ -169,25 +170,78 @@ See you on the field — SECTOR 317`
                   </div>
                 );
               }
-              const TEAMS=[{num:1,label:'Blue',color:'#2d7dd2'},{num:2,label:'Red',color:'#c0392b'}];
+              const runNums=[...new Set(runs.map(r=>r.runNumber))].sort((a,b)=>a-b);
+              const blueNames=res.players.filter(p=>p.team===1).map(p=>p.name.split(' ')[0]).join(', ');
+              const redNames=res.players.filter(p=>p.team===2).map(p=>p.name.split(' ')[0]).join(', ');
+              const winnerTeam=res.warWinnerTeam;
+              const winType=res.warWinType;
+              const winnerLabel=winnerTeam===1?'Blue':winnerTeam===2?'Red':null;
+              const winnerColor=winnerTeam===1?'#2d7dd2':winnerTeam===2?'#c0392b':null;
+              let winTypeStr='';
+              if(winType==='SWEEP')winTypeStr='Sweep';
+              else if(winType==='TIEBREAK'){
+                const bh=runs.find(r=>r.team===1&&r.role==='hunter');
+                const rh=runs.find(r=>r.team===2&&r.role==='hunter');
+                const diff=bh&&rh?Math.abs(bh.elapsedSeconds-rh.elapsedSeconds):null;
+                winTypeStr=`Tiebreaker${diff?` · ${fmtSec(diff)} faster`:''}`;
+              }
               return(
-                <div style={{display:'flex',gap:'1.5rem',flexWrap:'wrap'}}>
-                  {TEAMS.map(({num,label,color})=>{
-                    const teamRuns=runs.filter(r=>r.team===num);
-                    if(!teamRuns.length)return null;
-                    const names=res.players.filter(p=>p.team===num).map(p=>p.name.split(' ')[0]).join(', ');
-                    return(
-                      <div key={num} style={{flex:1,minWidth:180}}>
-                        <div style={{fontSize:'.68rem',fontWeight:700,color,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
-                          {label}{names?` — ${names}`:''}
-                        </div>
-                        <div style={{display:'flex',gap:'.6rem',flexWrap:'wrap'}}>
-                          {teamRuns.map(r=><RunCard key={r.id} r={r} label={`Run ${r.runNumber}${r.role?` · ${r.role}`:''}`}/>)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:'.82rem',tableLayout:'fixed'}}>
+                  <colgroup><col style={{width:'12%'}}/><col style={{width:'44%'}}/><col style={{width:'44%'}}/></colgroup>
+                  <thead>
+                    <tr style={{borderBottom:'1px solid var(--bdr)'}}>
+                      <th style={{padding:'.25rem .4rem',color:'var(--muted)',fontWeight:600,fontSize:'.68rem',textAlign:'left'}}>Run</th>
+                      <th style={{padding:'.25rem .4rem',color:'#2d7dd2',fontWeight:700,fontSize:'.72rem',textAlign:'left',textTransform:'uppercase',letterSpacing:'.05em'}}>Blue{blueNames?` — ${blueNames}`:''}</th>
+                      <th style={{padding:'.25rem .4rem',color:'#c0392b',fontWeight:700,fontSize:'.72rem',textAlign:'left',textTransform:'uppercase',letterSpacing:'.05em'}}>Red{redNames?` — ${redNames}`:''}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runNums.map(n=>{
+                      const blueRun=runs.find(r=>r.runNumber===n&&r.team===1);
+                      const redRun=runs.find(r=>r.runNumber===n&&r.team===2);
+                      const blueRole=blueRun?.role;
+                      const redRole=redRun?.role;
+                      const hunterRun=blueRole==='hunter'?blueRun:redRole==='hunter'?redRun:null;
+                      const objId=blueRun?.objectiveId??redRun?.objectiveId;
+                      const objName=objId?objectives.find(o=>o.id===objId)?.name:null;
+                      const objComplete=hunterRun?.objectiveComplete??null;
+                      const timeStr=hunterRun?.elapsedSeconds>0?fmtSec(hunterRun.elapsedSeconds):null;
+                      const roleParts=[];
+                      if(blueRole)roleParts.push(`Blue: ${blueRole}`);
+                      if(redRole)roleParts.push(`Red: ${redRole}`);
+                      const headerMeta=[roleParts.join(' · '),objName,objComplete!=null?(objComplete?'✓ Complete':'✗ Incomplete'):null,timeStr].filter(Boolean).join('  ·  ');
+                      return(
+                        <Fragment key={n}>
+                          <tr style={{background:'rgba(255,255,255,.03)',borderTop:'1px solid var(--bdr)'}}>
+                            <td colSpan={3} style={{padding:'.28rem .4rem .18rem',fontSize:'.7rem',color:'var(--muted)'}}>
+                              <span style={{color:'var(--txt)',fontWeight:700,marginRight:'.45rem'}}>Run {n}</span>
+                              {headerMeta}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{padding:'.15rem .4rem .4rem'}}></td>
+                            <td style={{padding:'.15rem .4rem .4rem',color:'#2d7dd2',fontWeight:700,fontSize:'.9rem'}}>
+                              {blueRun?.score!=null?blueRun.score.toFixed(1):'—'}
+                              {blueRun?.warBonus>0&&<span style={{fontSize:'.65rem',color:'var(--warnL)',marginLeft:'.3rem'}}>+{blueRun.warBonus.toFixed(1)} war</span>}
+                            </td>
+                            <td style={{padding:'.15rem .4rem .4rem',color:'#c0392b',fontWeight:700,fontSize:'.9rem'}}>
+                              {redRun?.score!=null?redRun.score.toFixed(1):'—'}
+                              {redRun?.warBonus>0&&<span style={{fontSize:'.65rem',color:'var(--warnL)',marginLeft:'.3rem'}}>+{redRun.warBonus.toFixed(1)} war</span>}
+                            </td>
+                          </tr>
+                        </Fragment>
+                      );
+                    })}
+                    {winnerLabel&&(
+                      <tr style={{borderTop:'2px solid var(--bdr)'}}>
+                        <td colSpan={3} style={{padding:'.35rem .4rem',fontWeight:700,fontSize:'.78rem'}}>
+                          <span style={{color:winnerColor}}>{winnerLabel} wins</span>
+                          {winTypeStr&&<span style={{color:'var(--muted)',marginLeft:'.5rem',fontWeight:400}}>— {winTypeStr}</span>}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               );
             })()}
           </div>

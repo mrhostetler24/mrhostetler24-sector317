@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
-import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, todayStr, fmt, fmtMoney, fmtPhone, fmt12, cleanPh, sortTemplates, getSessionsForDate, getTierInfo, TIER_COLORS, TIER_SHINE, hasValidWaiver } from "./utils.js"
+import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, todayStr, fmt, fmtMoney, fmtPhone, fmt12, cleanPh, sortTemplates, getSessionsForDate, getTierInfo, TIER_COLORS, TIER_SHINE, hasValidWaiver, latestWaiverDate } from "./utils.js"
 import { AuthBadge, Toast, Toggle, WaiverTooltip, RunsCell, genDefaultLeaderboardName } from "./ui.jsx"
 import {
   supabase, mergeUsers, updateUserAdmin, updateEmailPreferences, fetchEmailPreferences,
