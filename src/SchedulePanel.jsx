@@ -5,7 +5,8 @@ import { isStaffBlocked } from "./stampUtils.js"
 import {
   fetchShiftTemplates, fetchTemplateSlots, fetchSlotAssignments,
   fetchStaffBlocks, fetchAllStaffBlocks, createStaffBlock, updateStaffBlock, deleteStaffBlock,
-  flagShiftConflict, approveShiftConflict, declineShiftConflict, assignShift, adminEditShift, fetchUserRoles
+  flagShiftConflict, approveShiftConflict, declineShiftConflict, assignShift, adminEditShift, fetchUserRoles,
+  createShiftBatch,
 } from "./supabase.js"
 import StaffingScheduler from "./StaffingScheduler.jsx"
 
@@ -79,6 +80,8 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
   const [assignModal,setAssignModal]=useState(null);
   const [assignTarget,setAssignTarget]=useState('');
   const [editShiftModal,setEditShiftModal]=useState(null); // {id,staffId,start,end,date,role}
+  const [postShiftModal,setPostShiftModal]=useState(null);
+  const [postSaving,setPostSaving]=useState(false);
   const [allStaffBlocks,setAllStaffBlocks]=useState([]);
   const today=todayStr();
   function timeToMin(t){if(!t)return 0;const p=(t+'').split(':').map(Number);return p[0]*60+(p[1]||0);}
@@ -106,6 +109,32 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
       const ss2=timeToMin(s.start),se2=timeToMin(s.end);
       return !(bs>=se2||be<=ss2);
     });
+  }
+  function openPostShiftModal(){
+    const uniqueRoles=[...new Set(userRoles.map(r=>r.role))].sort();
+    const roles={};
+    for(const role of uniqueRoles)roles[role]={checked:false,qty:1};
+    roles['__general']={checked:false,qty:1};
+    setPostShiftModal({date:todayStr(),start:'09:00',end:'17:00',roles});
+  }
+  async function handlePostOpenShifts(){
+    const {date,start,end,roles}=postShiftModal;
+    if(!date||!start||!end){onAlert('Please fill in date and time.');return;}
+    const toCreate=[];
+    for(const [roleKey,{checked,qty}] of Object.entries(roles)){
+      if(!checked||qty<1)continue;
+      const role=roleKey==='__general'?null:roleKey;
+      for(let i=0;i<qty;i++)toCreate.push({date,start,end,open:true,staffId:null,role});
+    }
+    if(!toCreate.length){onAlert('Select at least one position.');return;}
+    setPostSaving(true);
+    try{
+      const created=await createShiftBatch(toCreate);
+      setShifts(p=>[...p,...created]);
+      setPostShiftModal(null);
+      onAlert(`Posted ${created.length} open shift${created.length>1?'s':''} for ${fmt(date)}.`);
+    }catch(e){onAlert('Error posting shifts: '+e.message);}
+    finally{setPostSaving(false);}
   }
   async function handleAddBlock(){
     setBlockSaving(true);
@@ -187,6 +216,33 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         <div className="g2"><div className="f"><label>Start</label><input type="time" value={editShiftModal.start} onChange={e=>setEditShiftModal(p=>({...p,start:e.target.value}))}/></div><div className="f"><label>End</label><input type="time" value={editShiftModal.end} onChange={e=>setEditShiftModal(p=>({...p,end:e.target.value}))}/></div></div>
         <div className="ma"><button className="btn btn-s" onClick={()=>setEditShiftModal(null)}>Cancel</button><button className="btn btn-ok" disabled={shiftOpBusy} onClick={async()=>{if(shiftOpBusy)return;setShiftOpBusy(true);try{const staffId=editShiftModal.staffId||null;const updated=await adminEditShift(editShiftModal.id,{staffId,start:editShiftModal.start,end:editShiftModal.end,open:!staffId});setShifts(p=>p.map(x=>x.id===editShiftModal.id?(updated||{...x,staffId,start:editShiftModal.start,end:editShiftModal.end,open:!staffId}):x));setEditShiftModal(null);}catch(e){onAlert('Error saving shift: '+e.message);}finally{setShiftOpBusy(false);}}}>{shiftOpBusy?'Saving…':'Save'}</button></div>
       </div></div>}
+      {postShiftModal&&<div className="mo" onClick={()=>setPostShiftModal(null)}><div className="mc" style={{maxWidth:480}} onClick={e=>e.stopPropagation()}>
+        <div className="mt2">Post Open Shifts</div>
+        <div className="f"><label>Date</label><input type="date" value={postShiftModal.date} onChange={e=>setPostShiftModal(p=>({...p,date:e.target.value}))}/></div>
+        <div className="g2">
+          <div className="f"><label>Start</label><input type="time" value={postShiftModal.start} onChange={e=>setPostShiftModal(p=>({...p,start:e.target.value}))}/></div>
+          <div className="f"><label>End</label><input type="time" value={postShiftModal.end} onChange={e=>setPostShiftModal(p=>({...p,end:e.target.value}))}/></div>
+        </div>
+        <div className="f">
+          <label>Positions</label>
+          {Object.keys(postShiftModal.roles).length===0&&<p style={{color:'var(--muted)',fontSize:'.84rem',marginTop:'.25rem'}}>No roles defined yet — only General will be available. Add roles via Staff settings.</p>}
+          {Object.entries(postShiftModal.roles).map(([roleKey,{checked,qty}])=>(
+            <div key={roleKey} style={{display:'flex',alignItems:'center',gap:'.6rem',padding:'.35rem 0',borderBottom:'1px solid var(--bdr)'}}>
+              <input type="checkbox" id={'psr-'+roleKey} checked={checked} onChange={e=>setPostShiftModal(p=>({...p,roles:{...p.roles,[roleKey]:{...p.roles[roleKey],checked:e.target.checked}}}))}/>
+              <label htmlFor={'psr-'+roleKey} style={{flex:1,cursor:'pointer',margin:0,fontSize:'.9rem'}}>{roleKey==='__general'?'General (no specific role)':roleKey}</label>
+              {checked&&<div style={{display:'flex',alignItems:'center',gap:'.35rem',flexShrink:0}}>
+                <label style={{fontSize:'.75rem',color:'var(--muted)',margin:0}}>Qty</label>
+                <input type="number" min={1} max={20} value={qty} onChange={e=>setPostShiftModal(p=>({...p,roles:{...p.roles,[roleKey]:{...p.roles[roleKey],qty:Math.max(1,parseInt(e.target.value)||1)}}}))} style={{width:56,textAlign:'center'}}/>
+              </div>}
+            </div>
+          ))}
+        </div>
+        {(()=>{const total=Object.values(postShiftModal.roles).reduce((s,{checked,qty})=>s+(checked?qty:0),0);return total>0&&<p style={{fontSize:'.78rem',color:'var(--muted)',margin:'.25rem 0 0'}}>Will post {total} open shift{total>1?'s':''} for {fmt(postShiftModal.date)}.</p>;})()}
+        <div className="ma">
+          <button className="btn btn-s" onClick={()=>setPostShiftModal(null)}>Cancel</button>
+          <button className="btn btn-ok" disabled={postSaving||!Object.values(postShiftModal.roles).some(r=>r.checked)} onClick={handlePostOpenShifts}>{postSaving?'Posting…':'Post Shifts'}</button>
+        </div>
+      </div></div>}
       <div className="tabs">
         <button className={`tab${tab==="mine"?" on":""}`} onClick={()=>setTab("mine")}>My Shifts</button>
         <button className={`tab${tab==="available"?" on":""}`} onClick={()=>setTab("available")}>Available ({avail.length})</button>
@@ -261,7 +317,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
             }
           </div>;
         })}
-        {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={()=>{const d=prompt("Date (YYYY-MM-DD):");const st=prompt("Start (HH:MM):");const en=prompt("End (HH:MM):");if(d&&st&&en)setShifts(p=>[...p,{id:Date.now(),staffId:null,date:d,start:st,end:en,open:true}]);}}>+ Post Open Shift</button>}
+        {isManager&&<button className="btn btn-s btn-sm" style={{marginTop:".5rem"}} onClick={openPostShiftModal}>+ Post Open Shifts</button>}
       </>}
       {tab==="blocks"&&<div>
         {!addingBlock&&<button className="btn btn-s btn-sm" style={{marginBottom:'.75rem'}} onClick={()=>setAddingBlock(true)}>+ Add Block</button>}
