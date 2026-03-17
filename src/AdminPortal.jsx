@@ -624,7 +624,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const fmtHr=m=>{const h=Math.floor(m/60);const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return`${h12}${ap}`;};
           const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
-          const ROLE_W="9rem";const BAR_H=24;const BAR_GAP=3;
+          const ROLE_W="9rem";const BAR_H=44;const BAR_GAP=4;
           const timeAxisHeader=(
             <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
               <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem"}}>
@@ -682,19 +682,23 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           const bl=Number(pct(st));const bw=Number(pct(et))-bl;
                           const isEmpty=!res;
                           return(
-                            <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:7,height:BAR_H,
-                              background:isEmpty?"rgba(255,255,255,.03)":"linear-gradient(90deg,rgba(200,224,58,.2),rgba(200,224,58,.08))",
+                            <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:5,height:BAR_H,
+                              background:isEmpty?"rgba(255,255,255,.03)":"linear-gradient(135deg,rgba(200,224,58,.18),rgba(200,224,58,.06))",
                               border:`1px ${isEmpty?"dashed":"solid"} ${isEmpty?"rgba(255,255,255,.1)":"rgba(200,224,58,.3)"}`,
                               borderLeft:`3px solid ${isEmpty?"rgba(255,255,255,.12)":"rgba(200,224,58,.7)"}`,
-                              borderRadius:3,display:"flex",alignItems:"center",paddingLeft:".4rem",paddingRight:".25rem",overflow:"hidden",boxSizing:"border-box"}}>
+                              borderRadius:3,display:"flex",flexDirection:"column",justifyContent:"center",padding:".3rem .4rem",overflow:"hidden",boxSizing:"border-box",gap:".18rem"}}>
                               {isEmpty
                                 ?<span style={{fontSize:".67rem",color:"rgba(255,255,255,.2)",fontStyle:"italic"}}>open</span>
-                                :<div style={{display:"flex",alignItems:"center",gap:".3rem",minWidth:0,overflow:"hidden"}}>
-                                  <span className={`badge b-${rt?.mode}`} style={{fontSize:".6rem",flexShrink:0}}>{rt?.mode||"?"}</span>
-                                  <span className={`badge b-${rt?.style}`} style={{fontSize:".6rem",flexShrink:0}}>{rt?.style||"?"}</span>
-                                  <span style={{fontSize:".69rem",fontWeight:600,color:"var(--accB)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{res.customerName}</span>
-                                  <span style={{fontSize:".65rem",color:"var(--muted)",whiteSpace:"nowrap",marginLeft:"auto",paddingLeft:".2rem"}}>{pc}p</span>
-                                </div>}
+                                :<>
+                                  <div style={{display:"flex",gap:".25rem",flexWrap:"nowrap"}}>
+                                    <span className={`badge b-${rt?.mode}`} style={{fontSize:".58rem",flexShrink:0,lineHeight:1.3}}>{rt?.mode||"?"}</span>
+                                    <span className={`badge b-${rt?.style}`} style={{fontSize:".58rem",flexShrink:0,lineHeight:1.3}}>{rt?.style||"?"}</span>
+                                  </div>
+                                  <div style={{display:"flex",alignItems:"center",gap:".25rem",minWidth:0}}>
+                                    <span style={{fontSize:".7rem",fontWeight:600,color:"var(--accB)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>{res.customerName}</span>
+                                    <span style={{fontSize:".63rem",color:"var(--muted)",whiteSpace:"nowrap",flexShrink:0}}>{pc}p</span>
+                                  </div>
+                                </>}
                             </div>
                           );
                         })}
