@@ -228,7 +228,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
     return dups;
   },[users,dismissedDups]);
 
-  return(
+  return(<>
     <div className="content">
       {showAccountFor&&<AccountPanel user={showAccountFor} users={users} setUsers={setUsers} onClose={()=>setShowAccountFor(null)}/>}
       {mergeTarget&&<MergeAccountsModal users={users} targetUser={mergeTarget} reservations={reservations} onMerge={async(wId,lId)=>{await handleMergeUsers(wId,lId);setMergeTarget(null);}} onClose={()=>setMergeTarget(null)}/>}
@@ -1034,7 +1034,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         </div>
       </div>
     )}
-  );
+  </>);
 }
 
 export default AdminPortal
