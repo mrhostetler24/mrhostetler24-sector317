@@ -7,6 +7,7 @@ import {
   addPlayerToReservation, removePlayerFromReservation,
   kioskSignWaiver, fetchPlayerWaiverStatus,
 } from './supabase.js'
+import { WaiverModal } from './ui.jsx'
 
 const KIOSK_QR_URL = 'https://www.sector317.com/?login=1'
 
@@ -131,9 +132,6 @@ export default function KioskPage() {
   const [addAdding, setAddAdding] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(null) // player obj
   const [signingPlayer, setSigningPlayer] = useState(null) // {id, userId, name}
-  const [waiverScrolled, setWaiverScrolled] = useState(false)
-  const [signedName, setSignedName] = useState('')
-  const [signedAgreed, setSignedAgreed] = useState(false)
   const [signing, setSigning] = useState(false)
   const [showExitPin, setShowExitPin] = useState(false)
   const [exitPin, setExitPin] = useState('')
@@ -150,7 +148,6 @@ export default function KioskPage() {
   const inactivityRef = useRef(null)
   const warnRef = useRef(null)
   const warnIntervalRef = useRef(null)
-  const waiverBodyRef = useRef(null)
   const phaseRef = useRef(phase)
   useEffect(() => { phaseRef.current = phase }, [phase])
 
@@ -415,20 +412,20 @@ export default function KioskPage() {
   }
 
   // ── Waiver sign ──
-  const doSignWaiver = async () => {
-    if (!signingPlayer || !waiverDoc || !signedName.trim() || !signedAgreed) return
+  const doSignWaiver = async (name, _isMinor) => {
+    if (!signingPlayer || !waiverDoc || !name.trim()) return
     setSigning(true)
     try {
-      await kioskSignWaiver(signingPlayer.userId, signedName.trim(), waiverDoc.id)
+      await kioskSignWaiver(signingPlayer.userId, name.trim(), waiverDoc.id)
       setPlayerWaivers(prev => ({
         ...prev,
         [signingPlayer.userId]: {
-          waivers: [{ signedAt: new Date().toISOString(), signedName: signedName.trim(), waiverDocId: waiverDoc.id }],
+          waivers: [{ signedAt: new Date().toISOString(), signedName: name.trim(), waiverDocId: waiverDoc.id }],
           needsRewaiverDocId: null,
         }
       }))
       setPhase('done')
-      setTimeout(() => { setSigningPlayer(null); setWaiverScrolled(false); setSignedName(''); setSignedAgreed(false); setPhase('manage') }, 3000)
+      setTimeout(() => { setSigningPlayer(null); setPhase('manage') }, 3000)
     } catch (e) {
       alert('Failed to sign waiver: ' + e.message)
     } finally {
@@ -436,12 +433,6 @@ export default function KioskPage() {
     }
   }
 
-  // ── Waiver scroll detection ──
-  const onWaiverScroll = () => {
-    const el = waiverBodyRef.current
-    if (!el) return
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setWaiverScrolled(true)
-  }
 
   // ── Shared styles ──
   const S = {
@@ -676,6 +667,14 @@ export default function KioskPage() {
       <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
         {inactivityWarn && <InactivityWarning />}
         {confirmRemove && <ConfirmRemoveModal />}
+        {signingPlayer && (
+          <WaiverModal
+            playerName={signingPlayer.name}
+            waiverDoc={waiverDoc}
+            onClose={() => setSigningPlayer(null)}
+            onSign={(name, isMinor) => doSignWaiver(name, isMinor)}
+          />
+        )}
         {busyMsg && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 7000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ color: 'var(--txt)', fontSize: '1.1rem' }}>{busyMsg}</div>
@@ -707,7 +706,7 @@ export default function KioskPage() {
                   <div style={{ display: 'flex', gap: '.5rem', flexShrink: 0 }}>
                     {canSign && (
                       <button style={{ padding: '.5rem .9rem', borderRadius: 6, fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', background: 'var(--acc)', color: 'var(--bg)', border: 'none', touchAction: 'manipulation' }}
-                        onClick={() => { setSigningPlayer(player); setSignedName(''); setWaiverScrolled(false); setPhase('waiver-read') }}>
+                        onClick={() => setSigningPlayer(player)}>
                         Sign Waiver
                       </button>
                     )}
@@ -788,68 +787,6 @@ export default function KioskPage() {
     </div>
   )
 
-  // ── WAIVER READ ──
-  if (phase === 'waiver-read') return (
-    <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
-      {inactivityWarn && <InactivityWarning />}
-      <div style={{ width: '100%', maxWidth: 560 }}>
-        <button style={S.back} onClick={() => setPhase('manage')}>← Back</button>
-        <div style={S.title}>Waiver &amp; Liability Agreement</div>
-        <div style={{ fontSize: '1rem', color: 'var(--muted)', marginBottom: '1rem' }}>
-          Signing for: <strong style={{ color: 'var(--txt)' }}>{signingPlayer?.name}</strong>
-        </div>
-        <div
-          ref={waiverBodyRef}
-          onScroll={onWaiverScroll}
-          style={{ height: '55vh', overflowY: 'auto', background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 8, padding: '1.2rem', marginBottom: '1rem', fontSize: '.9rem', lineHeight: 1.6, color: 'var(--txt)' }}
-          dangerouslySetInnerHTML={{ __html: waiverDoc?.body ?? '<p>No waiver document available.</p>' }}
-        />
-        {!waiverScrolled && (
-          <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '.85rem', marginBottom: '.5rem', animation: 'kpulse 2s ease-in-out infinite' }}>
-            ↓ Scroll to the bottom to continue
-          </div>
-        )}
-        <button style={{ ...S.btn, ...S.btnP, opacity: waiverScrolled ? 1 : .35 }}
-          disabled={!waiverScrolled}
-          onClick={() => setPhase('waiver-sign')}>
-          Continue to Sign →
-        </button>
-      </div>
-      <style>{`@keyframes kpulse{0%,100%{opacity:.4}50%{opacity:.9}}`}</style>
-    </div>
-  )
-
-  // ── WAIVER SIGN ──
-  if (phase === 'waiver-sign') return (
-    <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
-      {inactivityWarn && <InactivityWarning />}
-      <div style={{ width: '100%', maxWidth: 560 }}>
-        <button style={S.back} onClick={() => setPhase('waiver-read')}>← Back to Waiver</button>
-        <div style={S.title}>Sign Waiver</div>
-        <div style={{ ...S.h2, marginBottom: '1.2rem' }}>Confirm your agreement</div>
-
-        <div style={{ marginBottom: '1.2rem' }}>
-          <label style={{ display: 'block', fontSize: '.9rem', color: 'var(--muted)', marginBottom: '.4rem' }}>Full Legal Name</label>
-          <input type="text" value={signedName} onChange={e => setSignedName(e.target.value)}
-            style={{ width: '100%', padding: '.9rem 1rem', fontSize: '1.1rem', borderRadius: 8, border: '1px solid var(--bdr)', background: 'var(--bg)', color: 'var(--txt)', boxSizing: 'border-box' }} />
-        </div>
-
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '.8rem', cursor: 'pointer', background: 'var(--surf)', border: '1px solid var(--bdr)', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem', touchAction: 'manipulation' }}>
-          <input type="checkbox" checked={signedAgreed} onChange={e => setSignedAgreed(e.target.checked)}
-            style={{ width: 22, height: 22, flexShrink: 0, marginTop: 2, accentColor: 'var(--acc)', cursor: 'pointer' }} />
-          <span style={{ fontSize: '.95rem', color: 'var(--txt)', lineHeight: 1.5 }}>
-            I have read and agree to the terms of the Sector 317 liability waiver. I understand and accept all risks associated with participation.
-          </span>
-        </label>
-
-        <button style={{ ...S.btn, ...S.btnP, opacity: signedName.trim() && signedAgreed ? 1 : .4 }}
-          disabled={!signedName.trim() || !signedAgreed || signing}
-          onClick={doSignWaiver}>
-          {signing ? 'Signing…' : 'Sign Waiver'}
-        </button>
-      </div>
-    </div>
-  )
 
   // ── DONE ──
   if (phase === 'done') return (
