@@ -352,15 +352,8 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
       setObjectives(objs);
       activateStructures(objs,1,['Alpha','Bravo']);
     }).catch(()=>{});
-    // Deactivate both structures on tab close (beforeunload fires before fetches are cancelled)
-    const onUnload=()=>{
-      deactivateStructure('Alpha').catch(()=>{});
-      deactivateStructure('Bravo').catch(()=>{});
-    };
-    window.addEventListener('beforeunload',onUnload);
     // Deactivate both structures when modal unmounts normally
     return()=>{
-      window.removeEventListener('beforeunload',onUnload);
       deactivateStructure('Alpha').catch(()=>{});
       deactivateStructure('Bravo').catch(()=>{});
     };
@@ -1335,6 +1328,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const activeWorkRef=useRef(false);
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
   useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
+  useEffect(()=>()=>{if(document.fullscreenElement)document.exitFullscreen?.();},[]);
   const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
   const today=todayStr();
   const getType=useCallback(id=>resTypes.find(t=>t.id===id),[resTypes]);
@@ -1499,6 +1493,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         </div>
         <div style={{display:"flex",gap:".6rem"}}>
           <button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>setShowMerch(true)}>Merchandise</button>
+          <button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>document.documentElement.requestFullscreen?.()}>⛶ Fullscreen</button>
           <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraSlots:[],addSecondLane:false,splitA:0});}}>+ Walk-In</button>
         </div>
       </div>
