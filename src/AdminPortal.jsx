@@ -36,6 +36,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dashTo,setDashTo]=useState("");
   const [acknowledgedFlags,setAcknowledgedFlags]=useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("ack-flags")||"[]"))}catch{return new Set()}});
   const [showAcknowledged,setShowAcknowledged]=useState(false);
+  const [staffPopup,setStaffPopup]=useState(null);
   const [dismissedDups,setDismissedDups]=useState([]);
   const [careerRuns,setCareerRuns]=useState(null);
   const [friendsVersion,setFriendsVersion]=useState(0);
@@ -609,6 +610,32 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const assignedShifts=todayShifts.filter(s=>!s.open&&s.staffId);
           const roleGroups={};
           assignedShifts.forEach(s=>{const r=s.role||"General";if(!roleGroups[r])roleGroups[r]=[];roleGroups[r].push(s);});
+          // ── Shared timeline ──
+          const toMin=t=>{if(!t)return 0;const[h,m]=t.split(":").map(Number);return h*60+(m||0);};
+          const slotDurs=todaySlots.map((s,i,arr)=>{const st=toMin(s.startTime);const nxt=i+1<arr.length?toMin(arr[i+1].startTime):null;return{startTime:s.startTime,st,et:nxt?Math.min(nxt,st+120):st+90};});
+          const shiftMins=todayShifts.flatMap(s=>[toMin(s.start),toMin(s.end)]).filter(t=>t>0);
+          const allTlMins=[...slotDurs.flatMap(s=>[s.st,s.et]),...shiftMins].filter(t=>t>0);
+          const tlStart=allTlMins.length?Math.max(0,Math.min(...allTlMins)-30):0;
+          const tlEnd=allTlMins.length?Math.min(1440,Math.max(...allTlMins)+30):1440;
+          const tlSpan=tlEnd-tlStart||1;
+          const pct=m=>(((m-tlStart)/tlSpan)*100).toFixed(3);
+          const firstHour=Math.ceil(tlStart/60);const lastHour=Math.floor(tlEnd/60);
+          const hourMarks=[];for(let h=firstHour;h<=lastHour;h++)hourMarks.push(h*60);
+          const fmtHr=m=>{const h=Math.floor(m/60);const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return`${h12}${ap}`;};
+          const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
+          const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
+          const ROLE_W="9rem";const BAR_H=24;const BAR_GAP=3;
+          const timeAxisHeader=(
+            <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
+              <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem"}}>
+                <span style={{fontSize:".58rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>—</span>
+              </div>
+              <div style={{flex:1,position:"relative",height:"1.4rem"}}>
+                {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7}}/>}
+                {hourMarks.map(h=><span key={h} style={{position:"absolute",left:`${pct(h)}%`,transform:"translateX(-50%)",fontSize:".58rem",color:"rgba(255,255,255,.28)",lineHeight:"1.4rem",whiteSpace:"nowrap",fontWeight:600,letterSpacing:".03em"}}>{fmtHr(h)}</span>)}
+              </div>
+            </div>
+          );
           // ── Waiver Coverage ──
           const waiverIssues=todayRes.filter(r=>r.players?.length>0).map(r=>{
             const missing=r.players.filter(p=>{const u=users.find(x=>x.id===p.userId);return u&&!hasValidWaiver(u,activeWaiverDoc);});
@@ -637,66 +664,111 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               {sectionHead("Today's Schedule",`${new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})} · ${todayRes.length} session${todayRes.length!==1?"s":""} · ${totalTodayPlayers} players`)}
               {!todaySlots.length
                 ?<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No sessions offered today.</div>
-                :<table style={{width:"100%",borderCollapse:"collapse"}}>
-                  <thead><tr style={{borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-                    <th style={{padding:".35rem .85rem",fontSize:".68rem",color:"var(--muted)",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",textAlign:"left",width:"5.5rem"}}>Time</th>
-                    <th style={{padding:".35rem .85rem",fontSize:".68rem",color:"var(--muted)",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",textAlign:"left"}}>Lane 1</th>
-                    <th style={{padding:".35rem .85rem",fontSize:".68rem",color:"var(--muted)",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",textAlign:"left",borderLeft:"1px solid rgba(255,255,255,.06)"}}>Lane 2</th>
-                  </tr></thead>
-                  <tbody>{todaySlots.map(slot=>{
-                    const booked=slotBookings(slot);
-                    const renderLane=res=>{
-                      if(!res)return<span style={{fontSize:".78rem",color:"rgba(255,255,255,.2)",fontStyle:"italic"}}>── open ──</span>;
-                      const rt=getType(res.typeId);
-                      const pc=res.players?.length||res.playerCount||0;
-                      return<div style={{display:"flex",alignItems:"center",gap:".4rem"}}>
-                        <span className={`badge b-${rt?.mode}`} style={{fontSize:".66rem"}}>{rt?.mode||"?"}</span>
-                        <span className={`badge b-${rt?.style}`} style={{fontSize:".66rem"}}>{rt?.style||"?"}</span>
-                        <span style={{fontSize:".8rem",color:"var(--txt)",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{res.customerName}</span>
-                        <span style={{fontSize:".72rem",color:"var(--muted)",whiteSpace:"nowrap"}}>{pc}p</span>
-                      </div>;
-                    };
-                    return<tr key={slot.startTime} style={{borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                      <td style={{padding:".4rem .85rem",fontSize:".82rem",fontWeight:700,color:"var(--accB)",whiteSpace:"nowrap"}}>{fmt12(slot.startTime)}</td>
-                      <td style={{padding:".4rem .85rem"}}>{renderLane(booked[0]||null)}</td>
-                      <td style={{padding:".4rem .85rem",borderLeft:"1px solid rgba(255,255,255,.04)"}}>{renderLane(booked[1]||null)}</td>
-                    </tr>;
-                  })}</tbody>
-                </table>}
-            </div>
-
-            {/* ── Today's Staff ── */}
-            <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:6,overflow:"hidden"}}>
-              {sectionHead("Today's Staff",openShifts.length>0?`${openShifts.length} open shift${openShifts.length!==1?"s":""} unfilled`:null,openShifts.length>0)}
-              {!todayShifts.length
-                ?<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No shifts scheduled today.</div>
-                :<div style={{padding:".5rem .85rem",display:"flex",flexDirection:"column",gap:".3rem"}}>
-                  {Object.entries(roleGroups).map(([role,roleShifts])=>(
-                    <div key={role} style={{display:"flex",alignItems:"flex-start",gap:".75rem",padding:".25rem 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                      <span style={{fontSize:".7rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".04em",width:"7rem",flexShrink:0,paddingTop:".15rem"}}>{role}</span>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:".3rem"}}>
-                        {roleShifts.map(s=>{
-                          const u=users.find(x=>x.id===s.staffId);
-                          const time=s.start&&s.end?` · ${fmt12(s.start)}–${fmt12(s.end)}`:"";
-                          return<span key={s.id} style={{fontSize:".78rem",color:"var(--txt)",background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:4,padding:".15rem .5rem"}}>
-                            {u?.name||"—"}<span style={{color:"var(--muted)"}}>{time}</span>
-                          </span>;
+                :<div>
+                  {timeAxisHeader}
+                  {[0,1].map(laneIdx=>(
+                    <div key={laneIdx} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
+                      <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"flex-start"}}>
+                        <span style={{fontSize:".67rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em"}}>Lane {laneIdx+1}</span>
+                      </div>
+                      <div style={{flex:1,position:"relative",height:BAR_H+14,background:"rgba(0,0,0,.15)"}}>
+                        {hourMarks.map(h=><div key={h} style={{position:"absolute",left:`${pct(h)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.05)"}}/>)}
+                        {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7,zIndex:3,pointerEvents:"none"}}/>}
+                        {slotDurs.map(({startTime,st,et})=>{
+                          const booked=slotBookings({startTime});
+                          const res=booked[laneIdx]||null;
+                          const rt=res?getType(res.typeId):null;
+                          const pc=res?(res.players?.length||res.playerCount||0):0;
+                          const bl=Number(pct(st));const bw=Number(pct(et))-bl;
+                          const isEmpty=!res;
+                          return(
+                            <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:7,height:BAR_H,
+                              background:isEmpty?"rgba(255,255,255,.03)":"linear-gradient(90deg,rgba(200,224,58,.2),rgba(200,224,58,.08))",
+                              border:`1px ${isEmpty?"dashed":"solid"} ${isEmpty?"rgba(255,255,255,.1)":"rgba(200,224,58,.3)"}`,
+                              borderLeft:`3px solid ${isEmpty?"rgba(255,255,255,.12)":"rgba(200,224,58,.7)"}`,
+                              borderRadius:3,display:"flex",alignItems:"center",paddingLeft:".4rem",paddingRight:".25rem",overflow:"hidden",boxSizing:"border-box"}}>
+                              {isEmpty
+                                ?<span style={{fontSize:".67rem",color:"rgba(255,255,255,.2)",fontStyle:"italic"}}>open</span>
+                                :<div style={{display:"flex",alignItems:"center",gap:".3rem",minWidth:0,overflow:"hidden"}}>
+                                  <span className={`badge b-${rt?.mode}`} style={{fontSize:".6rem",flexShrink:0}}>{rt?.mode||"?"}</span>
+                                  <span className={`badge b-${rt?.style}`} style={{fontSize:".6rem",flexShrink:0}}>{rt?.style||"?"}</span>
+                                  <span style={{fontSize:".69rem",fontWeight:600,color:"var(--accB)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{res.customerName}</span>
+                                  <span style={{fontSize:".65rem",color:"var(--muted)",whiteSpace:"nowrap",marginLeft:"auto",paddingLeft:".2rem"}}>{pc}p</span>
+                                </div>}
+                            </div>
+                          );
                         })}
                       </div>
                     </div>
                   ))}
-                  {openShifts.length>0&&<div style={{display:"flex",alignItems:"center",gap:".5rem",padding:".3rem 0",marginTop:".1rem"}}>
-                    <span style={{fontSize:".7rem",fontWeight:700,color:"#e07060",textTransform:"uppercase",letterSpacing:".04em",width:"7rem",flexShrink:0}}>Unfilled</span>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:".3rem"}}>
-                      {openShifts.map(s=>{
-                        const time=s.start&&s.end?`${fmt12(s.start)}–${fmt12(s.end)}`:"";
-                        return<span key={s.id} style={{fontSize:".78rem",color:"#e07060",background:"rgba(192,57,43,.1)",border:"1px solid rgba(192,57,43,.25)",borderRadius:4,padding:".15rem .5rem"}}>
-                          {s.role||"General"}{time&&<span style={{opacity:.7}}> · {time}</span>}
-                        </span>;
-                      })}
-                    </div>
-                  </div>}
                 </div>}
+            </div>
+
+            {/* ── Today's Staff ── */}
+            <div style={{background:"var(--surf)",border:`1px solid ${openShifts.length>0?"rgba(192,57,43,.28)":"var(--bdr)"}`,borderRadius:6,overflow:"hidden"}}>
+              {sectionHead("Today's Staff",openShifts.length>0?`${openShifts.length} unfilled`:null,openShifts.length>0)}
+              {!todayShifts.length
+                ?<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No shifts scheduled today.</div>
+                :(()=>{
+                  const allRoles=[...new Set([...Object.keys(roleGroups),...openShifts.map(s=>s.role||"General")])];
+                  const renderRow=(role)=>{
+                    const assigned=(roleGroups[role]||[]);
+                    const open=openShifts.filter(s=>(s.role||"General")===role);
+                    const allBars=[...assigned.map(s=>({s,isOpen:false})),...open.map(s=>({s,isOpen:true}))];
+                    const rowH=allBars.length*(BAR_H+BAR_GAP)+10;
+                    return(
+                      <div key={role} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
+                        <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"flex-start"}}>
+                          <span style={{fontSize:".67rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",lineHeight:1.3}}>{role}</span>
+                        </div>
+                        <div style={{flex:1,position:"relative",height:rowH,background:"rgba(0,0,0,.15)"}}>
+                          {hourMarks.map(h=><div key={h} style={{position:"absolute",left:`${pct(h)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.05)"}}/>)}
+                          {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7,zIndex:3,pointerEvents:"none"}}/>}
+                          {allBars.map(({s,isOpen},i)=>{
+                            const u=!isOpen?users.find(x=>x.id===s.staffId):null;
+                            const bl=Number(pct(toMin(s.start)));
+                            const bw=Number(pct(toMin(s.end)))-bl;
+                            const top=i*(BAR_H+BAR_GAP)+5;
+                            return(
+                              <div key={s.id}
+                                onClick={()=>!isOpen&&u&&setStaffPopup({user:u,shift:s})}
+                                style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top,height:BAR_H,
+                                  background:isOpen?"rgba(192,57,43,.1)":"linear-gradient(90deg,rgba(200,224,58,.2),rgba(200,224,58,.1))",
+                                  border:`1px solid ${isOpen?"rgba(192,57,43,.35)":"rgba(200,224,58,.3)"}`,
+                                  borderLeft:`3px solid ${isOpen?"rgba(192,57,43,.6)":"rgba(200,224,58,.7)"}`,
+                                  borderRadius:3,cursor:isOpen?"default":"pointer",
+                                  display:"flex",alignItems:"center",paddingLeft:".4rem",paddingRight:".25rem",
+                                  overflow:"hidden",boxSizing:"border-box"}}>
+                                <span style={{fontSize:".69rem",fontWeight:600,color:isOpen?"rgba(192,57,43,.8)":"var(--accB)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                  {isOpen?"Open":(u?.name||"?")}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  };
+                  return(
+                    <div>
+                      <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
+                        <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem"}}>
+                          <span style={{fontSize:".58rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>ROLE</span>
+                        </div>
+                        <div style={{flex:1,position:"relative",height:"1.4rem"}}>
+                          {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7}}/>}
+                          {hourMarks.map(h=>(
+                            <span key={h} style={{position:"absolute",left:`${pct(h)}%`,transform:"translateX(-50%)",fontSize:".58rem",color:"rgba(255,255,255,.28)",lineHeight:"1.4rem",whiteSpace:"nowrap",fontWeight:600,letterSpacing:".03em"}}>
+                              {fmtHr(h)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {allRoles.map(role=>renderRow(role))}
+                    </div>
+                  );
+                })()
+              }
             </div>
 
             {/* ── Missing Waivers ── */}
@@ -933,6 +1005,35 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
       </>}
 
     </div>
+
+    {/* ── Staff contact popup ── */}
+    {staffPopup&&(
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:6000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setStaffPopup(null)}>
+        <div style={{background:"var(--bg)",border:"1px solid var(--acc)",borderRadius:8,padding:"1.4rem 1.6rem",minWidth:"15rem",maxWidth:"22rem",boxShadow:"0 8px 32px rgba(0,0,0,.5)"}} onClick={e=>e.stopPropagation()}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:".9rem"}}>
+            <div>
+              <div style={{fontWeight:800,fontSize:"1rem",color:"var(--txt)"}}>{staffPopup.user.name}</div>
+              {staffPopup.shift.role&&<div style={{fontSize:".72rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".05em",marginTop:".15rem"}}>{staffPopup.shift.role}</div>}
+            </div>
+            <button onClick={()=>setStaffPopup(null)} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:"1.1rem",lineHeight:1,padding:".2rem"}}>✕</button>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:".55rem"}}>
+            <div style={{display:"flex",alignItems:"center",gap:".6rem"}}>
+              <span style={{fontSize:".68rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".05em",width:"3rem",flexShrink:0}}>Phone</span>
+              <span style={{fontSize:".88rem",color:"var(--txt)",fontFamily:"monospace"}}>{staffPopup.user.phone?fmtPhone(staffPopup.user.phone):"—"}</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:".6rem"}}>
+              <span style={{fontSize:".68rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".05em",width:"3rem",flexShrink:0}}>Email</span>
+              <span style={{fontSize:".88rem",color:"var(--txt)"}}>{staffPopup.user.email||"—"}</span>
+            </div>
+            {staffPopup.shift.start&&staffPopup.shift.end&&<div style={{display:"flex",alignItems:"center",gap:".6rem",marginTop:".1rem",paddingTop:".6rem",borderTop:"1px solid var(--bdr)"}}>
+              <span style={{fontSize:".68rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".05em",width:"3rem",flexShrink:0}}>Shift</span>
+              <span style={{fontSize:".88rem",color:"var(--accB)",fontWeight:600}}>{fmt12(staffPopup.shift.start)} – {fmt12(staffPopup.shift.end)}</span>
+            </div>}
+          </div>
+        </div>
+      </div>
+    )}
   );
 }
 
