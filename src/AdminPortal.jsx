@@ -599,7 +599,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         {(()=>{
           const today=new Date().toISOString().slice(0,10);
           // ── Today's Schedule ──
-          const todaySlots=getSessionsForDate(sessionTemplates,today).filter(s=>s.active!==false);
+          const todaySlots=getSessionsForDate(today,sessionTemplates);
           const todayRes=reservations.filter(r=>r.date===today&&r.status!=="cancelled");
           const slotBookings=slot=>todayRes.filter(r=>r.startTime===slot.startTime).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
           const totalTodayPlayers=todayRes.reduce((s,r)=>s+(r.players?.length||r.playerCount||0),0);
