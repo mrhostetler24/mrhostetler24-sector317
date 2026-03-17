@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase.js'
 import { vizRenderName, audRenderName } from './envRender.jsx'
-import { getTierInfo, TIER_COLORS, TIER_SHINE } from './utils.js'
+import { TierImg, PlatoonTag } from './ui.jsx'
 
 const VIZ_OPTS = [
   { code: 'V', name: 'Standard', desc: '6000K House Lighting' },
@@ -26,11 +26,74 @@ const DIFF_OPTS = [
   { value: 'EXPERT',   label: 'Expert',          desc: 'Everything you can handle!'                   },
 ]
 
-const BLUE    = '#4fc3f7'
-const RED     = '#ef9a9a'
-const BLUE_BG = 'rgba(79,195,247,.12)'
-const RED_BG  = 'rgba(239,154,154,.12)'
-const fd      = 'var(--fd)'
+const BLUE = '#4fc3f7'
+const RED  = '#ef9a9a'
+const fd   = 'var(--fd)'
+
+function PlayerRow({ p, i, color }) {
+  return (
+    <div key={p.id} style={{ display:'flex', alignItems:'center', gap:'.55vw', padding:'.28vh .4vw', borderRadius:'.3vw', background: i%2===0 ? `${color}08` : 'transparent', borderLeft:`2px solid ${color}55`, marginBottom:'.1vh' }}>
+      <TierImg tierKey={p.tierKey} height="clamp(14px,1.8vw,18px)"/>
+      <PlatoonTag tag={p.platoonTag} color={p.platoonBadgeColor||color} style={{fontSize:'clamp(.72rem,1.05vw,1.05rem)',letterSpacing:'.04em',fontWeight:500,opacity:.9}}/>
+      <span style={{ flex:1, minWidth:0, fontSize:'clamp(.72rem,1.05vw,1.05rem)', fontWeight:400, color:'rgba(255,255,255,.78)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+        {p.leaderboardName || p.name}
+        {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color:'rgba(255,255,255,.35)', fontWeight:400, marginLeft:'.3vw', fontSize:'clamp(.5rem,.78vw,.8rem)' }}>({p.name})</span>}
+      </span>
+    </div>
+  )
+}
+
+function VersusTeamBoxes({ players, blueLabel, redLabel }) {
+  return (
+    <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', gap: '1.5vw', alignItems: 'stretch', minWidth: 'calc(2 * clamp(220px, 38vw, 560px) + 2.8vw)', width: 'fit-content' }}>
+      {[{label:blueLabel,color:BLUE,team:1},{label:redLabel,color:RED,team:2}].map(({label,color,team},ti)=>{
+        const tp = players.filter(p=>p.team===team)
+        return (
+          <div key={team} style={{ flex: 1, minWidth: 0, background: `linear-gradient(150deg, ${color}1E 0%, ${color}0A 45%, rgba(0,0,0,0) 100%)`, border: `1.5px solid ${color}99`, borderRadius: '1.2vw', padding: '.6vh 1.3vw .7vh', overflow: 'hidden', boxShadow: `0 0 22px ${color}2A, inset 0 0 40px ${color}0A`, position: 'relative' }}>
+            <div style={{ position:'absolute', top:0, [ti===0?'right':'left']:0, width:'28%', height:'2px', background:`linear-gradient(${ti===0?'to left':'to right'}, transparent, ${color}88)` }}/>
+            <div style={{ display:'flex', alignItems:'baseline', justifyContent:'center', gap:'.6vw', marginBottom:'.5vh' }}>
+              <div style={{ fontSize:'clamp(1.1rem,2vw,2rem)', color, letterSpacing:'.18em', textTransform:'uppercase', fontWeight:900, textShadow:`0 0 14px ${color}88, 0 0 28px ${color}44`, lineHeight:1 }}>{label}</div>
+              <div style={{ fontSize:'clamp(.55rem,.85vw,.85rem)', color:`${color}99`, letterSpacing:'.08em', fontWeight:600, fontFamily:'var(--fd)' }}>{tp.length}P</div>
+            </div>
+            <div style={{ overflow:'hidden', maxHeight:'calc(6 * 3.4vh)' }}>
+              {tp.length === 0
+                ? <div style={{ fontSize:'clamp(.65rem,.9vw,.9rem)', color:'var(--muted)', fontStyle:'italic', padding:'.3vh 0' }}>—</div>
+                : tp.map((p,i) => <PlayerRow key={p.id} p={p} i={i} color={color}/>)
+              }
+            </div>
+          </div>
+        )
+      }).reduce((acc,el,i)=>i===0?[el]:[...acc,
+        <div key="vs" style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, width:'2.8vw' }}>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'.3vh' }}>
+            <div style={{ width:1, flex:1, background:'linear-gradient(to bottom, transparent, rgba(255,255,255,.12), transparent)', minHeight:'3vh' }}/>
+            <span style={{ fontSize:'clamp(.7rem,1.4vw,1.4rem)', fontWeight:900, color:'rgba(255,255,255,.18)', letterSpacing:'.12em', fontFamily:'var(--fd)' }}>VS</span>
+            <div style={{ width:1, flex:1, background:'linear-gradient(to bottom, transparent, rgba(255,255,255,.12), transparent)', minHeight:'3vh' }}/>
+          </div>
+        </div>,
+        el
+      ],[])}</div>
+    </div>
+  )
+}
+
+function CoopPlayerBox({ players }) {
+  return (
+    <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+      <div style={{ minWidth: 'clamp(220px, 36vw, 480px)', background: 'linear-gradient(150deg, color-mix(in srgb, var(--acc) 12%, transparent) 0%, transparent 100%)', border: '1.5px solid color-mix(in srgb, var(--acc) 60%, transparent)', borderRadius: '1.2vw', padding: '.6vh 1.3vw 1.4vh', overflow: 'hidden', boxShadow: '0 0 22px color-mix(in srgb, var(--acc) 16%, transparent), inset 0 0 40px color-mix(in srgb, var(--acc) 6%, transparent)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(to right, transparent, color-mix(in srgb, var(--acc) 55%, transparent), transparent)' }} />
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '.6vw', marginBottom: '.5vh' }}>
+          <div style={{ fontSize: 'clamp(.9rem,1.5vw,1.5rem)', color: 'var(--acc)', letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 900, textShadow: '0 0 14px color-mix(in srgb, var(--acc) 55%, transparent)', lineHeight: 1 }}>Hunters</div>
+          <div style={{ fontSize: 'clamp(.55rem,.85vw,.85rem)', color: 'color-mix(in srgb, var(--acc) 60%, transparent)', letterSpacing: '.08em', fontWeight: 600, fontFamily: 'var(--fd)' }}>{players.length}P</div>
+        </div>
+        <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 3.4vh)' }}>
+          {players.map((p,i) => <PlayerRow key={p.id} p={p} i={i} color="var(--acc)"/>)}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function StructurePage({ structure }) {
   const [phase,        setPhase]        = useState('loading')
@@ -227,115 +290,13 @@ export default function StructurePage({ structure }) {
           </div>
 
           {/* Team / player list */}
-          {mode === 'versus' ? (
-            <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', gap: '1.5vw', alignItems: 'stretch', minWidth: 'calc(2 * clamp(220px, 38vw, 560px) + 2.8vw)', width: 'fit-content' }}>
-              {[{label:blueLabel,color:BLUE,team:1},{label:redLabel,color:RED,team:2}].map(({label,color,team},ti)=>{
-                const tp = players.filter(p=>p.team===team)
-                return (
-                  <div key={team} style={{
-                    flex: 1, minWidth: 0,
-                    background: `linear-gradient(150deg, ${color}1E 0%, ${color}0A 45%, rgba(0,0,0,0) 100%)`,
-                    border: `1.5px solid ${color}99`,
-                    borderRadius: '1.2vw',
-                    padding: '.6vh 1.3vw .7vh',
-                    overflow: 'hidden',
-                    boxShadow: `0 0 22px ${color}2A, inset 0 0 40px ${color}0A`,
-                    position: 'relative',
-                  }}>
-                    {/* corner accent */}
-                    <div style={{ position:'absolute', top:0, [ti===0?'right':'left']:0, width:'28%', height:'2px', background:`linear-gradient(${ti===0?'to left':'to right'}, transparent, ${color}88)` }}/>
-                    <div style={{ display:'flex', alignItems:'baseline', justifyContent:'center', gap:'.6vw', marginBottom:'.5vh' }}>
-                      <div style={{ fontSize:'clamp(1.1rem,2vw,2rem)', color, letterSpacing:'.18em', textTransform:'uppercase', fontWeight:900, textShadow:`0 0 14px ${color}88, 0 0 28px ${color}44`, lineHeight:1 }}>
-                        {label}
-                      </div>
-                      <div style={{ fontSize:'clamp(.55rem,.85vw,.85rem)', color:`${color}99`, letterSpacing:'.08em', fontWeight:600, fontFamily:'var(--fd)' }}>
-                        {tp.length}P
-                      </div>
-                    </div>
-                    <div style={{ overflow:'hidden', maxHeight:'calc(6 * 3.4vh)' }}>
-                      {tp.length === 0
-                        ? <div style={{ fontSize:'clamp(.65rem,.9vw,.9rem)', color:'var(--muted)', fontStyle:'italic', padding:'.3vh 0' }}>—</div>
-                        : tp.map((p,i) => (
-                          <div key={p.id} style={{
-                            display:'flex', alignItems:'center', gap:'.55vw',
-                            padding:'.28vh .4vw',
-                            borderRadius:'.3vw',
-                            background: i%2===0 ? `${color}08` : 'transparent',
-                            borderLeft:`2px solid ${color}55`,
-                            marginBottom:'.1vh',
-                          }}>
-                            <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height:'clamp(14px,1.8vw,18px)', width:'clamp(14px,1.8vw,18px)', objectFit:'contain', flexShrink:0, ...(TIER_SHINE[p.tierKey]?{filter:TIER_SHINE[p.tierKey]}:{}) }} />
-                            {p.platoonTag && <span style={{ fontSize:'clamp(.72rem,1.05vw,1.05rem)', color:p.platoonBadgeColor||color, flexShrink:0, letterSpacing:'.04em', fontWeight:500, opacity:.9 }}>[{p.platoonTag}]</span>}
-                            <span style={{ flex:1, minWidth:0, fontSize:'clamp(.72rem,1.05vw,1.05rem)', fontWeight:400, color:'rgba(255,255,255,.78)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                              {p.leaderboardName || p.name}
-                              {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color:'rgba(255,255,255,.35)', fontWeight:400, marginLeft:'.3vw', fontSize:'clamp(.5rem,.78vw,.8rem)' }}>({p.name})</span>}
-                            </span>
-                          </div>
-                        ))
-                      }
-                    </div>
-                  </div>
-                )
-              }).reduce((acc,el,i)=>i===0?[el]:[...acc,
-                <div key="vs" style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, width:'2.8vw' }}>
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'.3vh' }}>
-                    <div style={{ width:1, flex:1, background:'linear-gradient(to bottom, transparent, rgba(255,255,255,.12), transparent)', minHeight:'3vh' }}/>
-                    <span style={{ fontSize:'clamp(.7rem,1.4vw,1.4rem)', fontWeight:900, color:'rgba(255,255,255,.18)', letterSpacing:'.12em', fontFamily:'var(--fd)' }}>VS</span>
-                    <div style={{ width:1, flex:1, background:'linear-gradient(to bottom, transparent, rgba(255,255,255,.12), transparent)', minHeight:'3vh' }}/>
-                  </div>
-                </div>,
-                el
-              ],[])}</div>
-            </div>
-          ) : players.length > 0 ? (
-            <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-              <div style={{
-                minWidth: 'clamp(220px, 36vw, 480px)',
-                background: 'linear-gradient(150deg, var(--acc-rgb, 255 165 0 / .12) 0%, rgba(0,0,0,0) 100%)',
-                background: 'linear-gradient(150deg, color-mix(in srgb, var(--acc) 12%, transparent) 0%, transparent 100%)',
-                border: '1.5px solid color-mix(in srgb, var(--acc) 60%, transparent)',
-                borderRadius: '1.2vw',
-                padding: '.6vh 1.3vw 1.4vh',
-                overflow: 'hidden',
-                boxShadow: '0 0 22px color-mix(in srgb, var(--acc) 16%, transparent), inset 0 0 40px color-mix(in srgb, var(--acc) 6%, transparent)',
-                position: 'relative',
-              }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(to right, transparent, color-mix(in srgb, var(--acc) 55%, transparent), transparent)' }} />
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '.6vw', marginBottom: '.5vh' }}>
-                  <div style={{ fontSize: 'clamp(.9rem,1.5vw,1.5rem)', color: 'var(--acc)', letterSpacing: '.18em', textTransform: 'uppercase', fontWeight: 900, textShadow: '0 0 14px color-mix(in srgb, var(--acc) 55%, transparent)', lineHeight: 1 }}>
-                    Hunters
-                  </div>
-                  <div style={{ fontSize: 'clamp(.55rem,.85vw,.85rem)', color: 'color-mix(in srgb, var(--acc) 60%, transparent)', letterSpacing: '.08em', fontWeight: 600, fontFamily: 'var(--fd)' }}>
-                    {players.length}P
-                  </div>
-                </div>
-                <div style={{ overflow: 'hidden', maxHeight: 'calc(6 * 3.4vh)' }}>
-                  {players.map((p, i) => (
-                    <div key={p.id} style={{
-                      display: 'flex', alignItems: 'center', gap: '.55vw',
-                      padding: '.28vh .4vw',
-                      borderRadius: '.3vw',
-                      background: i % 2 === 0 ? 'color-mix(in srgb, var(--acc) 5%, transparent)' : 'transparent',
-                      borderLeft: '2px solid color-mix(in srgb, var(--acc) 33%, transparent)',
-                      marginBottom: '.1vh',
-                    }}>
-                      <img src={`/${p.tierKey}.png`} alt={p.tierKey} style={{ height: 'clamp(14px,1.8vw,18px)', width: 'clamp(14px,1.8vw,18px)', objectFit: 'contain', flexShrink: 0, ...(TIER_SHINE[p.tierKey] ? { filter: TIER_SHINE[p.tierKey] } : {}) }} />
-                      {p.platoonTag && <span style={{ fontSize: 'clamp(.75rem,1.1vw,1.1rem)', color: p.platoonBadgeColor || 'var(--acc)', flexShrink: 0, letterSpacing: '.04em', fontWeight: 500 }}>[{p.platoonTag}]</span>}
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 'clamp(.75rem,1.1vw,1.1rem)', fontWeight: 400, color: 'rgba(255,255,255,.78)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.leaderboardName || p.name}
-                        {p.leaderboardName && p.leaderboardName !== p.name && <span style={{ color: 'rgba(255,255,255,.35)', fontWeight: 400, marginLeft: '.35vw', fontSize: 'clamp(.55rem,.85vw,.88rem)' }}>({p.name})</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : customerNames.length > 0 ? (
-            <div style={{ flexShrink: 0, textAlign: 'center' }}>
-              <div style={{ fontSize: 'clamp(1rem,2vw,2rem)', fontWeight: 700, color: 'var(--txt)' }}>{customerNames.join(' · ')}</div>
-            </div>
-          ) : null}
+          {mode === 'versus'
+            ? <VersusTeamBoxes players={players} blueLabel={blueLabel} redLabel={redLabel}/>
+            : players.length > 0
+              ? <CoopPlayerBox players={players}/>
+              : customerNames.length > 0
+                ? <div style={{ flexShrink: 0, textAlign: 'center' }}><div style={{ fontSize: 'clamp(1rem,2vw,2rem)', fontWeight: 700, color: 'var(--txt)' }}>{customerNames.join(' · ')}</div></div>
+                : null}
 
           {/* Mission Objective */}
           {objectives.length > 0 && (

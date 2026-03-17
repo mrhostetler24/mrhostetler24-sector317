@@ -1,9 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from "./supabase.client.js"
+export { supabase }
 
-const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
 
 // ============================================================
 // SCORE CALCULATION
@@ -446,7 +443,7 @@ export async function fetchMySignedWaiver(waiverDocId = null) {
 
 export async function fetchWaiverDocs() {
   const { data, error } = await supabase
-    .from('waiver_docs').select('*').order('created_at', { ascending: false })
+    .from('waiver_docs').select('*').order('created_at', { ascending: false }).limit(500)
   if (error) throw error
   return data.map(toWaiverDoc)
 }
@@ -489,7 +486,7 @@ export async function deleteWaiverDoc(id) {
 
 export async function fetchStaffRoles() {
   const { data, error } = await supabase
-    .from('staff_roles').select('name').order('sort_order')
+    .from('staff_roles').select('name').order('sort_order').limit(200)
   if (error) throw error
   return (data ?? []).map(r => r.name)
 }
@@ -547,7 +544,7 @@ export async function deleteResType(id) {
 export async function fetchSessionTemplates() {
   const { data, error } = await supabase
     .from('session_templates').select('*')
-    .order('day_of_week').order('start_time')
+    .order('day_of_week').order('start_time').limit(500)
   if (error) throw error
   return data.map(toSessionTemplate)
 }
@@ -1019,7 +1016,7 @@ export async function fetchObjectives() {
 }
 
 export async function fetchAllObjectives() {
-  const { data, error } = await supabase.from('objectives').select('*').order('name')
+  const { data, error } = await supabase.from('objectives').select('*').order('name').limit(500)
   if (error) throw error
   return data ?? []
 }
@@ -1163,7 +1160,7 @@ export async function getSettingNumber(key, fallback = 10) {
 
 export async function fetchShifts() {
   const { data, error } = await supabase
-    .from('shifts').select('*').order('date').order('start_time')
+    .from('shifts').select('*').order('date').order('start_time').limit(5000)
   if (error) throw error
   return data.map(toShift)
 }
@@ -1354,12 +1351,7 @@ export async function fetchKioskReservations(phone) {
   }))
 }
 
-export async function kioskSignWaiver(userId, signedName, waiverDocId) {
-  const { error } = await supabase.rpc('kiosk_sign_waiver', {
-    p_user_id: userId, p_signed_name: signedName, p_waiver_doc_id: waiverDocId,
-  })
-  if (error) throw error
-}
+export const kioskSignWaiver = signWaiver
 
 export async function fetchPlayerWaiverStatus(userIds) {
   if (!userIds.length) return {}
@@ -1478,7 +1470,7 @@ export async function deleteTemplateSlot(id) {
 }
 
 export async function fetchScheduleBlocks(fromDate, toDate) {
-  let q = supabase.from('schedule_blocks').select('*').order('date').order('start_time')
+  let q = supabase.from('schedule_blocks').select('*').order('date').order('start_time').limit(2000)
   if (fromDate) q = q.gte('date', fromDate)
   if (toDate)   q = q.lte('date', toDate)
   const { data, error } = await q
@@ -1519,7 +1511,7 @@ export async function deleteScheduleBlock(id) {
 }
 
 export async function fetchUserRoles() {
-  const { data, error } = await supabase.from('user_roles').select('*')
+  const { data, error } = await supabase.from('user_roles').select('*').limit(500)
   if (error) throw error
   return data.map(toUserRole)
 }
@@ -1592,7 +1584,7 @@ const toStaffBlock = r => r ? ({
 
 export async function fetchStaffBlocks(staffId) {
   const { data, error } = await supabase
-    .from('staff_availability_blocks').select('*')
+    .from('staff_availability_blocks').select('*').limit(500)
     .eq('staff_id', staffId).order('start_date')
   if (error) throw error
   return (data ?? []).map(toStaffBlock)
@@ -1600,7 +1592,7 @@ export async function fetchStaffBlocks(staffId) {
 
 export async function fetchAllStaffBlocks() {
   const { data, error } = await supabase
-    .from('staff_availability_blocks').select('*')
+    .from('staff_availability_blocks').select('*').limit(2000)
   if (error) throw error
   return (data ?? []).map(toStaffBlock)
 }
@@ -1640,656 +1632,13 @@ export async function deleteStaffBlock(id) {
   if (error) throw error
 }
 
-// ============================================================
-// AVATAR / PROFILE PICTURE
-// ============================================================
-
-/** Resize an image file to at most maxPx on the longest side, returned as JPEG blob. */
-function resizeImage(file, maxPx = 512, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
-      const w = Math.round(img.width * scale)
-      const h = Math.round(img.height * scale)
-      const canvas = document.createElement('canvas')
-      canvas.width = w; canvas.height = h
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-      canvas.toBlob(blob => {
-        if (!blob) { reject(new Error('Image resize failed')); return }
-        resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
-      }, 'image/jpeg', quality)
-    }
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')) }
-    img.src = url
-  })
-}
-
-/** Upload a profile picture to Supabase Storage (bucket: avatars) and return the public URL. */
-export async function uploadAvatar(_userId, file) {
-  const MAX_BYTES = 8 * 1024 * 1024 // 8 MB pre-resize guard
-  if (file.size > MAX_BYTES) throw new Error('File too large — please choose an image under 8 MB.')
-  const resized = await resizeImage(file, 512, 0.85)
-  // RLS policy checks auth.uid() — use the session's auth UUID, not the public.users id
-  const { data: { session } } = await supabase.auth.getSession()
-  const authUid = session?.user?.id
-  if (!authUid) throw new Error('Not authenticated.')
-  const path = `${authUid}/avatar.jpg`
-  const { error } = await supabase.storage
-    .from('avatars')
-    .upload(path, resized, { upsert: true, contentType: 'image/jpeg' })
-  if (error) throw error
-  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-  return data.publicUrl
-}
-
-/** Persist the avatar URL to the users table via SECURITY DEFINER RPC. */
-export async function updateOwnAvatar(userId, avatarUrl) {
-  const { error } = await supabase.rpc('update_own_avatar', {
-    p_user_id:   userId,
-    p_avatar_url: avatarUrl,
-  })
-  if (error) throw error
-}
-
-/** Update social profile fields (motto, home base, profession, bio, privacy flags). */
-export async function updateSocialProfile(id, { leaderboardName, avatarUrl, motto, homeBaseCity, homeBaseState, profession, bio, hidePhone, hideEmail, hideName, hideAvatar, hideMotto, hideProfession, hideHomeBase, hideBio }) {
-  const { error } = await supabase.rpc('update_social_profile', {
-    p_user_id:          id,
-    p_leaderboard_name: leaderboardName ?? null,
-    p_avatar_url:       avatarUrl       ?? null,
-    p_motto:            motto           ?? null,
-    p_home_base_city:   homeBaseCity    ?? null,
-    p_home_base_state:  homeBaseState   ?? null,
-    p_profession:       profession      ?? null,
-    p_bio:              bio             ?? null,
-    p_hide_phone:       hidePhone       ?? false,
-    p_hide_email:       hideEmail       ?? false,
-    p_hide_name:        hideName        ?? false,
-    p_hide_avatar:      hideAvatar      ?? false,
-    p_hide_motto:       hideMotto       ?? false,
-    p_hide_profession:  hideProfession  ?? false,
-    p_hide_home_base:   hideHomeBase    ?? false,
-    p_hide_bio:         hideBio         ?? false,
-  })
-  if (error) throw error
-  // RPC returns void — fetch the updated row separately
-  const { data: row, error: fetchErr } = await supabase
-    .from('users').select('*').eq('id', id).single()
-  if (fetchErr) throw fetchErr
-  return toUser(row)
-}
-
-
-// ============================================================
-// FRIENDS
-// ============================================================
-
-export const sendFriendRequest   = (toId)    => supabase.rpc('send_friend_request',   { p_to: toId })
-export const cancelFriendRequest = (toId)    => supabase.rpc('cancel_friend_request', { p_to: toId })
-export const acceptFriendRequest = (fromId)  => supabase.rpc('accept_friend_request', { p_from: fromId })
-export const rejectFriendRequest = (fromId)  => supabase.rpc('reject_friend_request', { p_from: fromId })
-export const removeFriend        = (otherId) => supabase.rpc('remove_friend',          { p_other: otherId })
-export const searchPlayers       = (query)   => supabase.rpc('search_players',         { p_query: query })
-export const getRecentlyMet      = (limit = 20, offset = 0) => supabase.rpc('get_recently_met', { p_limit: limit, p_offset: offset })
-export const updateSocialLinks   = (links) => supabase.rpc('update_social_links', { p_links: links })
-export const getFriendProfile    = (userId)  => supabase.rpc('get_friend_profile',     { p_user_id: userId })
-export const getFriendExtended   = (userId)  => supabase.rpc('get_friend_extended',    { p_user_id: userId })
-
-export const fetchFriends = (userId) =>
-  supabase.rpc('get_friends', { p_user_id: userId })
-
-export const fetchReceivedRequests = async (userId) => {
-  const r = await supabase.rpc('get_pending_friend_requests', { p_for_user: userId })
-  if (!r.error) return r
-  // RPC not deployed yet — fall back to direct query
-  return supabase.from('friend_requests')
-    .select('id, from_user_id, created_at')
-    .eq('to_user_id', userId)
-    .order('created_at', { ascending: false })
-}
-
-export const fetchSentRequests = async (userId) => {
-  const r = await supabase.rpc('get_sent_friend_requests', { p_for_user: userId })
-  if (!r.error) return r
-  // RPC not deployed yet — fall back to direct query
-  return supabase.from('friend_requests')
-    .select('id, to_user_id, created_at')
-    .eq('from_user_id', userId)
-    .order('created_at', { ascending: false })
-}
-
-// ============================================================
-// PLATOONS
-// ============================================================
-
-const rpc = (fn, params) => supabase.rpc(fn, params).then(r => { if (r.error) throw r.error; return r.data })
-
-export const searchPlatoons          = (query = '')           => rpc('search_platoons',          { p_query: query })
-export const getPlatoonForUser       = (userId)               => rpc('get_platoon_for_user',      { p_user_id: userId })
-export const getPlatoonMembers       = (platoonId)            => rpc('get_platoon_members',       { p_platoon_id: platoonId })
-export const getPlatoonJoinRequests  = ()                     => rpc('get_platoon_join_requests', {})
-export const getPlatoonPosts         = (platoonId, limit=20, offset=0) => rpc('get_platoon_posts', { p_platoon_id: platoonId, p_limit: limit, p_offset: offset })
-export const getPlatoonSessions      = (platoonId)            => rpc('get_platoon_sessions',      { p_platoon_id: platoonId })
-export const getPlatoonUpcoming      = (platoonId)            => rpc('get_platoon_upcoming',      { p_platoon_id: platoonId })
-export const createPlatoon           = (tag, name, desc, isOpen) => rpc('create_platoon',         { p_tag: tag, p_name: name, p_description: desc, p_is_open: isOpen })
-export const joinPlatoon             = (platoonId)            => rpc('join_platoon',              { p_platoon_id: platoonId })
-export const requestToJoin           = (platoonId, message)   => rpc('request_to_join',           { p_platoon_id: platoonId, p_message: message })
-export const cancelJoinRequest       = (platoonId)            => rpc('cancel_join_request',       { p_platoon_id: platoonId })
-export const getMyJoinRequests       = ()                      => rpc('get_my_join_requests',       {})
-export const approveJoinRequest      = (requestId)            => rpc('approve_join_request',      { p_request_id: requestId })
-export const denyJoinRequest         = (requestId)            => rpc('deny_join_request',         { p_request_id: requestId })
-export const goAwol                  = ()                     => rpc('go_awol',                   {})
-export const kickPlatoonMember       = (targetUserId)         => rpc('kick_platoon_member',       { p_target_user_id: targetUserId })
-export const setPlatoonMemberRole    = (targetUserId, role)   => rpc('set_platoon_member_role',   { p_target_user_id: targetUserId, p_new_role: role })
-export const transferPlatoonAdmin    = (newAdminUserId)       => rpc('transfer_platoon_admin',    { p_new_admin_user_id: newAdminUserId })
-export const disbandPlatoon          = ()                     => rpc('disband_platoon',           {})
-export const postPlatoonMessage      = (platoonId, content)   => rpc('post_platoon_message',      { p_platoon_id: platoonId, p_content: content })
-export const deletePlatoonPost       = (postId)               => rpc('delete_platoon_post',       { p_post_id: postId })
-export const updatePlatoonTag        = (tag)                  => rpc('update_platoon_tag',         { p_tag: tag })
-export const updatePlatoonSettings   = (name, desc, isOpen)   => rpc('update_platoon_settings',   { p_name: name, p_description: desc, p_is_open: isOpen })
-export const updatePlatoonBadge      = (badgeUrl)             => rpc('update_platoon_badge',      { p_badge_url: badgeUrl })
-export const updatePlatoonBadgeColor = (color)               => rpc('update_platoon_badge_color', { p_color: color })
-export const searchInvitablePlayers  = (platoonId, query)     => rpc('search_invitable_players',  { p_platoon_id: platoonId, p_query: query })
-export const inviteToPlatoon         = (toUserId)             => rpc('invite_to_platoon',         { p_to_user_id: toUserId })
-export const cancelPlatoonInvite        = (inviteId)          => rpc('cancel_platoon_invite',          { p_invite_id: inviteId })
-export const getPlatoonPendingInvites   = ()                  => rpc('get_platoon_pending_invites',    {})
-export const getMyPlatoonInvites     = ()                     => rpc('get_my_platoon_invites',    {})
-export const acceptPlatoonInvite     = (inviteId)             => rpc('accept_platoon_invite',     { p_invite_id: inviteId })
-export const declinePlatoonInvite    = (inviteId)             => rpc('decline_platoon_invite',    { p_invite_id: inviteId })
-
-export const uploadPlatoonBadge = async (platoonId, file) => {
-  const ext = file.name.split('.').pop()
-  const path = `platoon-badges/${platoonId}.${ext}`
-  const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
-  if (error) throw error
-  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-  return data.publicUrl + '?v=' + Date.now()
-}
-
-// ============================================================
-// MERCHANDISE
-// ============================================================
-
-const toMerchCategory = r => r ? ({
-  id: r.id, name: r.name, slug: r.slug, skuCode: r.sku_code ?? null,
-  sortOrder: r.sort_order,
-  active: r.active, storefrontVisible: r.storefront_visible, staffVisible: r.staff_visible,
-  createdAt: r.created_at,
-}) : null
-
-const parseImageUrls = v => {
-  if (!v) return []
-  if (v.startsWith('[')) { try { return JSON.parse(v) } catch { return [v] } }
-  return [v]
-}
-const toMerchProduct = r => r ? ({
-  id: r.id, categoryId: r.category_id, categoryName: r.category_name,
-  type: r.type, name: r.name, description: r.description, sku: r.sku,
-  skuFamilyCode: r.sku_family_code ?? null,
-  basePrice: Number(r.base_price),
-  imageUrl: r.image_url?.startsWith('[') ? ((() => { try { return JSON.parse(r.image_url)[0] } catch { return null } })()) : (r.image_url || null),
-  imageUrls: parseImageUrls(r.image_url),
-  bundleSavingsPct: r.type === 'bundle' && r.return_policy_note ? (parseInt(r.return_policy_note) || null) : null,
-  storefrontVisible: r.storefront_visible, staffVisible: r.staff_visible,
-  shippable: r.shippable, pickupOnly: r.pickup_only, returnable: r.returnable,
-  returnWindowDays: r.return_window_days, restockable: r.restockable,
-  returnPolicyNote: r.type !== 'bundle' ? (r.return_policy_note || null) : null,
-  internalNotes: r.internal_notes ?? null,
-  active: r.active, archived: r.archived,
-  sortOrder: r.sort_order, createdAt: r.created_at,
-  variants: (r.variants || []).map(v => ({
-    id: v.id, label: v.label, sku: v.sku, skuSuffix: v.sku_suffix ?? null,
-    priceOverride: v.price_override != null ? Number(v.price_override) : null,
-    shippingCharge: Number(v.shipping_charge || 0),
-    active: v.active, storefrontVisible: v.storefront_visible, staffVisible: v.staff_visible,
-    discontinued: v.discontinued ?? false, discontinuedAt: v.discontinued_at ?? null,
-    sortOrder: v.sort_order, inventory: Number(v.inventory || 0),
-    cost:          v.cost          != null ? Number(v.cost)          : null,
-    reorderPoint:  v.reorder_point != null ? Number(v.reorder_point) : null,
-    reorderQty:    v.reorder_qty   != null ? Number(v.reorder_qty)   : null,
-    leadTimeDays:  v.lead_time_days != null ? Number(v.lead_time_days) : null,
-    vendorId:      v.vendor_id   ?? null,
-    vendorSku:     v.vendor_sku  ?? null,
-    vendorName:    v.vendor_name ?? null,
-    vendorEmail:   v.vendor_email ?? null,
-    vendorPhone:   v.vendor_phone ?? null,
-  })),
-}) : null
-
-const toMerchOrder = r => r ? ({
-  id: r.id, userId: r.user_id, customerName: r.customer_name,
-  status: r.status, total: Number(r.total), fulfillmentType: r.fulfillment_type,
-  shippingAddress: r.shipping_address, shippingCharge: Number(r.shipping_charge || 0),
-  discountId: r.discount_id, discountAmount: Number(r.discount_amount || 0),
-  notes: r.notes, createdAt: r.created_at,
-  trackingNumber: r.tracking_number ?? null,
-  carrier: r.carrier ?? null,
-  fulfilledAt: r.fulfilled_at ?? null,
-  fulfillmentNotes: r.fulfillment_notes ?? null,
-  items: (r.items || []).map(toMerchOrderItem),
-}) : null
-
-const toMerchPO = r => r ? ({
-  id: r.id,
-  vendorId: r.vendor_id,
-  vendorName: r.vendor?.name ?? null,
-  status: r.status,
-  expectedBy: r.expected_by ?? null,
-  notes: r.notes ?? null,
-  createdBy: r.created_by ?? null,
-  createdAt: r.created_at,
-  lines: (r.lines || []).map(l => ({
-    id: l.id, poId: l.po_id, variantId: l.variant_id,
-    variantLabel: l.variant?.label ?? null,
-    variantSku:   l.variant?.sku ?? null,
-    productName:  l.variant?.product?.name ?? null,
-    qtyOrdered:   l.qty_ordered,
-    unitCost:     l.unit_cost != null ? Number(l.unit_cost) : null,
-    qtyReceived:  l.qty_received,
-    receiveLocationId: l.receive_location_id ?? null,
-    notes: l.notes ?? null,
-  })),
-}) : null
-
-const toMerchOrderItem = r => r ? ({
-  id: r.id, orderId: r.order_id, productId: r.product_id, variantId: r.variant_id,
-  quantity: r.quantity, unitPrice: Number(r.unit_price), discountAmount: Number(r.discount_amount || 0),
-  createdAt: r.created_at,
-}) : null
-
-const toMerchDiscount = r => r ? ({
-  id: r.id, code: r.code, description: r.description, discountType: r.discount_type,
-  amount: Number(r.amount), appliesTo: r.applies_to, categoryId: r.category_id,
-  productId: r.product_id, active: r.active, usageLimit: r.usage_limit,
-  usageCount: r.usage_count, startsAt: r.starts_at, endsAt: r.ends_at,
-  channel: r.channel, createdAt: r.created_at,
-}) : null
-
-const toMerchGiftCode = r => r ? ({
-  id: r.id, orderItemId: r.order_item_id, productId: r.product_id, code: r.code,
-  type: r.type, originalValue: Number(r.original_value), currentBalance: Number(r.current_balance),
-  status: r.status, redeemedAt: r.redeemed_at, redeemedBy: r.redeemed_by,
-  expiresAt: r.expires_at, notes: r.notes, createdAt: r.created_at,
-}) : null
-
-const toMerchReturn = r => r ? ({
-  id: r.id, orderId: r.order_id, orderItemId: r.order_item_id, quantity: r.quantity,
-  reason: r.reason, disposition: r.disposition, notes: r.notes,
-  createdBy: r.created_by, createdAt: r.created_at,
-}) : null
-
-const toStockLocation = r => r ? ({
-  id: r.id, name: r.name, levelLabels: r.level_labels || {}, isDefault: r.is_default,
-  active: r.active, createdAt: r.created_at,
-}) : null
-
-const toMerchInventory = r => r ? ({
-  id: r.id, variantId: r.variant_id, locationId: r.location_id, quantity: r.quantity,
-}) : null
-
-const toMerchInvTx = r => r ? ({
-  id: r.id, variantId: r.variant_id, locationId: r.location_id,
-  transactionType: r.transaction_type, quantityChange: r.quantity_change,
-  orderId: r.order_id, notes: r.notes, createdBy: r.created_by, createdAt: r.created_at,
-}) : null
-
-// ─── Catalog reads ────────────────────────────────────────────
-export async function fetchMerchCatalog(channel = 'all') {
-  const { data, error } = await supabase.rpc('get_merch_catalog', { p_channel: channel })
-  if (error) throw error
-  return (data || []).map(toMerchProduct)
-}
-
-export async function fetchMerchCategories() {
-  const { data, error } = await supabase.from('merch_categories').select('*').order('sort_order')
-  if (error) throw error
-  return (data || []).map(toMerchCategory)
-}
-
-export async function fetchStockLocations() {
-  const { data, error } = await supabase.from('merch_stock_locations').select('*').order('name')
-  if (error) throw error
-  return (data || []).map(toStockLocation)
-}
-
-export async function fetchMerchInventory(opts = {}) {
-  let q = supabase.from('merch_inventory').select('*')
-  if (opts.variantId) q = q.eq('variant_id', opts.variantId)
-  if (opts.locationId) q = q.eq('location_id', opts.locationId)
-  const { data, error } = await q
-  if (error) throw error
-  return (data || []).map(toMerchInventory)
-}
-
-export async function fetchMerchInventoryTransactions(opts = {}) {
-  let q = supabase.from('merch_inventory_transactions').select('*').order('created_at', { ascending: false })
-  if (opts.variantId) q = q.eq('variant_id', opts.variantId)
-  if (opts.limit) q = q.limit(opts.limit)
-  const { data, error } = await q
-  if (error) throw error
-  return (data || []).map(toMerchInvTx)
-}
-
-export async function fetchMerchOrders(opts = {}) {
-  let q = supabase.from('merch_orders')
-    .select('*, items:merch_order_items(*)')
-    .order('created_at', { ascending: false })
-  if (opts.userId) q = q.eq('user_id', opts.userId)
-  if (opts.status) q = q.eq('status', opts.status)
-  const { data, error } = await q
-  if (error) throw error
-  return (data || []).map(toMerchOrder)
-}
-
-export async function fetchMerchDiscounts() {
-  const { data, error } = await supabase.from('merch_discounts').select('*').order('created_at', { ascending: false })
-  if (error) throw error
-  return (data || []).map(toMerchDiscount)
-}
-
-export async function fetchMerchGiftCodes(opts = {}) {
-  let q = supabase.from('merch_gift_codes').select('*').order('created_at', { ascending: false })
-  if (opts.status) q = q.eq('status', opts.status)
-  const { data, error } = await q
-  if (error) throw error
-  return (data || []).map(toMerchGiftCode)
-}
-
-export async function fetchMerchReturns() {
-  const { data, error } = await supabase.from('merch_returns').select('*').order('created_at', { ascending: false })
-  if (error) throw error
-  return (data || []).map(toMerchReturn)
-}
-
-export async function fetchPurchaseOrders() {
-  const { data, error } = await supabase
-    .from('merch_purchase_orders')
-    .select('*, vendor:merch_vendors(name), lines:merch_po_lines(*, variant:merch_variants(id, label, sku, product:merch_products(name)))')
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return (data || []).map(toMerchPO)
-}
-
-export async function fetchVariantLocations(variantId) {
-  const { data, error } = await supabase
-    .from('merch_inventory')
-    .select('quantity, location:merch_stock_locations(id, name)')
-    .eq('variant_id', variantId)
-  if (error) throw error
-  return (data || []).map(r => ({ quantity: r.quantity, locationId: r.location.id, locationName: r.location.name }))
-}
-
-export async function fetchMerchVendors() {
-  const { data, error } = await supabase.from('merch_vendors').select('*').eq('active', true).order('name')
-  if (error) throw error
-  return (data || []).map(v => ({
-    id: v.id, name: v.name, email: v.email, phone: v.phone,
-    website: v.website, notes: v.notes, active: v.active,
-  }))
-}
-
-export async function upsertMerchVendor(vendor) {
-  const { data, error } = await supabase.rpc('upsert_merch_vendor', {
-    p_id:      vendor.id      || null,
-    p_name:    vendor.name,
-    p_email:   vendor.email   || null,
-    p_phone:   vendor.phone   || null,
-    p_website: vendor.website || null,
-    p_notes:   vendor.notes   || null,
-    p_active:  vendor.active  ?? true,
-  })
-  if (error) throw error
-  return data
-}
-
-export async function deleteMerchVendor(id) {
-  const { error } = await supabase.rpc('delete_merch_vendor', { p_id: id })
-  if (error) throw error
-}
-
-// ─── Direct mutations (manager/admin via RLS) ─────────────────
-export async function upsertMerchCategory(cat) {
-  const row = {
-    name: cat.name, slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-    sku_code: cat.skuCode ? cat.skuCode.toUpperCase() : null,
-    sort_order: cat.sortOrder ?? 0, active: cat.active ?? true,
-    storefront_visible: cat.storefrontVisible ?? true, staff_visible: cat.staffVisible ?? true,
-  }
-  if (cat.id) row.id = cat.id
-  const { data, error } = await supabase.from('merch_categories').upsert(row).select().single()
-  if (error) throw error
-  return toMerchCategory(data)
-}
-
-export async function upsertMerchProduct(product) {
-  const imgs = product.imageUrls
-  const imageUrlVal = imgs?.length > 1 ? JSON.stringify(imgs) : (imgs?.[0] || product.imageUrl || null)
-  const row = {
-    category_id: product.categoryId || null, type: product.type,
-    name: product.name, description: product.description || null,
-    sku: product.sku ? product.sku.toUpperCase() : null,
-    sku_family_code: product.skuFamilyCode ? product.skuFamilyCode.toUpperCase() : null,
-    base_price: product.basePrice ?? 0,
-    image_url: imageUrlVal,
-    storefront_visible: product.storefrontVisible ?? true, staff_visible: product.staffVisible ?? true,
-    shippable: product.shippable ?? true, pickup_only: product.pickupOnly ?? false,
-    returnable: product.returnable ?? true, return_window_days: product.returnWindowDays ?? 30,
-    restockable: product.restockable ?? true,
-    return_policy_note: product.type === 'bundle'
-      ? (product.bundleSavingsPct != null ? String(product.bundleSavingsPct) : null)
-      : (product.returnPolicyNote || null),
-    active: product.active ?? true, archived: product.archived ?? false, sort_order: product.sortOrder ?? 0,
-    internal_notes: product.internalNotes || null,
-  }
-  if (product.id) row.id = product.id
-  const { data, error } = await supabase.from('merch_products').upsert(row).select().single()
-  if (error) throw error
-  return data.id
-}
-
-export async function upsertMerchVariant(variant) {
-  const row = {
-    product_id: variant.productId, label: variant.label,
-    sku: variant.sku ? variant.sku.toUpperCase() : null,
-    sku_suffix: variant.skuSuffix ? variant.skuSuffix.toUpperCase() : null,
-    price_override: variant.priceOverride ?? null,
-    shipping_charge: variant.shippingCharge ?? 0,
-    active: variant.active ?? true, storefront_visible: variant.storefrontVisible ?? true,
-    staff_visible: variant.staffVisible ?? true, sort_order: variant.sortOrder ?? 0,
-    vendor_id:      variant.vendorId      || null,
-    vendor_sku:     variant.vendorSku     || null,
-    cost:           variant.cost != null && variant.cost !== '' ? parseFloat(variant.cost) : null,
-    reorder_point:  variant.reorderPoint  != null && variant.reorderPoint  !== '' ? parseInt(variant.reorderPoint)  : null,
-    reorder_qty:    variant.reorderQty    != null && variant.reorderQty    !== '' ? parseInt(variant.reorderQty)    : null,
-    lead_time_days: variant.leadTimeDays  != null && variant.leadTimeDays  !== '' ? parseInt(variant.leadTimeDays)  : null,
-    discontinued: variant.discontinued ?? false,
-    // Preserve original timestamp if already discontinued; set now on first toggle
-    discontinued_at: variant.discontinued
-      ? (variant.discontinuedAt || new Date().toISOString())
-      : null,
-  }
-  if (variant.id) row.id = variant.id
-  const { data, error } = await supabase.from('merch_variants').upsert(row).select().single()
-  if (error) throw error
-  return data.id
-}
-
-export async function deleteMerchVariant(id) {
-  const { error } = await supabase.from('merch_variants').delete().eq('id', id)
-  if (error) throw error
-}
-
-export async function upsertMerchDiscount(discount) {
-  const row = {
-    code: discount.code.toUpperCase(), description: discount.description || null,
-    discount_type: discount.discountType, amount: discount.amount,
-    applies_to: discount.appliesTo || 'all',
-    category_id: discount.categoryId || null, product_id: discount.productId || null,
-    active: discount.active ?? true, usage_limit: discount.usageLimit || null,
-    starts_at: discount.startsAt || null, ends_at: discount.endsAt || null,
-    channel: discount.channel || 'both',
-  }
-  if (discount.id) row.id = discount.id
-  const { data, error } = await supabase.from('merch_discounts').upsert(row).select().single()
-  if (error) throw error
-  return toMerchDiscount(data)
-}
-
-export async function upsertStockLocation(loc) {
-  const row = {
-    name: loc.name, level_labels: loc.levelLabels || {},
-    is_default: loc.isDefault ?? false, active: loc.active ?? true,
-  }
-  if (loc.id) row.id = loc.id
-  const { data, error } = await supabase.from('merch_stock_locations').upsert(row).select().single()
-  if (error) throw error
-  return toStockLocation(data)
-}
-
-export async function upsertBundleComponents(bundleProductId, components) {
-  await supabase.from('merch_bundle_components').delete().eq('bundle_product_id', bundleProductId)
-  if (!components.length) return
-  const { error } = await supabase.from('merch_bundle_components').insert(
-    components.map(c => ({ bundle_product_id: bundleProductId, component_variant_id: c.variantId, quantity: c.quantity }))
-  )
-  if (error) throw error
-}
-
-export async function fetchBundleComponents(bundleProductId) {
-  const { data, error } = await supabase
-    .from('merch_bundle_components')
-    .select('component_variant_id, quantity')
-    .eq('bundle_product_id', bundleProductId)
-  if (error) throw error
-  return (data || []).map(r => ({ variantId: r.component_variant_id, quantity: r.quantity }))
-}
-
-export async function uploadMerchImage(file) {
-  const ext = file.name.split('.').pop().toLowerCase()
-  const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  const { error } = await supabase.storage.from('merch-images').upload(path, file, { cacheControl: '3600', upsert: false })
-  if (error) throw error
-  const { data } = supabase.storage.from('merch-images').getPublicUrl(path)
-  return data.publicUrl
-}
-
-export async function voidGiftCode(id) {
-  const { error } = await supabase.from('merch_gift_codes').update({ status: 'voided' }).eq('id', id)
-  if (error) throw error
-}
-
-export async function updateMerchOrderStatus(id, status) {
-  const { error } = await supabase.from('merch_orders').update({ status }).eq('id', id)
-  if (error) throw error
-}
-
-// ─── RPC wrappers ─────────────────────────────────────────────
-export async function validateMerchDiscount(code, channel = 'online') {
-  const { data, error } = await supabase.rpc('validate_merch_discount', { p_code: code, p_channel: channel })
-  if (error) throw error
-  return data ? toMerchDiscount(data) : null
-}
-
-export async function adjustMerchInventory(variantId, locationId, quantityChange, transactionType, notes, createdBy) {
-  const { error } = await supabase.rpc('adjust_merch_inventory', {
-    p_variant_id: variantId, p_location_id: locationId ?? null,
-    p_quantity_change: quantityChange, p_transaction_type: transactionType,
-    p_notes: notes ?? null, p_created_by: createdBy ?? null,
-  })
-  if (error) throw error
-}
-
-export async function createMerchOrder(params) {
-  const { data, error } = await supabase.rpc('create_merch_order', {
-    p_user_id: params.userId ?? null,
-    p_customer_name: params.customerName,
-    p_fulfillment_type: params.fulfillmentType || 'pickup',
-    p_shipping_address: params.shippingAddress ?? null,
-    p_items: params.items,
-    p_discount_id: params.discountId ?? null,
-    p_discount_amount: params.discountAmount ?? 0,
-    p_shipping_charge: params.shippingCharge ?? 0,
-    p_notes: params.notes ?? null,
-  })
-  if (error) throw error
-  return toMerchOrder(data)
-}
-
-export async function processMerchReturn(params) {
-  const { error } = await supabase.rpc('process_merch_return', {
-    p_order_id: params.orderId, p_order_item_id: params.orderItemId,
-    p_quantity: params.quantity, p_reason: params.reason,
-    p_disposition: params.disposition, p_notes: params.notes ?? null,
-    p_created_by: params.createdBy ?? null,
-  })
-  if (error) throw error
-}
-
-export async function createPurchaseOrder(po) {
-  const { data, error } = await supabase.rpc('create_purchase_order', {
-    p_vendor_id:   po.vendorId,
-    p_expected_by: po.expectedBy || null,
-    p_notes:       po.notes     || null,
-    p_lines:       po.lines     || [],
-  })
-  if (error) throw error
-  return data
-}
-
-export async function receivePOLine(poLineId, qty, locationId, notes) {
-  const { error } = await supabase.rpc('receive_po_line', {
-    p_po_line_id:  poLineId,
-    p_qty:         qty,
-    p_location_id: locationId || null,
-    p_notes:       notes      || null,
-  })
-  if (error) throw error
-}
-
-export async function updatePOStatus(poId, status) {
-  const { error } = await supabase.rpc('update_po_status', { p_po_id: poId, p_status: status })
-  if (error) throw error
-}
-
-export async function fulfillMerchOrder(orderId, { trackingNumber, carrier, notes } = {}) {
-  const { error } = await supabase.rpc('fulfill_merch_order', {
-    p_order_id:        orderId,
-    p_tracking_number: trackingNumber || null,
-    p_carrier:         carrier        || null,
-    p_notes:           notes          || null,
-  })
-  if (error) throw error
-}
-
-export async function transferMerchInventory(variantId, fromLocationId, toLocationId, qty, notes) {
-  const { data, error } = await supabase.rpc('transfer_merch_inventory', {
-    p_variant_id:       variantId,
-    p_from_location_id: fromLocationId,
-    p_to_location_id:   toLocationId,
-    p_qty:              qty,
-    p_notes:            notes || null,
-  })
-  if (error) throw error
-  return data
-}
-
-export async function redeemGiftCode(code, redeemedBy, amountToRedeem) {
-  const { data, error } = await supabase.rpc('redeem_gift_code', {
-    p_code: code, p_redeemed_by: redeemedBy ?? null, p_amount_to_redeem: amountToRedeem ?? null,
-  })
-  if (error) throw error
-  return data
-}
 
 // ============================================================
 // STRUCTURES
 // ============================================================
 
 export async function fetchStructures() {
-  const { data, error } = await supabase.from('structures').select('*').order('id')
+  const { data, error } = await supabase.from('structures').select('*').order('id').limit(20)
   if (error) throw error
   return data || []
 }
@@ -2367,3 +1716,9 @@ export async function updateEmailPreferences(userId, prefs) {
   })
   if (error) throw error
 }
+
+// ============================================================
+// DOMAIN RE-EXPORTS
+// ============================================================
+export * from "./supabase.social.js"
+export * from "./supabase.merch.js"

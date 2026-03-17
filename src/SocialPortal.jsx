@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import PlatoonPortal from './PlatoonPortal.jsx'
 import { vizRenderName, audRenderName } from './envRender.jsx'
+import { getTierInfo, TIER_THRESHOLDS, TIER_COLORS, getInitials } from './utils.js'
 import {
   uploadAvatar, updateOwnAvatar, updateSocialProfile, updateSocialLinks,
   sendFriendRequest, cancelFriendRequest, acceptFriendRequest, rejectFriendRequest,
@@ -11,6 +12,7 @@ import {
   fetchFriends, fetchReceivedRequests, fetchSentRequests,
 } from './supabase.js'
 import { emailFriendRequest, emailFriendAccepted } from './emails.js'
+import { TierImg, TierChip, TierIcon, PlatoonTag } from './ui.jsx'
 
 // ── Social platforms ──────────────────────────────────────────────────────────
 const PLATFORMS = [
@@ -138,60 +140,7 @@ function SocialLinksList({ links, editable, onDelete }) {
   )
 }
 
-// ── Tier data ────────────────────────────────────────────────────────────────
-const TIER_THRESHOLDS = [
-  { key: 'recruit',  name: 'Recruit',  min: 0 },
-  { key: 'initiate', name: 'Initiate', min: 4 },
-  { key: 'operator', name: 'Operator', min: 10 },
-  { key: 'striker',  name: 'Striker',  min: 18 },
-  { key: 'vanguard', name: 'Vanguard', min: 28 },
-  { key: 'sentinel', name: 'Sentinel', min: 40 },
-  { key: 'enforcer', name: 'Enforcer', min: 56 },
-  { key: 'apex',     name: 'Apex',     min: 71 },
-  { key: 'elite',    name: 'Elite',    min: 86 },
-  { key: 'legend',   name: 'Legend',   min: 100 },
-]
-const TIER_COLORS = {
-  recruit: '#e8e8e8', initiate: '#8b95c9', operator: '#4db6ac',
-  striker: '#85b07a', vanguard: '#5a9a6a', sentinel: '#6b9dcf',
-  enforcer: '#c94a5a', apex: '#cd7f32', elite: '#b8bfc7', legend: '#f5c842',
-}
-const TIER_SHINE = {
-  apex:   'drop-shadow(0 0 3px rgba(205,127,50,.55)) drop-shadow(0 0 7px rgba(205,127,50,.35)) drop-shadow(0 0 1px rgba(255,210,130,.6)) brightness(1.08) contrast(1.04)',
-  elite:  'drop-shadow(0 0 3px rgba(200,210,220,.6)) drop-shadow(0 0 7px rgba(184,191,199,.35)) drop-shadow(0 0 1px rgba(240,245,255,.55)) brightness(1.13) contrast(1.03)',
-  legend: 'drop-shadow(0 0 4px rgba(245,200,66,.65)) drop-shadow(0 0 9px rgba(245,200,66,.35)) drop-shadow(0 0 2px rgba(255,230,120,.55)) brightness(1.1) contrast(1.04)',
-}
-function TierImg({ tierKey, height = 16 }) {
-  const filter = TIER_SHINE[tierKey]
-  return (
-    <img src={`/${tierKey}.png`} alt={tierKey}
-      style={{ height, width: height, display: 'block', flexShrink: 0, objectFit: 'contain', ...(filter ? { filter } : {}) }} />
-  )
-}
-
-function getTierInfo(runs) {
-  const n = runs ?? 0
-  let idx = 0
-  for (let i = TIER_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (n >= TIER_THRESHOLDS[i].min) { idx = i; break }
-  }
-  const current = TIER_THRESHOLDS[idx]
-  const next = TIER_THRESHOLDS[idx + 1] ?? null
-  const runsToNext = next ? next.min - n : 0
-  const sessionsToNext = next ? Math.ceil(runsToNext / 2) : 0
-  return { current, next, runsToNext, sessionsToNext }
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function getInitials(name) {
-  if (!name) return null
-  const m = name.match(/^([A-Za-z]{1,3})-\d/)  // "JJ-5555" → "JJ"
-  if (m) return m[1].toUpperCase()
-  const words = name.trim().split(/[\s_]+/).filter(Boolean)
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
-  return name.slice(0, 2).toUpperCase()
-}
-
 function fmtShortDate(dateStr) {
   if (!dateStr) return null
   const [y, mo, d] = dateStr.split('-').map(Number)
@@ -271,28 +220,6 @@ function MiniAvatar({ url, hidden, initials, size = 36 }) {
   )
 }
 
-function TierChip({ runs }) {
-  const { current: tier } = getTierInfo(runs ?? 0)
-  const col = TIER_COLORS[tier.key]
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: '.2rem',
-      background: col + '22', border: `1px solid ${col}66`,
-      borderRadius: 4, padding: '1px 5px', fontSize: '.62rem',
-      color: col, fontFamily: 'var(--fd)', textTransform: 'uppercase', letterSpacing: '.05em',
-      whiteSpace: 'nowrap', flexShrink: 0,
-    }}>
-      <TierImg tierKey={tier.key} height={12} />
-      {tier.name}
-    </span>
-  )
-}
-
-function TierIcon({ runs }) {
-  const { current: tier } = getTierInfo(runs ?? 0)
-  return <TierImg tierKey={tier.key} />
-}
-
 // ── Friend Profile Modal ──────────────────────────────────────────────────────
 function EnvBar({ labelNode, pct, barColor, barClass }) {
   return (
@@ -332,6 +259,89 @@ const VIZ_COLORS = {
   B: '#00ff41',
 }
 const AUD_COLORS = { T: '#38bdf8', C: '#f97316', O: '#64748b' }
+
+function LeaderboardRankings({ ext, lbMode, setLbMode }) {
+  if (!ext || !(ext.rank_all_time || ext.rank_cum_all_time || ext.rank_yearly || ext.rank_cum_yearly)) return null
+  return (<>
+    <div style={{ ...FP_SECTION, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.4rem' }}>
+      <span>Leaderboard Standing</span>
+      <div style={{ display: 'flex', gap: '.3rem' }}>
+        <button onClick={() => setLbMode('cum')} style={{ background: lbMode === 'cum' ? 'var(--acc)' : 'var(--surf2)', border: '1px solid ' + (lbMode === 'cum' ? 'var(--acc)' : 'var(--bdr)'), color: lbMode === 'cum' ? 'var(--bg)' : 'var(--muted)', borderRadius: 4, padding: '2px 8px', fontSize: '.65rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '.05em' }}>Cumulative</button>
+        <button onClick={() => setLbMode('avg')} style={{ background: lbMode === 'avg' ? 'var(--acc)' : 'var(--surf2)', border: '1px solid ' + (lbMode === 'avg' ? 'var(--acc)' : 'var(--bdr)'), color: lbMode === 'avg' ? 'var(--bg)' : 'var(--muted)', borderRadius: 4, padding: '2px 8px', fontSize: '.65rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '.05em' }}>Avg Top 50</button>
+      </div>
+    </div>
+    <div style={{ display: 'flex', gap: '.4rem' }}>
+      {lbMode === 'cum' ? <>
+        <RankCard label="All-Time"   rank={ext.rank_cum_all_time} score={ext.score_cum_all_time} />
+        <RankCard label="This Year"  rank={ext.rank_cum_yearly}   score={ext.score_cum_yearly} />
+        <RankCard label="This Month" rank={ext.rank_cum_monthly}  score={ext.score_cum_monthly} />
+        <RankCard label="This Week"  rank={ext.rank_cum_weekly}   score={ext.score_cum_weekly} />
+      </> : <>
+        <RankCard label="All-Time"   rank={ext.rank_all_time} score={ext.score_all_time} />
+        <RankCard label="This Year"  rank={ext.rank_yearly}   score={ext.score_yearly} />
+        <RankCard label="This Month" rank={ext.rank_monthly}  score={ext.score_monthly} />
+        <RankCard label="This Week"  rank={ext.rank_weekly}   score={ext.score_weekly} />
+      </>}
+    </div>
+  </>)
+}
+
+function TacticalProfile({ ext }) {
+  if (!ext) return null
+  return (<>
+    <div style={FP_SECTION}>Tactical Profile</div>
+    <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '.45rem' }}>
+      {ext.coop_runs > 0 && (
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
+          <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Co-op</div>
+          <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+            <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Runs </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_runs}</span></div>
+            {ext.coop_avg_score != null && <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Avg Score </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_avg_score}</span></div>}
+            {ext.coop_avg_time_sec != null && <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Avg Time </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.coop_avg_time_sec)}</span></div>}
+          </div>
+          <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'nowrap' }}>
+            {ext.coop_targets_pct != null && <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}><span style={{ color: 'var(--muted)' }}>Targets Elim </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_targets_pct}%</span></div>}
+            {ext.coop_obj_pct != null && <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}><span style={{ color: 'var(--muted)' }}>Obj Complete </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_obj_pct}%</span></div>}
+          </div>
+        </div>
+      )}
+      {ext.versus_runs > 0 && (
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
+          <div style={{ fontSize: '.65rem', color: '#f97316', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Versus</div>
+          <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+            <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Sessions </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_runs}</span></div>
+            {ext.versus_avg_session_score != null && <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Avg Session </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_avg_session_score}</span></div>}
+          </div>
+          {(ext.versus_hunter_avg_sec != null || ext.versus_coyote_avg_sec != null) && (
+            <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+              {ext.versus_hunter_avg_sec != null && <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Hunter Avg </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_hunter_avg_sec)}</span></div>}
+              {ext.versus_coyote_avg_sec != null && <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Coyote Avg </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_coyote_avg_sec)}</span></div>}
+            </div>
+          )}
+          <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '.8rem' }}>
+              <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
+              {(ext.versus_ties ?? 0) > 0 && (<><span style={{ color: 'var(--muted)' }}> – </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_ties}T</span></>)}
+              <span style={{ color: 'var(--muted)' }}> – </span>
+              <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
+            </div>
+            {ext.versus_obj_pct != null && <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Obj Complete </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_obj_pct}%</span></div>}
+          </div>
+        </div>
+      )}
+      <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase' }}>Visuals</div>
+      <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ext.viz_std}    barColor={VIZ_COLORS.V} />
+      <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={ext.viz_cosmic} barColor={VIZ_COLORS.C} />
+      <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={ext.viz_rave}   barColor={VIZ_COLORS.R} />
+      <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ext.viz_strobe} barColor={VIZ_COLORS.S} />
+      <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={ext.viz_dark}   barColor={VIZ_COLORS.B} />
+      <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem' }}>Audio</div>
+      <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={ext.aud_tunes}   barColor={AUD_COLORS.T} />
+      <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={ext.aud_cranked} barColor={AUD_COLORS.C} />
+      <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={ext.aud_off}     barColor={AUD_COLORS.O} />
+    </div>
+  </>)
+}
 
 function FriendProfileModal({ userId, users, onClose }) {
   const [profile, setProfile] = useState(null)
@@ -411,7 +421,7 @@ function FriendProfileModal({ userId, users, onClose }) {
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--fd)', fontSize: '1.2rem', fontWeight: 700, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {profile.platoon_tag && <span style={{ color: profile.platoon_badge_color || '#94a3b8', marginRight: '.3em', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em' }}>[{profile.platoon_tag}]</span>}
+                <PlatoonTag tag={profile.platoon_tag} color={profile.platoon_badge_color} style={{marginRight:'.3em'}}/>
                 {profile.leaderboard_name}
               </div>
               {profile.real_name && <div style={{ fontSize: '.82rem', color: 'var(--muted)', marginTop: '.1rem' }}>{profile.real_name}</div>}
@@ -433,140 +443,10 @@ function FriendProfileModal({ userId, users, onClose }) {
           </div>
 
           {/* ── Leaderboard Rankings ── */}
-          {ext && (ext.rank_all_time || ext.rank_cum_all_time || ext.rank_yearly || ext.rank_cum_yearly) && (<>
-            <div style={{ ...FP_SECTION, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '.4rem' }}>
-              <span>Leaderboard Standing</span>
-              <div style={{ display: 'flex', gap: '.3rem' }}>
-                <button onClick={() => setLbMode('cum')} style={{ background: lbMode === 'cum' ? 'var(--acc)' : 'var(--surf2)', border: '1px solid ' + (lbMode === 'cum' ? 'var(--acc)' : 'var(--bdr)'), color: lbMode === 'cum' ? 'var(--bg)' : 'var(--muted)', borderRadius: 4, padding: '2px 8px', fontSize: '.65rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '.05em' }}>Cumulative</button>
-                <button onClick={() => setLbMode('avg')} style={{ background: lbMode === 'avg' ? 'var(--acc)' : 'var(--surf2)', border: '1px solid ' + (lbMode === 'avg' ? 'var(--acc)' : 'var(--bdr)'), color: lbMode === 'avg' ? 'var(--bg)' : 'var(--muted)', borderRadius: 4, padding: '2px 8px', fontSize: '.65rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '.05em' }}>Avg Top 50</button>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '.4rem' }}>
-              {lbMode === 'cum' ? <>
-                <RankCard label="All-Time"   rank={ext.rank_cum_all_time} score={ext.score_cum_all_time} />
-                <RankCard label="This Year"  rank={ext.rank_cum_yearly}   score={ext.score_cum_yearly} />
-                <RankCard label="This Month" rank={ext.rank_cum_monthly}  score={ext.score_cum_monthly} />
-                <RankCard label="This Week"  rank={ext.rank_cum_weekly}   score={ext.score_cum_weekly} />
-              </> : <>
-                <RankCard label="All-Time"   rank={ext.rank_all_time} score={ext.score_all_time} />
-                <RankCard label="This Year"  rank={ext.rank_yearly}   score={ext.score_yearly} />
-                <RankCard label="This Month" rank={ext.rank_monthly}  score={ext.score_monthly} />
-                <RankCard label="This Week"  rank={ext.rank_weekly}   score={ext.score_weekly} />
-              </>}
-            </div>
-          </>)}
+          <LeaderboardRankings ext={ext} lbMode={lbMode} setLbMode={setLbMode} />
 
           {/* ── Tactical Profile ── */}
-          {ext && (<>
-            <div style={FP_SECTION}>Tactical Profile</div>
-            <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '.45rem' }}>
-
-              {/* Co-op block */}
-              {ext.coop_runs > 0 && (
-                <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
-                  <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Co-op</div>
-                  {/* Row 1: Runs, Avg Score, Avg Time */}
-                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
-                    <div style={{ fontSize: '.8rem' }}>
-                      <span style={{ color: 'var(--muted)' }}>Runs </span>
-                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_runs}</span>
-                    </div>
-                    {ext.coop_avg_score != null && (
-                      <div style={{ fontSize: '.8rem' }}>
-                        <span style={{ color: 'var(--muted)' }}>Avg Score </span>
-                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_avg_score}</span>
-                      </div>
-                    )}
-                    {ext.coop_avg_time_sec != null && (
-                      <div style={{ fontSize: '.8rem' }}>
-                        <span style={{ color: 'var(--muted)' }}>Avg Time </span>
-                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.coop_avg_time_sec)}</span>
-                      </div>
-                    )}
-                  </div>
-                  {/* Row 2: Targets Elim, Obj Complete — kept together on mobile */}
-                  <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'nowrap' }}>
-                    {ext.coop_targets_pct != null && (
-                      <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}>
-                        <span style={{ color: 'var(--muted)' }}>Targets Elim </span>
-                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_targets_pct}%</span>
-                      </div>
-                    )}
-                    {ext.coop_obj_pct != null && (
-                      <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}>
-                        <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
-                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_obj_pct}%</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Versus block */}
-              {ext.versus_runs > 0 && (
-                <div style={{ background: 'var(--bg)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
-                  <div style={{ fontSize: '.65rem', color: '#f97316', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Versus</div>
-                  {/* Row 1: Runs, Avg Session */}
-                  <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
-                    <div style={{ fontSize: '.8rem' }}>
-                      <span style={{ color: 'var(--muted)' }}>Sessions </span>
-                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_runs}</span>
-                    </div>
-                    {ext.versus_avg_session_score != null && (
-                      <div style={{ fontSize: '.8rem' }}>
-                        <span style={{ color: 'var(--muted)' }}>Avg Session </span>
-                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.versus_avg_session_score}</span>
-                      </div>
-                    )}
-                  </div>
-                  {/* Row 2: Hunter Avg, Coyote Avg */}
-                  {(ext.versus_hunter_avg_sec != null || ext.versus_coyote_avg_sec != null) && (
-                    <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
-                      {ext.versus_hunter_avg_sec != null && (
-                        <div style={{ fontSize: '.8rem' }}>
-                          <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
-                          <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_hunter_avg_sec)}</span>
-                        </div>
-                      )}
-                      {ext.versus_coyote_avg_sec != null && (
-                        <div style={{ fontSize: '.8rem' }}>
-                          <span style={{ color: 'var(--muted)' }}>Coyote Avg </span>
-                          <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.versus_coyote_avg_sec)}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Row 3: Wins/Losses, Obj Complete */}
-                  <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: '.8rem' }}>
-                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_wins ?? 0}W</span>
-                      {(ext.versus_ties ?? 0) > 0 && (<><span style={{ color: 'var(--muted)' }}> – </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_ties}T</span></>)}
-                      <span style={{ color: 'var(--muted)' }}> – </span>
-                      <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ext.versus_losses ?? 0}L</span>
-                    </div>
-                    {ext.versus_obj_pct != null && (
-                      <div style={{ fontSize: '.8rem' }}>
-                        <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
-                        <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.versus_obj_pct}%</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase' }}>Visuals</div>
-              <EnvBar labelNode={vizRenderName('V', 'Standard', ELS)} pct={ext.viz_std}    barColor={VIZ_COLORS.V} />
-              <EnvBar labelNode={vizRenderName('C', 'Cosmic',   ELS)} pct={ext.viz_cosmic} barColor={VIZ_COLORS.C} />
-              <EnvBar labelNode={vizRenderName('R', 'Rave',     ELS)} pct={ext.viz_rave}   barColor={VIZ_COLORS.R} />
-              <EnvBar labelNode={vizRenderName('S', 'Strobe',   ELS)} pct={ext.viz_strobe} barColor={VIZ_COLORS.S} />
-              <EnvBar labelNode={vizRenderName('B', 'Dark',     ELS)} pct={ext.viz_dark}   barColor={VIZ_COLORS.B} />
-
-              <div style={{ fontSize: '.65rem', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginTop: '.35rem' }}>Audio</div>
-              <EnvBar labelNode={audRenderName('T', 'Tunes',   ELS)} pct={ext.aud_tunes}   barColor={AUD_COLORS.T} />
-              <EnvBar labelNode={audRenderName('C', 'Cranked', ELS)} pct={ext.aud_cranked} barColor={AUD_COLORS.C} />
-              <EnvBar labelNode={audRenderName('O', 'Off',     ELS)} pct={ext.aud_off}     barColor={AUD_COLORS.O} />
-            </div>
-          </>)}
+          <TacticalProfile ext={ext} />
 
           {/* ── Operator Profile ── */}
           {hasProfile && (<>
@@ -585,17 +465,7 @@ function FriendProfileModal({ userId, users, onClose }) {
           </>)}
 
           {/* ── Social Links ── */}
-          {(() => {
-            const friendUser = (users ?? []).find(u => u.id === userId)
-            const links = friendUser?.socialLinks ?? []
-            if (!links.length) return null
-            return (<>
-              <div style={FP_SECTION}>Social Profiles</div>
-              <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 6, padding: '.65rem .85rem' }}>
-                <SocialLinksList links={links} editable={false} />
-              </div>
-            </>)
-          })()}
+          {(()=>{const links=(users??[]).find(u=>u.id===userId)?.socialLinks??[];return links.length?(<><div style={FP_SECTION}>Social Profiles</div><div style={{background:'var(--surf2)',border:'1px solid var(--bdr)',borderRadius:6,padding:'.65rem .85rem'}}><SocialLinksList links={links} editable={false}/></div></>):null;})()}
 
         </>)}
       </div>
@@ -1027,7 +897,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
           <div style={{ flex: 1, minWidth: 0, paddingTop: '.25rem' }}>
             <div style={{ fontFamily: 'var(--fd)', fontSize: '1.3rem', color: 'var(--txt)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
             <div style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--acc2)', marginTop: '.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.platoonTag && <span style={{ color: user.platoonBadgeColor || '#94a3b8', marginRight: '.3em', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em' }}>[{user.platoonTag}]</span>}
+              <PlatoonTag tag={user.platoonTag} color={user.platoonBadgeColor} style={{marginRight:'.3em'}}/>
               {user.leaderboardName || <span style={{ color: 'var(--muted)', fontWeight: 400 }}>No callsign set</span>}
             </div>
             {careerRuns != null && (() => {
@@ -1355,7 +1225,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                     <MiniAvatar url={sender.avatarUrl} hidden={sender.hideAvatar} initials={getInitials(sender.leaderboardName || sender.name)} />
                     <TierIcon runs={friendRunsMap[req.from_user_id]} />
                     <span style={{ flex: 1, fontSize: '.9rem', fontWeight: 700, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {sender.platoonTag && <span style={{ color: sender.platoonBadgeColor || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em' }}>[{sender.platoonTag}]</span>}
+                      <PlatoonTag tag={sender.platoonTag} color={sender.platoonBadgeColor} style={{marginRight:'.25em'}}/>
                       {sender.leaderboardName || sender.name || 'Operative'}
                     </span>
                     <button className="btn btn-s" onClick={e => { e.stopPropagation(); handleAccept(req.from_user_id) }} title="Accept" style={{ padding: '3px 10px', fontSize: '.8rem' }}>✓</button>
@@ -1388,7 +1258,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   <MiniAvatar url={friend.avatarUrl} hidden={friend.hideAvatar} initials={getInitials(friend.leaderboardName || friend.name)} />
                   <TierIcon runs={friendRunsMap[otherId]} />
                   <span style={{ flex: 1, fontSize: '.9rem', fontWeight: 700, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {friend.platoonTag && <span style={{ color: friend.platoonBadgeColor || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em' }}>[{friend.platoonTag}]</span>}
+                    <PlatoonTag tag={friend.platoonTag} color={friend.platoonBadgeColor} style={{marginRight:'.25em'}}/>
                     {friend.leaderboardName || friend.name || 'Operative'}
                   </span>
                   <span style={{ fontSize: '.72rem', color: 'var(--muted)' }}>View →</span>
@@ -1465,7 +1335,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                     <MiniAvatar url={recipient.avatarUrl} hidden={recipient.hideAvatar} initials={getInitials(recipient.leaderboardName || recipient.name)} />
                     <TierIcon runs={friendRunsMap[req.to_user_id]} />
                     <span style={{ flex: 1, fontSize: '.9rem', fontWeight: 700, color: 'var(--txt)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {recipient.platoonTag && <span style={{ color: recipient.platoonBadgeColor || '#94a3b8', marginRight: '.25em', fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.03em' }}>[{recipient.platoonTag}]</span>}
+                      <PlatoonTag tag={recipient.platoonTag} color={recipient.platoonBadgeColor} style={{marginRight:'.25em'}}/>
                       {recipient.leaderboardName || recipient.name || 'Operative'}
                     </span>
                     <button className="btn btn-s btn-sm" onClick={e => { e.stopPropagation(); handleCancelRequest(req.to_user_id) }} style={{ fontSize: '.75rem', padding: '3px 10px', whiteSpace: 'nowrap' }}>Cancel</button>

@@ -17,10 +17,9 @@ import {
 } from './supabase.js'
 import { emailMerchPurchase, emailSocialAuthInvite } from './emails.js'
 import { processPayment } from './payments.js'
+import { fmtMoney, cleanPh } from './utils.js'
 
 // ─── Helpers ─────────────────────────────────────────────────
-const fmtMoney = n => '$' + Number(n || 0).toFixed(2)
-const cleanPh = p => (p || '').replace(/\D/g, '')
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 const TYPE_LABELS = { physical: 'Physical', bundle: 'Bundle', gift_card: 'Gift Card', gift_cert: 'Gift Cert' }
 const TYPE_BADGE = { physical: 'b-coop', bundle: 'b-versus', gift_card: 'b-ok', gift_cert: 'b-private' }
@@ -322,6 +321,16 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
     ), [orders, orderSearch, orderStatusFilter]
   )
 
+  const physicals = useMemo(() => catalog.filter(p => p.type === 'physical'), [catalog])
+  const reorderNeeded = useMemo(() =>
+    physicals.flatMap(p =>
+      p.variants
+        .filter(v => !v.discontinued && v.reorderPoint != null && v.inventory <= v.reorderPoint)
+        .map(v => ({ ...v, productName: p.name, product: p }))
+    ).sort((a, b) => a.inventory - b.inventory),
+    [physicals]
+  )
+
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted)' }}>Loading merchandise data…</div>
 
   return (
@@ -422,14 +431,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
       </>)}
 
       {/* ── Inventory Tab ───────────────────────────── */}
-      {tab === 'inventory' && (() => {
-        const physicals = catalog.filter(p => p.type === 'physical')
-        const reorderNeeded = physicals.flatMap(p =>
-          p.variants
-            .filter(v => !v.discontinued && v.reorderPoint != null && v.inventory <= v.reorderPoint)
-            .map(v => ({ ...v, productName: p.name, product: p }))
-        ).sort((a, b) => a.inventory - b.inventory)
-        return (
+      {tab === 'inventory' && (
           <div>
             {reorderNeeded.length > 0 && (
               <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.35)', borderRadius: 8, padding: '1rem', marginBottom: '1rem' }}>
@@ -510,8 +512,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
               <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>No physical products yet.</div>
             )}
           </div>
-        )
-      })()}
+      )}
 
       {/* ── Purchasing Tab ──────────────────────────── */}
       {tab === 'purchasing' && (<>
@@ -764,8 +765,8 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
       {editBundle !== null && (
         <BundleMakerModal bundle={editBundle} catalog={catalog} categories={categories}
           onSave={async (p, components) => {
-            const id = await upsertMerchProduct(p)
-            await upsertBundleComponents(id, components.map(c => ({ variantId: c.variantId, quantity: c.quantity })))
+            const saved = await upsertMerchProduct(p)
+            await upsertBundleComponents(saved.id, components.map(c => ({ variantId: c.variantId, quantity: c.quantity })))
             await loadAll()
             setEditBundle(null)
             onAlert?.('Bundle saved.')

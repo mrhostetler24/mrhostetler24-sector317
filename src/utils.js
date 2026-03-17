@@ -11,7 +11,7 @@ export const fmt12     = t  => { if(!t)return""; const[h,m]=t.split(":"); const 
 export const fmtTS     = ts => new Date(ts).toLocaleString("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"});
 export const getDayName= d  => new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"long"});
 export const cleanPh   = p  => (p||"").replace(/\D/g,"");
-export const getInitials= n  => { if(!n)return"??"; const p=n.trim().split(/\s+/); return p.length>=2?p[0][0].toUpperCase()+p[p.length-1][0].toUpperCase():n.slice(0,2).toUpperCase(); };
+export function getInitials(n) { if(!n)return"??"; const m=n.match(/^([A-Za-z]{1,3})-\d/); if(m)return m[1].toUpperCase(); const p=n.trim().split(/[\s_]+/).filter(Boolean); return p.length>=2?p[0][0].toUpperCase()+p[p.length-1][0].toUpperCase():n.slice(0,2).toUpperCase(); }
 export const todayStr  = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 export const addDaysStr= (d,n) => { const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); };
 

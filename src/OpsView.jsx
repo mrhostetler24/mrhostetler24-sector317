@@ -30,47 +30,10 @@ import {
 } from './scoreUtils.js'
 import { MerchStaffSales } from './MerchPortal.jsx'
 import { vizRenderName, audRenderName } from './envRender.jsx'
-import { getTierInfo, TIER_COLORS, TIER_SHINE } from './utils.js'
+import { getTierInfo, TIER_COLORS, fmtMoney, fmtPhone, fmt12, getDayName, cleanPh, todayStr, hasValidWaiver, getSessionsForDate, laneCapacity, buildLanes, openPlayCapacity, getInitials } from './utils.js'
+import { WaiverModal, TierImg, PlatoonTag } from './ui.jsx'
 
-// ── Shared utilities (mirrored from App.jsx) ─────────────────────────────────
-const fmtMoney = n => `$${Number(n).toFixed(2)}`
-const fmtPhone = p => p ? `(${p.slice(0,3)}) ${p.slice(3,6)}-${p.slice(6)}` : ""
-const fmt12 = t => { if(!t)return""; const[h,m]=t.split(":"); const hr=+h; return`${hr>12?hr-12:hr===0?12:hr}:${m} ${hr>=12?"PM":"AM"}`; }
-const getDayName = d => new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"long"})
-const cleanPh = p => (p||"").replace(/\D/g,"")
-const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
-function hasValidWaiver(user, activeWaiverDoc) {
-  if(!user||!user.waivers||!user.waivers.length) return false;
-  if(activeWaiverDoc && user.needsRewaiverDocId === activeWaiverDoc.id) return false;
-  const latest = user.waivers.reduce((a,b)=>a.signedAt>b.signedAt?a:b);
-  if(activeWaiverDoc && latest.waiverDocId && latest.waiverDocId !== activeWaiverDoc.id) return false;
-  return Date.now() - new Date(latest.signedAt).getTime() < 365*864e5;
-}
-function getSessionsForDate(date,templates) { return templates.filter(t=>t.active&&t.dayOfWeek===getDayName(date)); }
-function laneCapacity(mode){return mode==="versus"?12:6;}
-function buildLanes(date,startTime,reservations,resTypes,templates) {
-  const tmpl = getSessionsForDate(date,templates).find(t=>t.startTime===startTime);
-  if(!tmpl) return {tmpl:null,lanes:[]};
-  const numLanes = tmpl.maxSessions;
-  const slotRes = reservations.filter(r=>r.date===date&&r.startTime===startTime&&r.status!=="cancelled");
-  const lanes = Array.from({length:numLanes},(_,i)=>({laneNum:i+1,type:null,mode:null,reservations:[],playerCount:0}));
-  const privRes = slotRes.filter(r=>resTypes.find(x=>x.id===r.typeId)?.style==="private");
-  const openRes = slotRes.filter(r=>resTypes.find(x=>x.id===r.typeId)?.style==="open");
-  let laneIdx=0;
-  for(const r of privRes){
-    if(laneIdx<numLanes){lanes[laneIdx].type="private";lanes[laneIdx].mode=resTypes.find(x=>x.id===r.typeId)?.mode;lanes[laneIdx].reservations.push(r);lanes[laneIdx].playerCount+=(r.playerCount||1);laneIdx++;}
-  }
-  for(const r of openRes){
-    const mode=resTypes.find(x=>x.id===r.typeId)?.mode||"unknown";
-    const cap=laneCapacity(mode);const cnt=r.playerCount||1;
-    let targetLane=lanes.find(l=>l.type==="open"&&l.mode===mode&&l.playerCount+cnt<=cap);
-    if(!targetLane) targetLane=lanes.find(l=>l.type===null);
-    if(!targetLane) targetLane=lanes.find(l=>l.type==="open"&&l.mode===mode);
-    if(!targetLane) continue;
-    targetLane.type="open";targetLane.mode=mode;targetLane.reservations.push(r);targetLane.playerCount+=cnt;
-  }
-  return {tmpl,lanes};
-}
+// ── applyLaneOverrides (OpsView-only: not in utils.js) ───────────────────────
 function applyLaneOverrides(lanes,overrides,resTypes){
   if(!Object.keys(overrides).length)return lanes;
   const result=lanes.map(l=>({...l,reservations:[...l.reservations],playerCount:l.playerCount}));
@@ -87,63 +50,6 @@ function applyLaneOverrides(lanes,overrides,resTypes){
     if(src.reservations.length===0){src.type=null;src.mode=null;}
   }
   return result;
-}
-function openPlayCapacity(mode,allLanes){
-  const cap=laneCapacity(mode);
-  const modeLanes=allLanes.filter(l=>l.type==="open"&&l.mode===mode);
-  const freeLanes=allLanes.filter(l=>l.type===null);
-  const blocks=[...modeLanes.map(l=>Math.max(0,cap-l.playerCount)),...freeLanes.map(()=>cap)].filter(b=>b>0).sort((a,b)=>b-a);
-  return{maxSingle:blocks[0]||0,total:blocks.reduce((s,b)=>s+b,0),blocks};
-}
-const getInitials=name=>{if(!name)return"??";const p=name.trim().split(/\s+/);return p.length>=2?p[0][0].toUpperCase()+p[p.length-1][0].toUpperCase():name.slice(0,2).toUpperCase();};
-
-// ── WaiverModal ──────────────────────────────────────────────────────────────
-function WaiverModal({playerName,waiverDoc,onClose,onSign}){
-  const [scrolled,setScrolled]=useState(false);
-  const [name,setName]=useState("");
-  const [agreed,setAgreed]=useState(false);
-  const [isMinor,setIsMinor]=useState(false);
-  const [guardianExpanded,setGuardianExpanded]=useState(false);
-  const [guardianAgreed,setGuardianAgreed]=useState(false);
-  const ref=useRef(null);
-  const onScroll=()=>{const el=ref.current;if(el&&el.scrollTop+el.clientHeight>=el.scrollHeight-8)setScrolled(true);};
-  const doc=waiverDoc||{name:"Liability Waiver",body:"Content unavailable."};
-  const canSign=scrolled&&name.trim()&&agreed&&(!isMinor||guardianAgreed);
-  return(
-    <div className="mo"><div className="mc" style={{maxWidth:600}}>
-      <div className="mt2">Waiver — {playerName}</div>
-      <div className={`scroll-hint${scrolled?" done":""}`}>{scrolled?"✓ Read complete":"↓ Scroll entire waiver before signing"}</div>
-      <div className="wvr-scroll" ref={ref} onScroll={onScroll}><span className="wvr-title">{doc.name}</span>{doc.body}</div>
-      {!scrolled&&<div style={{fontSize:".73rem",color:"var(--dangerL)",textAlign:"center",marginBottom:".75rem"}}>Scroll to bottom to enable signing.</div>}
-      <div className="f"><label>Full Legal Name Of Participant/Guardion If Minor </label><input value={name} onChange={e=>setName(e.target.value)} placeholder="Type your full legal name" disabled={!scrolled}/></div>
-      <label style={{display:"flex",gap:".65rem",alignItems:"flex-start",fontSize:".82rem",color:scrolled?"var(--txt)":"var(--muted)",cursor:scrolled?"pointer":"not-allowed",opacity:scrolled?1:.6,marginBottom:".85rem"}}>
-        <input type="checkbox" checked={agreed} onChange={e=>scrolled&&setAgreed(e.target.checked)} style={{width:"auto",marginTop:"3px",flexShrink:0}} disabled={!scrolled}/>
-        <span>I HAVE READ AND AGREE TO THIS RELEASE AND WAIVER AND INTEND MY TYPED NAME TO SERVE AS MY LEGAL SIGNATURE.</span>
-      </label>
-      <div style={{border:"1px solid var(--bdr)",borderRadius:5,marginBottom:".85rem",overflow:"hidden"}}>
-        <button type="button"
-          style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:".6rem .9rem",background:"var(--surf2)",border:"none",cursor:scrolled?"pointer":"not-allowed",color:scrolled?"var(--txt)":"var(--muted)",fontSize:".8rem",fontWeight:600,textTransform:"uppercase",letterSpacing:".06em"}}
-          disabled={!scrolled}
-          onClick={()=>{if(!scrolled)return;setGuardianExpanded(e=>!e);if(guardianExpanded){setIsMinor(false);setGuardianAgreed(false);}else{setIsMinor(true);}}}>
-          <span>⚠ Participant is a Minor (Under 18)</span>
-          <span style={{fontSize:".9rem"}}>{guardianExpanded?"▲":"▼"}</span>
-        </button>
-        {guardianExpanded&&(
-          <div style={{padding:".85rem .9rem",borderTop:"1px solid var(--warn)",background:"rgba(184,150,12,.04)"}}>
-            <div style={{fontSize:".74rem",color:"var(--warnL)",marginBottom:".65rem",fontWeight:700}}>PARENT/GUARDIAN CERTIFICATION REQUIRED</div>
-            <label style={{display:"flex",gap:".65rem",alignItems:"flex-start",fontSize:".8rem",color:"var(--txt)",cursor:"pointer",lineHeight:1.5}}>
-              <input type="checkbox" checked={guardianAgreed} onChange={e=>setGuardianAgreed(e.target.checked)} style={{width:"auto",marginTop:"3px",flexShrink:0}}/>
-              <span>I certify that I am the legal parent or court-appointed guardian of the minor participant, that I have legal authority to sign this agreement on their behalf, and that I agree to all terms of this Release of Liability, including the waiver of claims and indemnification provisions, on behalf of the minor. I intend my typed name to serve as my legal electronic signature.</span>
-            </label>
-          </div>
-        )}
-      </div>
-      <div className="ma">
-        <button className="btn btn-s" onClick={onClose}>Cancel</button>
-        <button className="btn btn-p" disabled={!canSign} onClick={()=>onSign(name.trim(),isMinor)}>Sign Waiver</button>
-      </div>
-    </div></div>
-  );
 }
 
 // ── Scoring Modal constants ────────────────────────────────────────────────────
@@ -215,6 +121,153 @@ function calcVsSlotWarn(date,startTime,newCount,reservations,resTypes){
 
 const fmtSecMS=s=>{if(s==null)return'—';const t=Math.round(s);return`${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`;};
 
+function ScoringExitGuard({onStay,onLeave}){
+  return(
+    <div className="mo"><div className="mc">
+      <div className="mt2">Leave Scoring?</div>
+      <p style={{color:'var(--muted)',lineHeight:1.6}}>Any scores already written to the database will be kept. Unscored runs will be lost.</p>
+      <div className="ma">
+        <button className="btn btn-s" onClick={onStay}>Stay</button>
+        <button className="btn btn-warn" onClick={onLeave}>Leave Anyway</button>
+      </div>
+    </div></div>
+  );
+}
+
+function ScoringCommitModal({laneSummary,onCancel,onCommit}){
+  return(
+    <div className="mo"><div className="mc" style={{maxWidth:620,maxHeight:'85vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:0}}>
+      <div className="mt2" style={{flexShrink:0}}>Commit Scores?</div>
+      <div style={{marginBottom:'1rem',display:'flex',flexDirection:'column',gap:'1rem'}}>
+        {laneSummary.map(lane=>(
+          <div key={lane.li} style={{border:'1px solid var(--bdr)',borderRadius:8,overflow:'hidden'}}>
+            <div style={{background:'var(--bg2)',padding:'.45rem .85rem',display:'flex',alignItems:'center',gap:'.6rem',borderBottom:'1px solid var(--bdr)'}}>
+              <span style={{fontWeight:700,fontSize:'.9rem'}}>Lane {lane.li+1}</span>
+              {lane.typeName&&<span style={{color:'var(--muted)',fontSize:'.8rem'}}>{lane.typeName}</span>}
+              <span style={{marginLeft:'auto',fontSize:'.72rem',textTransform:'uppercase',letterSpacing:'.06em',fontWeight:700,
+                color:lane.mode==='versus'?'#4fc3f7':'var(--ok)',
+                background:lane.mode==='versus'?'rgba(79,195,247,.12)':'rgba(76,175,80,.12)',
+                padding:'.15rem .5rem',borderRadius:4}}>
+                {lane.mode==='versus'?'VS':'CO-OP'}
+              </span>
+            </div>
+            {lane.runs.map(run=>(
+              <div key={run.runNum} style={{padding:'.65rem .85rem',borderBottom:'1px solid var(--bdr)'}}>
+                <div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.45rem',display:'flex',gap:'.5rem',alignItems:'center'}}>
+                  <span>Run {run.runNum}</span><span>·</span><span>{run.struct}</span>
+                  {run.elapsedSec!=null&&<><span>·</span><span>{fmtSecMS(run.elapsedSec)}</span></>}
+                </div>
+                {run.mode==='versus'?(()=>{
+                  const blueT={color:'#4fc3f7',bg:'rgba(79,195,247,.08)',borderDim:'rgba(79,195,247,.25)',label:'Blue',role:run.blueRole,score:run.blueScore,players:run.bluePlayers,won:run.blueWon};
+                  const redT ={color:'#ef9a9a',bg:'rgba(239,154,154,.08)',borderDim:'rgba(239,154,154,.25)',label:'Red', role:run.redRole, score:run.redScore, players:run.redPlayers, won:run.redWon};
+                  const cols=run.hunterIsBlue?[blueT,redT]:[redT,blueT];
+                  return(
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem'}}>
+                      {cols.map(t=>(
+                        <div key={t.label} style={{background:t.bg,border:`1px solid ${t.won?t.color:t.borderDim}`,borderRadius:6,padding:'.5rem .65rem'}}>
+                          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
+                            <span style={{color:t.color,fontWeight:700,fontSize:'.85rem'}}>{t.label} · {t.role}</span>
+                            <span style={{color:t.color,fontWeight:800,fontSize:'1rem'}}>{t.score!=null?Number(t.score).toFixed(1):'—'}</span>
+                          </div>
+                          <div style={{fontSize:'.75rem',color:'var(--muted)',lineHeight:1.5}}>
+                            {t.players.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
+                          </div>
+                          {t.won&&<div style={{marginTop:'.3rem',fontSize:'.75rem',color:t.color,fontWeight:700}}>✓ Won this run</div>}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })():(
+                  <div style={{display:'flex',alignItems:'center',gap:'1rem'}}>
+                    <span style={{color:'var(--acc)',fontWeight:800,fontSize:'1.1rem'}}>{run.sc!=null?Number(run.sc).toFixed(1):'—'}</span>
+                    <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{run.players.map(p=>p.name?.split(' ')[0]||'?').join(', ')}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+            {lane.mode==='versus'&&(
+              lane.laneWar?(
+                <div style={{padding:'.5rem .85rem',background:lane.laneWar.winner===1?'rgba(79,195,247,.1)':'rgba(239,154,154,.1)',display:'flex',alignItems:'center',gap:'.75rem'}}>
+                  <span style={{fontWeight:700,fontSize:'.85rem',color:lane.laneWar.winner===1?'#4fc3f7':'#ef9a9a'}}>
+                    {lane.laneWar.winner===1?'Blue':'Red'} Team Wins War
+                  </span>
+                  <span style={{fontSize:'.78rem',color:'var(--muted)',flex:1}}>
+                    {lane.laneWar.winType==='SWEEP'?'Clean Sweep':`Tiebreaker — ${fmtSecMS(lane.laneWar.timeDiff)} faster hunter run`}
+                  </span>
+                  <span style={{color:'var(--ok)',fontWeight:700,fontSize:'.82rem'}}>+{WAR_BONUS[lane.laneWar.winType]} pts</span>
+                </div>
+              ):(
+                <div style={{padding:'.45rem .85rem',color:'var(--muted)',fontSize:'.78rem',textAlign:'center'}}>
+                  No war winner — session ends as a tie
+                </div>
+              )
+            )}
+          </div>
+        ))}
+      </div>
+      <p style={{color:'var(--muted)',fontSize:'.85rem',marginBottom:'1rem',flexShrink:0}}>This will mark all reservations in this slot as Completed and cannot be undone.</p>
+      <div className="ma" style={{flexShrink:0}}>
+        <button className="btn btn-s" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-p" onClick={onCommit}>Yes, Commit Scores</button>
+      </div>
+    </div></div>
+  );
+}
+
+function ScoringTimePicker({timePicker,setTimePicker,setLaneFinish}){
+  const {laneIdx,mins,secs,tenths}=timePicker;
+  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const at10=mins>=10;
+  const tpSet=field=>v=>setTimePicker(p=>({...p,[field]:v}));
+  const seg=(label,field,val,max,{onUp,onDown,upOff,downOff}={})=>{
+    const btnStyle={width:64,height:56,fontSize:'1.6rem',lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,color:'var(--txt)',cursor:'pointer',userSelect:'none',flexShrink:0};
+    const upClick=onUp||(()=>tpSet(field)(clamp(val+1,0,max)));
+    const dnClick=onDown||(()=>tpSet(field)(clamp(val-1,0,max)));
+    return <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+      <button style={{...btnStyle,...(upOff?{opacity:.3,cursor:'default'}:{})}} onClick={upOff?undefined:upClick}>▲</button>
+      <div style={{fontFamily:'var(--fd)',fontSize:'2.8rem',fontWeight:800,color:at10&&field!=='mins'?'var(--muted)':'var(--acc)',width:72,textAlign:'center',fontVariantNumeric:'tabular-nums',lineHeight:1.1}}>
+        {field==='tenths'?val:String(val).padStart(2,'0')}
+      </div>
+      <button style={{...btnStyle,...(downOff?{opacity:.3,cursor:'default'}:{})}} onClick={downOff?undefined:dnClick}>▼</button>
+      <span style={{fontSize:'.62rem',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>{label}</span>
+    </div>;
+  };
+  return <div className="mo" style={{zIndex:3000}} onClick={()=>setTimePicker(null)}>
+    <div className="mc" style={{maxWidth:380,padding:'1.5rem 1.75rem'}} onClick={e=>e.stopPropagation()}>
+      <div className="mt2" style={{marginBottom:'1.25rem'}}>Edit Time</div>
+      <div style={{position:'relative',display:'flex',alignItems:'flex-start',justifyContent:'center',gap:'.25rem',marginBottom:'1.5rem'}}>
+        {seg('MIN','mins',mins,10,{
+          onUp:()=>setTimePicker(p=>p.mins>=9?{...p,mins:10,secs:0,tenths:0}:{...p,mins:p.mins+1}),
+          upOff:mins>=10,downOff:mins<=0})}
+        <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>:</span>
+        {seg('SEC','secs',secs,59,{
+          onUp:()=>setTimePicker(p=>{
+            if(p.secs<59)return{...p,secs:p.secs+1};
+            if(p.mins>=9)return{...p,mins:10,secs:0,tenths:0};
+            return{...p,mins:p.mins+1,secs:0};
+          }),
+          onDown:()=>setTimePicker(p=>{
+            if(p.secs>0)return{...p,secs:p.secs-1};
+            if(p.mins<=0)return p;
+            return{...p,mins:p.mins-1,secs:59};
+          }),
+          upOff:at10,
+          downOff:at10||(mins===0&&secs===0),
+        })}
+        <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>.</span>
+        {seg('1/10s','tenths',tenths,9,{upOff:at10,downOff:at10})}
+      </div>
+      <div style={{textAlign:'center',fontSize:'1rem',color:'var(--muted)',marginBottom:'1.25rem',fontVariantNumeric:'tabular-nums'}}>
+        {String(mins).padStart(2,'0')}:{String(secs).padStart(2,'0')}.{tenths}
+      </div>
+      <div className="ma">
+        <button className="btn btn-s" onClick={()=>setTimePicker(null)}>Cancel</button>
+        <button className="btn btn-p" onClick={()=>{setLaneFinish(p=>({...p,[laneIdx]:Math.min(MAX_TENTHS,mins*600+secs*10+tenths)}));setTimePicker(null);}}>Set Time</button>
+      </div>
+    </div>
+  </div>;
+}
+
 function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCommit}){
   const [run,setRun]=useState(1);
   const [masterTenths,setMasterTenths]=useState(0);
@@ -249,7 +302,6 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   const [showCommit,setShowCommit]=useState(false);
   const [timePicker,setTimePicker]=useState(null); // {laneIdx,mins,secs,tenths}|null
   const openTimePicker=laneIdx=>{const ft=laneFinish[laneIdx]??0;setTimePicker({laneIdx,mins:Math.floor(ft/600),secs:Math.floor((ft%600)/10),tenths:ft%10});};
-  const tpSet=field=>v=>setTimePicker(p=>({...p,[field]:v}));
   const [showExitGuard,setShowExitGuard]=useState(false);
   // Refs so Realtime closure always sees current run/structOrder without re-subscribing
   const structOrderRef=useRef(structOrder);
@@ -699,8 +751,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           background:colorT===1?'rgba(79,195,247,.06)':'rgba(239,154,154,.06)',
           border:`1px solid ${colorT===1?'rgba(79,195,247,.18)':'rgba(239,154,154,.18)'}`}}>
         <span style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:colorT===1?BLUE_COL:RED_COL}}/>
-        {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<img src={`/${tier.key}.png`} alt={tier.key} style={{height:14,width:14,objectFit:'contain',flexShrink:0,...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}}/>;})()}
-        {(()=>{const u=users?.find(x=>x.id===player.userId);return u?.platoonTag?<span style={{fontSize:'.72rem',fontWeight:500,color:u.platoonBadgeColor||'var(--acc)',flexShrink:0,letterSpacing:'.03em'}}>[{u.platoonTag}]</span>:null;})()}
+        {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.72rem',fontWeight:500}}/></>;})()}
         <span style={{flex:1,minWidth:0,fontSize:'.88rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{vr>0?`${vr}r`:'new'}</span>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:26,textAlign:'right'}}>{avg}</span>
@@ -874,8 +925,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           const secs=Number(st.coop_avg_seconds)||0;
           const timeS=cr>0&&secs>0?`${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,'0')}`:'—';
           return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-            {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<img src={`/${tier.key}.png`} alt={tier.key} style={{height:14,width:14,objectFit:'contain',flexShrink:0,...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}}/>;})()}
-            {(()=>{const u=users?.find(x=>x.id===player.userId);return u?.platoonTag?<span style={{fontSize:'.75rem',fontWeight:500,color:u.platoonBadgeColor||'var(--acc)',flexShrink:0,letterSpacing:'.03em'}}>[{u.platoonTag}]</span>:null;})()}
+            {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.75rem',fontWeight:500}}/></>;})()}
             <span style={{flex:1,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
             <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{cr>0?`${cr}r`:'new'}</span>
             <span style={{fontSize:'.72rem',color:'var(--muted)',minWidth:28,textAlign:'right'}}>{avgS}</span>
@@ -1068,159 +1118,9 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           <button className="btn btn-p" style={{fontSize:'1rem',padding:'.65rem 2rem'}} onClick={()=>setShowCommit(true)}>Commit Scores</button>
         )}
       </div>
-      {/* Exit guard */}
-      {showExitGuard&&(
-        <div className="mo"><div className="mc">
-          <div className="mt2">Leave Scoring?</div>
-          <p style={{color:'var(--muted)',lineHeight:1.6}}>Any scores already written to the database will be kept. Unscored runs will be lost.</p>
-          <div className="ma">
-            <button className="btn btn-s" onClick={()=>setShowExitGuard(false)}>Stay</button>
-            <button className="btn btn-warn" onClick={()=>{setShowExitGuard(false);onClose();}}>Leave Anyway</button>
-          </div>
-        </div></div>
-      )}
-      {/* Commit confirm */}
-      {showCommit&&(()=>{
-        const laneSummary=buildLaneSummary();
-        return(
-        <div className="mo"><div className="mc" style={{maxWidth:620,maxHeight:'85vh',overflowY:'auto',display:'flex',flexDirection:'column',gap:0}}>
-          <div className="mt2" style={{flexShrink:0}}>Commit Scores?</div>
-          <div style={{marginBottom:'1rem',display:'flex',flexDirection:'column',gap:'1rem'}}>
-            {laneSummary.map(lane=>(
-              <div key={lane.li} style={{border:'1px solid var(--bdr)',borderRadius:8,overflow:'hidden'}}>
-                {/* Lane header */}
-                <div style={{background:'var(--bg2)',padding:'.45rem .85rem',display:'flex',alignItems:'center',gap:'.6rem',borderBottom:'1px solid var(--bdr)'}}>
-                  <span style={{fontWeight:700,fontSize:'.9rem'}}>Lane {lane.li+1}</span>
-                  {lane.typeName&&<span style={{color:'var(--muted)',fontSize:'.8rem'}}>{lane.typeName}</span>}
-                  <span style={{marginLeft:'auto',fontSize:'.72rem',textTransform:'uppercase',letterSpacing:'.06em',fontWeight:700,
-                    color:lane.mode==='versus'?'#4fc3f7':'var(--ok)',
-                    background:lane.mode==='versus'?'rgba(79,195,247,.12)':'rgba(76,175,80,.12)',
-                    padding:'.15rem .5rem',borderRadius:4}}>
-                    {lane.mode==='versus'?'VS':'CO-OP'}
-                  </span>
-                </div>
-                {/* Runs */}
-                {lane.runs.map(run=>(
-                  <div key={run.runNum} style={{padding:'.65rem .85rem',borderBottom:'1px solid var(--bdr)'}}>
-                    <div style={{fontSize:'.72rem',color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.45rem',display:'flex',gap:'.5rem',alignItems:'center'}}>
-                      <span>Run {run.runNum}</span>
-                      <span>·</span>
-                      <span>{run.struct}</span>
-                      {run.elapsedSec!=null&&<><span>·</span><span>{fmtSecMS(run.elapsedSec)}</span></>}
-                    </div>
-                    {run.mode==='versus'?(()=>{
-                      // Hunter always on the left column; Coyote on the right
-                      const blueT={color:'#4fc3f7',bg:'rgba(79,195,247,.08)',borderDim:'rgba(79,195,247,.25)',label:'Blue',role:run.blueRole,score:run.blueScore,players:run.bluePlayers,won:run.blueWon};
-                      const redT ={color:'#ef9a9a',bg:'rgba(239,154,154,.08)',borderDim:'rgba(239,154,154,.25)',label:'Red', role:run.redRole, score:run.redScore, players:run.redPlayers, won:run.redWon};
-                      const cols=run.hunterIsBlue?[blueT,redT]:[redT,blueT];
-                      return(
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.5rem'}}>
-                          {cols.map(t=>(
-                            <div key={t.label} style={{background:t.bg,border:`1px solid ${t.won?t.color:t.borderDim}`,borderRadius:6,padding:'.5rem .65rem'}}>
-                              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.3rem'}}>
-                                <span style={{color:t.color,fontWeight:700,fontSize:'.85rem'}}>{t.label} · {t.role}</span>
-                                <span style={{color:t.color,fontWeight:800,fontSize:'1rem'}}>{t.score!=null?Number(t.score).toFixed(1):'—'}</span>
-                              </div>
-                              <div style={{fontSize:'.75rem',color:'var(--muted)',lineHeight:1.5}}>
-                                {t.players.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
-                              </div>
-                              {t.won&&<div style={{marginTop:'.3rem',fontSize:'.75rem',color:t.color,fontWeight:700}}>✓ Won this run</div>}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })():(
-                      <div style={{display:'flex',alignItems:'center',gap:'1rem'}}>
-                        <span style={{color:'var(--acc)',fontWeight:800,fontSize:'1.1rem'}}>{run.sc!=null?Number(run.sc).toFixed(1):'—'}</span>
-                        <span style={{fontSize:'.78rem',color:'var(--muted)'}}>
-                          {run.players.map(p=>p.name?.split(' ')[0]||'?').join(', ')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {/* Lane war result */}
-                {lane.mode==='versus'&&(
-                  lane.laneWar?(
-                    <div style={{padding:'.5rem .85rem',background:lane.laneWar.winner===1?'rgba(79,195,247,.1)':'rgba(239,154,154,.1)',display:'flex',alignItems:'center',gap:'.75rem'}}>
-                      <span style={{fontWeight:700,fontSize:'.85rem',color:lane.laneWar.winner===1?'#4fc3f7':'#ef9a9a'}}>
-                        {lane.laneWar.winner===1?'Blue':'Red'} Team Wins War
-                      </span>
-                      <span style={{fontSize:'.78rem',color:'var(--muted)',flex:1}}>
-                        {lane.laneWar.winType==='SWEEP'?'Clean Sweep':`Tiebreaker — ${fmtSecMS(lane.laneWar.timeDiff)} faster hunter run`}
-                      </span>
-                      <span style={{color:'var(--ok)',fontWeight:700,fontSize:'.82rem'}}>+{WAR_BONUS[lane.laneWar.winType]} pts</span>
-                    </div>
-                  ):(
-                    <div style={{padding:'.45rem .85rem',color:'var(--muted)',fontSize:'.78rem',textAlign:'center'}}>
-                      No war winner — session ends as a tie
-                    </div>
-                  )
-                )}
-              </div>
-            ))}
-          </div>
-          <p style={{color:'var(--muted)',fontSize:'.85rem',marginBottom:'1rem',flexShrink:0}}>This will mark all reservations in this slot as Completed and cannot be undone.</p>
-          <div className="ma" style={{flexShrink:0}}>
-            <button className="btn btn-s" onClick={()=>setShowCommit(false)}>Cancel</button>
-            <button className="btn btn-p" onClick={doCommit}>Yes, Commit Scores</button>
-          </div>
-        </div></div>
-        );
-      })()}
-      {/* ── Time Picker Modal ── */}
-      {timePicker&&(()=>{
-        const {laneIdx,mins,secs,tenths}=timePicker;
-        const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
-        const at10=mins>=10;
-        const seg=(label,field,val,max,{onUp,onDown,upOff,downOff}={})=>{
-          const btnStyle={width:64,height:56,fontSize:'1.6rem',lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg2)',border:'1px solid var(--bdr)',borderRadius:8,color:'var(--txt)',cursor:'pointer',userSelect:'none',flexShrink:0};
-          const upClick=onUp||(()=>tpSet(field)(clamp(val+1,0,max)));
-          const dnClick=onDown||(()=>tpSet(field)(clamp(val-1,0,max)));
-          return <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-            <button style={{...btnStyle,...(upOff?{opacity:.3,cursor:'default'}:{})}} onClick={upOff?undefined:upClick}>▲</button>
-            <div style={{fontFamily:'var(--fd)',fontSize:'2.8rem',fontWeight:800,color:at10&&field!=='mins'?'var(--muted)':'var(--acc)',width:72,textAlign:'center',fontVariantNumeric:'tabular-nums',lineHeight:1.1}}>
-              {field==='tenths'?val:String(val).padStart(2,'0')}
-            </div>
-            <button style={{...btnStyle,...(downOff?{opacity:.3,cursor:'default'}:{})}} onClick={downOff?undefined:dnClick}>▼</button>
-            <span style={{fontSize:'.62rem',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>{label}</span>
-          </div>;
-        };
-        return <div className="mo" style={{zIndex:3000}} onClick={()=>setTimePicker(null)}>
-          <div className="mc" style={{maxWidth:380,padding:'1.5rem 1.75rem'}} onClick={e=>e.stopPropagation()}>
-            <div className="mt2" style={{marginBottom:'1.25rem'}}>Edit Time</div>
-            <div style={{position:'relative',display:'flex',alignItems:'flex-start',justifyContent:'center',gap:'.25rem',marginBottom:'1.5rem'}}>
-              {seg('MIN','mins',mins,10,{
-                onUp:()=>setTimePicker(p=>p.mins>=9?{...p,mins:10,secs:0,tenths:0}:{...p,mins:p.mins+1}),
-                upOff:mins>=10,downOff:mins<=0})}
-              <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>:</span>
-              {seg('SEC','secs',secs,59,{
-                onUp:()=>setTimePicker(p=>{
-                  if(p.secs<59)return{...p,secs:p.secs+1};
-                  if(p.mins>=9)return{...p,mins:10,secs:0,tenths:0}; // cap at 10:00.0
-                  return{...p,mins:p.mins+1,secs:0};
-                }),
-                onDown:()=>setTimePicker(p=>{
-                  if(p.secs>0)return{...p,secs:p.secs-1};
-                  if(p.mins<=0)return p; // already at 0:00
-                  return{...p,mins:p.mins-1,secs:59};
-                }),
-                upOff:at10,
-                downOff:at10||(mins===0&&secs===0),
-              })}
-              <span style={{fontSize:'2.8rem',fontWeight:700,color:'var(--muted)',alignSelf:'center',marginBottom:'1.4rem',lineHeight:1}}>.</span>
-              {seg('1/10s','tenths',tenths,9,{upOff:at10,downOff:at10})}
-            </div>
-            <div style={{textAlign:'center',fontSize:'1rem',color:'var(--muted)',marginBottom:'1.25rem',fontVariantNumeric:'tabular-nums'}}>
-              {String(mins).padStart(2,'0')}:{String(secs).padStart(2,'0')}.{tenths}
-            </div>
-            <div className="ma">
-              <button className="btn btn-s" onClick={()=>setTimePicker(null)}>Cancel</button>
-              <button className="btn btn-p" onClick={()=>{setLaneFinish(p=>({...p,[laneIdx]:Math.min(MAX_TENTHS,mins*600+secs*10+tenths)}));setTimePicker(null);}}>Set Time</button>
-            </div>
-          </div>
-        </div>;
-      })()}
+      {showExitGuard&&<ScoringExitGuard onStay={()=>setShowExitGuard(false)} onLeave={()=>{setShowExitGuard(false);onClose();}}/>}
+      {showCommit&&<ScoringCommitModal laneSummary={buildLaneSummary()} onCancel={()=>setShowCommit(false)} onCommit={doCommit}/>}
+      {timePicker&&<ScoringTimePicker timePicker={timePicker} setTimePicker={setTimePicker} setLaneFinish={setLaneFinish}/>}
     </div>
   );
 }

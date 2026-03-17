@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { hasValidWaiver, latestWaiverEntry, fmtTS, cleanPh, fmt12, addDaysStr, getInitials } from './utils.js';
+import { hasValidWaiver, latestWaiverEntry, fmtTS, cleanPh, fmt12, addDaysStr, getInitials, getTierInfo, TIER_COLORS, TIER_SHINE } from './utils.js';
 import { fetchUserByPhone, fetchMySignedWaiver } from './supabase.js';
 
 // ── AuthBadge ─────────────────────────────────────────────────────
@@ -394,6 +394,28 @@ export function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFu
       {status==="notfound"&&clean.length===10&&!name.trim()&&<div className="pi-notfound">⚠ Nothing found — add their name and we'll prep their account</div>}
     </div>
   );
+}
+
+// ── Tier display ──────────────────────────────────────────────────
+export function TierImg({tierKey,height=16}){
+  const filter=TIER_SHINE[tierKey];
+  return <img src={`/${tierKey}.png`} alt={tierKey} style={{height,width:height,display:'block',flexShrink:0,objectFit:'contain',...(filter?{filter}:{})}} />;
+}
+
+export function TierChip({runs}){
+  const{current:tier}=getTierInfo(runs??0);
+  const col=TIER_COLORS[tier.key];
+  return <span style={{display:'inline-flex',alignItems:'center',gap:'.2rem',background:col+'22',border:`1px solid ${col}66`,borderRadius:4,padding:'1px 5px',fontSize:'.62rem',color:col,fontFamily:'var(--fd)',textTransform:'uppercase',letterSpacing:'.05em',whiteSpace:'nowrap',flexShrink:0}}><TierImg tierKey={tier.key} height={12}/>{tier.name}</span>;
+}
+
+export function TierIcon({runs}){
+  const{current:tier}=getTierInfo(runs??0);
+  return <TierImg tierKey={tier.key}/>;
+}
+
+export function PlatoonTag({tag,color,style}){
+  if(!tag)return null;
+  return <span style={{fontFamily:'var(--fc)',fontWeight:700,color:color||'#94a3b8',flexShrink:0,letterSpacing:'.03em',...style}}>[{tag}]</span>;
 }
 
 // ── DateNav ───────────────────────────────────────────────────────
