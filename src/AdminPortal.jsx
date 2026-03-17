@@ -612,7 +612,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           assignedShifts.forEach(s=>{const r=s.role||"General";if(!roleGroups[r])roleGroups[r]=[];roleGroups[r].push(s);});
           // ── Shared timeline ──
           const toMin=t=>{if(!t)return 0;const[h,m]=t.split(":").map(Number);return h*60+(m||0);};
-          const slotDurs=todaySlots.map((s,i,arr)=>{const st=toMin(s.startTime);const nxt=i+1<arr.length?toMin(arr[i+1].startTime):null;return{startTime:s.startTime,st,et:nxt?Math.min(nxt,st+120):st+90};});
+          const slotDurs=todaySlots.map(s=>{const st=toMin(s.startTime);return{startTime:s.startTime,st,et:st+60};});
           const shiftMins=todayShifts.flatMap(s=>[toMin(s.start),toMin(s.end)]).filter(t=>t>0);
           const allTlMins=[...slotDurs.flatMap(s=>[s.st,s.et]),...shiftMins].filter(t=>t>0);
           const tlStart=allTlMins.length?Math.max(0,Math.min(...allTlMins)-30):0;
