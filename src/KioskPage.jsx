@@ -133,6 +133,12 @@ export default function KioskPage() {
   const [confirmRemove, setConfirmRemove] = useState(null) // player obj
   const [signingPlayer, setSigningPlayer] = useState(null) // {id, userId, name}
   const [signing, setSigning] = useState(false)
+  const [postWaiverPhase, setPostWaiverPhase] = useState('manage') // where to go after waiver signed
+  const [newGuestName, setNewGuestName] = useState('')
+  const [newGuestEmail, setNewGuestEmail] = useState('')
+  const [guestBusy, setGuestBusy] = useState(false)
+  const [guestError, setGuestError] = useState(null)
+  const [guestCreatedEmail, setGuestCreatedEmail] = useState('')
   const [showExitPin, setShowExitPin] = useState(false)
   const [exitPin, setExitPin] = useState('')
   const [exitShake, setExitShake] = useState(false)
@@ -206,8 +212,9 @@ export default function KioskPage() {
     setPhone(''); setReservations([]); setSelectedRes(null)
     setPlayerWaivers({}); setAddPhone(''); setAddFound(null)
     setAddName(''); setAddError(null); setConfirmRemove(null)
-    setSigningPlayer(null); setWaiverScrolled(false)
-    setSignedName(''); setSignedAgreed(false); setSigning(false)
+    setSigningPlayer(null); setSigning(false)
+    setNewGuestName(''); setNewGuestEmail(''); setGuestError(null); setGuestCreatedEmail('')
+    setPostWaiverPhase('manage')
     setInactivityWarn(false); setWarnSecs(10)
     clearInterval(warnIntervalRef.current)
     clearTimeout(warnRef.current)
@@ -320,12 +327,50 @@ export default function KioskPage() {
     if (ph.length !== 10) return
     setPhase('searching')
     try {
-      const res = await fetchKioskReservations(ph)
+      const [res, user] = await Promise.all([
+        fetchKioskReservations(ph),
+        fetchUserByPhone(ph).catch(() => null),
+      ])
       setReservations(res)
-      setPhase(res.length ? 'results' : 'not-found')
+      if (!user) {
+        // Phone not in system → new guest setup
+        setNewGuestName(''); setNewGuestEmail(''); setGuestError(null)
+        setPhase('new-guest')
+      } else if (res.length && !hasValidWaiver(user, waiverDoc)) {
+        // User exists, has reservations, but no valid waiver → sign waiver first
+        setSigningPlayer({ id: null, userId: user.id, name: user.name })
+        setPostWaiverPhase('results')
+        setPhase('results')
+      } else {
+        setPhase(res.length ? 'results' : 'not-found')
+      }
     } catch (e) {
       setReservations([])
       setPhase('not-found')
+    }
+  }
+
+  // ── Create new guest account from kiosk ──
+  const doCreateGuest = async () => {
+    const name = newGuestName.trim(), email = newGuestEmail.trim()
+    if (!name || !email) return
+    setGuestBusy(true); setGuestError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/kiosk-guest-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ name, email, phone: cleanPh(phone) }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) { setGuestError(json.error ?? 'Setup failed.'); return }
+      setGuestCreatedEmail(json.email)
+      setSigningPlayer({ id: null, userId: json.id, name: json.name })
+      setPostWaiverPhase('guest-done')
+    } catch (e) {
+      setGuestError(e.message)
+    } finally {
+      setGuestBusy(false)
     }
   }
 
@@ -424,8 +469,24 @@ export default function KioskPage() {
           needsRewaiverDocId: null,
         }
       }))
-      setPhase('done')
-      setTimeout(() => { setSigningPlayer(null); setPhase('manage') }, 3000)
+      const target = postWaiverPhase
+      if (target === 'results') {
+        // Existing user needed waiver before seeing reservations
+        setSigningPlayer(null)
+        setPostWaiverPhase('manage')
+      } else if (target === 'guest-done') {
+        // New guest account — show confirmation then return home
+        setPhase('guest-done')
+        setTimeout(() => {
+          setSigningPlayer(null); setNewGuestName(''); setNewGuestEmail('')
+          setGuestCreatedEmail(''); setPhone(''); setPostWaiverPhase('manage')
+          setPhase('idle')
+        }, 5000)
+      } else {
+        // Default: from manage page
+        setPhase('done')
+        setTimeout(() => { setSigningPlayer(null); setPhase('manage') }, 3000)
+      }
     } catch (e) {
       alert('Failed to sign waiver: ' + e.message)
     } finally {
@@ -576,6 +637,52 @@ export default function KioskPage() {
     </div>
   )
 
+  // ── NEW GUEST SETUP ──
+  if (phase === 'new-guest') return (
+    <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
+      {inactivityWarn && <InactivityWarning />}
+      {signingPlayer && (
+        <WaiverModal
+          playerName={signingPlayer.name}
+          waiverDoc={waiverDoc}
+          onClose={() => { setSigningPlayer(null); setPostWaiverPhase('manage') }}
+          onSign={(name, isMinor) => doSignWaiver(name, isMinor)}
+        />
+      )}
+      <div style={{ width: '100%', maxWidth: 560 }}>
+        <button style={S.back} onClick={() => { setPhone(''); setPhase('phone') }}>← Back</button>
+        <div style={S.title}>Create Account</div>
+        <div style={{ fontSize: '1rem', color: 'var(--muted)', marginBottom: '1.5rem' }}>
+          Creating account for <strong style={{ color: 'var(--txt)', fontFamily: 'var(--fd)', letterSpacing: '.05em' }}>{fmtPh(phone)}</strong>
+        </div>
+
+        <div style={{ marginBottom: '1.2rem' }}>
+          <label style={{ display: 'block', fontSize: '.9rem', color: 'var(--muted)', marginBottom: '.4rem' }}>Full Name</label>
+          <input type="text" value={newGuestName} onChange={e => setNewGuestName(e.target.value)}
+            placeholder="First Last" autoComplete="off"
+            style={{ width: '100%', padding: '.9rem 1rem', fontSize: '1.1rem', borderRadius: 8, border: '1px solid var(--bdr)', background: 'var(--bg)', color: 'var(--txt)', boxSizing: 'border-box' }} />
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', fontSize: '.9rem', color: 'var(--muted)', marginBottom: '.4rem' }}>Email Address</label>
+          <input type="email" value={newGuestEmail} onChange={e => setNewGuestEmail(e.target.value)}
+            placeholder="you@example.com" autoComplete="off"
+            style={{ width: '100%', padding: '.9rem 1rem', fontSize: '1.1rem', borderRadius: 8, border: '1px solid var(--bdr)', background: 'var(--bg)', color: 'var(--txt)', boxSizing: 'border-box' }} />
+        </div>
+
+        {guestError && (
+          <div style={{ color: '#e07060', fontSize: '.9rem', textAlign: 'center', marginBottom: '.8rem' }}>{guestError}</div>
+        )}
+
+        <button style={{ ...S.btn, ...S.btnP, opacity: newGuestName.trim() && newGuestEmail.trim() ? 1 : .4 }}
+          disabled={!newGuestName.trim() || !newGuestEmail.trim() || guestBusy}
+          onClick={doCreateGuest}>
+          {guestBusy ? 'Setting up…' : 'Create Account & Sign Waiver →'}
+        </button>
+      </div>
+    </div>
+  )
+
   // ── NOT FOUND ──
   if (phase === 'not-found') return (
     <div style={S.page}>
@@ -630,6 +737,14 @@ export default function KioskPage() {
   if (phase === 'results') return (
     <div style={{ ...S.page, justifyContent: 'flex-start', paddingTop: '2rem' }}>
       {inactivityWarn && <InactivityWarning />}
+      {signingPlayer && (
+        <WaiverModal
+          playerName={signingPlayer.name}
+          waiverDoc={waiverDoc}
+          onClose={() => { setSigningPlayer(null); setPostWaiverPhase('manage') }}
+          onSign={(name, isMinor) => doSignWaiver(name, isMinor)}
+        />
+      )}
       <div style={{ width: '100%', maxWidth: 560 }}>
         <button style={S.back} onClick={() => { setPhone(''); setPhase('phone') }}>← Back</button>
         <div style={S.title}>Your Reservations</div>
@@ -706,7 +821,7 @@ export default function KioskPage() {
                   <div style={{ display: 'flex', gap: '.5rem', flexShrink: 0 }}>
                     {canSign && (
                       <button style={{ padding: '.5rem .9rem', borderRadius: 6, fontSize: '.85rem', fontWeight: 600, cursor: 'pointer', background: 'var(--acc)', color: 'var(--bg)', border: 'none', touchAction: 'manipulation' }}
-                        onClick={() => setSigningPlayer(player)}>
+                        onClick={() => { setSigningPlayer(player); setPostWaiverPhase('manage') }}>
                         Sign Waiver
                       </button>
                     )}
@@ -797,6 +912,26 @@ export default function KioskPage() {
         <div style={{ color: 'var(--muted)', fontSize: '1rem' }}>
           {signingPlayer?.name}'s waiver has been recorded.<br />Returning to your booking in a moment…
         </div>
+      </div>
+    </div>
+  )
+
+  // ── GUEST DONE ──
+  if (phase === 'guest-done') return (
+    <div style={S.page}>
+      <div style={{ ...S.card, textAlign: 'center' }}>
+        <div style={{ fontSize: '3.5rem', marginBottom: '.8rem' }}>✅</div>
+        <div style={{ ...S.h2 }}>You're all set!</div>
+        <div style={{ color: 'var(--txt)', fontSize: '1rem', marginBottom: '.8rem' }}>
+          Welcome, {signingPlayer?.name}! Your waiver has been signed.
+        </div>
+        {guestCreatedEmail && (
+          <div style={{ fontSize: '.9rem', color: 'var(--muted)', lineHeight: 1.6 }}>
+            A setup link has been sent to<br />
+            <strong style={{ color: 'var(--acc)' }}>{guestCreatedEmail}</strong><br />
+            <span style={{ fontSize: '.8rem' }}>Complete your account to access stats &amp; rewards.</span>
+          </div>
+        )}
       </div>
     </div>
   )
