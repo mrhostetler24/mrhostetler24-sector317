@@ -37,7 +37,6 @@ const toUser = r => r ? ({
   platoonTag:         r.platoon_tag        ?? null,
   platoonBadgeColor:  r.platoon_badge_color ?? null,
   canBook:            r.can_book           ?? false,
-  totalRuns:          r.total_runs         ?? 0,
 }) : null
 
 // ============================================================
