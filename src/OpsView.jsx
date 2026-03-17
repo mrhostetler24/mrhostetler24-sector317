@@ -302,7 +302,6 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   const [showCommit,setShowCommit]=useState(false);
   const [timePicker,setTimePicker]=useState(null); // {laneIdx,mins,secs,tenths}|null
   const openTimePicker=laneIdx=>{const ft=laneFinish[laneIdx]??0;setTimePicker({laneIdx,mins:Math.floor(ft/600),secs:Math.floor((ft%600)/10),tenths:ft%10});};
-  const [showExitGuard,setShowExitGuard]=useState(false);
   // Refs so Realtime closure always sees current run/structOrder without re-subscribing
   const structOrderRef=useRef(structOrder);
   const runRef=useRef(run);
@@ -353,8 +352,15 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
       setObjectives(objs);
       activateStructures(objs,1,['Alpha','Bravo']);
     }).catch(()=>{});
-    // Deactivate both structures when modal unmounts
+    // Deactivate both structures on tab close (beforeunload fires before fetches are cancelled)
+    const onUnload=()=>{
+      deactivateStructure('Alpha').catch(()=>{});
+      deactivateStructure('Bravo').catch(()=>{});
+    };
+    window.addEventListener('beforeunload',onUnload);
+    // Deactivate both structures when modal unmounts normally
     return()=>{
+      window.removeEventListener('beforeunload',onUnload);
       deactivateStructure('Alpha').catch(()=>{});
       deactivateStructure('Bravo').catch(()=>{});
     };
@@ -403,7 +409,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     return()=>clearInterval(masterRef.current);
   },[masterRunning]);
 
-  const tryClose=()=>setShowExitGuard(true);
+  const tryClose=()=>{if(window.confirm('Leave Scoring? Scores already logged are saved — unscored runs will be lost.'))onClose();}
 
   const setSetting=(laneIdx,key,val)=>{
     setSettings(p=>({...p,[run]:{...p[run],[laneIdx]:{...p[run][laneIdx],[key]:val}}}));
@@ -1118,7 +1124,6 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           <button className="btn btn-p" style={{fontSize:'1rem',padding:'.65rem 2rem'}} onClick={()=>setShowCommit(true)}>Commit Scores</button>
         )}
       </div>
-      {showExitGuard&&<ScoringExitGuard onStay={()=>setShowExitGuard(false)} onLeave={()=>{setShowExitGuard(false);onClose();}}/>}
       {showCommit&&<ScoringCommitModal laneSummary={buildLaneSummary()} onCancel={()=>setShowCommit(false)} onCommit={doCommit}/>}
       {timePicker&&<ScoringTimePicker timePicker={timePicker} setTimePicker={setTimePicker} setLaneFinish={setLaneFinish}/>}
     </div>
