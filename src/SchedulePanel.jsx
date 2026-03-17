@@ -94,10 +94,10 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
     fetchUserRoles().then(setUserRoles).catch(()=>{});
     if(isManager) fetchAllStaffBlocks().then(setAllStaffBlocks).catch(()=>{});
   },[]);// eslint-disable-line react-hooks/exhaustive-deps
-  function blockIsResolved(block){
+  function blockIsResolvedFor(block, staffId){
     if(block.status!=='pending')return false;
     return !shifts.some(s=>{
-      if(s.staffId!==currentUser.id)return false;
+      if(s.staffId!==staffId)return false;
       if(s.role==='Admin')return false;       // Admin shifts were never flagged — don't count them
       if(s.conflicted)return false;           // still-conflicted shifts are in-flight, not blocking resolution
       if(s.date<block.startDate||s.date>block.endDate)return false;
@@ -193,7 +193,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         {isManager&&<button className={`tab${tab==="conflict"?" on":""}`} onClick={()=>setTab("conflict")}>Conflicts {conflicts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".62rem",marginLeft:".25rem"}}>{conflicts.length}</span>}</button>}
         {isManager&&<button className={`tab${tab==="all"?" on":""}`} onClick={()=>setTab("all")}>All Staff</button>}
         {isManager&&<button className={`tab${tab==="templates"?" on":""}`} onClick={()=>setTab("templates")}>Templates</button>}
-        <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending'&&!blockIsResolved(b)).length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending'&&!blockIsResolved(b)).length}</span>}</button>
+        <button className={`tab${tab==="blocks"?" on":""}`} onClick={()=>setTab("blocks")}>My Blocks {staffBlocks.filter(b=>b.status==='pending'&&!blockIsResolvedFor(b,currentUser.id)).length>0&&<span style={{background:'var(--warn)',color:'var(--bg2)',borderRadius:'50%',padding:'0 5px',fontSize:'.62rem',marginLeft:'.25rem'}}>{staffBlocks.filter(b=>b.status==='pending'&&!blockIsResolvedFor(b,currentUser.id)).length}</span>}</button>
       </div>
       {tab==="mine"&&(()=>{
         const mineUpcoming=visMine.filter(s=>s.date>=today);
@@ -276,7 +276,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
         </div>}
         {!staffBlocks.length&&!addingBlock&&<div className="empty"><div className="ei">📅</div><p>No availability blocks set.</p></div>}
         {staffBlocks.map(b=>{
-          const resolved=blockIsResolved(b);
+          const resolved=blockIsResolvedFor(b,currentUser.id);
           const dateRange=b.startDate===b.endDate?fmt(b.startDate):fmt(b.startDate)+' – '+fmt(b.endDate);
           const timeRange=(!b.startTime||!b.endTime)?'All day':fmt12(b.startTime)+' – '+fmt12(b.endTime);
           if(editingBlockId===b.id) return <div key={b.id} style={{background:'var(--bg2)',borderRadius:'var(--r)',padding:'1rem',marginBottom:'.5rem',border:'1px solid var(--border)'}}>
@@ -379,7 +379,7 @@ function SchedulePanel({currentUser,shifts,setShifts,users,isManager,onAlert,tab
             </table>
           </div>
         </>}
-        {allStaffSub==='employee-blocks'&&(()=>{const staffUsers=users.filter(u=>u.access!=='customer'&&u.access!=='kiosk'&&u.active!==false).sort((a,b)=>a.name.localeCompare(b.name));const anyBlocks=allStaffBlocks.length>0;return<>{!anyBlocks&&<div className="empty"><div className="ei">📅</div><p>No staff availability blocks on record.</p></div>}{staffUsers.map(u=>{const ub=allStaffBlocks.filter(b=>b.staffId===u.id).sort((a,b2)=>a.startDate.localeCompare(b2.startDate));if(!ub.length)return null;return<div key={u.id} style={{marginBottom:'1.25rem'}}><div style={{fontFamily:'var(--fd)',fontSize:'.88rem',fontWeight:700,color:'var(--accB)',marginBottom:'.4rem',letterSpacing:'.04em',textTransform:'uppercase'}}>{u.name}</div>{ub.map(b=>{const dr=b.startDate===b.endDate?fmt(b.startDate):fmt(b.startDate)+' – '+fmt(b.endDate);const tr=(!b.startTime||!b.endTime)?'All day':fmt12(b.startTime)+' – '+fmt12(b.endTime);return<div key={b.id} className="shift-card" style={{marginBottom:'.3rem',padding:'.45rem .85rem'}}><div style={{flex:1}}><div style={{fontSize:'.86rem',fontWeight:600,color:'var(--txt)'}}>{dr}</div><div style={{fontSize:'.78rem',color:'var(--muted)'}}>{tr}{b.label?' · '+b.label:''}</div></div><span className={`badge ${b.status==='pending'?'b-conflict':'b-ok'}`} style={{fontSize:'.65rem',flexShrink:0}}>{b.status==='pending'?'Pending':'Confirmed'}</span></div>;})}</div>;})}</>;})()}
+        {allStaffSub==='employee-blocks'&&(()=>{const staffUsers=users.filter(u=>u.access!=='customer'&&u.access!=='kiosk'&&u.active!==false).sort((a,b)=>a.name.localeCompare(b.name));const anyBlocks=allStaffBlocks.length>0;return<>{!anyBlocks&&<div className="empty"><div className="ei">📅</div><p>No staff availability blocks on record.</p></div>}{staffUsers.map(u=>{const ub=allStaffBlocks.filter(b=>b.staffId===u.id).sort((a,b2)=>a.startDate.localeCompare(b2.startDate));if(!ub.length)return null;return<div key={u.id} style={{marginBottom:'1.25rem'}}><div style={{fontFamily:'var(--fd)',fontSize:'.88rem',fontWeight:700,color:'var(--accB)',marginBottom:'.4rem',letterSpacing:'.04em',textTransform:'uppercase'}}>{u.name}</div>{ub.map(b=>{const dr=b.startDate===b.endDate?fmt(b.startDate):fmt(b.startDate)+' – '+fmt(b.endDate);const tr=(!b.startTime||!b.endTime)?'All day':fmt12(b.startTime)+' – '+fmt12(b.endTime);return<div key={b.id} className="shift-card" style={{marginBottom:'.3rem',padding:'.45rem .85rem'}}><div style={{flex:1}}><div style={{fontSize:'.86rem',fontWeight:600,color:'var(--txt)'}}>{dr}</div><div style={{fontSize:'.78rem',color:'var(--muted)'}}>{tr}{b.label?' · '+b.label:''}</div></div>{(()=>{const br=blockIsResolvedFor(b,u.id);return<span className={`badge ${br||b.status!=='pending'?'b-ok':'b-conflict'}`} style={{fontSize:'.65rem',flexShrink:0}}>{br?'✓ Cleared':b.status==='pending'?'Pending':'Confirmed'}</span>;})()}</div>;})}</div>;})}</>;})()}
       </div>}
       {tab==="templates"&&isManager&&<StaffingScheduler currentUser={currentUser} shifts={shifts} setShifts={setShifts} users={users} isManager={isManager} onAlert={onAlert} initialView="templates" embedded={true}/>}
     </div>
