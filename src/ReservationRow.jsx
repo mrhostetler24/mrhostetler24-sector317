@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { hasValidWaiver, fmt, fmtMoney, fmtPhone, fmt12, todayStr, cleanPh, getInitials } from "./utils.js"
 import { WaiverModal } from "./ui.jsx"
-import { fetchUserByPhone, createGuestUser } from "./supabase.js"
+import { fetchUserByPhone, createGuestUser, fetchRunsForReservation } from "./supabase.js"
 import ReservationModifyWizard from "./ReservationModifyWizard.jsx"
 
 function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage,isAdmin=false,currentUser=null,sessionTemplates=[],reservations=[],isStaff=false,onAddPlayer,onSignWaiver,onCancel,onRemovePlayer,onReschedule}){
@@ -14,6 +14,18 @@ function ReservationRow({res,resTypes,users,waiverDocs,activeWaiverDoc,canManage
   const [wTarget,setWTarget]=useState(null);
   const [removeConfirm,setRemoveConfirm]=useState(null);
   const [showReschedModal,setShowReschedModal]=useState(false);
+  const [runs,setRuns]=useState(null);
+  const [runsLoading,setRunsLoading]=useState(false);
+
+  useEffect(()=>{
+    if(open&&res.status==='completed'&&runs===null&&!runsLoading){
+      setRunsLoading(true);
+      fetchRunsForReservation(res.id)
+        .then(r=>setRuns(r))
+        .catch(()=>setRuns([]))
+        .finally(()=>setRunsLoading(false));
+    }
+  },[open,res.status,res.id]);
   const nameRef=useRef(null);
   const rt=resTypes.find(x=>x.id===res.typeId);
   const isUp=res.date>=todayStr();
@@ -132,6 +144,55 @@ See you on the field — SECTOR 317`
             </div>
           );
         })}
+        {/* ── Score section for completed reservations ── */}
+        {res.status==='completed'&&(
+          <div style={{borderTop:'1px solid var(--bdr)',padding:'.6rem 1.25rem',background:'rgba(0,0,0,.12)'}}>
+            {runsLoading&&<span style={{fontSize:'.78rem',color:'var(--muted)'}}>Loading scores…</span>}
+            {!runsLoading&&runs!==null&&runs.length===0&&<span style={{fontSize:'.78rem',color:'var(--muted)'}}>No runs recorded.</span>}
+            {!runsLoading&&runs&&runs.length>0&&(()=>{
+              const fmtSec=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+              const RunCard=({r,label})=>(
+                <div style={{background:'var(--bg3)',borderRadius:5,padding:'.4rem .7rem',minWidth:110}}>
+                  <div style={{fontSize:'.65rem',color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.2rem'}}>{label}</div>
+                  {r.score!=null&&<div style={{fontSize:'1.05rem',fontWeight:700,color:'var(--accB)',lineHeight:1.1}}>{r.score.toFixed(1)}{r.warBonus>0&&<span style={{fontSize:'.65rem',color:'var(--warnL)',marginLeft:'.3rem'}}>+{r.warBonus.toFixed(1)} war</span>}</div>}
+                  <div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:'.15rem',display:'flex',gap:'.35rem',flexWrap:'wrap'}}>
+                    <span style={{color:r.objectiveComplete?'var(--okB)':'var(--muted)'}}>{r.objectiveComplete?'✓':'✗'} obj</span>
+                    {r.targetsEliminated&&<span style={{color:'var(--okB)'}}>✓ tgts</span>}
+                    {r.elapsedSeconds>0&&<span>{fmtSec(r.elapsedSeconds)}</span>}
+                  </div>
+                </div>
+              );
+              if(rt?.mode==='coop'){
+                return(
+                  <div style={{display:'flex',gap:'.75rem',flexWrap:'wrap',alignItems:'flex-start'}}>
+                    {runs.map(r=><RunCard key={r.id} r={r} label={`Run ${r.runNumber}`}/>)}
+                  </div>
+                );
+              }
+              // Versus — group by team
+              const TEAMS=[{num:1,label:'Blue',color:'#2d7dd2'},{num:2,label:'Red',color:'#c0392b'}];
+              return(
+                <div style={{display:'flex',gap:'1.5rem',flexWrap:'wrap'}}>
+                  {TEAMS.map(({num,label,color})=>{
+                    const teamRuns=runs.filter(r=>r.team===num);
+                    if(!teamRuns.length)return null;
+                    const names=res.players.filter(p=>p.team===num).map(p=>p.name.split(' ')[0]).join(', ');
+                    return(
+                      <div key={num} style={{flex:1,minWidth:180}}>
+                        <div style={{fontSize:'.68rem',fontWeight:700,color,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
+                          {label}{names?` — ${names}`:''}
+                        </div>
+                        <div style={{display:'flex',gap:'.6rem',flexWrap:'wrap'}}>
+                          {teamRuns.map(r=><RunCard key={r.id} r={r} label={`Run ${r.runNumber}${r.role?` · ${r.role}`:''}`}/>)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        )}
         {canManage&&isEditable&&<div className="add-player-row">
           {/* Phone input */}
           <div className="f">
