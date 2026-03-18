@@ -627,7 +627,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const fmtTime=m=>{const h=Math.floor(m/60);const mn=m%60;const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return mn?`${h12}:${String(mn).padStart(2,"0")}${ap}`:`${h12}${ap}`;};
           const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
-          const ROLE_W="9rem";const BAR_H=110;const BAR_GAP=4;
+          const allRoleNames=[...new Set([...Object.keys(roleGroups),...openShifts.map(s=>s.role||"General")])];
+          const longestRoleChars=allRoleNames.reduce((mx,r)=>Math.max(mx,r.length),6);
+          const ROLE_W=`${Math.max(4,longestRoleChars*0.65+1).toFixed(2)}rem`;const BAR_H=110;const BAR_GAP=4;
           // ── Lane data via buildLanes ──
           const maxLanes=todaySlots.reduce((mx,s)=>Math.max(mx,s.maxSessions||2),0)||2;
           const slotLaneMap=Object.fromEntries(todaySlots.map(slot=>[slot.startTime,buildLanes(today,slot.startTime,todayRes,resTypes,sessionTemplates).lanes]));
@@ -643,7 +645,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const syncB=e=>{const a=tlScrollRefs.current.a;if(a&&a.scrollLeft!==e.target.scrollLeft)a.scrollLeft=e.target.scrollLeft;};
           const timeAxisHeader=(
             <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
-              <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
+              <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .5rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
                 <span style={{fontSize:".68rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>—</span>
               </div>
               <div style={{flex:1,position:"relative",height:"1.4rem"}}>
@@ -686,7 +688,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                   {timeAxisHeader}
                   {Array.from({length:maxLanes},(_,laneIdx)=>(
                     <div key={laneIdx} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
-                      <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",position:"sticky",left:0,zIndex:2,background:"var(--surf)"}}>
+                      <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .5rem",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",position:"sticky",left:0,zIndex:2,background:"var(--surf)"}}>
                         <span style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em"}}>Lane {laneIdx+1}</span>
                       </div>
                       <div style={{flex:1,position:"relative",height:BAR_H+14,background:"rgba(0,0,0,.15)"}}>
@@ -756,7 +758,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                     const rowH=allBars.length*(STAFF_H+BAR_GAP)+10;
                     return(
                       <div key={role} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
-                        <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",position:"sticky",left:0,zIndex:2,background:"var(--surf)"}}>
+                        <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .5rem",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",position:"sticky",left:0,zIndex:2,background:"var(--surf)"}}>
                           <span style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",lineHeight:1.3}}>{role}</span>
                         </div>
                         <div style={{flex:1,position:"relative",height:rowH,background:"rgba(0,0,0,.15)"}}>
@@ -792,7 +794,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                     <div ref={el=>{tlScrollRefs.current.b=el;}} onScroll={syncB} style={{overflowX:"auto"}}>
                     <div style={{minWidth:`calc(${timelineMinPx}px + ${ROLE_W})`}}>
                       <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
-                        <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
+                        <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .5rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
                           <span style={{fontSize:".68rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>ROLE</span>
                         </div>
                         <div style={{flex:1,position:"relative",height:"1.4rem"}}>
