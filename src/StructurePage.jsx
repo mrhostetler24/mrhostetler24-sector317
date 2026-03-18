@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react'
-import { supabase } from './supabase.js'
+import { createClient } from '@supabase/supabase-js'
 import { vizRenderName, audRenderName } from './envRender.jsx'
 import { TierImg, PlatoonTag } from './ui.jsx'
+
+// Dedicated client with no session persistence so that Alpha and Bravo
+// pages open in separate browser tabs never overwrite each other's
+// auth token in localStorage (which kills the other tab's Realtime sub).
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+)
 
 const VIZ_OPTS = [
   { code: 'V', name: 'Standard', desc: '6000K House Lighting' },
