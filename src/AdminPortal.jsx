@@ -614,12 +614,14 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const slotDurs=todaySlots.map(s=>{const st=toMin(s.startTime);return{startTime:s.startTime,st,et:st+60};});
           const shiftMins=todayShifts.flatMap(s=>[toMin(s.start),toMin(s.end)]).filter(t=>t>0);
           const allTlMins=[...slotDurs.flatMap(s=>[s.st,s.et]),...shiftMins].filter(t=>t>0);
-          const tlStart=allTlMins.length?Math.max(0,Math.min(...allTlMins)-30):0;
-          const tlEnd=allTlMins.length?Math.min(1440,Math.max(...allTlMins)+30):1440;
+          const tlStart=allTlMins.length?Math.max(0,Math.min(...allTlMins)):0;
+          const tlEnd=allTlMins.length?Math.min(1440,Math.max(...allTlMins)):1440;
           const tlSpan=tlEnd-tlStart||1;
           const pct=m=>(((m-tlStart)/tlSpan)*100).toFixed(3);
           const firstHour=Math.ceil(tlStart/60);const lastHour=Math.floor(tlEnd/60);
           const hourMarks=[];for(let h=firstHour;h<=lastHour;h++)hourMarks.push(h*60);
+          // half-hour marks: :30 between each hour that falls within the timeline
+          const halfMarks=[];for(let h=Math.floor(tlStart/60);h<lastHour;h++){const m=h*60+30;if(m>tlStart&&m<tlEnd)halfMarks.push(m);}
           const fmtHr=m=>{const h=Math.floor(m/60);const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return`${h12}${ap}`;};
           const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
@@ -641,6 +643,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               <div style={{flex:1,position:"relative",height:"1.4rem"}}>
                 {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7}}/>}
                 {hourMarks.map(h=><span key={h} style={{position:"absolute",left:`${pct(h)}%`,transform:"translateX(-50%)",fontSize:".58rem",color:"rgba(255,255,255,.28)",lineHeight:"1.4rem",whiteSpace:"nowrap",fontWeight:600,letterSpacing:".03em"}}>{fmtHr(h)}</span>)}
+                {halfMarks.map(m=><span key={m} style={{position:"absolute",left:`${pct(m)}%`,transform:"translateX(-50%)",fontSize:".52rem",color:"rgba(255,255,255,.14)",lineHeight:"1.4rem",whiteSpace:"nowrap",letterSpacing:".02em"}}>{":30"}</span>)}
               </div>
             </div>
           );
