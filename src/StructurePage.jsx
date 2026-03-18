@@ -273,7 +273,7 @@ export default function StructurePage({ structure }) {
             Stand By
           </div>
           <div style={{ fontSize: 'clamp(.8rem,1.5vw,1.4rem)', color: 'var(--muted)', lineHeight: 1.6 }}>
-            Your operator will activate this panel when your session is ready.
+            Your instructor will activate this panel shortly.
           </div>
         </div>
       )}
