@@ -1693,6 +1693,17 @@ export async function deactivateStructure(structure) {
   if (error) throw error
 }
 
+// Push updated player roster (with team assignments) to a structure tablet
+// without resetting objective_id / difficulty. Used when instructor moves a
+// player between teams on the scoring table.
+export async function updateStructurePlayers(structure, players) {
+  const { error } = await supabase.rpc('update_structure_players', {
+    p_structure: structure,
+    p_players:   players,
+  })
+  if (error) throw error
+}
+
 // ============================================================
 // EMAIL PREFERENCES
 // ============================================================

@@ -20,6 +20,7 @@ import {
   activateStructureRun,
   setStructureEnvironment,
   deactivateStructure,
+  updateStructurePlayers,
 } from './supabase.js'
 import { processPayment } from './payments.js'
 import {
@@ -315,8 +316,9 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null)=>{
     const allObjs=objs||objectives;
     lanes.forEach((lane,laneIdx)=>{
-      const allRes=lane.reservations;if(!allRes.length)return;
+      const allRes=lane.reservations;
       const structure=(order||structOrder)[laneIdx];
+      if(!allRes.length){deactivateStructure(structure).catch(()=>{});return;}
       const rt=resTypes.find(x=>x.id===allRes[0].typeId);
       const mode=rt?.mode||'coop';
       const objsList=allObjs.filter(o=>o.mode==='all'||o.mode===mode).map(o=>({id:o.id,name:o.name,description:o.description??null}));
@@ -426,7 +428,22 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     if(pObj?.team!=null)return pObj.team;
     return calcResVsTeams(lanes[laneIdx].reservations)[res.id]??1;
   };
-  const setPlayerTeam=(laneIdx,pid,team)=>setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),[pid]:team}}}));
+  const setPlayerTeam=(laneIdx,pid,team)=>{
+    setRunTeams(p=>({...p,[run]:{...p[run],[laneIdx]:{...(p[run][laneIdx]||{}),[pid]:team}}}));
+    // Push updated roster to structure tablet immediately (don't wait for state commit)
+    const lane=lanes[laneIdx];const allRes=lane.reservations;if(!allRes.length)return;
+    const rt=resTypes.find(x=>x.id===allRes[0].typeId);if(rt?.mode!=='versus')return;
+    const overrideTeams={...(runTeams[run][laneIdx]||{}),[pid]:team};
+    const laneResTeams=calcResVsTeams(allRes);
+    const playersList=allRes.flatMap(r=>r.players||[]).map(p=>{
+      const ownerRes=allRes.find(r=>(r.players||[]).some(pl=>pl.id===p.id));
+      const t=overrideTeams[p.id]!=null?overrideTeams[p.id]:versusTeams?.[ownerRes?.id]?.[p.id]!=null?versusTeams[ownerRes.id][p.id]:p.team!=null?p.team:(laneResTeams[ownerRes?.id]??1);
+      const u=p.userId?(users||[]).find(x=>x.id===p.userId):null;
+      const tier=getTierInfo(Number(u?.totalRuns||0)).current;
+      return{id:p.id,name:p.name||'—',team:t,tierKey:tier.key,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null,platoonBadgeColor:u?.platoonBadgeColor??null,leaderboardName:u?.leaderboardName??null};
+    });
+    updateStructurePlayers(structOrder[laneIdx],playersList).catch(()=>{});
+  };
 
 
   const laneKey=(r,li,team)=>`${r}-${li}${team!=null?'-t'+team:''}`;
