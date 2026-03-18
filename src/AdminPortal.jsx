@@ -623,7 +623,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const fmtHr=m=>{const h=Math.floor(m/60);const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return`${h12}${ap}`;};
           const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
-          const ROLE_W="9rem";const BAR_H=68;const BAR_GAP=4;
+          const ROLE_W="9rem";const BAR_H=80;const BAR_GAP=4;
           // ── Lane data via buildLanes ──
           const maxLanes=todaySlots.reduce((mx,s)=>Math.max(mx,s.maxSessions||2),0)||2;
           const slotLaneMap=Object.fromEntries(todaySlots.map(slot=>[slot.startTime,buildLanes(today,slot.startTime,todayRes,resTypes,sessionTemplates).lanes]));
@@ -688,39 +688,45 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           const isEmpty=resv.length===0;
                           const mode=lane?.mode;const lStyle=lane?.type;
                           const col=isEmpty?null:laneColor(mode,lStyle);
-                          // Each block is 30-min wide (slot interval) so adjacent blocks
-                          // share a diagonal seam without overlapping
-                          const nextSt=slotI+1<slotDurs.length?slotDurs[slotI+1].st:et;
-                          const bl=Number(pct(st));const bw=Number(pct(nextSt))-bl;
+                          // 60-min CSS width — clip-path creates the diagonal seam between adjacent blocks
+                          const bl=Number(pct(st));const bw=Number(pct(et))-bl;
+                          // At pixel row y, visible x range is: (y/BAR_H)*50% → (y/BAR_H)*50%+50%
+                          const rowLeft=y=>`calc(${((y/BAR_H)*50).toFixed(1)}% + 5px)`;
+                          const rowCount=1+resv.length;
+                          const rowSpacing=Math.floor((BAR_H-8)/rowCount);
                           return(
                             <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:5,height:BAR_H,
-                              transform:"skewX(40deg)",
+                              clipPath:"polygon(0 0, 50% 0, 100% 100%, 50% 100%)",
                               background:isEmpty?"rgba(255,255,255,.025)":col.bg,
-                              boxSizing:"border-box",overflow:"hidden"}}>
-                              <div style={{transform:"skewX(-40deg)",display:"flex",flexDirection:"column",justifyContent:"center",
-                                height:"100%",padding:".28rem .55rem",gap:".1rem"}}>
-                                {isEmpty
-                                  ?<span style={{fontSize:".62rem",color:"rgba(255,255,255,.12)",fontStyle:"italic"}}>open</span>
-                                  :<>
-                                    <div style={{display:"flex",gap:".18rem",flexWrap:"nowrap",marginBottom:".08rem"}}>
-                                      {mode&&<span className={`badge b-${mode}`} style={{fontSize:".5rem",flexShrink:0,lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
-                                      {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".5rem",flexShrink:0,lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
-                                    </div>
-                                    {resv.map((r,ri)=>{
-                                      const pc=r.players?.length||r.playerCount||0;
-                                      return(
-                                        <div key={r.id} style={{display:"flex",alignItems:"baseline",gap:".2rem",minWidth:0}}>
-                                          <span style={{fontSize:ri===0?".68rem":".62rem",fontWeight:ri===0?600:400,
-                                            color:ri===0?col.hl:"var(--muted)",
-                                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>
-                                            {r.customerName}
-                                          </span>
-                                          <span style={{fontSize:".56rem",color:"var(--muted)",whiteSpace:"nowrap",flexShrink:0}}>{pc}p</span>
-                                        </div>
-                                      );
-                                    })}
-                                  </>}
-                              </div>
+                              border:`1px solid ${isEmpty?"rgba(255,255,255,.06)":"rgba(0,0,0,.18)"}`,
+                              boxSizing:"border-box",overflow:"hidden",zIndex:slotI+1}}>
+                              {isEmpty
+                                ?<span style={{position:"absolute",top:`${BAR_H*.35}px`,left:rowLeft(BAR_H*.35),
+                                    fontSize:".6rem",color:"rgba(255,255,255,.12)",fontStyle:"italic"}}>open</span>
+                                :<>
+                                  {/* Badges row — top of visible band */}
+                                  <div style={{position:"absolute",top:4,left:rowLeft(4),display:"flex",gap:".18rem",alignItems:"center"}}>
+                                    {mode&&<span className={`badge b-${mode}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
+                                    {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
+                                    <span style={{fontSize:".52rem",color:"var(--muted)",fontWeight:600}}>{lane.playerCount}p</span>
+                                  </div>
+                                  {/* Name rows — staggered along the diagonal */}
+                                  {resv.map((r,ri)=>{
+                                    const pc=r.players?.length||r.playerCount||0;
+                                    const top=4+(ri+1)*rowSpacing;
+                                    return(
+                                      <div key={r.id} style={{position:"absolute",top,left:rowLeft(top),
+                                        display:"flex",gap:".2rem",alignItems:"baseline",maxWidth:"calc(50% - 10px)",overflow:"hidden"}}>
+                                        <span style={{fontSize:ri===0?".67rem":".61rem",fontWeight:ri===0?600:400,
+                                          color:ri===0?col.hl:"var(--muted)",
+                                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>
+                                          {r.customerName}
+                                        </span>
+                                        <span style={{fontSize:".54rem",color:"var(--muted)",flexShrink:0}}>{pc}p</span>
+                                      </div>
+                                    );
+                                  })}
+                                </>}
                             </div>
                           );
                         })}
