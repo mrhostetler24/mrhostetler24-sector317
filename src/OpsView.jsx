@@ -276,6 +276,9 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   const masterRef=useRef(null);
   const [laneFinish,setLaneFinish]=useState({});
   const [structOrder,setStructOrder]=useState(['Alpha','Bravo']);
+  // Map a lanes-array index → the correct structure name using the lane's physical laneNum
+  // (laneNum=1→index 0, laneNum=2→index 1). Falls back to laneIdx+1 if laneNum absent.
+  const laneStruct=(laneIdx,order)=>(order||structOrder)[((lanes[laneIdx]?.laneNum??laneIdx+1)-1)];
   const [settings,setSettings]=useState({1:{0:dfltLane(),1:dfltLane()},2:{0:dfltLane(),1:dfltLane()}});
   const [runTeams,setRunTeams]=useState(()=>{
     // Snapshot every player's initial team for run 1 at mount time so that
@@ -317,9 +320,12 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null)=>{
     const allObjs=objs||objectives;
     const effectiveOrder=order||structOrder;
+    const occupiedPhysIdx=new Set();
     lanes.forEach((lane,laneIdx)=>{
       const allRes=lane.reservations;
-      const structure=effectiveOrder[laneIdx];
+      const physIdx=(lane.laneNum??laneIdx+1)-1;
+      const structure=effectiveOrder[physIdx];
+      occupiedPhysIdx.add(physIdx);
       if(!allRes.length){deactivateStructure(structure).catch(()=>{});return;}
       const rt=resTypes.find(x=>x.id===allRes[0].typeId);
       const mode=rt?.mode||'coop';
@@ -346,10 +352,9 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
         runActivate.catch(e=>console.error('activateStructureRun failed:',e));
       }
     });
-    // Deactivate any structures assigned to indices beyond the lanes array
-    // (e.g. when only one lane is in use, the second structure is never iterated).
-    effectiveOrder.slice(lanes.length).forEach(structure=>{
-      deactivateStructure(structure).catch(()=>{});
+    // Deactivate any structure slots not covered by an active lane
+    effectiveOrder.forEach((structure,i)=>{
+      if(!occupiedPhysIdx.has(i))deactivateStructure(structure).catch(()=>{});
     });
   };
 
@@ -422,7 +427,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
       const na=key==='audio'?val:cur.audio;
       const no=key==='objectiveId'?val:(cur.objectiveId??null);
       const nd=key==='difficulty'?val:(cur.difficulty??'NONE');
-      setStructureEnvironment(structOrder[laneIdx],nv,na,no,nd).catch(()=>{});
+      setStructureEnvironment(laneStruct(laneIdx),nv,na,no,nd).catch(()=>{});
     }
   };
 
@@ -449,7 +454,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
       const tier=getTierInfo(Number(u?.totalRuns||0)).current;
       return{id:p.id,name:p.name||'—',team:t,tierKey:tier.key,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null,platoonBadgeColor:u?.platoonBadgeColor??null,leaderboardName:u?.leaderboardName??null};
     });
-    updateStructurePlayers(structOrder[laneIdx],playersList).catch(()=>{});
+    updateStructurePlayers(laneStruct(laneIdx),playersList).catch(()=>{});
   };
 
 
@@ -492,7 +497,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
       // Create run records for EVERY reservation so each customer can see their scores
       let firstR1=null,firstR2=null;
       for(const res of lane.reservations){
-        const base={reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],...env,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:winnerOrigTeam,scoredBy:currentUser?.id??null};
+        const base={reservationId:res.id,runNumber:runNum,structure:laneStruct(laneIdx),...env,elapsedSeconds:elapsedSec,objectiveId:s.objectiveId,winningTeam:winnerOrigTeam,scoredBy:currentUser?.id??null};
         const r1=await createRun({...base,team:hunterOrigTeam,role:'hunter',targetsEliminated:false,objectiveComplete:s.winnerTeam===1,score:huntersScore});
         const r2=await createRun({...base,team:coyoteOrigTeam,role:'coyote',targetsEliminated:false,objectiveComplete:s.winnerTeam!==2,score:coyotesScore});
         if(!firstR1){firstR1=r1;firstR2=r2;}
@@ -511,7 +516,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     try{
       const runs=[];
       for(const res of lane.reservations){
-        const r=await createRun({reservationId:res.id,runNumber:runNum,structure:structOrder[laneIdx],visual:s.visual,cranked:s.cranked,audio:s.audio??null,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,elapsedSeconds:elapsedSec,score,objectiveId:s.objectiveId,liveOpDifficulty:s.difficulty??'MEDIUM',team:null,winningTeam:null,scoredBy:currentUser?.id??null});
+        const r=await createRun({reservationId:res.id,runNumber:runNum,structure:laneStruct(laneIdx),visual:s.visual,cranked:s.cranked,audio:s.audio??null,targetsEliminated:s.targetsEliminated,objectiveComplete:s.objectiveComplete,elapsedSeconds:elapsedSec,score,objectiveId:s.objectiveId,liveOpDifficulty:s.difficulty??'MEDIUM',team:null,winningTeam:null,scoredBy:currentUser?.id??null});
         runs.push(r);
       }
       setScored(p=>({...p,[laneKey(runNum,laneIdx,null)]:runs[0]}));
@@ -797,7 +802,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     return(<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
       {/* Structure header */}
       <div style={{background:'var(--bg)',borderRadius:8,padding:'.6rem .85rem',textAlign:mirror?'right':'left'}}>
-        <div style={{fontWeight:800,fontSize:'1.05rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.06em'}}>{structOrder[laneIdx]}</div>
+        <div style={{fontWeight:800,fontSize:'1.05rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.06em'}}>{laneStruct(laneIdx)}</div>
         <div style={{display:'flex',gap:'.4rem',marginTop:'.2rem',flexWrap:'wrap',alignItems:'center',flexDirection:mirror?'row-reverse':'row'}}>
           {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
           <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{bookerNames}</span>
@@ -921,7 +926,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     return(<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
       {/* Structure header */}
       <div style={{background:'var(--bg)',borderRadius:8,padding:'.6rem .85rem',textAlign:mirror?'right':'left'}}>
-        <div style={{fontWeight:800,fontSize:'1.05rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.06em'}}>{structOrder[laneIdx]}</div>
+        <div style={{fontWeight:800,fontSize:'1.05rem',color:'var(--acc)',textTransform:'uppercase',letterSpacing:'.06em'}}>{laneStruct(laneIdx)}</div>
         <div style={{display:'flex',gap:'.4rem',marginTop:'.2rem',flexWrap:'wrap',alignItems:'center',flexDirection:mirror?'row-reverse':'row'}}>
           {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
           <span style={{fontSize:'.78rem',color:'var(--muted)'}}>{bookerNames}</span>
@@ -1045,7 +1050,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     const t2Pl=allPlayers.filter(p=>getLT(p.id)===2);
     const runs=[1,2].map(runNum=>{
       const sRec=scored[laneKey(runNum,li,1)]||scored[laneKey(runNum,li,2)]||scored[laneKey(runNum,li,null)];
-      const sName=sRec?.structure||structOrder[li];
+      const sName=sRec?.structure||laneStruct(li);
       const elapsedSec=scored[laneKey(runNum,li,1)]?.elapsedSeconds??scored[laneKey(runNum,li,null)]?.elapsedSeconds??null;
       if(mode==='versus'){
         // Blue=team:1 always, Red=team:2 always (stable original teams)
@@ -1358,6 +1363,8 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const activeWorkRef=useRef(false);
   useEffect(()=>{const t=setInterval(()=>setClock(new Date()),30000);return()=>clearInterval(t);},[]);
   useEffect(()=>{const t=setInterval(async()=>{if(activeWorkRef.current)return;try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}},5*60*1000);return()=>clearInterval(t);},[]);
+  const [isFullscreen,setIsFullscreen]=useState(()=>!!document.fullscreenElement);
+  useEffect(()=>{const h=()=>setIsFullscreen(!!document.fullscreenElement);document.addEventListener('fullscreenchange',h);return()=>document.removeEventListener('fullscreenchange',h);},[]);
   useEffect(()=>()=>{if(document.fullscreenElement)document.exitFullscreen?.();},[]);
   const showMsg=msg=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
   const today=todayStr();
@@ -1523,7 +1530,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         </div>
         <div style={{display:"flex",gap:".6rem"}}>
           <button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>setShowMerch(true)}>Merchandise</button>
-          <button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>document.documentElement.requestFullscreen?.()}>⛶ Fullscreen</button>
+          {!isFullscreen&&<button className="btn btn-s" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>document.documentElement.requestFullscreen?.()}>⛶ Fullscreen</button>}
           <button className="btn btn-p" style={{fontSize:".95rem",padding:".6rem 1.2rem"}} onClick={()=>{setShowWI("custom");setWi({phone:"",lookupStatus:"idle",foundUserId:null,customerName:"",typeId:"",playerCount:1,customTime:"",date:"",extraSlots:[],addSecondLane:false,splitA:0});}}>+ Walk-In</button>
         </div>
       </div>
