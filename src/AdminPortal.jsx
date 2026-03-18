@@ -623,7 +623,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const fmtHr=m=>{const h=Math.floor(m/60);const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return`${h12}${ap}`;};
           const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
-          const ROLE_W="9rem";const BAR_H=56;const BAR_GAP=4;const SKEW=18;
+          const ROLE_W="9rem";const BAR_H=68;const BAR_GAP=4;
           // ── Lane data via buildLanes ──
           const maxLanes=todaySlots.reduce((mx,s)=>Math.max(mx,s.maxSessions||2),0)||2;
           const slotLaneMap=Object.fromEntries(todaySlots.map(slot=>[slot.startTime,buildLanes(today,slot.startTime,todayRes,resTypes,sessionTemplates).lanes]));
@@ -688,36 +688,39 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           const isEmpty=resv.length===0;
                           const mode=lane?.mode;const lStyle=lane?.type;
                           const col=isEmpty?null:laneColor(mode,lStyle);
-                          const bl=Number(pct(st));const bw=Number(pct(et))-bl;
+                          // Each block is 30-min wide (slot interval) so adjacent blocks
+                          // share a diagonal seam without overlapping
+                          const nextSt=slotI+1<slotDurs.length?slotDurs[slotI+1].st:et;
+                          const bl=Number(pct(st));const bw=Number(pct(nextSt))-bl;
                           return(
                             <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:5,height:BAR_H,
-                              clipPath:`polygon(${SKEW}px 0,100% 0,calc(100% - ${SKEW}px) 100%,0 100%)`,
-                              background:isEmpty?"rgba(255,255,255,.035)":col.bg,
-                              boxSizing:"border-box",overflow:"hidden",
-                              display:"flex",flexDirection:"column",justifyContent:"center",
-                              padding:`.28rem .5rem .28rem ${SKEW+8}px`,gap:".1rem",
-                              zIndex:slotI+1}}>
-                              {isEmpty
-                                ?<span style={{fontSize:".62rem",color:"rgba(255,255,255,.15)",fontStyle:"italic",paddingLeft:2}}>open</span>
-                                :<>
-                                  <div style={{display:"flex",gap:".18rem",flexWrap:"nowrap",marginBottom:".08rem"}}>
-                                    {mode&&<span className={`badge b-${mode}`} style={{fontSize:".5rem",flexShrink:0,lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
-                                    {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".5rem",flexShrink:0,lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
-                                  </div>
-                                  {resv.map((r,ri)=>{
-                                    const pc=r.players?.length||r.playerCount||0;
-                                    return(
-                                      <div key={r.id} style={{display:"flex",alignItems:"baseline",gap:".2rem",minWidth:0}}>
-                                        <span style={{fontSize:ri===0?".68rem":".62rem",fontWeight:ri===0?600:400,
-                                          color:ri===0?col.hl:"var(--muted)",
-                                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>
-                                          {r.customerName}
-                                        </span>
-                                        <span style={{fontSize:".56rem",color:"var(--muted)",whiteSpace:"nowrap",flexShrink:0}}>{pc}p</span>
-                                      </div>
-                                    );
-                                  })}
-                                </>}
+                              transform:"skewX(12deg)",
+                              background:isEmpty?"rgba(255,255,255,.025)":col.bg,
+                              boxSizing:"border-box",overflow:"hidden"}}>
+                              <div style={{transform:"skewX(-12deg)",display:"flex",flexDirection:"column",justifyContent:"center",
+                                height:"100%",padding:".28rem .55rem",gap:".1rem"}}>
+                                {isEmpty
+                                  ?<span style={{fontSize:".62rem",color:"rgba(255,255,255,.12)",fontStyle:"italic"}}>open</span>
+                                  :<>
+                                    <div style={{display:"flex",gap:".18rem",flexWrap:"nowrap",marginBottom:".08rem"}}>
+                                      {mode&&<span className={`badge b-${mode}`} style={{fontSize:".5rem",flexShrink:0,lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
+                                      {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".5rem",flexShrink:0,lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
+                                    </div>
+                                    {resv.map((r,ri)=>{
+                                      const pc=r.players?.length||r.playerCount||0;
+                                      return(
+                                        <div key={r.id} style={{display:"flex",alignItems:"baseline",gap:".2rem",minWidth:0}}>
+                                          <span style={{fontSize:ri===0?".68rem":".62rem",fontWeight:ri===0?600:400,
+                                            color:ri===0?col.hl:"var(--muted)",
+                                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>
+                                            {r.customerName}
+                                          </span>
+                                          <span style={{fontSize:".56rem",color:"var(--muted)",whiteSpace:"nowrap",flexShrink:0}}>{pc}p</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </>}
+                              </div>
                             </div>
                           );
                         })}
