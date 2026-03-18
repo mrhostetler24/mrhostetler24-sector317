@@ -694,10 +694,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           const bl=Number(pct(st));const bw=Number(pct(nextSt))-bl;
                           return(
                             <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:5,height:BAR_H,
-                              transform:"skewX(12deg)",
+                              transform:"skewX(40deg)",
                               background:isEmpty?"rgba(255,255,255,.025)":col.bg,
                               boxSizing:"border-box",overflow:"hidden"}}>
-                              <div style={{transform:"skewX(-12deg)",display:"flex",flexDirection:"column",justifyContent:"center",
+                              <div style={{transform:"skewX(-40deg)",display:"flex",flexDirection:"column",justifyContent:"center",
                                 height:"100%",padding:".28rem .55rem",gap:".1rem"}}>
                                 {isEmpty
                                   ?<span style={{fontSize:".62rem",color:"rgba(255,255,255,.12)",fontStyle:"italic"}}>open</span>
