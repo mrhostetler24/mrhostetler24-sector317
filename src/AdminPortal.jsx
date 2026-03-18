@@ -692,20 +692,21 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           const bl=Number(pct(st));const bw=Number(pct(et))-bl;
                           // At pixel row y, visible x range is: (y/BAR_H)*50% → (y/BAR_H)*50%+50%
                           const rowLeft=y=>`calc(${((y/BAR_H)*50).toFixed(1)}% + 5px)`;
+                          const rowRight=y=>`calc(${(((1-y/BAR_H)*50)).toFixed(1)}% + 5px)`;
                           const rowCount=1+resv.length;
                           const rowSpacing=Math.floor((BAR_H-8)/rowCount);
                           return(
                             <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:5,height:BAR_H,
-                              clipPath:"polygon(0 0, 50% 0, 100% 100%, 50% 100%)",
+                              clipPath:"polygon(0 8px, 8px 0, 50% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 50% 100%)",
                               background:isEmpty?"rgba(255,255,255,.025)":col.bg,
-                              border:`1px solid ${isEmpty?"rgba(255,255,255,.06)":"rgba(0,0,0,.18)"}`,
-                              boxSizing:"border-box",overflow:"hidden",zIndex:slotI+1}}>
+                              filter:isEmpty?undefined:"drop-shadow(0 0 2px rgba(0,0,0,.65))",
+                              boxSizing:"border-box",zIndex:slotI+1}}>
                               {isEmpty
                                 ?<span style={{position:"absolute",top:`${BAR_H*.35}px`,left:rowLeft(BAR_H*.35),
                                     fontSize:".6rem",color:"rgba(255,255,255,.12)",fontStyle:"italic"}}>open</span>
                                 :<>
                                   {/* Badges row — top of visible band */}
-                                  <div style={{position:"absolute",top:4,left:rowLeft(4),display:"flex",gap:".18rem",alignItems:"center"}}>
+                                  <div style={{position:"absolute",top:4,left:rowLeft(4),right:rowRight(4),display:"flex",gap:".18rem",alignItems:"center",overflow:"hidden"}}>
                                     {mode&&<span className={`badge b-${mode}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
                                     {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
                                     <span style={{fontSize:".52rem",color:"var(--muted)",fontWeight:600}}>{lane.playerCount}p</span>
@@ -715,8 +716,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                                     const pc=r.players?.length||r.playerCount||0;
                                     const top=4+(ri+1)*rowSpacing;
                                     return(
-                                      <div key={r.id} style={{position:"absolute",top,left:rowLeft(top),
-                                        display:"flex",gap:".2rem",alignItems:"baseline",maxWidth:"calc(50% - 10px)",overflow:"hidden"}}>
+                                      <div key={r.id} style={{position:"absolute",top,left:rowLeft(top),right:rowRight(top),
+                                        display:"flex",gap:".2rem",alignItems:"baseline",overflow:"hidden"}}>
                                         <span style={{fontSize:ri===0?".67rem":".61rem",fontWeight:ri===0?600:400,
                                           color:ri===0?col.hl:"var(--muted)",
                                           whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>
