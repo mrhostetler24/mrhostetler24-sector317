@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, todayStr, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, cleanPh, sortTemplates, getSessionsForDate, buildLanes, getTierInfo, TIER_COLORS, TIER_SHINE, hasValidWaiver, latestWaiverDate } from "./utils.js"
 import { AuthBadge, Toast, Toggle, WaiverTooltip, RunsCell, genDefaultLeaderboardName } from "./ui.jsx"
 import {
@@ -40,6 +40,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [dismissedDups,setDismissedDups]=useState([]);
   const [careerRuns,setCareerRuns]=useState(null);
   const [friendsVersion,setFriendsVersion]=useState(0);
+  const tlScrollRefs=useRef({a:null,b:null});
   useEffect(()=>{
     if(tab!=='social')return;
     supabase.from('v_leaderboard_cumulative').select('total_runs_played').eq('player_id',user.id).maybeSingle()
@@ -623,6 +624,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           // half-hour marks: :30 between each hour that falls within the timeline
           const halfMarks=[];for(let h=Math.floor(tlStart/60);h<lastHour;h++){const m=h*60+30;if(m>tlStart&&m<tlEnd)halfMarks.push(m);}
           const fmtHr=m=>{const h=Math.floor(m/60);const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return`${h12}${ap}`;};
+          const fmtTime=m=>{const h=Math.floor(m/60);const mn=m%60;const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return mn?`${h12}:${String(mn).padStart(2,"0")}${ap}`:`${h12}${ap}`;};
           const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
           const ROLE_W="9rem";const BAR_H=80;const BAR_GAP=4;
@@ -635,15 +637,19 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             mode==="versus"&&style==="private"?{bg:"rgba(220,110,50,.13)",hl:"rgba(220,110,50,.55)"}:
             mode==="coop"&&style==="open"?{bg:"rgba(58,170,224,.13)",hl:"rgba(58,170,224,.55)"}:
             {bg:"rgba(170,58,224,.13)",hl:"rgba(170,58,224,.55)"};
+          const STAFF_H=Math.round(BAR_H/3);
+          const timelineMinPx=Math.max(500,Math.ceil(tlSpan/60*90));
+          const syncA=e=>{const b=tlScrollRefs.current.b;if(b&&b.scrollLeft!==e.target.scrollLeft)b.scrollLeft=e.target.scrollLeft;};
+          const syncB=e=>{const a=tlScrollRefs.current.a;if(a&&a.scrollLeft!==e.target.scrollLeft)a.scrollLeft=e.target.scrollLeft;};
           const timeAxisHeader=(
             <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
-              <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem"}}>
+              <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
                 <span style={{fontSize:".58rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>—</span>
               </div>
               <div style={{flex:1,position:"relative",height:"1.4rem"}}>
                 {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7}}/>}
                 {hourMarks.map(h=><span key={h} style={{position:"absolute",left:`${pct(h)}%`,transform:"translateX(-50%)",fontSize:".58rem",color:"rgba(255,255,255,.28)",lineHeight:"1.4rem",whiteSpace:"nowrap",fontWeight:600,letterSpacing:".03em"}}>{fmtHr(h)}</span>)}
-                {halfMarks.map(m=><span key={m} style={{position:"absolute",left:`${pct(m)}%`,transform:"translateX(-50%)",fontSize:".52rem",color:"rgba(255,255,255,.14)",lineHeight:"1.4rem",whiteSpace:"nowrap",letterSpacing:".02em"}}>{":30"}</span>)}
+                {halfMarks.map(m=><span key={m} style={{position:"absolute",left:`${pct(m)}%`,transform:"translateX(-50%)",fontSize:".52rem",color:"rgba(255,255,255,.16)",lineHeight:"1.4rem",whiteSpace:"nowrap",letterSpacing:".02em"}}>{fmtTime(m)}</span>)}
               </div>
             </div>
           );
@@ -675,11 +681,12 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               {sectionHead("Today's Schedule",`${new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})} · ${todayRes.length} session${todayRes.length!==1?"s":""} · ${totalTodayPlayers} players`)}
               {!todaySlots.length
                 ?<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No sessions offered today.</div>
-                :<div>
+                :<div ref={el=>{tlScrollRefs.current.a=el;}} onScroll={syncA} style={{overflowX:"auto"}}>
+                <div style={{minWidth:`calc(${timelineMinPx}px + ${ROLE_W})`}}>
                   {timeAxisHeader}
                   {Array.from({length:maxLanes},(_,laneIdx)=>(
                     <div key={laneIdx} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
-                      <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"flex-start"}}>
+                      <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",position:"sticky",left:0,zIndex:2,background:"var(--surf)"}}>
                         <span style={{fontSize:".67rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em"}}>Lane {laneIdx+1}</span>
                       </div>
                       <div style={{flex:1,position:"relative",height:BAR_H+14,background:"rgba(0,0,0,.15)"}}>
@@ -732,7 +739,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                       </div>
                     </div>
                   ))}
-                </div>}
+                </div></div>}
             </div>
 
             {/* ── Today's Staff ── */}
@@ -746,24 +753,25 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                     const assigned=(roleGroups[role]||[]);
                     const open=openShifts.filter(s=>(s.role||"General")===role);
                     const allBars=[...assigned.map(s=>({s,isOpen:false})),...open.map(s=>({s,isOpen:true}))];
-                    const rowH=allBars.length*(BAR_H+BAR_GAP)+10;
+                    const rowH=allBars.length*(STAFF_H+BAR_GAP)+10;
                     return(
                       <div key={role} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
-                        <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"flex-start"}}>
+                        <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",position:"sticky",left:0,zIndex:2,background:"var(--surf)"}}>
                           <span style={{fontSize:".67rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",lineHeight:1.3}}>{role}</span>
                         </div>
                         <div style={{flex:1,position:"relative",height:rowH,background:"rgba(0,0,0,.15)"}}>
                           {hourMarks.map(h=><div key={h} style={{position:"absolute",left:`${pct(h)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.05)"}}/>)}
+                          {halfMarks.map(m=><div key={m} style={{position:"absolute",left:`${pct(m)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.03)"}}/>)}
                           {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7,zIndex:3,pointerEvents:"none"}}/>}
                           {allBars.map(({s,isOpen},i)=>{
                             const u=!isOpen?users.find(x=>x.id===s.staffId):null;
                             const bl=Number(pct(toMin(s.start)));
                             const bw=Number(pct(toMin(s.end)))-bl;
-                            const top=i*(BAR_H+BAR_GAP)+5;
+                            const top=i*(STAFF_H+BAR_GAP)+5;
                             return(
                               <div key={s.id}
                                 onClick={()=>!isOpen&&u&&setStaffPopup({user:u,shift:s})}
-                                style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top,height:BAR_H,
+                                style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top,height:STAFF_H,
                                   background:isOpen?"rgba(192,57,43,.1)":"linear-gradient(90deg,rgba(200,224,58,.2),rgba(200,224,58,.1))",
                                   border:`1px solid ${isOpen?"rgba(192,57,43,.35)":"rgba(200,224,58,.3)"}`,
                                   borderLeft:`3px solid ${isOpen?"rgba(192,57,43,.6)":"rgba(200,224,58,.7)"}`,
@@ -781,9 +789,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                     );
                   };
                   return(
-                    <div>
+                    <div ref={el=>{tlScrollRefs.current.b=el;}} onScroll={syncB} style={{overflowX:"auto"}}>
+                    <div style={{minWidth:`calc(${timelineMinPx}px + ${ROLE_W})`}}>
                       <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
-                        <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem"}}>
+                        <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
                           <span style={{fontSize:".58rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>ROLE</span>
                         </div>
                         <div style={{flex:1,position:"relative",height:"1.4rem"}}>
@@ -793,9 +802,11 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                               {fmtHr(h)}
                             </span>
                           ))}
+                          {halfMarks.map(m=><span key={m} style={{position:"absolute",left:`${pct(m)}%`,transform:"translateX(-50%)",fontSize:".52rem",color:"rgba(255,255,255,.16)",lineHeight:"1.4rem",whiteSpace:"nowrap",letterSpacing:".02em"}}>{fmtTime(m)}</span>)}
                         </div>
                       </div>
                       {allRoles.map(role=>renderRow(role))}
+                    </div>
                     </div>
                   );
                 })()
