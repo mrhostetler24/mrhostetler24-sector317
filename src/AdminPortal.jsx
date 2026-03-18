@@ -704,9 +704,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                               {!isEmpty&&<>
                                 {/* mode/style badges + total player count */}
                                 <div style={{position:"absolute",top:4,left:rowL(4),right:rowR(4),display:"flex",justifyContent:"center",gap:".18rem",alignItems:"center",overflow:"hidden"}}>
-                                  {mode&&<span className={`badge b-${mode}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px",flexShrink:0}}>{mode}</span>}
-                                  {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px",flexShrink:0}}>{lStyle}</span>}
-                                  <span style={{fontSize:".52rem",color:"var(--muted)",fontWeight:600,flexShrink:0}}>{lane.playerCount}p</span>
+                                  {mode&&<span className={`badge b-${mode}`} style={{fontSize:".7rem",lineHeight:1.2,padding:"1px 4px",flexShrink:0}}>{mode}</span>}
+                                  {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".7rem",lineHeight:1.2,padding:"1px 4px",flexShrink:0}}>{lStyle}</span>}
+                                  <span style={{fontSize:".6rem",color:"var(--muted)",fontWeight:600,flexShrink:0}}>{lane.playerCount}p</span>
                                 </div>
                                 {/* name + player count — bounded within band, centered */}
                                 {resv.map((r,ri)=>{
@@ -714,10 +714,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                                   const top=4+(ri+1)*rowSpacing;
                                   return(
                                     <div key={r.id} style={{position:"absolute",top,left:rowL(top),right:rowR(top),display:"flex",justifyContent:"center",gap:".25rem",alignItems:"baseline",overflow:"hidden"}}>
-                                      <span style={{fontSize:".65rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
+                                      <span style={{fontSize:".7rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
                                         {r.customerName}
                                       </span>
-                                      <span style={{fontSize:".52rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
+                                      <span style={{fontSize:".6rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
                                     </div>
                                   );
                                 })}
