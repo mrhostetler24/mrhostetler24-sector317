@@ -640,7 +640,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             mode==="coop"&&style==="open"?{bg:"rgba(58,170,224,.13)",hl:"rgba(58,170,224,.55)"}:
             {bg:"rgba(170,58,224,.13)",hl:"rgba(170,58,224,.55)"};
           const STAFF_H=Math.round(BAR_H/3);
-          const timelineMinPx=Math.max(1000,Math.ceil(tlSpan/60*220));
+          const timelineMinPx=Math.max(1200,Math.ceil(tlSpan/60*300));
           const syncA=e=>{const b=tlScrollRefs.current.b;if(b&&b.scrollLeft!==e.target.scrollLeft)b.scrollLeft=e.target.scrollLeft;};
           const syncB=e=>{const a=tlScrollRefs.current.a;if(a&&a.scrollLeft!==e.target.scrollLeft)a.scrollLeft=e.target.scrollLeft;};
           const timeAxisHeader=(
