@@ -690,8 +690,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           const col=isEmpty?null:laneColor(mode,lStyle);
                           // 60-min CSS width — clip-path creates the diagonal seam between adjacent blocks
                           const bl=Number(pct(st));const bw=Number(pct(et))-bl;
-                          // left boundary follows the band's left edge; clip-path handles right overflow
-                          const rowLeft=y=>`calc(${((y/BAR_H)*50).toFixed(1)}% + 12px)`;
+                          // both edges follow the diagonal band; content is bounded and centered within
+                          const rowL=y=>`calc(${((y/BAR_H)*50).toFixed(1)}% + 4px)`;
+                          const rowR=y=>`calc(${(((1-y/BAR_H)*50)).toFixed(1)}% + 4px)`;
                           const rowCount=1+resv.length;
                           const rowSpacing=Math.floor((BAR_H-8)/rowCount);
                           return(
@@ -702,21 +703,21 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                               boxSizing:"border-box",zIndex:1}}>
                               {!isEmpty&&<>
                                 {/* mode/style badges + total player count */}
-                                <div style={{position:"absolute",top:4,left:rowLeft(4),display:"flex",gap:".18rem",alignItems:"center"}}>
-                                  {mode&&<span className={`badge b-${mode}`} style={{fontSize:".7rem",lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
-                                  {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".7rem",lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
-                                  <span style={{fontSize:".7rem",color:"var(--muted)",fontWeight:600}}>{lane.playerCount}p</span>
+                                <div style={{position:"absolute",top:4,left:rowL(4),right:rowR(4),display:"flex",justifyContent:"center",gap:".18rem",alignItems:"center",overflow:"hidden"}}>
+                                  {mode&&<span className={`badge b-${mode}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px",flexShrink:0}}>{mode}</span>}
+                                  {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px",flexShrink:0}}>{lStyle}</span>}
+                                  <span style={{fontSize:".52rem",color:"var(--muted)",fontWeight:600,flexShrink:0}}>{lane.playerCount}p</span>
                                 </div>
-                                {/* name + player count — all same color, staggered along diagonal */}
+                                {/* name + player count — bounded within band, centered */}
                                 {resv.map((r,ri)=>{
                                   const pc=r.players?.length||r.playerCount||0;
                                   const top=4+(ri+1)*rowSpacing;
                                   return(
-                                    <div key={r.id} style={{position:"absolute",top,left:rowLeft(top),display:"flex",gap:".25rem",alignItems:"baseline"}}>
-                                      <span style={{fontSize:".8rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap"}}>
+                                    <div key={r.id} style={{position:"absolute",top,left:rowL(top),right:rowR(top),display:"flex",justifyContent:"center",gap:".25rem",alignItems:"baseline",overflow:"hidden"}}>
+                                      <span style={{fontSize:".65rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
                                         {r.customerName}
                                       </span>
-                                      <span style={{fontSize:".8rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
+                                      <span style={{fontSize:".52rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
                                     </div>
                                   );
                                 })}
