@@ -317,8 +317,9 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   // preservePicks=true: restore objectiveId+difficulty after activation (swap or versus run flip).
   // settingsMap: if provided, use these lane settings instead of reading from state (for run flip,
   //              where setSettings() hasn't committed yet when activateStructures is called).
-  const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null)=>{
+  const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null,statsMap=null)=>{
     const allObjs=objs||objectives;
+    const effectiveStats=statsMap||playerStats;
     const effectiveOrder=order||structOrder;
     const occupiedPhysIdx=new Set();
     lanes.forEach((lane,laneIdx)=>{
@@ -340,7 +341,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
         const vt=versusTeams?.[ownerRes?.id]?.[p.id];
         const team=vt!=null?vt:p.team!=null?p.team:(laneResTeams[ownerRes?.id]??1);
         const u=p.userId?(users||[]).find(x=>x.id===p.userId):null;
-        const tier=getTierInfo(Number(playerStats[p.userId]?.total_runs||0)).current;
+        const tier=getTierInfo(Number(effectiveStats[p.userId]?.total_runs||0)).current;
         return{id:p.id,name:p.name||'—',team:mode==='versus'?team:1,tierKey:tier.key,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null,platoonBadgeColor:u?.platoonBadgeColor??null,leaderboardName:u?.leaderboardName??null};
       });
       const runActivate=activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList,playersList);
@@ -361,10 +362,11 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   // Fetch objectives + player stats on mount, then activate structure tablets
   useEffect(()=>{
     const uids=[...new Set(lanes.flatMap(l=>l.reservations.flatMap(r=>(r.players||[]).map(p=>p.userId).filter(Boolean))))];
-    if(uids.length)fetchPlayerScoringStats(uids).then(setPlayerStats).catch(()=>{});
-    fetchObjectives().then(objs=>{
+    const statsP=uids.length?fetchPlayerScoringStats(uids):Promise.resolve({});
+    Promise.all([fetchObjectives(),statsP]).then(([objs,stats])=>{
       setObjectives(objs);
-      activateStructures(objs,1,['Alpha','Bravo']);
+      setPlayerStats(stats);
+      activateStructures(objs,1,['Alpha','Bravo'],false,null,stats);
     }).catch(()=>{});
     // Deactivate both structures when modal unmounts normally
     return()=>{
@@ -377,7 +379,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   useEffect(()=>{
     const ch=supabase.channel('scoring-structures')
       .on('postgres_changes',{event:'UPDATE',schema:'public',table:'structures'},({new:row})=>{
-        const laneIdx=structOrderRef.current.indexOf(row.id);
+        const laneIdx=lanes.findIndex((l,i)=>structOrderRef.current[(l.laneNum??i+1)-1]===row.id);
         if(laneIdx===-1)return;
         const curRun=runRef.current;
         setSettings(prev=>{
@@ -451,7 +453,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
       const ownerRes=allRes.find(r=>(r.players||[]).some(pl=>pl.id===p.id));
       const t=overrideTeams[p.id]!=null?overrideTeams[p.id]:versusTeams?.[ownerRes?.id]?.[p.id]!=null?versusTeams[ownerRes.id][p.id]:p.team!=null?p.team:(laneResTeams[ownerRes?.id]??1);
       const u=p.userId?(users||[]).find(x=>x.id===p.userId):null;
-      const tier=getTierInfo(Number(u?.totalRuns||0)).current;
+      const tier=getTierInfo(Number(playerStats[p.userId]?.total_runs||0)).current;
       return{id:p.id,name:p.name||'—',team:t,tierKey:tier.key,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null,platoonBadgeColor:u?.platoonBadgeColor??null,leaderboardName:u?.leaderboardName??null};
     });
     updateStructurePlayers(laneStruct(laneIdx),playersList).catch(()=>{});
