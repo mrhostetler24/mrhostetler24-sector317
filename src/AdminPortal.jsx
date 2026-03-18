@@ -629,7 +629,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
           const allRoleNames=[...new Set([...Object.keys(roleGroups),...openShifts.map(s=>s.role||"General")])];
           const longestRoleChars=allRoleNames.reduce((mx,r)=>Math.max(mx,r.length),6);
-          const ROLE_W=`${Math.max(5,longestRoleChars*0.75+1).toFixed(2)}rem`;const BAR_H=110;const BAR_GAP=4;
+          const ROLE_W=`${Math.max(4,longestRoleChars*0.55+1).toFixed(2)}rem`;const BAR_H=110;const BAR_GAP=4;
           // ── Lane data via buildLanes ──
           const maxLanes=todaySlots.reduce((mx,s)=>Math.max(mx,s.maxSessions||2),0)||2;
           const slotLaneMap=Object.fromEntries(todaySlots.map(slot=>[slot.startTime,buildLanes(today,slot.startTime,todayRes,resTypes,sessionTemplates).lanes]));
@@ -683,7 +683,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               {sectionHead("Today's Schedule",`${new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})} · ${todayRes.length} session${todayRes.length!==1?"s":""} · ${totalTodayPlayers} players`)}
               {!todaySlots.length
                 ?<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No sessions offered today.</div>
-                :<div ref={el=>{tlScrollRefs.current.a=el;}} onScroll={syncA} style={{overflowX:"auto"}}>
+                :<div ref={el=>{const prev=tlScrollRefs.current.a;tlScrollRefs.current.a=el;if(el&&!prev&&showNow){el.scrollLeft=Math.max(0,(nowPct/100*timelineMinPx)-(el.clientWidth/2));}}} onScroll={syncA} style={{overflowX:"auto"}}>
                 <div style={{minWidth:`calc(${timelineMinPx}px + ${ROLE_W})`}}>
                   {timeAxisHeader}
                   {Array.from({length:maxLanes},(_,laneIdx)=>(
@@ -791,7 +791,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                     );
                   };
                   return(
-                    <div ref={el=>{tlScrollRefs.current.b=el;}} onScroll={syncB} style={{overflowX:"auto"}}>
+                    <div ref={el=>{const prev=tlScrollRefs.current.b;tlScrollRefs.current.b=el;if(el&&!prev&&showNow){el.scrollLeft=Math.max(0,(nowPct/100*timelineMinPx)-(el.clientWidth/2));}}} onScroll={syncB} style={{overflowX:"auto"}}>
                     <div style={{minWidth:`calc(${timelineMinPx}px + ${ROLE_W})`}}>
                       <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
                         <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .5rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
