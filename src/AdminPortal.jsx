@@ -627,7 +627,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const fmtTime=m=>{const h=Math.floor(m/60);const mn=m%60;const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return mn?`${h12}:${String(mn).padStart(2,"0")}${ap}`:`${h12}${ap}`;};
           const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
-          const ROLE_W="9rem";const BAR_H=80;const BAR_GAP=4;
+          const ROLE_W="9rem";const BAR_H=110;const BAR_GAP=4;
           // ── Lane data via buildLanes ──
           const maxLanes=todaySlots.reduce((mx,s)=>Math.max(mx,s.maxSessions||2),0)||2;
           const slotLaneMap=Object.fromEntries(todaySlots.map(slot=>[slot.startTime,buildLanes(today,slot.startTime,todayRes,resTypes,sessionTemplates).lanes]));
@@ -638,13 +638,13 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             mode==="coop"&&style==="open"?{bg:"rgba(58,170,224,.13)",hl:"rgba(58,170,224,.55)"}:
             {bg:"rgba(170,58,224,.13)",hl:"rgba(170,58,224,.55)"};
           const STAFF_H=Math.round(BAR_H/3);
-          const timelineMinPx=Math.max(500,Math.ceil(tlSpan/60*90));
+          const timelineMinPx=Math.max(700,Math.ceil(tlSpan/60*140));
           const syncA=e=>{const b=tlScrollRefs.current.b;if(b&&b.scrollLeft!==e.target.scrollLeft)b.scrollLeft=e.target.scrollLeft;};
           const syncB=e=>{const a=tlScrollRefs.current.a;if(a&&a.scrollLeft!==e.target.scrollLeft)a.scrollLeft=e.target.scrollLeft;};
           const timeAxisHeader=(
             <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
               <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
-                <span style={{fontSize:".58rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>—</span>
+                <span style={{fontSize:".68rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>—</span>
               </div>
               <div style={{flex:1,position:"relative",height:"1.4rem"}}>
                 {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7}}/>}
@@ -687,7 +687,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                   {Array.from({length:maxLanes},(_,laneIdx)=>(
                     <div key={laneIdx} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
                       <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",position:"sticky",left:0,zIndex:2,background:"var(--surf)"}}>
-                        <span style={{fontSize:".67rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em"}}>Lane {laneIdx+1}</span>
+                        <span style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em"}}>Lane {laneIdx+1}</span>
                       </div>
                       <div style={{flex:1,position:"relative",height:BAR_H+14,background:"rgba(0,0,0,.15)"}}>
                         {hourMarks.map(h=><div key={h} style={{position:"absolute",left:`${pct(h)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.05)"}}/>)}
@@ -715,9 +715,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                               {!isEmpty&&<>
                                 {/* mode/style badges + total player count — true-centered on band */}
                                 <div style={{position:"absolute",top:4,left:"33%",transform:"translateX(-50%)",display:"flex",gap:".18rem",alignItems:"center",whiteSpace:"nowrap"}}>
-                                  {mode&&<span className={`badge b-${mode}`} style={{fontSize:".7rem",lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
-                                  {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".7rem",lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
-                                  <span style={{fontSize:".7rem",color:"var(--muted)",fontWeight:600}}>{lane.playerCount}p</span>
+                                  {mode&&<span className={`badge b-${mode}`} style={{fontSize:".8rem",lineHeight:1.2,padding:"1px 5px"}}>{mode}</span>}
+                                  {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".8rem",lineHeight:1.2,padding:"1px 5px"}}>{lStyle}</span>}
+                                  <span style={{fontSize:".8rem",color:"var(--muted)",fontWeight:600}}>{lane.playerCount}p</span>
                                 </div>
                                 {/* name + player count — bounded within band, centered */}
                                 {resv.map((r,ri)=>{
@@ -725,10 +725,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                                   const top=4+(ri+1)*rowSpacing;
                                   return(
                                     <div key={r.id} style={{position:"absolute",top,left:rowL(top),right:rowR(top),display:"flex",justifyContent:"center",gap:".25rem",alignItems:"baseline",overflow:"hidden"}}>
-                                      <span style={{fontSize:".7rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
+                                      <span style={{fontSize:".82rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
                                         {r.customerName}
                                       </span>
-                                      <span style={{fontSize:".6rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
+                                      <span style={{fontSize:".72rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
                                     </div>
                                   );
                                 })}
@@ -757,7 +757,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                     return(
                       <div key={role} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
                         <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",position:"sticky",left:0,zIndex:2,background:"var(--surf)"}}>
-                          <span style={{fontSize:".67rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",lineHeight:1.3}}>{role}</span>
+                          <span style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em",lineHeight:1.3}}>{role}</span>
                         </div>
                         <div style={{flex:1,position:"relative",height:rowH,background:"rgba(0,0,0,.15)"}}>
                           {hourMarks.map(h=><div key={h} style={{position:"absolute",left:`${pct(h)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.05)"}}/>)}
@@ -778,7 +778,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                                   borderRadius:3,cursor:isOpen?"default":"pointer",
                                   display:"flex",alignItems:"center",paddingLeft:".4rem",paddingRight:".25rem",
                                   overflow:"hidden",boxSizing:"border-box"}}>
-                                <span style={{fontSize:".69rem",fontWeight:600,color:isOpen?"rgba(192,57,43,.8)":"var(--accB)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                <span style={{fontSize:".8rem",fontWeight:600,color:isOpen?"rgba(192,57,43,.8)":"var(--accB)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                                   {isOpen?"Open":(u?.name||"?")}
                                 </span>
                               </div>
@@ -793,7 +793,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                     <div style={{minWidth:`calc(${timelineMinPx}px + ${ROLE_W})`}}>
                       <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
                         <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem",position:"sticky",left:0,zIndex:2,background:"rgba(0,0,0,.2)"}}>
-                          <span style={{fontSize:".58rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>ROLE</span>
+                          <span style={{fontSize:".68rem",color:"rgba(255,255,255,.18)",fontWeight:700,textTransform:"uppercase",letterSpacing:".08em"}}>ROLE</span>
                         </div>
                         <div style={{flex:1,position:"relative",height:"1.4rem"}}>
                           {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7}}/>}
