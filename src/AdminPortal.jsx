@@ -629,7 +629,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
           const allRoleNames=[...new Set([...Object.keys(roleGroups),...openShifts.map(s=>s.role||"General")])];
           const longestRoleChars=allRoleNames.reduce((mx,r)=>Math.max(mx,r.length),6);
-          const ROLE_W=`${Math.max(4,longestRoleChars*0.65+1).toFixed(2)}rem`;const BAR_H=110;const BAR_GAP=4;
+          const ROLE_W=`${Math.max(5,longestRoleChars*0.75+1).toFixed(2)}rem`;const BAR_H=110;const BAR_GAP=4;
           // ── Lane data via buildLanes ──
           const maxLanes=todaySlots.reduce((mx,s)=>Math.max(mx,s.maxSessions||2),0)||2;
           const slotLaneMap=Object.fromEntries(todaySlots.map(slot=>[slot.startTime,buildLanes(today,slot.startTime,todayRes,resTypes,sessionTemplates).lanes]));
