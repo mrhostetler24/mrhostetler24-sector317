@@ -684,6 +684,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                       </div>
                       <div style={{flex:1,position:"relative",height:BAR_H+14,background:"rgba(0,0,0,.15)"}}>
                         {hourMarks.map(h=><div key={h} style={{position:"absolute",left:`${pct(h)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.05)"}}/>)}
+                        {halfMarks.map(m=><div key={m} style={{position:"absolute",left:`${pct(m)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.03)"}}/>)}
                         {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7,zIndex:99,pointerEvents:"none"}}/>}
                         {slotDurs.map(({startTime,st,et},slotI)=>{
                           const lane=(slotLaneMap[startTime]||[])[laneIdx];
