@@ -691,20 +691,21 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           // 60-min CSS width — clip-path creates the diagonal seam between adjacent blocks
                           const bl=Number(pct(st));const bw=Number(pct(et))-bl;
                           // left boundary follows the band's left edge; clip-path handles right overflow
-                          const rowLeft=y=>`calc(${((y/BAR_H)*50).toFixed(1)}% + 6px)`;
+                          const rowLeft=y=>`calc(${((y/BAR_H)*50).toFixed(1)}% + 12px)`;
                           const rowCount=1+resv.length;
                           const rowSpacing=Math.floor((BAR_H-8)/rowCount);
                           return(
-                            <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:5,height:BAR_H,
+                            <div key={startTime} style={{position:"absolute",left:`calc(${bl}% + 2px)`,width:`calc(${Math.max(bw,.4)}% - 4px)`,top:5,height:BAR_H,
                               clipPath:"polygon(0 8px, 8px 0, 50% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 50% 100%)",
                               background:isEmpty?"rgba(255,255,255,.025)":col.bg,
                               filter:isEmpty?undefined:"drop-shadow(0 0 1px rgba(0,0,0,.8))",
                               boxSizing:"border-box",zIndex:1}}>
                               {!isEmpty&&<>
-                                {/* mode/style badges */}
+                                {/* mode/style badges + total player count */}
                                 <div style={{position:"absolute",top:4,left:rowLeft(4),display:"flex",gap:".18rem",alignItems:"center"}}>
                                   {mode&&<span className={`badge b-${mode}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
                                   {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
+                                  <span style={{fontSize:".52rem",color:"var(--muted)",fontWeight:600}}>{lane.playerCount}p</span>
                                 </div>
                                 {/* name + player count — all same color, staggered along diagonal */}
                                 {resv.map((r,ri)=>{
