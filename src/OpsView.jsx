@@ -301,6 +301,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   const [scored,setScored]=useState({});
   const [saving,setSaving]=useState(null);
   const [showCommit,setShowCommit]=useState(false);
+  const [showExit,setShowExit]=useState(false);
   const [timePicker,setTimePicker]=useState(null); // {laneIdx,mins,secs,tenths}|null
   const openTimePicker=laneIdx=>{const ft=laneFinish[laneIdx]??0;setTimePicker({laneIdx,mins:Math.floor(ft/600),secs:Math.floor((ft%600)/10),tenths:ft%10});};
   // Refs so Realtime closure always sees current run/structOrder without re-subscribing
@@ -315,9 +316,10 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   //              where setSettings() hasn't committed yet when activateStructures is called).
   const activateStructures=(objs,runNum,order,preservePicks=false,settingsMap=null)=>{
     const allObjs=objs||objectives;
+    const effectiveOrder=order||structOrder;
     lanes.forEach((lane,laneIdx)=>{
       const allRes=lane.reservations;
-      const structure=(order||structOrder)[laneIdx];
+      const structure=effectiveOrder[laneIdx];
       if(!allRes.length){deactivateStructure(structure).catch(()=>{});return;}
       const rt=resTypes.find(x=>x.id===allRes[0].typeId);
       const mode=rt?.mode||'coop';
@@ -343,6 +345,11 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
       } else {
         runActivate.catch(e=>console.error('activateStructureRun failed:',e));
       }
+    });
+    // Deactivate any structures assigned to indices beyond the lanes array
+    // (e.g. when only one lane is in use, the second structure is never iterated).
+    effectiveOrder.slice(lanes.length).forEach(structure=>{
+      deactivateStructure(structure).catch(()=>{});
     });
   };
 
@@ -404,7 +411,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     return()=>clearInterval(masterRef.current);
   },[masterRunning]);
 
-  const tryClose=()=>{if(window.confirm('Leave Scoring? Scores already logged are saved — unscored runs will be lost.'))onClose();}
+  const tryClose=()=>setShowExit(true);
 
   const setSetting=(laneIdx,key,val)=>{
     setSettings(p=>({...p,[run]:{...p[run],[laneIdx]:{...p[run][laneIdx],[key]:val}}}));
@@ -1069,8 +1076,10 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     return{li,mode,typeName:rt?.name||'',runs,laneWar};
   });
 
+  const reqFS=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});};
   return(
-    <div style={{position:'fixed',inset:0,background:'var(--bg)',zIndex:10000,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+    <div onClick={reqFS} style={{position:'fixed',inset:0,background:'var(--bg)',zIndex:10000,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      {showExit&&<ScoringExitGuard onStay={()=>setShowExit(false)} onLeave={onClose}/>}
       {/* Header bar */}
       <div style={{background:'var(--surf)',borderBottom:'2px solid var(--bdr)',padding:'.75rem 1.2rem',display:'grid',gridTemplateColumns:'1fr auto 1fr',alignItems:'center',gap:'1rem',flexShrink:0}}>
         {/* Left: title + run tabs */}
