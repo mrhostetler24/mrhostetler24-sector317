@@ -703,7 +703,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                               boxSizing:"border-box",zIndex:1}}>
                               {!isEmpty&&<>
                                 {/* mode/style badges + total player count — true-centered on band */}
-                                <div style={{position:"absolute",top:4,left:`${(25+(4/BAR_H)*50).toFixed(1)}%`,transform:"translateX(-50%)",display:"flex",gap:".18rem",alignItems:"center",whiteSpace:"nowrap"}}>
+                                <div style={{position:"absolute",top:4,left:"33%",transform:"translateX(-50%)",display:"flex",gap:".18rem",alignItems:"center",whiteSpace:"nowrap"}}>
                                   {mode&&<span className={`badge b-${mode}`} style={{fontSize:".7rem",lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
                                   {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".7rem",lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
                                   <span style={{fontSize:".7rem",color:"var(--muted)",fontWeight:600}}>{lane.playerCount}p</span>
