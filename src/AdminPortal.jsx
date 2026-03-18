@@ -688,43 +688,38 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           const isEmpty=resv.length===0;
                           const mode=lane?.mode;const lStyle=lane?.type;
                           const col=isEmpty?null:laneColor(mode,lStyle);
+                          // 60-min CSS width — clip-path creates the diagonal seam between adjacent blocks
                           const bl=Number(pct(st));const bw=Number(pct(et))-bl;
-                          // SKEW px = lean offset; creates \ diagonal + natural gap between adjacent blocks
-                          const SK=28;
-                          const rowLeft=y=>`${Math.round(SK*(y/BAR_H))+5}px`;
-                          const rowRight=y=>`${Math.round(SK*(1-y/BAR_H))+5}px`;
+                          // left boundary follows the band's left edge; clip-path handles right overflow
+                          const rowLeft=y=>`calc(${((y/BAR_H)*50).toFixed(1)}% + 6px)`;
                           const rowCount=1+resv.length;
-                          const rowSpacing=Math.floor((BAR_H-10)/rowCount);
+                          const rowSpacing=Math.floor((BAR_H-8)/rowCount);
                           return(
                             <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:5,height:BAR_H,
-                              clipPath:`polygon(0 0, calc(100% - ${SK}px) 0, 100% 100%, ${SK}px 100%)`,
-                              background:isEmpty?"rgba(255,255,255,.03)":col.bg,
-                              outline:isEmpty?undefined:`1px solid ${col.hl.replace(/[\d.]+\)$/,".25)")}`,
+                              clipPath:"polygon(0 8px, 8px 0, 50% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 50% 100%)",
+                              background:isEmpty?"rgba(255,255,255,.025)":col.bg,
+                              filter:isEmpty?undefined:"drop-shadow(0 0 1px rgba(0,0,0,.8))",
                               boxSizing:"border-box",zIndex:1}}>
-                              {isEmpty
-                                ?null
-                                :<>
-                                  <div style={{position:"absolute",top:5,left:rowLeft(5),right:rowRight(5),display:"flex",gap:".18rem",alignItems:"center",overflow:"hidden"}}>
-                                    {mode&&<span className={`badge b-${mode}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
-                                    {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
-                                    <span style={{fontSize:".52rem",color:"var(--muted)",fontWeight:600}}>{lane.playerCount}p</span>
-                                  </div>
-                                  {resv.map((r,ri)=>{
-                                    const pc=r.players?.length||r.playerCount||0;
-                                    const top=5+(ri+1)*rowSpacing;
-                                    return(
-                                      <div key={r.id} style={{position:"absolute",top,left:rowLeft(top),right:rowRight(top),
-                                        display:"flex",gap:".25rem",alignItems:"baseline",overflow:"hidden"}}>
-                                        <span style={{fontSize:ri===0?".68rem":".62rem",fontWeight:ri===0?600:400,
-                                          color:ri===0?col.hl:"var(--muted)",
-                                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>
-                                          {r.customerName}
-                                        </span>
-                                        <span style={{fontSize:".54rem",color:"var(--muted)",flexShrink:0}}>{pc}p</span>
-                                      </div>
-                                    );
-                                  })}
-                                </>}
+                              {!isEmpty&&<>
+                                {/* mode/style badges */}
+                                <div style={{position:"absolute",top:4,left:rowLeft(4),display:"flex",gap:".18rem",alignItems:"center"}}>
+                                  {mode&&<span className={`badge b-${mode}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
+                                  {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".48rem",lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
+                                </div>
+                                {/* name + player count — all same color, staggered along diagonal */}
+                                {resv.map((r,ri)=>{
+                                  const pc=r.players?.length||r.playerCount||0;
+                                  const top=4+(ri+1)*rowSpacing;
+                                  return(
+                                    <div key={r.id} style={{position:"absolute",top,left:rowLeft(top),display:"flex",gap:".25rem",alignItems:"baseline"}}>
+                                      <span style={{fontSize:".65rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap"}}>
+                                        {r.customerName}
+                                      </span>
+                                      <span style={{fontSize:".52rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
+                                    </div>
+                                  );
+                                })}
+                              </>}
                             </div>
                           );
                         })}
