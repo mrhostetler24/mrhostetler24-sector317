@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
-import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, todayStr, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, cleanPh, sortTemplates, getSessionsForDate, getTierInfo, TIER_COLORS, TIER_SHINE, hasValidWaiver, latestWaiverDate } from "./utils.js"
+import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, todayStr, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, cleanPh, sortTemplates, getSessionsForDate, buildLanes, getTierInfo, TIER_COLORS, TIER_SHINE, hasValidWaiver, latestWaiverDate } from "./utils.js"
 import { AuthBadge, Toast, Toggle, WaiverTooltip, RunsCell, genDefaultLeaderboardName } from "./ui.jsx"
 import {
   supabase, mergeUsers, updateUserAdmin, updateEmailPreferences, fetchEmailPreferences,
@@ -602,7 +602,6 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           // ── Today's Schedule ──
           const todaySlots=getSessionsForDate(today,sessionTemplates);
           const todayRes=reservations.filter(r=>r.date===today&&r.status!=="cancelled");
-          const slotBookings=slot=>todayRes.filter(r=>r.startTime===slot.startTime).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
           const totalTodayPlayers=todayRes.reduce((s,r)=>s+(r.players?.length||r.playerCount||0),0);
           // ── Today's Staff ──
           const todayShifts=shifts.filter(s=>s.date===today);
@@ -624,7 +623,16 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
           const fmtHr=m=>{const h=Math.floor(m/60);const ap=h>=12?"PM":"AM";const h12=h>12?h-12:h===0?12:h;return`${h12}${ap}`;};
           const nowDate=new Date();const nowMin=nowDate.getHours()*60+nowDate.getMinutes();
           const showNow=allTlMins.length>0&&nowMin>=tlStart&&nowMin<=tlEnd;const nowPct=pct(nowMin);
-          const ROLE_W="9rem";const BAR_H=44;const BAR_GAP=4;
+          const ROLE_W="9rem";const BAR_H=56;const BAR_GAP=4;const SKEW=18;
+          // ── Lane data via buildLanes ──
+          const maxLanes=todaySlots.reduce((mx,s)=>Math.max(mx,s.maxSessions||2),0)||2;
+          const slotLaneMap=Object.fromEntries(todaySlots.map(slot=>[slot.startTime,buildLanes(today,slot.startTime,todayRes,resTypes,sessionTemplates).lanes]));
+          // Color per mode+style
+          const laneColor=(mode,style)=>
+            mode==="coop"&&style==="private"?{bg:"rgba(200,224,58,.13)",hl:"rgba(200,224,58,.55)"}:
+            mode==="versus"&&style==="private"?{bg:"rgba(220,110,50,.13)",hl:"rgba(220,110,50,.55)"}:
+            mode==="coop"&&style==="open"?{bg:"rgba(58,170,224,.13)",hl:"rgba(58,170,224,.55)"}:
+            {bg:"rgba(170,58,224,.13)",hl:"rgba(170,58,224,.55)"};
           const timeAxisHeader=(
             <div style={{display:"flex",background:"rgba(0,0,0,.2)",borderBottom:"1px solid rgba(255,255,255,.07)"}}>
               <div style={{width:ROLE_W,flexShrink:0,padding:".28rem .85rem"}}>
@@ -666,38 +674,49 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 ?<div style={{padding:"1.25rem .85rem",fontSize:".83rem",color:"var(--muted)"}}>No sessions offered today.</div>
                 :<div>
                   {timeAxisHeader}
-                  {[0,1].map(laneIdx=>(
+                  {Array.from({length:maxLanes},(_,laneIdx)=>(
                     <div key={laneIdx} style={{display:"flex",borderTop:"1px solid rgba(255,255,255,.05)"}}>
                       <div style={{width:ROLE_W,flexShrink:0,padding:".55rem .85rem",display:"flex",alignItems:"flex-start"}}>
                         <span style={{fontSize:".67rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:".06em"}}>Lane {laneIdx+1}</span>
                       </div>
                       <div style={{flex:1,position:"relative",height:BAR_H+14,background:"rgba(0,0,0,.15)"}}>
                         {hourMarks.map(h=><div key={h} style={{position:"absolute",left:`${pct(h)}%`,top:0,bottom:0,width:1,background:"rgba(255,255,255,.05)"}}/>)}
-                        {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7,zIndex:3,pointerEvents:"none"}}/>}
-                        {slotDurs.map(({startTime,st,et})=>{
-                          const booked=slotBookings({startTime});
-                          const res=booked[laneIdx]||null;
-                          const rt=res?getType(res.typeId):null;
-                          const pc=res?(res.players?.length||res.playerCount||0):0;
+                        {showNow&&<div style={{position:"absolute",left:`${nowPct}%`,top:0,bottom:0,width:2,background:"var(--ok)",opacity:.7,zIndex:99,pointerEvents:"none"}}/>}
+                        {slotDurs.map(({startTime,st,et},slotI)=>{
+                          const lane=(slotLaneMap[startTime]||[])[laneIdx];
+                          const resv=lane?.reservations||[];
+                          const isEmpty=resv.length===0;
+                          const mode=lane?.mode;const lStyle=lane?.type;
+                          const col=isEmpty?null:laneColor(mode,lStyle);
                           const bl=Number(pct(st));const bw=Number(pct(et))-bl;
-                          const isEmpty=!res;
                           return(
                             <div key={startTime} style={{position:"absolute",left:`${bl}%`,width:`${Math.max(bw,.4)}%`,top:5,height:BAR_H,
-                              background:isEmpty?"rgba(255,255,255,.03)":"linear-gradient(135deg,rgba(200,224,58,.18),rgba(200,224,58,.06))",
-                              border:`1px ${isEmpty?"dashed":"solid"} ${isEmpty?"rgba(255,255,255,.1)":"rgba(200,224,58,.3)"}`,
-                              borderLeft:`3px solid ${isEmpty?"rgba(255,255,255,.12)":"rgba(200,224,58,.7)"}`,
-                              borderRadius:3,display:"flex",flexDirection:"column",justifyContent:"center",padding:".3rem .4rem",overflow:"hidden",boxSizing:"border-box",gap:".18rem"}}>
+                              clipPath:`polygon(${SKEW}px 0,100% 0,calc(100% - ${SKEW}px) 100%,0 100%)`,
+                              background:isEmpty?"rgba(255,255,255,.035)":col.bg,
+                              boxSizing:"border-box",overflow:"hidden",
+                              display:"flex",flexDirection:"column",justifyContent:"center",
+                              padding:`.28rem .5rem .28rem ${SKEW+8}px`,gap:".1rem",
+                              zIndex:slotI+1}}>
                               {isEmpty
-                                ?<span style={{fontSize:".67rem",color:"rgba(255,255,255,.2)",fontStyle:"italic"}}>open</span>
+                                ?<span style={{fontSize:".62rem",color:"rgba(255,255,255,.15)",fontStyle:"italic",paddingLeft:2}}>open</span>
                                 :<>
-                                  <div style={{display:"flex",gap:".25rem",flexWrap:"nowrap"}}>
-                                    <span className={`badge b-${rt?.mode}`} style={{fontSize:".58rem",flexShrink:0,lineHeight:1.3}}>{rt?.mode||"?"}</span>
-                                    <span className={`badge b-${rt?.style}`} style={{fontSize:".58rem",flexShrink:0,lineHeight:1.3}}>{rt?.style||"?"}</span>
+                                  <div style={{display:"flex",gap:".18rem",flexWrap:"nowrap",marginBottom:".08rem"}}>
+                                    {mode&&<span className={`badge b-${mode}`} style={{fontSize:".5rem",flexShrink:0,lineHeight:1.2,padding:"1px 4px"}}>{mode}</span>}
+                                    {lStyle&&<span className={`badge b-${lStyle}`} style={{fontSize:".5rem",flexShrink:0,lineHeight:1.2,padding:"1px 4px"}}>{lStyle}</span>}
                                   </div>
-                                  <div style={{display:"flex",alignItems:"center",gap:".25rem",minWidth:0}}>
-                                    <span style={{fontSize:".7rem",fontWeight:600,color:"var(--accB)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>{res.customerName}</span>
-                                    <span style={{fontSize:".63rem",color:"var(--muted)",whiteSpace:"nowrap",flexShrink:0}}>{pc}p</span>
-                                  </div>
+                                  {resv.map((r,ri)=>{
+                                    const pc=r.players?.length||r.playerCount||0;
+                                    return(
+                                      <div key={r.id} style={{display:"flex",alignItems:"baseline",gap:".2rem",minWidth:0}}>
+                                        <span style={{fontSize:ri===0?".68rem":".62rem",fontWeight:ri===0?600:400,
+                                          color:ri===0?col.hl:"var(--muted)",
+                                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>
+                                          {r.customerName}
+                                        </span>
+                                        <span style={{fontSize:".56rem",color:"var(--muted)",whiteSpace:"nowrap",flexShrink:0}}>{pc}p</span>
+                                      </div>
+                                    );
+                                  })}
                                 </>}
                             </div>
                           );
