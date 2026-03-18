@@ -1,7 +1,7 @@
 import { useState, useEffect, startTransition } from "react"
 import { hasValidWaiver, fmt, fmtMoney, fmt12, fmtTS, todayStr, getTierInfo, TIER_COLORS, TIER_SHINE, getInitials, cleanPh, latestWaiverDate } from "./utils.js"
 import { WaiverModal, WaiverViewModal, PlayerPhoneInput, genDefaultLeaderboardName, PlatoonTag } from "./ui.jsx"
-import { supabase, fetchFriends, fetchAvailabilityReservations, updateReservation, createGuestUser, syncReservationPlayers, calculateRunScore } from "./supabase.js"
+import { supabase, fetchFriends, fetchAvailabilityReservations, updateReservation, rescheduleReservation, createGuestUser, syncReservationPlayers, calculateRunScore } from "./supabase.js"
 import { vizRenderName, audRenderName } from "./envRender.jsx"
 import AccountPanel from "./AccountPanel.jsx"
 import ReceiptModal from "./ReceiptModal.jsx"
@@ -170,8 +170,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         currentUser={user}
         onClose={()=>setModifyRes(null)}
         onReschedule={(id,date,startTime)=>{
-          updateReservation(id,{date,startTime,rescheduled:true}).then(updated=>{
-            setReservations(p=>p.map(r=>r.id===id?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true}:r));
+          rescheduleReservation(id,date,startTime).then(updated=>{
+            setReservations(p=>p.map(r=>r.id===id?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true,originalDate:updated.originalDate,originalStartTime:updated.originalStartTime}:r));
           }).catch(()=>{
             setReservations(p=>p.map(r=>r.id===id?{...r,date,startTime,rescheduled:true}:r));
           });

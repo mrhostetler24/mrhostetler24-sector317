@@ -104,11 +104,13 @@ const toReservation = r => r ? ({
   amount:         Number(r.amount),
   status:         r.status,
   paid:           r.paid ?? false,
-  rescheduled:    r.rescheduled ?? false,
-  players:        r.players ?? [],
-  createdAt:      r.created_at ?? null,
-  warWinnerTeam:  r.war_winner_team ?? null,
-  warWinType:     r.war_win_type ?? null,
+  rescheduled:        r.rescheduled ?? false,
+  originalDate:       r.original_date ?? null,
+  originalStartTime:  r.original_start_time ?? null,
+  players:            r.players ?? [],
+  createdAt:          r.created_at ?? null,
+  warWinnerTeam:      r.war_winner_team ?? null,
+  warWinType:         r.war_win_type ?? null,
 }) : null
 
 const toShift = r => r ? ({
@@ -752,6 +754,15 @@ export async function updateReservation(id, changes) {
     .from('reservations').update(row).eq('id', id).select().single()
   if (error) throw error
   return toReservation(data)
+}
+
+export async function rescheduleReservation(id, newDate, newStartTime) {
+  const { data, error } = await supabase.rpc('reschedule_reservation', {
+    p_id: id, p_new_date: newDate, p_new_start_time: newStartTime,
+  })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  return toReservation(row)
 }
 
 export async function addPlayerToReservation(resId, player) {

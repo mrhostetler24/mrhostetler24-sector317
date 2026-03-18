@@ -807,7 +807,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                   <tbody>{displayRows.map(r=>{
                     const rt=getType(r.typeId);const fb=flagBadge(r._flag);const isAcked=acknowledgedFlags.has(r.id+r._flag);
                     return<tr key={r.id+r._flag} style={{borderBottom:"1px solid rgba(255,255,255,.04)",opacity:isAcked?.5:1}}>
-                      <td style={{padding:".4rem .85rem",whiteSpace:"nowrap"}}><strong style={{fontSize:".82rem"}}>{fmt(r.date)}</strong><span style={{fontSize:".73rem",color:"var(--muted)",marginLeft:".4rem"}}>{fmt12(r.startTime)}</span></td>
+                      <td style={{padding:".4rem .85rem",whiteSpace:"nowrap"}}>
+                        <strong style={{fontSize:".82rem"}}>{fmt(r.date)}</strong><span style={{fontSize:".73rem",color:"var(--muted)",marginLeft:".4rem"}}>{fmt12(r.startTime)}</span>
+                        {r._flag==="rescheduled"&&r.originalDate&&<div style={{fontSize:".7rem",color:"var(--warnL)",marginTop:".15rem"}}>was {fmt(r.originalDate)} {fmt12(r.originalStartTime)}</div>}
+                      </td>
                       <td style={{padding:".4rem .85rem",fontSize:".83rem"}}>{r.customerName}</td>
                       <td style={{padding:".4rem .85rem"}}>{rt&&<><span className={`badge b-${rt.mode}`} style={{marginRight:".3rem"}}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}</td>
                       <td style={{padding:".4rem .85rem"}}><span style={{fontSize:".75rem",padding:".2rem .55rem",borderRadius:4,fontWeight:700,background:fb.bg,color:fb.color}}>{fb.label}</span></td>
