@@ -696,7 +696,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                           const rowSpacing=Math.floor((BAR_H-8)/rowCount);
                           return(
                             <div key={startTime} style={{position:"absolute",left:`calc(${bl}% + 2px)`,width:`calc(${Math.max(bw,.4)}% - 4px)`,top:5,height:BAR_H,
-                              clipPath:"polygon(0 8px, 8px 0, 50% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 50% 100%)",
+                              clipPath:"polygon(0 0, 50% 0, 100% 100%, 50% 100%)",
                               background:isEmpty?"rgba(255,255,255,.025)":col.bg,
                               filter:isEmpty?undefined:"drop-shadow(0 0 1px rgba(0,0,0,.8))",
                               boxSizing:"border-box",zIndex:1}}>
@@ -713,10 +713,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                                   const top=4+(ri+1)*rowSpacing;
                                   return(
                                     <div key={r.id} style={{position:"absolute",top,left:rowLeft(top),display:"flex",gap:".25rem",alignItems:"baseline"}}>
-                                      <span style={{fontSize:".7rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap"}}>
+                                      <span style={{fontSize:".8rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap"}}>
                                         {r.customerName}
                                       </span>
-                                      <span style={{fontSize:".7rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
+                                      <span style={{fontSize:".8rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
                                     </div>
                                   );
                                 })}
