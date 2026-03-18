@@ -340,7 +340,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
         const vt=versusTeams?.[ownerRes?.id]?.[p.id];
         const team=vt!=null?vt:p.team!=null?p.team:(laneResTeams[ownerRes?.id]??1);
         const u=p.userId?(users||[]).find(x=>x.id===p.userId):null;
-        const tier=getTierInfo(Number(u?.totalRuns||0)).current;
+        const tier=getTierInfo(Number(playerStats[p.userId]?.total_runs||0)).current;
         return{id:p.id,name:p.name||'—',team:mode==='versus'?team:1,tierKey:tier.key,tierName:tier.name,tierColor:TIER_COLORS[tier.key]||'#888',platoonTag:u?.platoonTag??null,platoonBadgeColor:u?.platoonBadgeColor??null,leaderboardName:u?.leaderboardName??null};
       });
       const runActivate=activateStructureRun(structure,allRes[0].id,runNum||run,s?.visual||'V',s?.audio||'T',mode,customerNames,objsList,playersList);
@@ -780,7 +780,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           border:`1px solid ${colorT===1?'rgba(79,195,247,.18)':'rgba(239,154,154,.18)'}`}}>
         <span style={{width:6,height:6,borderRadius:'50%',flexShrink:0,background:colorT===1?BLUE_COL:RED_COL}}/>
         <div style={{flex:1,display:'flex',alignItems:'center',gap:'.25rem',minWidth:0}}>
-          {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.72rem',fontWeight:500}}/></>;})()}
+          {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(playerStats[player.userId]?.total_runs||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.72rem',fontWeight:500}}/></>;})()}
           <span style={{flex:1,minWidth:0,fontSize:'.88rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
         </div>
         <span style={{fontSize:'.7rem',color:'var(--muted)',whiteSpace:'nowrap'}}>{vr>0?`${vr}r`:'new'}</span>
@@ -956,7 +956,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           const timeS=cr>0&&secs>0?`${Math.floor(secs/60)}:${String(Math.round(secs%60)).padStart(2,'0')}`:'—';
           return(<div key={player.id} style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.3rem 0',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
             <div style={{flex:1,display:'flex',alignItems:'center',gap:'.25rem',minWidth:0}}>
-              {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(u?.totalRuns||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.75rem',fontWeight:500}}/></>;})()}
+              {(()=>{const u=users?.find(x=>x.id===player.userId);const tier=getTierInfo(Number(playerStats[player.userId]?.total_runs||0)).current;return<><TierImg tierKey={tier.key} height={14}/><PlatoonTag tag={u?.platoonTag} color={u?.platoonBadgeColor||'var(--acc)'} style={{fontSize:'.75rem',fontWeight:500}}/></>;})()}
               <span style={{flex:1,fontSize:'.9rem',color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{player.name||'—'}</span>
             </div>
             <span style={{fontSize:'.72rem',color:'var(--muted)',whiteSpace:'nowrap',minWidth:28,textAlign:'right'}}>{cr>0?`${cr}r`:'new'}</span>
