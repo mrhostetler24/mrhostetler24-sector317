@@ -486,8 +486,9 @@ useEffect(() => {
       
       <div className="app">
         <nav className="nav">
-          <div className="nav-brand"><img src={LOGO_URI} className="nav-logo" alt="Sector 317"/><div style={{display:'flex',flexDirection:'column',alignItems:'center',marginLeft:'.4rem',alignSelf:'flex-end',paddingBottom:2,gap:1}}><button onClick={refreshOpsData} title="Refresh data" style={{background:'none',border:'none',padding:0,cursor:'pointer',color:'rgba(255,255,255,.13)',fontSize:'.8rem',lineHeight:1,display:'flex',alignItems:'center',transition:'color .2s',...(refreshing?{color:'rgba(255,255,255,.35)',animation:'spin .8s linear infinite'}:{})}} onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,.35)'} onMouseLeave={e=>!refreshing&&(e.currentTarget.style.color='rgba(255,255,255,.13)')}>↻</button><span style={{fontSize:".7rem",color:"var(--muted)"}}>v{APP_VERSION}</span></div></div>
+          <div className="nav-brand"><img src={LOGO_URI} className="nav-logo" alt="Sector 317"/><span style={{fontSize:".7rem",color:"var(--muted)",marginLeft:".4rem",alignSelf:"flex-end",paddingBottom:2}}>v{APP_VERSION}</span></div>
           <div className="nav-right">
+            <button onClick={refreshOpsData} title="Refresh data" style={{background:'none',border:'none',padding:'0 .3rem',cursor:'pointer',color:'rgba(255,255,255,.18)',fontSize:'2.4rem',lineHeight:1,display:'flex',alignItems:'center',transition:'color .2s',...(refreshing?{color:'rgba(255,255,255,.5)',animation:'spin .8s linear infinite'}:{})}} onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,.45)'} onMouseLeave={e=>!refreshing&&(e.currentTarget.style.color='rgba(255,255,255,.18)')}>↻</button>
             <span className="nav-user">{liveUser.name}</span>
             {liveUser.authProvider&&<AuthBadge provider={liveUser.authProvider}/>}
             <span className={`nbadge al-${liveUser.access}`}>{ACCESS_LEVELS[liveUser.access]?.label}</span>
