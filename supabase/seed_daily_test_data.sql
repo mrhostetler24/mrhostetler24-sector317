@@ -249,7 +249,7 @@ BEGIN
           v_today,
           v_tmpl.start_time,
           v_gsize,
-          v_price,
+          v_price * CASE WHEN v_style = 'open' THEN v_gsize ELSE 1 END,
           'confirmed',
           (random() < 0.55)  -- ~55% paid at booking
         );

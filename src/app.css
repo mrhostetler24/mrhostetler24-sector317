@@ -206,6 +206,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 .slide-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--surf);border-left:2px solid var(--acc2);z-index:301;display:flex;flex-direction:column;animation:slideIn .25s ease;}
 @keyframes slideIn{from{transform:translateX(100%);}to{transform:translateX(0);}}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 @keyframes waveRing{0%{transform:scale(1);opacity:.65;}100%{transform:scale(1.5);opacity:0;}}
 @keyframes strobeGlow{0%{text-shadow:0 0 6px rgba(255,255,255,.8),0 0 14px rgba(255,255,255,.5);}12%{text-shadow:0 0 1px rgba(255,255,255,.1);}25%{text-shadow:0 0 10px rgba(255,255,255,1),0 0 22px rgba(255,255,255,.6);}37%{text-shadow:0 0 1px rgba(255,255,255,.05);}50%{text-shadow:0 0 8px rgba(255,255,255,.9),0 0 18px rgba(255,255,255,.5);}62%{text-shadow:0 0 1px rgba(255,255,255,.1);}75%{text-shadow:0 0 12px rgba(255,255,255,1),0 0 24px rgba(255,255,255,.65);}87%{text-shadow:0 0 1px rgba(255,255,255,.05);}100%{text-shadow:0 0 6px rgba(255,255,255,.8),0 0 14px rgba(255,255,255,.5);}}
 .viz-strobe{color:#000;animation:strobeGlow .55s step-end infinite;}
