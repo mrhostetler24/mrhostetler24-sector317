@@ -599,7 +599,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         </div>
 
         {(()=>{
-          const today=new Date().toISOString().slice(0,10);
+          const today=(()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})();
           // ── Today's Schedule ──
           const todaySlots=getSessionsForDate(today,sessionTemplates);
           const todayRes=reservations.filter(r=>r.date===today&&r.status!=="cancelled");
