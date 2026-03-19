@@ -475,7 +475,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
               if(!from) return 0;
               let count=0;
               const start=new Date(from+"T12:00:00"),end=new Date(to+"T12:00:00");
-              for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){const dayName=d.toLocaleDateString("en-US",{weekday:"long"});count+=activeTmpls.filter(t=>t.dayOfWeek===dayName).length;}
+              for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){const dayName=d.toLocaleDateString("en-US",{weekday:"long"});count+=activeTmpls.filter(t=>t.dayOfWeek===dayName).reduce((s,t)=>s+(t.maxSessions||1),0);}
               return count;
             };
             const offeredSessions=getOfferedSessions();
