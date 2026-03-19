@@ -233,7 +233,7 @@ function ScoringTimePicker({timePicker,setTimePicker,setLaneFinish}){
       <span style={{fontSize:'.62rem',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>{label}</span>
     </div>;
   };
-  return <div className="mo" style={{zIndex:3000}} onClick={()=>setTimePicker(null)}>
+  return <div className="mo" style={{zIndex:3000}}>
     <div className="mc" style={{maxWidth:380,padding:'1.5rem 1.75rem'}} onClick={e=>e.stopPropagation()}>
       <div className="mt2" style={{marginBottom:'1.25rem'}}>Edit Time</div>
       <div style={{position:'relative',display:'flex',alignItems:'flex-start',justifyContent:'center',gap:'.25rem',marginBottom:'1.5rem'}}>
@@ -605,10 +605,12 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   // Render helpers
   const BLUE_COL='#4fc3f7',RED_COL='#ef9a9a',BLUE_BG='rgba(79,195,247,.15)',RED_BG='rgba(239,154,154,.15)';
   const teamCol=(t)=>t===1?BLUE_COL:RED_COL;const teamBg=(t)=>t===1?BLUE_BG:RED_BG;
-  const teamAvg=(players)=>{
-    const w=players.filter(p=>p.userId&&Number(playerStats[p.userId]?.total_runs)>0);
+  const teamAvg=(players,mode='all')=>{
+    const scoreField=mode==='versus'?'versus_avg_score':'avg_score';
+    const runsField=mode==='versus'?'versus_runs':'total_runs';
+    const w=players.filter(p=>p.userId&&Number(playerStats[p.userId]?.[runsField])>0);
     if(!w.length)return null;
-    return(w.reduce((s,p)=>s+Number(playerStats[p.userId]?.avg_score||0),0)/w.length).toFixed(1);
+    return(w.reduce((s,p)=>s+Number(playerStats[p.userId]?.[scoreField]||0),0)/w.length).toFixed(1);
   };
 
   const _PillBtn=({options,value,onChange,disabled})=>(
@@ -837,7 +839,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
         <div style={{display:'flex',alignItems:'center',gap:'.5rem'}}>
           <div style={{flex:1,textAlign:'center'}}>
             <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--accB)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Hunters</div>
-            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{hunterPlayers.length}p{teamAvg(hunterPlayers)?` · avg ${teamAvg(hunterPlayers)}`:''}</div>
+            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{hunterPlayers.length}p{teamAvg(hunterPlayers,'versus')?` · avg ${teamAvg(hunterPlayers,'versus')}`:''}</div>
           </div>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'.3rem'}}>
             <img src="/vs.png" alt="VS" style={{width:44,height:44,filter:'drop-shadow(0 0 8px rgba(200,224,58,.6))',opacity:.9}}
@@ -848,7 +850,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
           </div>
           <div style={{flex:1,textAlign:'center'}}>
             <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--warnL)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'.1rem'}}>Coyotes</div>
-            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{coyotePlayers.length}p{teamAvg(coyotePlayers)?` · avg ${teamAvg(coyotePlayers)}`:''}</div>
+            <div style={{fontSize:'.8rem',color:'var(--muted)'}}>{coyotePlayers.length}p{teamAvg(coyotePlayers,'versus')?` · avg ${teamAvg(coyotePlayers,'versus')}`:''}</div>
           </div>
         </div>
       </div>
