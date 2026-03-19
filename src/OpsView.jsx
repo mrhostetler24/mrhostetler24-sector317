@@ -1614,7 +1614,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
               const renderResCard=res=>{
                 const rt=getType(res.typeId);const players=res.players||[];
                 const wOkCount=players.filter(playerWaiverOk).length;const allWaiversOk=players.length>0&&wOkCount===players.length;const isBusy=statusBusy===res.id;
-                const maxForRes=rt?.style==="private"?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):(res.playerCount||99);const isLocked=res.status==='completed'||res.status==='no-show';const canAddMore=!isLocked&&players.length<maxForRes;
+                const maxForRes=rt?.style==="private"?(rt.maxPlayers||laneCapacity(rt?.mode||"coop")):(res.playerCount||99);const isLocked=res.status==='completed'||res.status==='no-show'||res.status==='arrived'||res.status==='ready';const canAddMore=!isLocked&&players.length<maxForRes;
                 return(
                   <div key={res.id} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:8,marginBottom:".6rem",overflow:"hidden"}}>
                     {/* ── Card header: name + status badge ── */}
@@ -1679,7 +1679,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                             {addInput.lookupStatus==="notfound"&&<div style={{fontSize:".72rem",color:"var(--muted)",marginTop:".25rem"}}>No account found — type a name to add as a guest.</div>}
                           </div>
                         ):(
-                          canAddMore?<button className="btn btn-s" style={{marginTop:".5rem",width:"100%",fontSize:".9rem",padding:".6rem 0"}} onClick={()=>{setAddingTo(res.id);resetAddInput();}}>+ Add Player</button>:<div style={{fontSize:".8rem",color:"var(--muted)",marginTop:".5rem",fontStyle:"italic"}}>Player limit reached ({maxForRes}/{maxForRes})</div>
+                          canAddMore?<button className="btn btn-s" style={{marginTop:".5rem",width:"100%",fontSize:".9rem",padding:".6rem 0"}} onClick={()=>{setAddingTo(res.id);resetAddInput();}}>+ Add Player</button>:(res.status==='arrived'||res.status==='ready')?<div style={{fontSize:".8rem",color:"var(--warnL)",marginTop:".5rem",fontStyle:"italic"}}>← Undo arrived to add players</div>:<div style={{fontSize:".8rem",color:"var(--muted)",marginTop:".5rem",fontStyle:"italic"}}>Player limit reached ({maxForRes}/{maxForRes})</div>
                         ))}
                         </>
                       )}

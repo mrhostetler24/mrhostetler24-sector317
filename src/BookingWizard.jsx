@@ -200,12 +200,18 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
                 {added?<div className="slot-info" style={{color:"var(--okB)"}}>✓ Added</div>:status.available?<>
                   <div className="slot-info" style={{color:"var(--okB)",fontSize:".72rem"}}>{(()=>{if(selType?.style==="private"){const total=(status.lanes||[]).length;const free=status.slotsLeft??total;return free<total?`${free} lane${free!==1?"s":""} free`:"Available";}else{const cap=laneCapacity(selMode||"coop");const spots=status.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";}})()}</div>
                   {laneInfo.length>0&&<div style={{marginTop:".35rem",display:"flex",flexDirection:"column",gap:"2px"}}>
-                    {laneInfo.map(l=><div key={l.laneNum} style={{fontSize:".6rem",fontFamily:"var(--fd)",letterSpacing:".04em",display:"flex",justifyContent:"space-between",color:l.type===null?"rgba(200,224,58,.4)":l.type==="private"?"var(--dangerL)":l.mode===selType?.mode?"var(--okB)":"var(--warn)"}}>
-                      <span>Lane {l.laneNum}</span>
-                      <span>{l.type===null?"Free":l.type==="private"?"Private":l.mode==="coop"?`Co-Op ${l.playerCount}/6`:`Versus ${l.playerCount}/12`}</span>
-                    </div>)}
+                    {laneInfo.map(l=>{
+                      const cap=laneCapacity(l.mode||"coop");
+                      const isFull=l.type!==null&&(l.type==="private"||l.playerCount>=cap);
+                      const label=l.type===null?"Free":l.type==="private"?"Full":l.playerCount>=cap?"Full":l.mode==="coop"?`Co-Op ${l.playerCount}/6`:`Vs Open ${l.playerCount}/12`;
+                      const col=l.type===null?"rgba(200,224,58,.5)":isFull?"var(--muted)":l.mode===selType?.mode?"var(--okB)":"var(--warn)";
+                      return<div key={l.laneNum} style={{fontSize:".6rem",fontFamily:"var(--fd)",letterSpacing:".04em",display:"flex",justifyContent:"space-between",color:col}}>
+                        <span>Lane {l.laneNum}</span>
+                        <span>{label}</span>
+                      </div>;
+                    })}
                   </div>}
-                </>:<div className="slot-reason">{status.reason}</div>}
+                </>:<div className="slot-reason">{status.reason==="Check-in closed"?"Full":status.reason}</div>}
               </div>;
             })}</div>
           </>}
