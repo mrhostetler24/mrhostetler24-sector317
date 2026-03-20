@@ -600,7 +600,9 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             </td>
             <td>
               <div style={{display:"flex",alignItems:"center",gap:".45rem"}}>
-                <img src={`/${tier.key}.png`} alt={tier.key} style={{height:16,width:"auto",maxWidth:32,display:"block",flexShrink:0,objectFit:"contain",opacity:.9,...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}}/>
+                <div style={{flexShrink:0,padding:"4px",margin:"-4px"}}>
+                  <img src={`/${tier.key}.png`} alt={tier.key} style={{height:16,width:"auto",maxWidth:32,display:"block",objectFit:"contain",opacity:.9,...(TIER_SHINE[tier.key]?{filter:TIER_SHINE[tier.key]}:{})}}/>
+                </div>
                 <div>
                   <div style={{fontFamily:"var(--fc)",fontWeight:700,fontSize:"1rem",color:isMe?"var(--accB)":"var(--txt)"}}>
                     <PlatoonTag tag={r.platoon_tag} color={r.platoon_badge_color} style={{marginRight:'.3em'}}/>
