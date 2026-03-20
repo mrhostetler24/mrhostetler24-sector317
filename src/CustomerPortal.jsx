@@ -278,10 +278,10 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         {/* Leaderboard + Rank combined card */}
         <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderTop:"3px solid var(--acc2)",borderRadius:6,padding:".85rem 1rem",display:"flex",flexDirection:"column",gap:".45rem"}}>
           <div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--acc2)",letterSpacing:".08em",textTransform:"uppercase"}}>🏆 Leaderboard</div>
-          <div style={{display:"flex",alignItems:"center",gap:".4rem",overflow:"hidden"}}>
+          <div style={{display:"flex",alignItems:"center",gap:".4rem",overflow:"visible"}}>
             {careerRuns!==null&&(()=>{
               const{current}=getTierInfo(careerRuns);
-              return <img src={`/${current.key}.png`} alt={current.key} style={{height:16,width:"auto",flexShrink:0,objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}}/>;
+              return <div style={{flexShrink:0,padding:"4px",margin:"-4px"}}><img src={`/${current.key}.png`} alt={current.key} style={{height:16,width:"auto",display:"block",objectFit:"contain",...(TIER_SHINE[current.key]?{filter:TIER_SHINE[current.key]}:{})}}/></div>;
             })()}
             {user.platoonTag&&!user.hideFromLeaderboard&&<PlatoonTag tag={user.platoonTag} color={user.platoonBadgeColor} style={{fontSize:".88rem"}}/>}
             <span style={{fontSize:".88rem",color:user.hideFromLeaderboard?"var(--muted)":"var(--txt)",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
