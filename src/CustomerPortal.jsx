@@ -313,7 +313,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
         <button className={`tab${tab==="payments"?" on":""}`} onClick={()=>setTab("payments")}>Payments</button>
         <button className={`tab${tab==="leaderboard"?" on":""}`} onClick={()=>setTab("leaderboard")}>Leaderboard</button>
-        <button className={`tab${tab==="shop"?" on":""}`} onClick={()=>setTab("shop")}>Shop</button>
+        <button className={`tab${tab==="shop"?" on":""}`} onClick={()=>user.canBook&&setTab("shop")} disabled={!user.canBook} style={!user.canBook?{opacity:.45,cursor:"default"}:{}}>Shop</button>
       </div>
 
       {/* ── RESERVATIONS TAB ── */}
@@ -673,7 +673,10 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
       })()}
 
       {/* ── SHOP TAB ── */}
-      {tab==="shop"&&<MerchPortal surface="storefront" currentUser={user} setPayments={setPayments} onAlert={onAlert}/>}
+      {tab==="shop"&&(user.canBook
+        ?<MerchPortal surface="storefront" currentUser={user} setPayments={setPayments} onAlert={onAlert}/>
+        :<div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"4rem 2rem",color:"var(--muted)",fontSize:".9rem"}}>Merch coming soon!</div>
+      )}
 
       {/* ── SOCIAL TAB ── */}
       {tab==="social"&&<SocialPortal

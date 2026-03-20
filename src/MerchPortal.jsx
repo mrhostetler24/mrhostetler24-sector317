@@ -2110,6 +2110,7 @@ function BundleMakerModal({ bundle, catalog, categories, onSave, onClose }) {
 
   const addComponent = () => {
     if (!selProductId) return
+    if (selVariants.length > 0 && !selVariantId) return
     const matchKey = c => selVariantId ? c.variantId === selVariantId : (!c.variantId && c.productId === selProductId)
     if (components.find(matchKey)) {
       setComponents(prev => prev.map(c => matchKey(c) ? { ...c, quantity: c.quantity + selQty } : c))
@@ -2201,7 +2202,7 @@ function BundleMakerModal({ bundle, catalog, categories, onSave, onClose }) {
                 {selProductId && (
                   <div style={{ fontSize: '.8rem', color: 'var(--acc)', fontWeight: 700, paddingBottom: '.4rem' }}>{fmtMoney(selPrice * selQty)}</div>
                 )}
-                <button className="btn btn-s btn-sm" style={{ alignSelf: 'flex-end' }} disabled={!selProductId} onClick={addComponent}>+ Add</button>
+                <button className="btn btn-s btn-sm" style={{ alignSelf: 'flex-end' }} disabled={!selProductId||(selVariants.length>0&&!selVariantId)} onClick={addComponent}>+ Add</button>
               </div>
 
               {/* Component list */}
