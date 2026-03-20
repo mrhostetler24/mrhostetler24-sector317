@@ -5,6 +5,7 @@ import {
   supabase, mergeUsers, updateUserAdmin, updateEmailPreferences, fetchEmailPreferences,
   applyStoreCredit, addPlayerToReservation, removePlayerFromReservation, updateReservation,
   upsertResType, upsertSessionTemplate, deleteSessionTemplate,
+  signWaiver as signWaiverDB,
   upsertWaiverDoc, setActiveWaiverDoc, deleteWaiverDoc,
   upsertObjective, deleteObjective, fetchAllObjectives, updateShift
 } from "./supabase.js"
@@ -193,6 +194,18 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
     }catch(e){showToast("Error adding player: "+e.message);}
   };
   const signWaiver=(uid,name)=>{const ts=new Date().toISOString();if(uid)setUsers(p=>p.map(u=>u.id===uid?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:name,waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));showToast(`Waiver signed by ${name}`);};
+  const [signingAll,setSigningAll]=useState(false);
+  const signAllWaivers=async(waiverIssues)=>{
+    if(!activeWaiverDoc||signingAll)return;
+    setSigningAll(true);
+    const allMissing=waiverIssues.flatMap(({missing})=>missing.map(p=>({userId:p.userId,name:users.find(u=>u.id===p.userId)?.name||""})).filter(m=>m.name));
+    let signed=0;
+    for(const {userId,name} of allMissing){
+      try{await signWaiverDB(userId,name,activeWaiverDoc.id);signWaiver(userId,name);signed++;}catch(e){/* skip */}
+    }
+    setSigningAll(false);
+    showToast(`Signed ${signed} waiver${signed!==1?"s":""}`);
+  };
   const cancelRes=id=>{setReservations(p=>p.map(r=>r.id===id?{...r,status:"cancelled"}:r));showToast("Cancelled");};
   const removePlayer=async(resId,playerId)=>{try{await removePlayerFromReservation(playerId);setReservations(p=>p.map(r=>r.id===resId?{...r,players:r.players.filter(x=>x.id!==playerId)}:r));showToast("Player removed");}catch(e){showToast("Error: "+e.message);}};
   const rescheduleRes=async(resId,date,startTime)=>{try{const updated=await updateReservation(resId,{date,startTime,rescheduled:true});setReservations(p=>p.map(r=>r.id===resId?{...r,date:updated.date,startTime:updated.startTime,rescheduled:true}:r));showToast("Rescheduled");}catch(e){showToast("Error: "+e.message);}};
@@ -819,7 +832,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
 
             {/* ── Missing Waivers ── */}
             {waiverIssues.length>0&&<div style={{background:"rgba(180,120,0,.07)",border:"1px solid rgba(180,120,0,.28)",borderRadius:6,overflow:"hidden"}}>
-              {sectionHead(`⚠ Missing Waivers (${waiverIssues.length} session${waiverIssues.length!==1?"s":""})`,null,true)}
+              <div style={{display:"flex",alignItems:"center",gap:".6rem",padding:".45rem .85rem",borderBottom:"1px solid var(--bdr)",background:"var(--bg)"}}>
+                <span style={{fontWeight:700,fontSize:".75rem",color:"#e07060",textTransform:"uppercase",letterSpacing:".06em"}}>⚠ Missing Waivers ({waiverIssues.length} session{waiverIssues.length!==1?"s":""})</span>
+                <button onClick={()=>signAllWaivers(waiverIssues)} disabled={signingAll||!activeWaiverDoc} style={{marginLeft:"auto",fontSize:".7rem",padding:".2rem .6rem",borderRadius:4,border:"1px solid rgba(180,120,0,.5)",background:"rgba(180,120,0,.15)",color:"#e0a050",cursor:signingAll?"wait":"pointer",opacity:signingAll?.6:1,fontWeight:600,flexShrink:0}}>{signingAll?"Signing…":"Sign All"}</button>
+              </div>
               <div style={{padding:".5rem .85rem",display:"flex",flexDirection:"column",gap:".2rem"}}>
                 {waiverIssues.map(({res,missing,total})=>(
                   <div key={res.id} style={{display:"flex",alignItems:"center",gap:".6rem",padding:".25rem 0",borderBottom:"1px solid rgba(180,120,0,.1)",fontSize:".8rem"}}>
