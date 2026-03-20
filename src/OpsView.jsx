@@ -33,6 +33,7 @@ import { MerchStaffSales } from './MerchPortal.jsx'
 import { vizRenderName, audRenderName } from './envRender.jsx'
 import { getTierInfo, TIER_COLORS, fmtMoney, fmtPhone, fmt12, getDayName, cleanPh, todayStr, hasValidWaiver, getSessionsForDate, laneCapacity, buildLanes, openPlayCapacity, getInitials } from './utils.js'
 import { WaiverModal, TierImg, PlatoonTag } from './ui.jsx'
+const fmtBookedAt=ts=>{if(!ts)return null;const d=new Date(ts);const mon=d.toLocaleDateString("en-US",{month:"short"});const day=d.getDate();const year=d.getFullYear();const v=day%100;const ord=day+(['th','st','nd','rd'][(v-20)%10]||['th','st','nd','rd'][v]||'th');const hr=d.getHours();const min=String(d.getMinutes()).padStart(2,'0');const ampm=hr>=12?'PM':'AM';const hr12=hr>12?hr-12:hr===0?12:hr;return`${mon} ${ord}, ${year} @ ${hr12}:${min}${ampm}`;};
 
 // ── applyLaneOverrides (OpsView-only: not in utils.js) ───────────────────────
 function applyLaneOverrides(lanes,overrides,resTypes){
@@ -1620,7 +1621,10 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                     {/* ── Card header: name + status badge ── */}
                     <div style={{display:"flex",alignItems:"flex-start",gap:".65rem",padding:".75rem 1rem .35rem"}}>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontWeight:700,fontSize:"1.05rem",color:"var(--txt)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{res.customerName}</div>
+                        <div style={{display:"flex",alignItems:"baseline",gap:".5rem",flexWrap:"wrap"}}>
+                          <span style={{fontWeight:700,fontSize:"1.05rem",color:"var(--txt)"}}>{res.customerName}</span>
+                          {res.createdAt&&<span style={{fontSize:".72rem",color:"var(--muted)",whiteSpace:"nowrap"}}>({fmtBookedAt(res.createdAt)})</span>}
+                        </div>
                         <div style={{display:"flex",gap:".35rem",marginTop:".2rem",alignItems:"center",flexWrap:"wrap"}}>
                           {rt&&<><span className={`badge b-${rt.mode}`}>{rt.mode}</span><span className={`badge b-${rt.style}`}>{rt.style}</span></>}
                           <span style={{fontSize:".8rem",color:"var(--muted)"}}>👥 {res.playerCount}</span>
