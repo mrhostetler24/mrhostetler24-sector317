@@ -311,7 +311,7 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
   ]
 
   const filteredProducts = useMemo(() =>
-    catalog.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase())),
+    catalog.filter(p => p.type !== 'bundle' && (!search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku || '').toLowerCase().includes(search.toLowerCase()))),
     [catalog, search]
   )
 
@@ -2082,6 +2082,7 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
 // ─── BundleMakerModal ─────────────────────────────────────────
 function BundleMakerModal({ bundle, catalog, categories, onSave, onDelete, onClose }) {
   const [form, setForm] = useState({
+    id: bundle.id || undefined,
     name: bundle.name || '',
     description: bundle.description || '',
     categoryId: bundle.categoryId || '',
@@ -2201,7 +2202,6 @@ function BundleMakerModal({ bundle, catalog, categories, onSave, onDelete, onClo
                     <option value="">— Select product —</option>
                     {sellableProducts.map(p => <option key={p.id} value={p.id}>{p.name} ({fmtMoney(p.basePrice)})</option>)}
                   </select>
-                  <div style={{ fontSize: '.68rem', color: 'var(--muted)', marginTop: '.2rem' }}>Products without variants are not eligible for bundles.</div>
                 </div>
                 {selVariants.length > 0 && (
                   <div style={{ flex: 2, minWidth: 130 }}>
