@@ -424,7 +424,7 @@ useEffect(() => {
   const [staffNavTarget,setStaffNavTarget]=useState(null);
   const isAdminOrManager=liveUser&&(liveUser.access==="admin"||liveUser.access==="manager");
   const canViewAs=liveUser&&(isAdminOrManager||liveUser.access==="staff");
-  const effectivePortal=viewAs?(viewAs==="customer"?"customer":viewAs==="staff"?"staff":"admin"):portal;
+  const effectivePortal=viewAs?(viewAs==="customer"?"customer":"admin"):portal;
   const effectiveUser=viewAs?{...liveUser,access:viewAs}:liveUser;
   const [showNavAccount,setShowNavAccount]=useState(false);
   const [showBackTop,setShowBackTop]=useState(false);
