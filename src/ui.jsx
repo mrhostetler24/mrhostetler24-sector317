@@ -312,7 +312,7 @@ export function genDefaultLeaderboardName(name,phone){
 
 const BLOCKED=["fuck","shit","ass","bitch","cunt","dick","cock","pussy","nigger","nigga","faggot","fag","whore","slut","bastard","piss","twat","wank","spic","chink","kike","wetback","retard","rape","nazi","porn","pron","sex","nude","naked","cum","jizz","tits","boob","penis","vagina","anus","dildo","boner","horny","milf","hentai","tranny","homo","dyke"];
 function normLeet(s){return s.toLowerCase().replace(/3/g,"e").replace(/0/g,"o").replace(/@/g,"a").replace(/1/g,"i").replace(/\$/g,"s").replace(/5/g,"s").replace(/!/g,"i").replace(/\+/g,"t");}
-function hasProfanity(s){if(!s)return false;const n=normLeet(s.replace(/[^a-zA-Z0-9@$!+]/g,""));return BLOCKED.some(w=>n.includes(w));}
+export function hasProfanity(s){if(!s)return false;const n=normLeet(s.replace(/[^a-zA-Z0-9@$!+]/g,""));return BLOCKED.some(w=>n.includes(w));}
 export function validateLbName(val,allUsers,currentUserId){
   if(!val||!val.trim())return null;
   const t=val.trim();

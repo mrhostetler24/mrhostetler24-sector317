@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { vizRenderName, audRenderName } from './envRender.jsx'
+import { hasProfanity } from './ui.jsx'
 import {
   emailPlatoonInviteReceived, emailPlatoonRequestReceived,
   emailPlatoonRequestApproved, emailPlatoonRequestDenied,
@@ -640,6 +641,7 @@ function PlatoonCreateModal({ onClose, onCreated, userAccess }) {
     const cleanName = name.trim()
     if (!cleanTag || !cleanName) return setErr('Tag and name are required.')
     if (!/^\S{2,5}$/.test(cleanTag)) return setErr('Tag must be 2–5 characters, no spaces.')
+    if (hasProfanity(cleanTag)) return setErr('Tag contains inappropriate content.')
 
     setSaving(true); setErr('')
     try {
@@ -1542,6 +1544,7 @@ function SettingsTab({ platoon, onChanged, onDisbanded, userAccess }) {
   const doSave = async () => {
     const cleanTag = tag.trim()
     if (!cleanTag || !/^\S{2,5}$/.test(cleanTag)) return setErr('Tag must be 2–5 characters, no spaces.')
+    if (hasProfanity(cleanTag)) return setErr('Tag contains inappropriate content.')
     if (!name.trim()) return setErr('Name is required.')
     setSaving(true); setErr(''); setSaved(false)
     try {
