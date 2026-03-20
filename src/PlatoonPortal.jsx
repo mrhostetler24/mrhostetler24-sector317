@@ -636,10 +636,10 @@ function PlatoonCreateModal({ onClose, onCreated, userAccess }) {
   }
 
   const doCreate = async () => {
-    const cleanTag  = tag.trim().toUpperCase()
+    const cleanTag  = tag.trim()
     const cleanName = name.trim()
     if (!cleanTag || !cleanName) return setErr('Tag and name are required.')
-    if (!/^[A-Z0-9]{2,5}$/.test(cleanTag)) return setErr('Tag must be 2–5 letters or numbers.')
+    if (!/^\S{2,5}$/.test(cleanTag)) return setErr('Tag must be 2–5 characters, no spaces.')
 
     setSaving(true); setErr('')
     try {
@@ -688,7 +688,7 @@ function PlatoonCreateModal({ onClose, onCreated, userAccess }) {
               maxLength={maxLen}
               placeholder="S317"
               value={tag}
-              onChange={e => setTag(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              onChange={e => setTag(e.target.value.replace(/\s/g, ''))}
             />
             {tag.length >= 2 && <div style={{ fontSize: '.75rem', color: '#94a3b8', marginTop: '.25rem' }}>Preview: <strong>[{tag}]</strong></div>}
             {!isSiteAdmin && <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: '.2rem' }}>5-character tags are reserved for staff.</div>}
@@ -1540,8 +1540,8 @@ function SettingsTab({ platoon, onChanged, onDisbanded, userAccess }) {
   }
 
   const doSave = async () => {
-    const cleanTag = tag.trim().toUpperCase()
-    if (!cleanTag || !/^[A-Z0-9]{2,5}$/.test(cleanTag)) return setErr('Tag must be 2–5 uppercase letters/digits.')
+    const cleanTag = tag.trim()
+    if (!cleanTag || !/^\S{2,5}$/.test(cleanTag)) return setErr('Tag must be 2–5 characters, no spaces.')
     if (!name.trim()) return setErr('Name is required.')
     setSaving(true); setErr(''); setSaved(false)
     try {
@@ -1628,7 +1628,7 @@ function SettingsTab({ platoon, onChanged, onDisbanded, userAccess }) {
             <input
               className="inp"
               value={tag}
-              onChange={e => setTag(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, maxLen))}
+              onChange={e => setTag(e.target.value.replace(/\s/g, '').slice(0, maxLen))}
               placeholder={`2–${maxLen} chars`}
               maxLength={maxLen}
               style={{ width: 100, fontFamily: 'var(--fc)', fontWeight: 700, letterSpacing: '.08em' }}
