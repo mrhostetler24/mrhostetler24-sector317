@@ -13,6 +13,7 @@ import {
   fulfillMerchOrder, transferMerchInventory,
   adjustMerchInventory, validateMerchDiscount, createMerchOrder,
   processMerchReturn, voidGiftCode, updateMerchOrderStatus,
+  getMerchProductDeletionBlockers, deleteMerchProduct,
   fetchUserByPhone, createGuestUser, createPayment, deductUserCredits, linkOAuthUser,
 } from './supabase.js'
 import { emailMerchPurchase, emailSocialAuthInvite } from './emails.js'
@@ -759,6 +760,13 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
               onAlert?.('Product saved.')
             } catch (e) { onAlert?.('Error: ' + e.message) }
           }}
+          onDelete={editProduct.id ? async () => {
+            const blockers = await getMerchProductDeletionBlockers(editProduct)
+            if (blockers.length > 0) { onAlert?.(`Cannot delete — ${blockers.join(', ')}. Archive it instead.`); return }
+            if (!confirm(`Delete "${editProduct.name}"? This cannot be undone.`)) return
+            try { await deleteMerchProduct(editProduct.id); await loadAll(); setEditProduct(null); onAlert?.('Product deleted.') }
+            catch (e) { onAlert?.('Error: ' + e.message) }
+          } : undefined}
           onClose={() => setEditProduct(null)} />
       )}
 
@@ -771,6 +779,13 @@ function MerchAdmin({ currentUser, isAdmin, users, setUsers, setPayments, onAler
             setEditBundle(null)
             onAlert?.('Bundle saved.')
           }}
+          onDelete={editBundle.id ? async () => {
+            const blockers = await getMerchProductDeletionBlockers(editBundle)
+            if (blockers.length > 0) { onAlert?.(`Cannot delete — ${blockers.join(', ')}. Archive it instead.`); return }
+            if (!confirm(`Delete bundle "${editBundle.name}"? This cannot be undone.`)) return
+            try { await deleteMerchProduct(editBundle.id); await loadAll(); setEditBundle(null); onAlert?.('Bundle deleted.') }
+            catch (e) { onAlert?.('Error: ' + e.message) }
+          } : undefined}
           onClose={() => setEditBundle(null)} />
       )}
 
@@ -936,7 +951,7 @@ function ImageUploader({ images, onChange, maxImages = 5 }) {
 }
 
 // ─── ProductEditModal ─────────────────────────────────────────
-function ProductEditModal({ product, categories, onSave, onClose }) {
+function ProductEditModal({ product, categories, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(() => {
     const base = { type: 'physical', name: '', description: '', sku: '', skuFamilyCode: '', basePrice: '',
       categoryId: '', imageUrls: [], storefrontVisible: true, staffVisible: true,
@@ -1028,10 +1043,13 @@ function ProductEditModal({ product, categories, onSave, onClose }) {
             rows={3} style={{ resize: 'vertical' }} placeholder="Supplier notes, handling instructions, internal reminders…" />
         </div>
       )}
-      <div className="ma" style={{ marginTop: '1rem' }}>
-        <button className="btn btn-s" onClick={onClose}>Cancel</button>
-        <button className="btn btn-p" disabled={!form.name || !form.basePrice}
-          onClick={() => onSave({ ...form, basePrice: parseFloat(form.basePrice) || 0 })}>Save Product</button>
+      <div className="ma" style={{ marginTop: '1rem', justifyContent: onDelete ? 'space-between' : 'flex-end' }}>
+        {onDelete && <button className="btn btn-d btn-sm" style={{ fontSize: '.8rem' }} onClick={onDelete}>Delete Product</button>}
+        <div style={{ display: 'flex', gap: '.5rem' }}>
+          <button className="btn btn-s" onClick={onClose}>Cancel</button>
+          <button className="btn btn-p" disabled={!form.name || !form.basePrice}
+            onClick={() => onSave({ ...form, basePrice: parseFloat(form.basePrice) || 0 })}>Save Product</button>
+        </div>
       </div>
     </div></div>
   )
@@ -2062,7 +2080,7 @@ export function MerchStaffSales({ currentUser, users, setUsers, setPayments, onA
 }
 
 // ─── BundleMakerModal ─────────────────────────────────────────
-function BundleMakerModal({ bundle, catalog, categories, onSave, onClose }) {
+function BundleMakerModal({ bundle, catalog, categories, onSave, onDelete, onClose }) {
   const [form, setForm] = useState({
     name: bundle.name || '',
     description: bundle.description || '',
@@ -2255,11 +2273,14 @@ function BundleMakerModal({ bundle, catalog, categories, onSave, onClose }) {
           }
         </div>
 
-        <div className="ma" style={{ marginTop: '1.25rem' }}>
-          <button className="btn btn-s" onClick={onClose}>Cancel</button>
-          <button className="btn btn-p" disabled={saving || !form.name || !bundlePrice || components.length === 0} onClick={doSave}>
-            {saving ? 'Saving…' : 'Save Bundle'}
-          </button>
+        <div className="ma" style={{ marginTop: '1.25rem', justifyContent: onDelete ? 'space-between' : 'flex-end' }}>
+          {onDelete && <button className="btn btn-d btn-sm" style={{ fontSize: '.8rem' }} onClick={onDelete}>Delete Bundle</button>}
+          <div style={{ display: 'flex', gap: '.5rem' }}>
+            <button className="btn btn-s" onClick={onClose}>Cancel</button>
+            <button className="btn btn-p" disabled={saving || !form.name || !bundlePrice || components.length === 0} onClick={doSave}>
+              {saving ? 'Saving…' : 'Save Bundle'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

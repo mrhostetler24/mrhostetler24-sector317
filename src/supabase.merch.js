@@ -313,6 +313,41 @@ export async function deleteMerchVariant(id) {
   if (error) throw error
 }
 
+export async function getMerchProductDeletionBlockers(product) {
+  const blockers = []
+
+  // Sales history
+  const { count: salesCount } = await supabase
+    .from('merch_order_items').select('id', { count: 'exact', head: true })
+    .eq('product_id', product.id)
+  if (salesCount > 0) blockers.push(`${salesCount} sale${salesCount !== 1 ? 's' : ''} on record`)
+
+  // Inventory on hand (already loaded on variants)
+  if (product.variants.some(v => v.inventory > 0))
+    blockers.push('inventory on hand')
+
+  // Pending purchase order lines
+  const variantIds = product.variants.map(v => v.id)
+  if (variantIds.length > 0) {
+    const { data: lines } = await supabase
+      .from('merch_po_lines')
+      .select('qty_ordered, qty_received, merch_purchase_orders!inner(status)')
+      .in('variant_id', variantIds)
+    const pending = (lines || []).filter(l =>
+      !['received', 'cancelled'].includes(l.merch_purchase_orders?.status) &&
+      (l.qty_received ?? 0) < (l.qty_ordered ?? 0)
+    )
+    if (pending.length > 0) blockers.push('pending purchase orders')
+  }
+
+  return blockers
+}
+
+export async function deleteMerchProduct(id) {
+  const { error } = await supabase.from('merch_products').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function upsertMerchDiscount(discount) {
   const row = {
     code: discount.code.toUpperCase(), description: discount.description || null,
