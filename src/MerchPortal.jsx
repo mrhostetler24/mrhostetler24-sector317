@@ -2097,7 +2097,7 @@ function BundleMakerModal({ bundle, catalog, categories, onSave, onClose }) {
     }).catch(() => {}).finally(() => setLoadingComps(false))
   }, []) // eslint-disable-line
 
-  const sellableProducts = catalog.filter(p => p.type !== 'bundle' && p.active && !p.archived)
+  const sellableProducts = catalog.filter(p => p.type !== 'bundle' && p.active && !p.archived && p.variants.some(v => v.active))
   const selProduct = sellableProducts.find(p => p.id === selProductId)
   const selVariants = (selProduct?.variants || []).filter(v => v.active)
   const selVariant = selVariants.find(v => v.id === selVariantId)
@@ -2183,6 +2183,7 @@ function BundleMakerModal({ bundle, catalog, categories, onSave, onClose }) {
                     <option value="">— Select product —</option>
                     {sellableProducts.map(p => <option key={p.id} value={p.id}>{p.name} ({fmtMoney(p.basePrice)})</option>)}
                   </select>
+                  <div style={{ fontSize: '.68rem', color: 'var(--muted)', marginTop: '.2rem' }}>Products without variants are not eligible for bundles.</div>
                 </div>
                 {selVariants.length > 0 && (
                   <div style={{ flex: 2, minWidth: 130 }}>
