@@ -19,7 +19,6 @@ import AccountPanel from "./AccountPanel.jsx"
 import CompleteProfile from "./CompleteProfile.jsx"
 import LoginScreen from "./LoginScreen.jsx"
 import CustomerPortal from "./CustomerPortal.jsx"
-import StaffPortal from "./StaffPortal.jsx"
 import AdminPortal from "./AdminPortal.jsx"
 const LOGO_URI = "/logo.png"
 const APP_VERSION = __GIT_HASH__
@@ -390,12 +389,6 @@ useEffect(() => {
     }catch(err){showToast("Waiver error: "+err.message);}
   };
 
-  const handleAddPlayer=async(resId,player)=>{
-    try{
-      const newPlayer=await addPlayerToReservation(resId,player);
-      setReservations(p=>p.map(r=>r.id===resId?{...r,players:[...(r.players||[]),newPlayer]}:r));
-    }catch(err){showToast("Error adding player: "+err.message);}
-  };
 
   const handleSetResTypes=async(updater)=>{
     const next=typeof updater==="function"?updater(resTypes):updater;
@@ -424,7 +417,7 @@ useEffect(() => {
 
   const handleAlert=msg=>{setToastAlert(msg);setTimeout(()=>setToastAlert(null),5000);};
   const liveUser=users.find(u=>u.id===currentUser?.id)||currentUser;
-  const portal=!liveUser?null:liveUser.access==="customer"?"customer":liveUser.access==="staff"?"staff":"admin";
+  const portal=!liveUser?null:liveUser.access==="customer"?"customer":"admin";
   const [viewAs,setViewAs]=useState(null); // null | "manager" | "staff" | "customer"
   const [viewAsOpen,setViewAsOpen]=useState(false);
   const [navMenuOpen,setNavMenuOpen]=useState(false);
@@ -435,7 +428,6 @@ useEffect(() => {
   const effectiveUser=viewAs?{...liveUser,access:viewAs}:liveUser;
   const [showNavAccount,setShowNavAccount]=useState(false);
   const [showBackTop,setShowBackTop]=useState(false);
-  const contentRef=useRef(null);
   useEffect(()=>{
     const handler=()=>{
       const el=document.querySelector('.content');
@@ -584,8 +576,7 @@ useEffect(() => {
       </nav>
       <div className="main">
         {effectivePortal==="customer"&&<CustomerPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} sessionTemplates={sessionTemplates} users={users} setUsers={handleSetUsers} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} onBook={handleBook} onPayCreate={handlePayCreate} onFinalize={handleFinalize} onSignWaiver={handleSignWaiver} autoBook={bookOnLogin&&liveUser?.access==="customer"} onAutoBookDone={()=>setBookOnLogin(false)} payments={payments} setPayments={setPayments} runs={runs} onAlert={handleAlert}/>}
-        {effectivePortal==="staff"&&<StaffPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} users={users} setUsers={handleSetUsers} setPayments={setPayments} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiver} shifts={shifts} setShifts={handleSetShifts} runs={runs} onSignWaiver={handleSignWaiver} onAddPlayer={handleAddPlayer} onAlert={handleAlert} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
-        {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs} staffRoles={staffRoles}/>}
+        {effectivePortal==="admin"&&<AdminPortal user={effectiveUser} reservations={reservations} setReservations={handleSetReservations} resTypes={resTypes} setResTypes={handleSetResTypes} sessionTemplates={sessionTemplates} setSessionTemplates={handleSetSessionTemplates} waiverDocs={waiverDocs} setWaiverDocs={handleSetWaiverDocs} activeWaiverDoc={activeWaiver} users={users} setUsers={handleSetUsers} shifts={shifts} setShifts={handleSetShifts} payments={payments} setPayments={setPayments} onAlert={handleAlert} userAuthDates={userAuthDates} runs={runs} staffRoles={staffRoles} navTarget={staffNavTarget} onNavConsumed={()=>setStaffNavTarget(null)}/>}
       </div>
     </div>
   </>);

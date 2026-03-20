@@ -1,3 +1,7 @@
+// UNUSED — staff now routed to AdminPortal (2026-03-19). Safe to delete after ~1 week if no issues.
+// Uncomment the block below to restore standalone StaffPortal functionality.
+
+/*
 import { useState, useEffect } from "react"
 import { todayStr } from "./utils.js"
 import { supabase, removePlayerFromReservation, updateReservation } from "./supabase.js"
@@ -30,7 +34,7 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,
   return(
     <div className="content">
       {showAccount&&<AccountPanel user={user} users={users} setUsers={setUsers} onClose={()=>setShowAccount(false)}/>}
-      {/* Desktop/tablet: flat single row */}
+      {/* Desktop/tablet: flat single row *\/}
       <div className="tabs desktop-tabs">
         <button className={`tab${tab==="today"?" on":""}`} onClick={()=>setTab("today")}>Today ({todayRes.length})</button>
         <button className={`tab${tab==="upcoming"?" on":""}`} onClick={()=>setTab("upcoming")}>Upcoming</button>
@@ -39,7 +43,7 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,
         <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
         <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
-      {/* Mobile: two-row grouped */}
+      {/* Mobile: two-row grouped *\/}
       <div className="tabs-wrap mobile-tabs">
         <div className="tabs">
           <button className={`tab tab-grp${spTabGroup==="company"?" on":""}`} onClick={()=>spSwitchGroup("company")}>Company</button>
@@ -73,3 +77,4 @@ function StaffPortal({user,reservations,setReservations,resTypes,users,setUsers,
 }
 
 export default StaffPortal
+*/

@@ -18,8 +18,11 @@ import MerchPortal from "./MerchPortal.jsx"
 import SocialPortal from "./SocialPortal.jsx"
 import ReservationRow from "./ReservationRow.jsx"
 
-function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,sessionTemplates,setSessionTemplates,waiverDocs,setWaiverDocs,activeWaiverDoc,users,setUsers,shifts,setShifts,payments,setPayments,onAlert,userAuthDates=[],runs=[],staffRoles=[]}){
-  const [tab,setTab]=useState("dashboard");
+function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,sessionTemplates,setSessionTemplates,waiverDocs,setWaiverDocs,activeWaiverDoc,users,setUsers,shifts,setShifts,payments,setPayments,onAlert,userAuthDates=[],runs=[],staffRoles=[],navTarget,onNavConsumed}){
+  const isAdmin=user.access==="admin";
+  const isManager=user.access==="manager"||isAdmin;
+  const isStaff=user.access==="staff";
+  const [tab,setTab]=useState(()=>{if(navTarget){onNavConsumed?.();return navTarget;}return"dashboard";});
   const [schedTabOverride,setSchedTabOverride]=useState(null);
   const apEmployeeTabs=["social","schedule"];
   const apAdminTabs=["types","sessions","waivers","objectives"];
@@ -29,8 +32,6 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
   const [modal,setModal]=useState(null);
   const [deactivateModal,setDeactivateModal]=useState(null);
   const [showAccountFor,setShowAccountFor]=useState(null);
-  const isAdmin=user.access==="admin";
-  const isManager=user.access==="manager"||isAdmin;
   const [dashPeriod,setDashPeriod]=useState("all");
   const [dashFrom,setDashFrom]=useState("");
   const [dashTo,setDashTo]=useState("");
@@ -378,9 +379,9 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
         {isAdmin&&<button className={`tab${tab==="sessions"?" on":""}`} onClick={()=>setTab("sessions")}>Sessions</button>}
         {isAdmin&&<button className={`tab${tab==="waivers"?" on":""}`} onClick={()=>setTab("waivers")}>Waivers</button>}
         {isAdmin&&<button className={`tab${tab==="objectives"?" on":""}`} onClick={()=>setTab("objectives")}>Objectives</button>}
-        <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
+        {isManager&&<button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>}
         <button className={`tab${tab==="schedule"?" on":""}`} onClick={()=>setTab("schedule")}>Schedule{alertShifts.length>0&&<span style={{background:"var(--warn)",color:"var(--bg2)",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{alertShifts.length}</span>}</button>
-        {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merch</button>}
+        <button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merch</button>
         <button className="btn btn-p btn-sm" style={{marginLeft:"auto",flexShrink:0}} onClick={()=>window.open(window.location.origin+window.location.pathname+"?ops=1","_blank")}>Operations ↗</button>
       </div>
       {/* Mobile: two-row grouped */}
@@ -396,8 +397,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             <button className={`tab${tab==="dashboard"?" on":""}`} onClick={()=>setTab("dashboard")}>Dashboard</button>
             <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
             {isManager&&<button className={`tab${tab==="customers"?" on":""}`} onClick={()=>setTab("customers")}>Customers{dupAlerts.length>0&&<span style={{background:"var(--danger)",color:"#fff",borderRadius:"50%",padding:"0 5px",fontSize:".65rem",marginLeft:".3rem"}}>{dupAlerts.length}</span>}</button>}
-            <button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>
-            {isManager&&<button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merch</button>}
+            {isManager&&<button className={`tab${tab==="staff"?" on":""}`} onClick={()=>setTab("staff")}>Staff</button>}
+            <button className={`tab${tab==="merchandise"?" on":""}`} onClick={()=>setTab("merchandise")}>Merch</button>
           </>}
           {tabGroup==="employee"&&<>
             <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
@@ -725,9 +726,10 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                                 {resv.map((r,ri)=>{
                                   const pc=r.players?.length||r.playerCount||0;
                                   const top=4+(ri+1)*rowSpacing;
+                                  const nameCol=r.status==="completed"||r.status==="scored"?"#4ade80":r.status==="no-show"?"#f87171":col.hl;
                                   return(
                                     <div key={r.id} style={{position:"absolute",top,left:rowL(top),right:rowR(top),display:"flex",justifyContent:"center",gap:".25rem",alignItems:"baseline",overflow:"hidden"}}>
-                                      <span style={{fontSize:".82rem",fontWeight:600,color:col.hl,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
+                                      <span style={{fontSize:".82rem",fontWeight:600,color:nameCol,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
                                         {r.customerName}
                                       </span>
                                       <span style={{fontSize:".72rem",color:"rgba(255,255,255,.45)",flexShrink:0}}>{pc}p</span>
@@ -830,7 +832,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             </div>}
 
             {/* ── Flags ── */}
-            <div style={{background:"var(--surf)",border:`1px solid ${visibleFlagRows.length>0?"rgba(192,57,43,.35)":"var(--bdr)"}`,borderRadius:6,overflow:"hidden"}}>
+            {isManager&&<div style={{background:"var(--surf)",border:`1px solid ${visibleFlagRows.length>0?"rgba(192,57,43,.35)":"var(--bdr)"}`,borderRadius:6,overflow:"hidden"}}>
               {(()=>{
                 const ackedCount=flagRows.filter(r=>acknowledgedFlags.has(r.id+r._flag)).length;
                 return sectionHead(
@@ -861,7 +863,7 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
                 </table>;
               })()}
               <div style={{fontSize:".68rem",color:"var(--muted)",padding:".4rem .85rem",borderTop:"1px solid rgba(255,255,255,.04)"}}>Unpaid: all-time active. Rescheduled, cancelled &amp; no-show: last 90 days.</div>
-            </div>
+            </div>}
 
           </div>;
         })()}
@@ -890,8 +892,8 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             </div>);
           return(<>{pager}
           <div className="tw"><div className="th"><span className="ttl">{resSubTab==="upcoming"?"Upcoming Sessions":"Past Sessions"}</span><span style={{fontSize:".74rem",color:"var(--muted)"}}>Click row to expand</span></div>
-          <table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th>{isAdmin&&<th>Amount</th>}</tr></thead>
-            <tbody>{!pageRows.length&&<tr><td colSpan={isAdmin?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No {resSubTab} reservations.</td></tr>}{pageRows.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} currentUser={user} sessionTemplates={sessionTemplates} reservations={reservations} isStaff={true} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes} onRemovePlayer={removePlayer} onReschedule={rescheduleRes}/>)}</tbody>
+          <table><thead><tr><th>Customer / Date</th><th>Type</th><th>Players</th><th>Status</th>{isManager&&<th>Amount</th>}</tr></thead>
+            <tbody>{!pageRows.length&&<tr><td colSpan={isManager?5:4} style={{textAlign:"center",color:"var(--muted)",padding:"2.5rem"}}>No {resSubTab} reservations.</td></tr>}{pageRows.map(r=><ReservationRow key={r.id} res={r} resTypes={resTypes} users={users} waiverDocs={waiverDocs} activeWaiverDoc={activeWaiverDoc} canManage={true} isAdmin={isAdmin} currentUser={user} sessionTemplates={sessionTemplates} reservations={reservations} isStaff={true} onAddPlayer={addPlayer} onSignWaiver={signWaiver} onCancel={cancelRes} onRemovePlayer={removePlayer} onReschedule={rescheduleRes}/>)}</tbody>
           </table></div>{pager}</>);
         })()}
       </>}
