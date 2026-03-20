@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react"
-import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, todayStr, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, cleanPh, sortTemplates, getSessionsForDate, buildLanes, getTierInfo, TIER_COLORS, TIER_SHINE, hasValidWaiver, latestWaiverDate } from "./utils.js"
+import { DAYS_OF_WEEK, ACCESS_LEVELS, PAGE_SIZE, todayStr, fmt, fmtMoney, fmtPhone, fmt12, fmtTS, cleanPh, sortTemplates, getSessionsForDate, buildLanes, getTierInfo, TIER_COLORS, TIER_SHINE, hasValidWaiver, latestWaiverDate, laneCapacity } from "./utils.js"
 import { AuthBadge, Toast, Toggle, WaiverTooltip, RunsCell, genDefaultLeaderboardName } from "./ui.jsx"
 import {
   supabase, mergeUsers, updateUserAdmin, updateEmailPreferences, fetchEmailPreferences,
@@ -491,11 +491,11 @@ function AdminPortal({user,reservations,setReservations,resTypes,setResTypes,ses
             // Use actual roster size; fall back to playerCount if roster not yet filled
             const actualP=r=>r.players.length>0?r.players.length:r.playerCount;
             // For open play, group by (date,startTime) so each distinct lane = one data point
-            const laneGroups=arr=>{const m={};arr.forEach(r=>{const k=`${r.date}|${r.startTime}`;m[k]=(m[k]||0)+actualP(r);});return Object.values(m);};
+            const laneGroups=(arr,cap)=>{const m={};arr.forEach(r=>{const k=`${r.date}|${r.startTime}`;m[k]=(m[k]||0)+actualP(r);});const out=[];Object.values(m).forEach(total=>{const n=Math.max(1,Math.ceil(total/cap));for(let i=0;i<n;i++)out.push(total/n);});return out;};
             const coopPrivLanes=activeCoopPriv.map(actualP);
             const vsPrivLanes=activeVsPriv.map(actualP);
-            const coopOpenLanes=laneGroups(activeCoopOpen);
-            const vsOpenLanes=laneGroups(activeVsOpen);
+            const coopOpenLanes=laneGroups(activeCoopOpen,laneCapacity("coop"));
+            const vsOpenLanes=laneGroups(activeVsOpen,laneCapacity("versus"));
             const arrAvg=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
             const fmt2=v=>v===null?"—":v.toFixed(2);
             const sum=arr=>arr.reduce((s,v)=>s+v,0);
