@@ -410,6 +410,13 @@ export async function deleteUser(id) {
   if (error) throw error
 }
 
+export async function unlinkSocialAuth() {
+  // SECURITY DEFINER RPC — clears auth_id and email so the OAuth link is severed.
+  // Account data is preserved; re-login via OAuth will prompt CompleteProfile.
+  const { error } = await supabase.rpc('unlink_social_auth')
+  if (error) throw error
+}
+
 export async function signWaiver(userId, signedName, waiverDocId) {
   // SECURITY DEFINER RPC — writes users.waivers JSONB AND a permanent
   // signed_waivers row with a full body snapshot for legal archiving.

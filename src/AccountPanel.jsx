@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react"
 import { cleanPh } from "./utils.js"
 import { PhoneInput, genDefaultLeaderboardName, validateLbName } from "./ui.jsx"
-import { supabase, updateOwnProfile, fetchEmailPreferences, updateEmailPreferences } from "./supabase.js"
+import { supabase, updateOwnProfile, fetchEmailPreferences, updateEmailPreferences, unlinkSocialAuth } from "./supabase.js"
 
-function AccountPanel({user,users,setUsers,onClose}){
+function AccountPanel({user,users,setUsers,onClose,onDeleteAccount}){
   const [name,setName]=useState(user.name||"");
   const [phone,setPhone]=useState(user.phone||"");
   const [email,setEmail]=useState(user.email||"");
@@ -12,6 +12,15 @@ function AccountPanel({user,users,setUsers,onClose}){
   const [saving,setSaving]=useState(false);
   const [saved,setSaved]=useState(false);
   const [err,setErr]=useState(null);
+  const [deleteConfirm,setDeleteConfirm]=useState(false);
+  const [deleting,setDeleting]=useState(false);
+  const handleDeleteAccount=async()=>{
+    setDeleting(true);
+    try{
+      await unlinkSocialAuth();
+      onDeleteAccount?.();
+    }catch(e){setErr("Error: "+e.message);setDeleting(false);setDeleteConfirm(false);}
+  };
   // Email preferences
   const DEFAULT_PREFS={bookings:true,match_summary:true,social:true,merchandise:true,marketing:true};
   const [emailPrefs,setEmailPrefs]=useState(DEFAULT_PREFS);
@@ -138,6 +147,23 @@ function AccountPanel({user,users,setUsers,onClose}){
             </button>
           </>}
         </div>
+        {user.access==="customer"&&<div style={{marginTop:"1.75rem",borderTop:"1px solid var(--danger)",paddingTop:"1.25rem"}}>
+          <div style={{fontSize:".74rem",color:"var(--dangerL)",textTransform:"uppercase",letterSpacing:".08em",fontWeight:700,marginBottom:".75rem"}}>Danger Zone</div>
+          {!deleteConfirm
+            ?<button className="btn btn-s btn-full" style={{color:"var(--dangerL)",borderColor:"var(--danger)"}} onClick={()=>setDeleteConfirm(true)}>Delete Account</button>
+            :<div style={{background:"rgba(192,57,43,.08)",border:"1px solid var(--danger)",borderRadius:5,padding:".85rem 1rem"}}>
+              <div style={{fontSize:".82rem",color:"var(--txt)",marginBottom:".75rem",lineHeight:1.5}}>
+                <strong>Are you sure?</strong> Your game history, reservations, and stats will be preserved, but your login access will be removed. You can reclaim this account by signing in and entering your phone number again.
+              </div>
+              <div style={{display:"flex",gap:".5rem"}}>
+                <button className="btn btn-s" onClick={()=>setDeleteConfirm(false)} disabled={deleting}>Cancel</button>
+                <button className="btn btn-s" style={{color:"var(--dangerL)",borderColor:"var(--danger)"}} disabled={deleting} onClick={handleDeleteAccount}>
+                  {deleting?"Removing…":"Yes, Remove My Access"}
+                </button>
+              </div>
+            </div>
+          }
+        </div>}
       </div>
     </div>
   </>);

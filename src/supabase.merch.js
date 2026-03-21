@@ -31,23 +31,39 @@ const toMerchProduct = r => r ? ({
   internalNotes: r.internal_notes ?? null,
   active: r.active, archived: r.archived,
   sortOrder: r.sort_order, createdAt: r.created_at,
-  variants: (r.variants || []).map(v => ({
-    id: v.id, label: v.label, sku: v.sku, skuSuffix: v.sku_suffix ?? null,
-    priceOverride: v.price_override != null ? Number(v.price_override) : null,
-    shippingCharge: Number(v.shipping_charge || 0),
-    active: v.active, storefrontVisible: v.storefront_visible, staffVisible: v.staff_visible,
-    discontinued: v.discontinued ?? false, discontinuedAt: v.discontinued_at ?? null,
-    sortOrder: v.sort_order, inventory: Number(v.inventory || 0),
-    cost:          v.cost          != null ? Number(v.cost)          : null,
-    reorderPoint:  v.reorder_point != null ? Number(v.reorder_point) : null,
-    reorderQty:    v.reorder_qty   != null ? Number(v.reorder_qty)   : null,
-    leadTimeDays:  v.lead_time_days != null ? Number(v.lead_time_days) : null,
-    vendorId:      v.vendor_id   ?? null,
-    vendorSku:     v.vendor_sku  ?? null,
-    vendorName:    v.vendor_name ?? null,
-    vendorEmail:   v.vendor_email ?? null,
-    vendorPhone:   v.vendor_phone ?? null,
-  })),
+  variants: (r.variants || []).map(v => {
+    const mappedVendors = (v.vendors || []).map(vv => ({
+      id:           vv.id,
+      vendorId:     vv.vendor_id,
+      vendorName:   vv.vendor_name  ?? null,
+      vendorEmail:  vv.vendor_email ?? null,
+      vendorPhone:  vv.vendor_phone ?? null,
+      vendorSku:    vv.vendor_sku   ?? null,
+      cost:         vv.cost          != null ? Number(vv.cost)          : null,
+      leadTimeDays: vv.lead_time_days != null ? Number(vv.lead_time_days) : null,
+      isPrimary:    vv.is_primary ?? false,
+    }))
+    const primary = mappedVendors.find(vv => vv.isPrimary) ?? mappedVendors[0] ?? null
+    return {
+      id: v.id, label: v.label, sku: v.sku, skuSuffix: v.sku_suffix ?? null,
+      priceOverride: v.price_override != null ? Number(v.price_override) : null,
+      shippingCharge: Number(v.shipping_charge || 0),
+      active: v.active, storefrontVisible: v.storefront_visible, staffVisible: v.staff_visible,
+      discontinued: v.discontinued ?? false, discontinuedAt: v.discontinued_at ?? null,
+      sortOrder: v.sort_order, inventory: Number(v.inventory || 0),
+      reorderPoint: v.reorder_point != null ? Number(v.reorder_point) : null,
+      reorderQty:   v.reorder_qty   != null ? Number(v.reorder_qty)   : null,
+      vendors: mappedVendors,
+      // Convenience fields from primary vendor (backwards-compat)
+      vendorId:    primary?.vendorId    ?? null,
+      vendorSku:   primary?.vendorSku   ?? null,
+      vendorName:  primary?.vendorName  ?? null,
+      vendorEmail: primary?.vendorEmail ?? null,
+      vendorPhone: primary?.vendorPhone ?? null,
+      cost:        primary?.cost        ?? null,
+      leadTimeDays: primary?.leadTimeDays ?? null,
+    }
+  }),
 }) : null
 
 const toMerchOrder = r => r ? ({
@@ -290,14 +306,9 @@ export async function upsertMerchVariant(variant) {
     shipping_charge: variant.shippingCharge ?? 0,
     active: variant.active ?? true, storefront_visible: variant.storefrontVisible ?? true,
     staff_visible: variant.staffVisible ?? true, sort_order: variant.sortOrder ?? 0,
-    vendor_id:      variant.vendorId      || null,
-    vendor_sku:     variant.vendorSku     || null,
-    cost:           variant.cost != null && variant.cost !== '' ? parseFloat(variant.cost) : null,
-    reorder_point:  variant.reorderPoint  != null && variant.reorderPoint  !== '' ? parseInt(variant.reorderPoint)  : null,
-    reorder_qty:    variant.reorderQty    != null && variant.reorderQty    !== '' ? parseInt(variant.reorderQty)    : null,
-    lead_time_days: variant.leadTimeDays  != null && variant.leadTimeDays  !== '' ? parseInt(variant.leadTimeDays)  : null,
+    reorder_point: variant.reorderPoint != null && variant.reorderPoint !== '' ? parseInt(variant.reorderPoint) : null,
+    reorder_qty:   variant.reorderQty   != null && variant.reorderQty   !== '' ? parseInt(variant.reorderQty)   : null,
     discontinued: variant.discontinued ?? false,
-    // Preserve original timestamp if already discontinued; set now on first toggle
     discontinued_at: variant.discontinued
       ? (variant.discontinuedAt || new Date().toISOString())
       : null,
@@ -305,7 +316,27 @@ export async function upsertMerchVariant(variant) {
   if (variant.id) row.id = variant.id
   const { data, error } = await supabase.from('merch_variants').upsert(row).select().single()
   if (error) throw error
-  return data.id
+  const variantId = data.id
+
+  // Sync vendor associations via junction table
+  const vendors = variant.vendors || []
+  await supabase.from('merch_variant_vendors').delete().eq('variant_id', variantId)
+  if (vendors.length > 0) {
+    // Ensure exactly one is marked primary; default to first if none set
+    const hasPrimary = vendors.some(vv => vv.isPrimary)
+    const rows = vendors.map((vv, i) => ({
+      variant_id:     variantId,
+      vendor_id:      vv.vendorId,
+      vendor_sku:     vv.vendorSku  || null,
+      cost:           vv.cost       != null && vv.cost       !== '' ? parseFloat(vv.cost)       : null,
+      lead_time_days: vv.leadTimeDays != null && vv.leadTimeDays !== '' ? parseInt(vv.leadTimeDays) : null,
+      is_primary:     hasPrimary ? (vv.isPrimary ?? false) : i === 0,
+    }))
+    const { error: vErr } = await supabase.from('merch_variant_vendors').insert(rows)
+    if (vErr) throw vErr
+  }
+
+  return variantId
 }
 
 export async function deleteMerchVariant(id) {

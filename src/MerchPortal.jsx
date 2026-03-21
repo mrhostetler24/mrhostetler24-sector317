@@ -1057,25 +1057,51 @@ function ProductEditModal({ product, categories, onSave, onDelete, onClose }) {
 
 // ─── VariantEditModal ─────────────────────────────────────────
 function VariantEditModal({ variant, vendors = [], productSku = null, onSave, onDelete, onClose, onAddVendor }) {
-  const [form, setForm] = useState(() => {
-    const base = { label: '', sku: '', skuSuffix: '', priceOverride: '', shippingCharge: '0',
-      storefrontVisible: true, staffVisible: true, active: true, sortOrder: 0,
-      discontinued: false, discontinuedAt: null,
-      reorderPoint: '', reorderQty: '', cost: '', leadTimeDays: '', vendorId: '', vendorSku: '',
-      ...variant }
-    return { ...base,
-      priceOverride:  variant.priceOverride  != null ? String(variant.priceOverride)  : '',
-      shippingCharge: variant.shippingCharge != null ? String(variant.shippingCharge) : '0',
-      reorderPoint:   variant.reorderPoint   != null ? String(variant.reorderPoint)   : '',
-      reorderQty:     variant.reorderQty     != null ? String(variant.reorderQty)     : '',
-      cost:           variant.cost           != null ? String(variant.cost)           : '',
-      leadTimeDays:   variant.leadTimeDays   != null ? String(variant.leadTimeDays)   : '',
-      vendorId:       variant.vendorId       ?? '',
-      vendorSku:      variant.vendorSku      ?? '',
-      skuSuffix:      variant.skuSuffix      ?? '',
-    }
-  })
+  const [form, setForm] = useState(() => ({
+    label: '', sku: '', skuSuffix: '', priceOverride: '', shippingCharge: '0',
+    storefrontVisible: true, staffVisible: true, active: true, sortOrder: 0,
+    discontinued: false, discontinuedAt: null,
+    reorderPoint: '', reorderQty: '',
+    ...variant,
+    priceOverride:  variant.priceOverride  != null ? String(variant.priceOverride)  : '',
+    shippingCharge: variant.shippingCharge != null ? String(variant.shippingCharge) : '0',
+    reorderPoint:   variant.reorderPoint   != null ? String(variant.reorderPoint)   : '',
+    reorderQty:     variant.reorderQty     != null ? String(variant.reorderQty)     : '',
+    skuSuffix:      variant.skuSuffix ?? '',
+    vendors: (variant.vendors || []).map(vv => ({
+      ...vv,
+      cost:         vv.cost         != null ? String(vv.cost)         : '',
+      leadTimeDays: vv.leadTimeDays != null ? String(vv.leadTimeDays) : '',
+      vendorSku:    vv.vendorSku    ?? '',
+    })),
+  }))
+  const [addVendorId, setAddVendorId] = useState('')
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const setVendorField = (idx, k, v) => setForm(f => ({
+    ...f, vendors: f.vendors.map((vv, i) => i === idx ? { ...vv, [k]: v } : vv),
+  }))
+  const setPrimary = idx => setForm(f => ({
+    ...f, vendors: f.vendors.map((vv, i) => ({ ...vv, isPrimary: i === idx })),
+  }))
+  const removeVendor = idx => setForm(f => {
+    const next = f.vendors.filter((_, i) => i !== idx)
+    // If removed was primary, promote first remaining
+    if (f.vendors[idx]?.isPrimary && next.length > 0) next[0] = { ...next[0], isPrimary: true }
+    return { ...f, vendors: next }
+  })
+  const addVendor = () => {
+    if (!addVendorId || form.vendors.some(vv => vv.vendorId === addVendorId)) return
+    const vMeta = vendors.find(v => v.id === addVendorId)
+    setForm(f => ({
+      ...f,
+      vendors: [...f.vendors, {
+        vendorId: addVendorId, vendorName: vMeta?.name ?? '',
+        vendorSku: '', cost: '', leadTimeDays: '',
+        isPrimary: f.vendors.length === 0,
+      }],
+    }))
+    setAddVendorId('')
+  }
   const suggestedSku = productSku && form.skuSuffix ? `${productSku}-${form.skuSuffix}` : null
   return (
     <div className="mo" onClick={onClose}><div className="mc" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
@@ -1134,26 +1160,51 @@ function VariantEditModal({ variant, vendors = [], productSku = null, onSave, on
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
           <div className="f"><label>Reorder Point</label><input type="number" min="0" value={form.reorderPoint} onChange={e => set('reorderPoint', e.target.value)} placeholder="Alert when qty ≤ this" /></div>
           <div className="f"><label>Reorder Qty</label><input type="number" min="0" value={form.reorderQty} onChange={e => set('reorderQty', e.target.value)} placeholder="Units to order" /></div>
-          <div className="f"><label>Cost / Unit ($)</label><input type="number" min="0" step="0.0001" value={form.cost} onChange={e => set('cost', e.target.value)} placeholder="Your cost" /></div>
-          <div className="f"><label>Lead Time (days)</label><input type="number" min="0" value={form.leadTimeDays} onChange={e => set('leadTimeDays', e.target.value)} placeholder="Delivery days" /></div>
-          <div className="f" style={{ gridColumn: '1/-1' }}>
-            <label>Vendor</label>
-            <div style={{ display: 'flex', gap: '.4rem' }}>
-              <select value={form.vendorId} onChange={e => set('vendorId', e.target.value)} style={{ flex: 1 }}>
-                <option value="">— None —</option>
-                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-              </select>
-              {vendors.length === 0 && <span style={{ fontSize: '.72rem', color: 'var(--muted)', alignSelf: 'center' }}>Add vendors in Settings first</span>}
-              {onAddVendor && <button type="button" className="btn btn-s btn-sm" style={{ fontSize: '.75rem', whiteSpace: 'nowrap' }} onClick={onAddVendor}>＋ Add</button>}
+        </div>
+      </div>
+
+      {/* ── Vendors ── */}
+      <div style={{ borderTop: '1px solid var(--bdr)', paddingTop: '.75rem', marginBottom: '.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '.6rem' }}>
+          <span style={{ fontSize: '.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em', flex: 1 }}>Vendors</span>
+        </div>
+        {form.vendors.map((vv, idx) => (
+          <div key={vv.vendorId} style={{ background: 'var(--surf2)', border: `1px solid ${vv.isPrimary ? 'var(--acc)' : 'var(--bdr)'}`, borderRadius: 6, padding: '.5rem .75rem', marginBottom: '.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.4rem' }}>
+              <button type="button" title={vv.isPrimary ? 'Primary vendor' : 'Set as primary'} onClick={() => setPrimary(idx)}
+                style={{ background: 'none', border: 'none', cursor: vv.isPrimary ? 'default' : 'pointer', fontSize: '1rem', lineHeight: 1, opacity: vv.isPrimary ? 1 : 0.3, padding: 0 }}>★</button>
+              <span style={{ fontWeight: 600, fontSize: '.85rem', flex: 1 }}>{vv.vendorName}</span>
+              <button type="button" className="btn btn-d btn-sm" style={{ fontSize: '.7rem', padding: '2px 7px' }} onClick={() => removeVendor(idx)}>✕</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px', gap: '.4rem' }}>
+              <div className="f" style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '.68rem' }}>Vendor SKU</label>
+                <input value={vv.vendorSku} onChange={e => setVendorField(idx, 'vendorSku', e.target.value)} placeholder="Supplier part #" style={{ fontSize: '.82rem' }} />
+              </div>
+              <div className="f" style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '.68rem' }}>Cost ($)</label>
+                <input type="number" min="0" step="0.0001" value={vv.cost} onChange={e => setVendorField(idx, 'cost', e.target.value)} placeholder="0.00" style={{ fontSize: '.82rem' }} />
+              </div>
+              <div className="f" style={{ marginBottom: 0 }}>
+                <label style={{ fontSize: '.68rem' }}>Lead (days)</label>
+                <input type="number" min="0" value={vv.leadTimeDays} onChange={e => setVendorField(idx, 'leadTimeDays', e.target.value)} placeholder="0" style={{ fontSize: '.82rem' }} />
+              </div>
             </div>
           </div>
-          {form.vendorId && (
-            <div className="f" style={{ gridColumn: '1/-1' }}>
-              <label>Vendor SKU</label>
-              <input value={form.vendorSku} onChange={e => set('vendorSku', e.target.value)} placeholder="Supplier's part number" />
-            </div>
-          )}
+        ))}
+        {/* Add vendor row */}
+        <div style={{ display: 'flex', gap: '.4rem', marginTop: '.4rem', alignItems: 'center' }}>
+          <select value={addVendorId} onChange={e => setAddVendorId(e.target.value)}
+            style={{ flex: 1, background: 'var(--bg2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.3rem .5rem', color: 'var(--txt)', fontSize: '.82rem' }}>
+            <option value="">— Add vendor —</option>
+            {vendors.filter(v => !form.vendors.some(vv => vv.vendorId === v.id)).map(v => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
+          <button type="button" className="btn btn-s btn-sm" style={{ fontSize: '.78rem', whiteSpace: 'nowrap' }} disabled={!addVendorId} onClick={addVendor}>+ Add</button>
+          {onAddVendor && <button type="button" className="btn btn-s btn-sm" style={{ fontSize: '.78rem', whiteSpace: 'nowrap' }} onClick={onAddVendor}>+ New Vendor</button>}
         </div>
+        {vendors.length === 0 && <div style={{ fontSize: '.72rem', color: 'var(--muted)', marginTop: '.3rem' }}>Create vendors in Settings first.</div>}
       </div>
       <div className="ma" style={{ justifyContent: onDelete ? 'space-between' : 'flex-end', marginTop: '.5rem' }}>
         {onDelete && <button className="btn btn-d btn-sm" style={{ fontSize: '.8rem' }} onClick={onDelete}>Delete Variant</button>}
@@ -1164,8 +1215,6 @@ function VariantEditModal({ variant, vendors = [], productSku = null, onSave, on
               ...form,
               priceOverride:  form.priceOverride  !== '' ? parseFloat(form.priceOverride)  : null,
               shippingCharge: parseFloat(form.shippingCharge) || 0,
-              vendorId:       form.vendorId || null,
-              vendorSku:      form.vendorSku || null,
             })}>Save Variant</button>
         </div>
       </div>
@@ -1270,8 +1319,20 @@ function PurchaseOrderModal({ po, vendors, catalog, locations, onSave, onClose }
   const [notes, setNotes] = useState(po.notes || '')
   const [lines, setLines] = useState(po.lines || [{ variantId: '', qtyOrdered: 1, unitCost: '', receiveLocationId: defaultLocId }])
 
-  // Flat list of all variants for picker
-  const allVariants = catalog.flatMap(p => p.variants.map(v => ({ id: v.id, label: `${p.name} — ${v.label}`, sku: v.sku })))
+  // Variants tied to the selected vendor (primary or secondary)
+  const vendorVariants = catalog.flatMap(p =>
+    p.variants
+      .filter(v => v.vendors.some(vv => vv.vendorId === vendorId))
+      .map(v => {
+        const vv = v.vendors.find(vv => vv.vendorId === vendorId)
+        return { id: v.id, label: `${p.name} — ${v.label}`, sku: v.sku, cost: vv?.cost ?? null }
+      })
+  )
+
+  const handleVendorChange = id => {
+    setVendorId(id)
+    setLines(l => l.map(line => ({ ...line, variantId: '', unitCost: '' })))
+  }
 
   const addLine = () => setLines(l => [...l, { variantId: '', qtyOrdered: 1, unitCost: '', receiveLocationId: defaultLocId }])
   const removeLine = i => setLines(l => l.filter((_, idx) => idx !== i))
@@ -1284,7 +1345,7 @@ function PurchaseOrderModal({ po, vendors, catalog, locations, onSave, onClose }
       <div className="mt2">Create Purchase Order</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '.75rem' }}>
         <div className="f" style={{ gridColumn: '1/-1' }}><label>Vendor *</label>
-          <select value={vendorId} onChange={e => setVendorId(e.target.value)}>
+          <select value={vendorId} onChange={e => handleVendorChange(e.target.value)}>
             <option value="">— Select Vendor —</option>
             {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
@@ -1296,9 +1357,9 @@ function PurchaseOrderModal({ po, vendors, catalog, locations, onSave, onClose }
       {lines.map((line, i) => (
         <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 60px 90px 1fr 28px', gap: '.4rem', marginBottom: '.4rem', alignItems: 'end' }}>
           <div className="f" style={{ marginBottom: 0 }}>
-            <select value={line.variantId} onChange={e => setLine(i, 'variantId', e.target.value)} style={{ fontSize: '.82rem' }}>
-              <option value="">— Variant —</option>
-              {allVariants.map(v => <option key={v.id} value={v.id}>{v.label}{v.sku ? ` (${v.sku})` : ''}</option>)}
+            <select value={line.variantId} onChange={e => { const v = vendorVariants.find(vv => vv.id === e.target.value); setLine(i, 'variantId', e.target.value); if (v?.cost != null) setLine(i, 'unitCost', String(v.cost)) }} style={{ fontSize: '.82rem' }} disabled={!vendorId}>
+              <option value="">{vendorId ? '— Select Item —' : '— Select a vendor first —'}</option>
+              {vendorVariants.map(v => <option key={v.id} value={v.id}>{v.label}{v.sku ? ` (${v.sku})` : ''}</option>)}
             </select>
           </div>
           <div className="f" style={{ marginBottom: 0 }}><input type="number" min="1" value={line.qtyOrdered} onChange={e => setLine(i, 'qtyOrdered', parseInt(e.target.value) || 1)} placeholder="Qty" /></div>

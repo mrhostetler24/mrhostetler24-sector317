@@ -378,6 +378,11 @@ useEffect(() => {
     }
   };
 
+  const handleDeleteAccount=async()=>{
+    await supabase.auth.signOut();
+    setCurrentUser(null);setPendingUser(null);setShowNavAccount(false);setShowLanding(true);
+  };
+
   const handleSignWaiver=async(uid,name)=>{
     try{
       await signWaiver(uid,name,activeWaiver?.id);
@@ -499,7 +504,7 @@ useEffect(() => {
     <div className="app">
       {toastAlert&&<Toast msg={toastAlert} variant="alert" onClose={()=>setToastAlert(null)}/>}
       {showBackTop&&<button className="back-to-top" title="Back to top" onClick={()=>{document.querySelector('.content')?.scrollTo({top:0,behavior:'smooth'});setShowBackTop(false);}}>↑</button>}
-      {showNavAccount&&liveUser&&<AccountPanel user={liveUser} users={users} setUsers={handleSetUsers} onClose={()=>setShowNavAccount(false)}/>}
+      {showNavAccount&&liveUser&&<AccountPanel user={liveUser} users={users} setUsers={handleSetUsers} onClose={()=>setShowNavAccount(false)} onDeleteAccount={handleDeleteAccount}/>}
       <nav className="nav">
         <div className="nav-brand" onClick={()=>setCurrentUser(null)}>
           <img src={LOGO_URI} className="nav-logo" alt="Sector 317"/>
