@@ -378,9 +378,9 @@ useEffect(() => {
     }
   };
 
-  const handleDeleteAccount=async()=>{
-    await supabase.auth.signOut();
+  const handleDeleteAccount=()=>{
     setCurrentUser(null);setPendingUser(null);setShowNavAccount(false);setShowLanding(true);
+    supabase.auth.signOut();
   };
 
   const handleSignWaiver=async(uid,name)=>{
