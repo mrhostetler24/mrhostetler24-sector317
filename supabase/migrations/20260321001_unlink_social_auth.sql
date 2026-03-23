@@ -29,8 +29,9 @@ BEGIN
 
   -- Clear the social auth link so re-login prompts account setup
   UPDATE public.users
-  SET auth_id = NULL,
-      email   = NULL
+  SET auth_id       = NULL,
+      email         = NULL,
+      auth_provider = 'phone'
   WHERE id = v_user_id;
 END;
 $$;

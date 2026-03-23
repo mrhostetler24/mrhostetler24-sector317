@@ -62,7 +62,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
     if(tab!=='leaderboard') return;
     setLbLoading(true);setLbError(null);setLbPage(1);
     const {view}=LB_VIEW_MAP[lbMode][lbPeriod];
-    const q=lbPlayerFilter==="friends"&&friendIds.size>0
+    const q=lbPlayerFilter==="friends"
       ?supabase.from(view).select('*').in('player_id',[...friendIds,user.id]).order('leaderboard_score',{ascending:false})
       :supabase.from(view).select('*').order('leaderboard_score',{ascending:false}).limit(200);
     q.then(async ({data,error})=>{
