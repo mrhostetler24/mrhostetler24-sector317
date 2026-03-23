@@ -476,7 +476,7 @@ function FriendProfileModal({ userId, users, onClose }) {
 const MAX_BIO = 250
 
 // ── Main export ───────────────────────────────────────────────────────────────
-export default function SocialPortal({ user, users, setUsers, reservations, resTypes, runs, careerRuns, onEditProfile, onFriendsChanged }) {
+export default function SocialPortal({ user, users, setUsers, reservations, resTypes, runs, careerRuns, onEditProfile, onFriendsChanged, onPendingCountChange }) {
   const [tab, setTab]                         = useState(() => {
     const sub = new URLSearchParams(window.location.search).get('sub')
     if (sub === 'friends' || sub === 'connect' || sub === 'platoon') return sub
@@ -569,6 +569,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       const friendList = fs ?? []
       setFriendships(friendList)
       setReceivedRequests(recv ?? [])
+      onPendingCountChange?.((recv ?? []).length)
       setSentRequests(sent ?? [])
       // Fetch run counts for friends + request users (for rank icon display)
       const friendIds = friendList.map(f => f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1)
@@ -603,11 +604,17 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     } finally {
       setFriendLoading(false)
     }
-  }, [user.id])
+  }, [user.id, onPendingCountChange])
 
+  // Always load on mount (for badge count) — also re-runs when user changes
+  useEffect(() => {
+    loadFriends()
+  }, [loadFriends])
+
+  // Re-fetch fresh data when switching to friends/connect tab
   useEffect(() => {
     if (tab === 'friends' || tab === 'connect') loadFriends()
-  }, [tab, loadFriends])
+  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     Promise.all([getFriendProfile(user.id), getFriendExtended(user.id)])

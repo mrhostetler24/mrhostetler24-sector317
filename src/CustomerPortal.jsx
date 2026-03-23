@@ -1,7 +1,7 @@
 import { useState, useEffect, startTransition } from "react"
 import { hasValidWaiver, fmt, fmtMoney, fmt12, fmtTS, todayStr, getTierInfo, TIER_COLORS, TIER_SHINE, getInitials, cleanPh, latestWaiverDate } from "./utils.js"
 import { WaiverModal, WaiverViewModal, PlayerPhoneInput, genDefaultLeaderboardName, PlatoonTag } from "./ui.jsx"
-import { supabase, fetchFriends, fetchAvailabilityReservations, updateReservation, rescheduleReservation, createGuestUser, syncReservationPlayers, calculateRunScore } from "./supabase.js"
+import { supabase, fetchFriends, fetchReceivedRequests, fetchAvailabilityReservations, updateReservation, rescheduleReservation, createGuestUser, syncReservationPlayers, calculateRunScore } from "./supabase.js"
 import { vizRenderName, audRenderName } from "./envRender.jsx"
 import AccountPanel from "./AccountPanel.jsx"
 import ReceiptModal from "./ReceiptModal.jsx"
@@ -27,6 +27,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [friendIds,setFriendIds]=useState(new Set());
   const [friendsVersion,setFriendsVersion]=useState(0);
   useEffect(()=>{if(!user)return;fetchFriends(user.id).then(({data})=>{const ids=(data??[]).map(f=>f.user_id_1===user.id?f.user_id_2:f.user_id_1);setFriendIds(new Set(ids));}).catch(()=>{});},[user&&user.id,friendsVersion]);// eslint-disable-line react-hooks/exhaustive-deps
+  const [pendingFriendCount,setPendingFriendCount]=useState(0);
+  useEffect(()=>{if(!user)return;fetchReceivedRequests(user.id).then(({data})=>setPendingFriendCount((data??[]).length)).catch(()=>{});},[]);// eslint-disable-line react-hooks/exhaustive-deps
   const [lbError,setLbError]=useState(null);
   const [showBook,setShowBook]=useState(false);
   useEffect(()=>{if(autoBook){setShowBook(true);onAutoBookDone?.();}},[]);// eslint-disable-line react-hooks/exhaustive-deps
@@ -309,7 +311,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
       </div>
       {/* Primary Tab Bar */}
       <div className="tabs" style={{marginBottom:"1.1rem",borderBottom:"1px solid var(--bdr)"}}>
-        <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social</button>
+        <button className={`tab${tab==="social"?" on":""}`} onClick={()=>setTab("social")}>Social{pendingFriendCount>0&&<span style={{marginLeft:'.35rem',background:'#e04444',color:'#fff',borderRadius:10,fontSize:'.6rem',padding:'1px 5px',fontFamily:'var(--fd)',verticalAlign:'middle'}}>{pendingFriendCount}</span>}</button>
         <button className={`tab${tab==="reservations"?" on":""}`} onClick={()=>setTab("reservations")}>Reservations</button>
         <button className={`tab${tab==="payments"?" on":""}`} onClick={()=>setTab("payments")}>Payments</button>
         <button className={`tab${tab==="leaderboard"?" on":""}`} onClick={()=>setTab("leaderboard")}>Leaderboard</button>
@@ -689,6 +691,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         careerRuns={careerRuns}
         onEditProfile={()=>setShowAccount(true)}
         onFriendsChanged={()=>setFriendsVersion(v=>v+1)}
+        onPendingCountChange={setPendingFriendCount}
       />}
 
     </div>

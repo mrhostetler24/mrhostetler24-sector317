@@ -1163,7 +1163,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   );
 }
 
-function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onSave,onClose}){
+function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,allowCrossMode=false,onSave,onClose}){
   const [pending,setPending]=useState({...laneOverrides});
   const [pendingTeams,setPendingTeams]=useState({...versusTeams});
   const [pendingScoredRes,setPendingScoredRes]=useState(()=>{
@@ -1172,11 +1172,13 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
     return init;
   });
   const [modSaving,setModSaving]=useState(false);
+  const [modeConfirm,setModeConfirm]=useState(null); // mixed-mode lanes awaiting confirmation
   const lanes=applyLaneOverrides(rawLanes,pending,resTypes);
   const activeLanes=lanes.filter(l=>l.type!==null);
   const allLanes=lanes;
   const allPlayers=rawLanes.flatMap(l=>l.reservations.flatMap(r=>r.players||[]));
-  const handleSave=async()=>{
+
+  const doActualSave=async()=>{
     setModSaving(true);
     try{
       const updates=[];
@@ -1189,6 +1191,43 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
       onSave(pending,pendingTeams);
     }catch(e){alert('Error saving: '+e.message);}
     finally{setModSaving(false);}
+  };
+
+  const handleSave=async()=>{
+    // Check for lanes with mixed coop/versus reservations
+    const mixedLanes=lanes.filter(lane=>{
+      if(!lane.reservations.length)return false;
+      const modes=new Set(lane.reservations.map(r=>resTypes.find(rt=>rt.id===r.typeId)?.mode).filter(Boolean));
+      return modes.size>1;
+    });
+    if(mixedLanes.length>0){setModeConfirm(mixedLanes);return;}
+    await doActualSave();
+  };
+
+  const handleModeConfirm=async(selectedMode)=>{
+    setModSaving(true);
+    try{
+      const resUpdates=[];
+      for(const lane of modeConfirm){
+        for(const res of lane.reservations){
+          const rt=resTypes.find(x=>x.id===res.typeId);
+          if(rt&&rt.mode!==selectedMode){
+            const targetRt=resTypes.find(x=>x.mode===selectedMode&&x.style===rt.style);
+            if(targetRt)resUpdates.push(updateReservation(res.id,{typeId:targetRt.id}));
+          }
+        }
+      }
+      await Promise.all(resUpdates);
+      setModeConfirm(null);
+      const playerUpdates=[];
+      for(const pl of allPlayers){
+        const next=pendingScoredRes[pl.id]??null;
+        const prev=pl.scoredReservationId??null;
+        if(next!==prev)playerUpdates.push(updateReservationPlayer(pl.id,{scoredReservationId:next}));
+      }
+      await Promise.all(playerUpdates);
+      onSave(pending,pendingTeams);
+    }catch(e){alert('Error saving: '+e.message);setModSaving(false);}
   };
 
   const moveRes=(resId,toLaneNum)=>setPending(p=>({...p,[resId]:toLaneNum}));
@@ -1232,14 +1271,16 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
                     const rt=resTypes.find(x=>x.id===res.typeId);
                     const players=res.players||[];
                     const isVs=rt?.mode==="versus";
-                    const resMoveTargets=activeLanes.filter(l=>l.laneNum!==lane.laneNum&&l.mode===rt?.mode).concat(allLanes.filter(l=>l.type===null&&l.laneNum!==lane.laneNum));
+                    const resMoveTargets=allowCrossMode
+                      ?activeLanes.filter(l=>l.laneNum!==lane.laneNum).concat(allLanes.filter(l=>l.type===null&&l.laneNum!==lane.laneNum))
+                      :activeLanes.filter(l=>l.laneNum!==lane.laneNum&&l.mode===rt?.mode).concat(allLanes.filter(l=>l.type===null&&l.laneNum!==lane.laneNum));
                     return(
                       <div key={res.id} style={{background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:6,padding:".55rem .65rem",marginBottom:".5rem"}}>
                         <div style={{display:"flex",alignItems:"center",gap:".4rem",marginBottom:".35rem",flexWrap:"wrap"}}>
                           <span style={{fontWeight:700,fontSize:".88rem",color:"var(--txt)",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{res.customerName}</span>
                           <span style={{fontSize:".75rem",color:"var(--muted)"}}>👥{res.playerCount}</span>
                           {resMoveTargets.map(tgt=>(
-                            <button key={tgt.laneNum} className="btn btn-s" style={{fontSize:".7rem",padding:".18rem .5rem",whiteSpace:"nowrap"}} onClick={()=>moveRes(res.id,tgt.laneNum)}>→ L{tgt.laneNum}</button>
+                            <button key={tgt.laneNum} className="btn btn-s" style={{fontSize:".7rem",padding:".18rem .5rem",whiteSpace:"nowrap"}} onClick={()=>moveRes(res.id,tgt.laneNum)}>{tgt.laneNum<lane.laneNum?'←':'→'} L{tgt.laneNum}</button>
                           ))}
                         </div>
                         {isVs&&players.length>0&&(()=>{
@@ -1274,10 +1315,10 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
                               return(
                                 <div key={pl.id} style={{display:"flex",alignItems:"center",gap:".3rem",padding:".2rem .3rem",background:override?"var(--surf)":"transparent",borderRadius:4,border:override?"1px solid var(--warn)":"1px solid transparent"}}>
                                   <span style={{flex:1,fontSize:".8rem",color:"var(--txt)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pl.name}</span>
-                                  {override&&<span style={{fontSize:".65rem",color:"var(--warnL)",fontWeight:600,whiteSpace:"nowrap"}}>→L{overrideLane?.laneNum??'?'}</span>}
+                                  {override&&<span style={{fontSize:".65rem",color:"var(--warnL)",fontWeight:600,whiteSpace:"nowrap"}}>{(overrideLane?.laneNum??lane.laneNum+1)<lane.laneNum?'←':'→'}L{overrideLane?.laneNum??'?'}</span>}
                                   {otherLanes.map(ol=>(
                                     <button key={ol.laneNum} style={{fontSize:".65rem",padding:".1rem .35rem",border:"1px solid var(--bdr)",borderRadius:4,background:"none",color:"var(--muted)",cursor:"pointer",whiteSpace:"nowrap"}}
-                                      onClick={()=>setPendingScoredRes(p=>({...p,[pl.id]:ol.reservations[0].id}))}>→L{ol.laneNum}</button>
+                                      onClick={()=>setPendingScoredRes(p=>({...p,[pl.id]:ol.reservations[0].id}))}>{ol.laneNum<lane.laneNum?'←':'→'}L{ol.laneNum}</button>
                                   ))}
                                   {override&&<button style={{fontSize:".65rem",padding:".1rem .35rem",border:"1px solid var(--bdr)",borderRadius:4,background:"none",color:"var(--danger)",cursor:"pointer"}}
                                     onClick={()=>setPendingScoredRes(p=>{const n={...p};delete n[pl.id];return n;})}>✕</button>}
@@ -1299,6 +1340,25 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,onS
           <button className="btn btn-p" disabled={modSaving} onClick={handleSave}>{modSaving?'Saving…':'Save Changes'}</button>
         </div>
       </div>
+      {/* Mode confirmation overlay */}
+      {modeConfirm&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",zIndex:3100,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}}>
+          <div style={{background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:12,maxWidth:420,width:"100%",padding:"1.5rem 1.75rem"}}>
+            <div style={{fontWeight:700,fontSize:"1rem",color:"var(--txt)",marginBottom:".65rem"}}>🎮 Confirm Session Mode</div>
+            <div style={{fontSize:".85rem",color:"var(--muted)",lineHeight:1.6,marginBottom:".5rem"}}>
+              {modeConfirm.map(l=>`Lane ${l.laneNum}`).join(' and ')} {modeConfirm.length===1?'has':'have'} mixed Co-op and Versus reservations.
+            </div>
+            <div style={{fontSize:".85rem",color:"var(--txt)",lineHeight:1.6,marginBottom:"1.25rem"}}>
+              Select the mode to run — any conflicting reservations will be updated to match (e.g. Co-op Open → Versus Open).
+            </div>
+            <div style={{display:"flex",gap:".65rem"}}>
+              <button className="btn btn-s" style={{flex:1,fontSize:".88rem"}} disabled={modSaving} onClick={()=>handleModeConfirm('coop')}>🤝 Co-op</button>
+              <button className="btn btn-s" style={{flex:1,fontSize:".88rem"}} disabled={modSaving} onClick={()=>handleModeConfirm('versus')}>⚔ Versus</button>
+            </div>
+            {!modSaving&&<button className="btn" style={{width:"100%",marginTop:".65rem",fontSize:".82rem"}} onClick={()=>setModeConfirm(null)}>← Back to Arrangement</button>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1343,6 +1403,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   });
   const [laneOverrides,setLaneOverrides]=useState({});
   const [showLaneOverride,setShowLaneOverride]=useState(null);
+  const [laneArrangeWarn,setLaneArrangeWarn]=useState(null);
   const [addInput,setAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
   const [wiStep,setWiStep]=useState("details");
   const [sendConfirm,setSendConfirm]=useState(null);
@@ -1766,7 +1827,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                       })}
                     </div>;
                   })()}
-                  {activeLanes.length>1&&hasMatchingModes&&!allCompleted&&<div style={{display:"flex",justifyContent:"center",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>setShowLaneOverride({time,rawLanes})}>⇄ Arrange Lanes</button></div>}
+                  {activeLanes.length>1&&!allCompleted&&<div style={{display:"flex",justifyContent:"center",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>{const allSameMode=activeLanes.every(l=>l.mode===activeLanes[0]?.mode);if(!allSameMode){setLaneArrangeWarn({time,rawLanes});}else{setShowLaneOverride({time,rawLanes,allowCrossMode:false});}}}>⇄ Arrange Lanes</button></div>}
                   {activeLanes.length>0?(
                     <div style={{display:"flex",gap:"1rem",alignItems:"flex-start"}}>
                     {activeLanes.map(lane=>(
@@ -1931,12 +1992,27 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
           </div>
         </div>
       )}
+      {laneArrangeWarn&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.72)",zIndex:3000,display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem"}} onClick={()=>setLaneArrangeWarn(null)}>
+          <div style={{background:"var(--surf)",border:"1px solid var(--warn)",borderRadius:12,maxWidth:420,width:"100%",padding:"1.5rem 1.75rem"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontWeight:700,fontSize:"1.05rem",color:"var(--warnL)",marginBottom:".75rem"}}>⚠ Lane Mode Mismatch</div>
+            <div style={{fontSize:".88rem",color:"var(--txt)",lineHeight:1.6,marginBottom:"1.25rem"}}>
+              These lanes have different session types (Co-op and Versus). You can still rearrange groups across lanes — you'll be asked to confirm the final session mode before saving.
+            </div>
+            <div style={{display:"flex",gap:".65rem",justifyContent:"flex-end"}}>
+              <button className="btn" onClick={()=>setLaneArrangeWarn(null)}>← Back</button>
+              <button className="btn btn-warn" onClick={()=>{setShowLaneOverride({time:laneArrangeWarn.time,rawLanes:laneArrangeWarn.rawLanes,allowCrossMode:true});setLaneArrangeWarn(null);}}>Proceed →</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showLaneOverride&&<LaneOverrideModal
         time={showLaneOverride.time}
         rawLanes={showLaneOverride.rawLanes}
         laneOverrides={laneOverrides}
         versusTeams={versusTeams}
         resTypes={resTypes}
+        allowCrossMode={showLaneOverride.allowCrossMode??false}
         onClose={()=>setShowLaneOverride(null)}
         onSave={(newOverrides,newTeams)=>{setLaneOverrides(newOverrides);setVersusTeams(newTeams);setShowLaneOverride(null);}}
       />}
