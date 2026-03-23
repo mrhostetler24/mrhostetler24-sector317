@@ -1187,6 +1187,12 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,res
         const prev=pl.scoredReservationId??null;
         if(next!==prev)updates.push(updateReservationPlayer(pl.id,{scoredReservationId:next}));
       }
+      for(const [,playerTeams] of Object.entries(pendingTeams)){
+        for(const [pid,team] of Object.entries(playerTeams)){
+          const pl=allPlayers.find(p=>p.id===pid);
+          if(pl&&team!==pl.team)updates.push(updateReservationPlayer(pid,{team}));
+        }
+      }
       await Promise.all(updates);
       onSave(pending,pendingTeams);
     }catch(e){alert('Error saving: '+e.message);}
@@ -1224,6 +1230,12 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,res
         const next=pendingScoredRes[pl.id]??null;
         const prev=pl.scoredReservationId??null;
         if(next!==prev)playerUpdates.push(updateReservationPlayer(pl.id,{scoredReservationId:next}));
+      }
+      for(const [,playerTeams] of Object.entries(pendingTeams)){
+        for(const [pid,team] of Object.entries(playerTeams)){
+          const pl=allPlayers.find(p=>p.id===pid);
+          if(pl&&team!==pl.team)playerUpdates.push(updateReservationPlayer(pid,{team}));
+        }
       }
       await Promise.all(playerUpdates);
       onSave(pending,pendingTeams);
@@ -1288,7 +1300,7 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,res
                           const t2=players.filter(p=>getTeam(res.id,p.id)===2);
                           return(
                             <div style={{display:"flex",gap:".4rem"}}>
-                              {[{num:1,label:"Hunters",list:t1},{num:2,label:"Coyotes",list:t2}].map(({num,label,list})=>(
+                              {[{num:1,label:"Team 1",list:t1},{num:2,label:"Team 2",list:t2}].map(({num,label,list})=>(
                                 <div key={num} style={{flex:1,background:"var(--surf)",border:"1px solid var(--bdr)",borderRadius:5,padding:".35rem .45rem"}}>
                                   <div style={{display:"flex",alignItems:"center",gap:".3rem",marginBottom:".25rem"}}>
                                     <span style={{fontWeight:700,fontSize:".68rem",color:"var(--muted)",textTransform:"uppercase",flex:1}}>{label}</span>
@@ -1401,7 +1413,8 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
     }
     return init;
   });
-  const [laneOverrides,setLaneOverrides]=useState({});
+  const [laneOverrides,setLaneOverrides]=useState(()=>{try{const s=localStorage.getItem('s317_lanes_'+todayStr());return s?JSON.parse(s):{};}catch{return{};}});
+  useEffect(()=>{try{const s=localStorage.getItem('s317_lanes_'+viewDate);setLaneOverrides(s?JSON.parse(s):{});}catch{setLaneOverrides({});}},[viewDate]);
   const [showLaneOverride,setShowLaneOverride]=useState(null);
   const [laneArrangeWarn,setLaneArrangeWarn]=useState(null);
   const [addInput,setAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
@@ -2015,7 +2028,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         reservations={reservations}
         allowCrossMode={showLaneOverride.allowCrossMode??false}
         onClose={()=>setShowLaneOverride(null)}
-        onSave={async(newOverrides,newTeams)=>{setLaneOverrides(newOverrides);setVersusTeams(newTeams);setShowLaneOverride(null);try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}}}
+        onSave={async(newOverrides,newTeams)=>{setLaneOverrides(newOverrides);setVersusTeams(newTeams);try{localStorage.setItem('s317_lanes_'+viewDate,JSON.stringify(newOverrides));}catch{}setShowLaneOverride(null);try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}}}
       />}
       {scoringSlot&&<ScoringModal
         lanes={scoringSlot.lanes}
