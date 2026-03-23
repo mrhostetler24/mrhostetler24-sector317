@@ -1416,6 +1416,8 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [laneOverrides,setLaneOverrides]=useState(()=>{try{const s=localStorage.getItem('s317_lanes_'+todayStr());return s?JSON.parse(s):{};}catch{return{};}});
   const [showLaneOverride,setShowLaneOverride]=useState(null);
   const [laneArrangeWarn,setLaneArrangeWarn]=useState(null);
+  const [flipConfirm,setFlipConfirm]=useState(null); // {time,laneNum,targetMode,lane}
+  const [flipBusy,setFlipBusy]=useState(false);
   const [addInput,setAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
   const [wiStep,setWiStep]=useState("details");
   const [sendConfirm,setSendConfirm]=useState(null);
@@ -1520,6 +1522,26 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
     return <span style={{display:"inline-block",padding:".25rem .65rem",borderRadius:4,background:s.bg,color:s.color,border:`1px solid ${s.bdr}`,fontWeight:600,fontSize:".8rem",whiteSpace:"nowrap"}}>{label[status]||status}</span>;
   };
   const setResStatus=async(resId,status)=>{setStatusBusy(resId);try{await updateReservation(resId,{status});setReservations(p=>p.map(r=>r.id===resId?{...r,status}:r));}catch(e){showMsg("Error: "+e.message);}setStatusBusy(null);};
+  const doFlipLane=async()=>{
+    if(!flipConfirm)return;
+    const{lane,targetMode}=flipConfirm;
+    setFlipBusy(true);
+    try{
+      const updates=[];
+      for(const res of lane.reservations){
+        const rt=resTypes.find(x=>x.id===res.typeId);
+        if(!rt||rt.mode===targetMode)continue;
+        const targetRt=resTypes.find(x=>x.mode===targetMode&&x.style===rt.style&&x.active!==false);
+        if(targetRt)updates.push(updateReservation(res.id,{typeId:targetRt.id}));
+      }
+      await Promise.all(updates);
+      const fresh=await fetchReservations();
+      setReservations(fresh);
+      setFlipConfirm(null);
+      showMsg(`Lane ${lane.laneNum} switched to ${targetMode}`);
+    }catch(e){showMsg("Error: "+e.message);}
+    finally{setFlipBusy(false);}
+  };
   const doSendGroup=async time=>{const readyOnes=todayRes.filter(r=>r.startTime===time&&(r.status==="arrived"||r.status==="ready"));setSendConfirm(null);setStatusBusy(time);try{for(const r of readyOnes){await updateReservation(r.id,{status:"sent"});}setReservations(p=>p.map(r=>r.date===viewDate&&r.startTime===time&&(r.status==="arrived"||r.status==="ready")?{...r,status:"sent"}:r));showMsg("Group sent to training room!");}catch(e){showMsg("Error: "+e.message);}setStatusBusy(null);};
   const doSignWaiver=async()=>{const{player}=signingFor;if(!player.userId||!signedName.trim())return;const ts=new Date().toISOString();setUsers(p=>p.map(u=>u.id===player.userId?{...u,waivers:[...u.waivers,{signedAt:ts,signedName:signedName.trim(),waiverDocId:activeWaiverDoc?.id}],needsRewaiverDocId:null}:u));try{await signWaiver(player.userId,signedName.trim(),activeWaiverDoc?.id);}catch(e){}showMsg("Waiver signed for "+player.name);setSigningFor(null);setSignedName("");};
   const resetAddInput=()=>setAddInput({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
@@ -1851,6 +1873,11 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                           <span className={`badge b-${lane.type}`}>{lane.type}</span>
                           {laneReady(lane)&&<span style={{fontSize:".75rem",fontWeight:700,color:"#2dc86e",background:"rgba(40,200,100,.12)",border:"1px solid rgba(40,200,100,.35)",borderRadius:4,padding:".15rem .5rem"}}>✓ Lane Ready</span>}
                           <span style={{fontSize:".78rem",color:"var(--muted)",marginLeft:"auto"}}>👥 {lane.playerCount}p booked</span>
+                          {!allCompleted&&lane.reservations.length>0&&(
+                            flipConfirm?.laneNum===lane.laneNum&&flipConfirm?.time===time
+                              ?<><span style={{fontSize:".7rem",color:"var(--warn)",whiteSpace:"nowrap"}}>Switch to {lane.mode==='versus'?'co-op':'versus'}?</span><button className="btn btn-p btn-s" style={{fontSize:".68rem",padding:".15rem .4rem"}} disabled={flipBusy} onClick={doFlipLane}>{flipBusy?'…':'Yes'}</button><button className="btn btn-s" style={{fontSize:".68rem",padding:".15rem .4rem"}} onClick={()=>setFlipConfirm(null)}>No</button></>
+                              :<button className="btn btn-s" style={{fontSize:".68rem",padding:".15rem .45rem",whiteSpace:"nowrap"}} title={`Switch lane to ${lane.mode==='versus'?'co-op':'versus'}`} onClick={()=>setFlipConfirm({time,laneNum:lane.laneNum,targetMode:lane.mode==='versus'?'coop':'versus',lane})}>⇄ {lane.mode==='versus'?'Co-op':'Versus'}</button>
+                          )}
                         </div>
                         {lane.reservations.length===0&&<div style={{fontSize:".85rem",color:"var(--muted)",padding:".5rem 0"}}>No bookings in this lane.</div>}
                         {lane.reservations.map(renderResCard)}
