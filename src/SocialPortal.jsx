@@ -1152,6 +1152,10 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             </div>
           )}
 
+          {ownExt && !ownExt.coop_runs && !ownExt.versus_runs && (
+            <div style={{ fontSize: '.82rem', color: 'var(--muted)', fontStyle: 'italic' }}>Complete a session to unlock your match stats.</div>
+          )}
+
           {/* Versus breakdown block */}
           {ownExt?.versus_runs > 0 && (
             <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
@@ -1285,7 +1289,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             <input
               className="inp"
               style={{ width: '100%', boxSizing: 'border-box' }}
-              placeholder="🔍 Search by name or phone…"
+              placeholder="🔍 Search by name, leaderboard name, or phone…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               autoComplete="off"

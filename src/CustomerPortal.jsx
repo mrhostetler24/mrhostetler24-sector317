@@ -660,7 +660,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
               </tr></thead><tbody>
                 {pagedData.map(r=>renderLbRow(r))}
               </tbody></table>
-              {!lbData.length&&<div className="empty"><div className="ei">🎯</div><p>No scores yet — be the first!</p></div>}
+              {!lbData.length&&lbPlayerFilter!=="friends"&&<div className="empty"><div className="ei">🎯</div><p>No scores yet — be the first!</p></div>}
               {lbPlayerFilter==="friends"&&friendIds.size===0&&<div className="empty" style={{marginTop:".75rem"}}><div className="ei">👥</div><p style={{color:"var(--muted)",fontSize:".9rem",marginBottom:".5rem"}}>Well, this is awkward... You have no friends.</p><p style={{color:"var(--muted)",fontSize:".78rem"}}>Add some <button className="btn btn-s btn-sm" style={{display:"inline",padding:"1px 10px",fontSize:".78rem",verticalAlign:"middle"}} onClick={()=>setTab("social")}>HERE</button></p></div>}
               {totalPages>1&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:".75rem",marginTop:"1rem",flexWrap:"wrap"}}>
                 <button className="btn btn-s btn-sm" disabled={page<=1} onClick={()=>setLbPage(p=>p-1)}>← Prev</button>
