@@ -1270,7 +1270,7 @@ function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,res
                   {lane.reservations.map(res=>{
                     const rt=resTypes.find(x=>x.id===res.typeId);
                     const players=res.players||[];
-                    const isVs=rt?.mode==="versus";
+                    const isVs=lane.mode==="versus";
                     const resMoveTargets=allowCrossMode
                       ?activeLanes.filter(l=>l.laneNum!==lane.laneNum).concat(allLanes.filter(l=>l.type===null&&l.laneNum!==lane.laneNum))
                       :activeLanes.filter(l=>l.laneNum!==lane.laneNum&&l.mode===rt?.mode).concat(allLanes.filter(l=>l.type===null&&l.laneNum!==lane.laneNum));
@@ -2015,7 +2015,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         reservations={reservations}
         allowCrossMode={showLaneOverride.allowCrossMode??false}
         onClose={()=>setShowLaneOverride(null)}
-        onSave={(newOverrides,newTeams)=>{setLaneOverrides(newOverrides);setVersusTeams(newTeams);setShowLaneOverride(null);}}
+        onSave={async(newOverrides,newTeams)=>{setLaneOverrides(newOverrides);setVersusTeams(newTeams);setShowLaneOverride(null);try{const fresh=await fetchReservations();setReservations(fresh);}catch(e){}}}
       />}
       {scoringSlot&&<ScoringModal
         lanes={scoringSlot.lanes}
