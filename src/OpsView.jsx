@@ -1862,7 +1862,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
                       })}
                     </div>;
                   })()}
-                  {activeLanes.length>1&&!allCompleted&&<div style={{display:"flex",justifyContent:"center",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>{const allSameMode=activeLanes.every(l=>l.mode===activeLanes[0]?.mode);if(!allSameMode){setLaneArrangeWarn({time,rawLanes});}else{setShowLaneOverride({time,rawLanes,allowCrossMode:false});}}}>⇄ Arrange Lanes</button></div>}
+                  {activeLanes.length>=1&&!allCompleted&&(activeLanes.length>1||lanes.some(l=>l.type===null))&&<div style={{display:"flex",justifyContent:"center",marginBottom:".75rem"}}><button className="btn btn-s" style={{fontSize:".82rem",padding:".35rem .85rem"}} onClick={()=>{const allSameMode=activeLanes.every(l=>l.mode===activeLanes[0]?.mode);if(!allSameMode){setLaneArrangeWarn({time,rawLanes});}else{setShowLaneOverride({time,rawLanes,allowCrossMode:false});}}}>⇄ Arrange Lanes</button></div>}
                   {activeLanes.length>0?(
                     <div style={{display:"flex",gap:"1rem",alignItems:"flex-start"}}>
                     {activeLanes.map(lane=>(
