@@ -1414,7 +1414,6 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
     return init;
   });
   const [laneOverrides,setLaneOverrides]=useState(()=>{try{const s=localStorage.getItem('s317_lanes_'+todayStr());return s?JSON.parse(s):{};}catch{return{};}});
-  useEffect(()=>{try{const s=localStorage.getItem('s317_lanes_'+viewDate);setLaneOverrides(s?JSON.parse(s):{});}catch{setLaneOverrides({});}},[viewDate]);
   const [showLaneOverride,setShowLaneOverride]=useState(null);
   const [laneArrangeWarn,setLaneArrangeWarn]=useState(null);
   const [addInput,setAddInput]=useState({phone:"",lookupStatus:"idle",foundUserId:null,name:""});
@@ -1437,6 +1436,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
   const [scoringSlot,setScoringSlot]=useState(null);
   const [completedRunsCache,setCompletedRunsCache]=useState({});
   const [viewDate,setViewDate]=useState(todayStr());
+  useEffect(()=>{try{const s=localStorage.getItem('s317_lanes_'+viewDate);setLaneOverrides(s?JSON.parse(s):{});}catch{setLaneOverrides({});}},[viewDate]);
   const dateInputRef=useRef(null);
   const wiPhoneRef=useRef(null);
   const activeWorkRef=useRef(false);
