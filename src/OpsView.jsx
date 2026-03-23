@@ -1163,7 +1163,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
   );
 }
 
-function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,allowCrossMode=false,onSave,onClose}){
+function LaneOverrideModal({time,rawLanes,laneOverrides,versusTeams,resTypes,reservations,allowCrossMode=false,onSave,onClose}){
   const [pending,setPending]=useState({...laneOverrides});
   const [pendingTeams,setPendingTeams]=useState({...versusTeams});
   const [pendingScoredRes,setPendingScoredRes]=useState(()=>{
@@ -2012,6 +2012,7 @@ export default function OpsView({reservations,setReservations,resTypes,sessionTe
         laneOverrides={laneOverrides}
         versusTeams={versusTeams}
         resTypes={resTypes}
+        reservations={reservations}
         allowCrossMode={showLaneOverride.allowCrossMode??false}
         onClose={()=>setShowLaneOverride(null)}
         onSave={(newOverrides,newTeams)=>{setLaneOverrides(newOverrides);setVersusTeams(newTeams);setShowLaneOverride(null);}}
