@@ -680,7 +680,7 @@ function ScoringModal({lanes,resTypes,versusTeams,users,currentUser,onClose,onCo
     const visibleObjectives=objectives.filter(o=>o.mode==='all'||o.mode===laneMode);
     const selObj=visibleObjectives.find(o=>o.id===s.objectiveId);
     return(<div>
-      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem'}}>
+      <div style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'.35rem',textAlign:'center'}}>
         Objective{selObj&&selObj.description?<span style={{fontWeight:400,textTransform:'none',color:'var(--txt)',fontSize:'.78rem'}}> · {selObj.description}</span>:''}
       </div>
       <div style={{display:'flex',flexWrap:'wrap',gap:'.3rem',justifyContent:'center'}}>

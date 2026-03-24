@@ -1004,8 +1004,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                         ? <span style={{ color: 'var(--acc)', fontWeight: 700 }}>✓</span>
                         : null}
                     </span>
+                    {val ? <span style={{ fontSize: '.82rem', color: 'var(--txt)' }}>{val}</span> : null}
                     <PrivacyToggle checked={editDraft[field] ?? false} onChange={v => setEditDraft(d => ({ ...d, [field]: v }))} />
-                    {val ? <span style={{ fontSize: '.82rem', color: 'var(--txt)', marginLeft: 'auto' }}>{val}</span> : null}
                   </div>
                 ))}
               </div>

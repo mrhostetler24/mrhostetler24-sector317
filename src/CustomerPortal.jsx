@@ -258,10 +258,10 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           <button className="btn btn-p" disabled={saveGroupBusy} onClick={saveGroup}>{saveGroupBusy?"Saving…":"Save Team"}</button>
         </div>
       </div></div>}
-      <div className="hero">
-        <div style={{flex:1,minWidth:0}}>
-          <h2>Welcome, Operative {user.name.split(" ")[0]}</h2>
-          <div style={{display:"flex",alignItems:"center",gap:".5rem",flexWrap:"wrap",marginTop:".3rem"}}>
+      <div className="hero" style={{flexDirection:"column",alignItems:"stretch",gap:".5rem"}}>
+        <h2 style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontSize:"clamp(1rem,5.5vw,1.6rem)",marginBottom:0}}>Welcome, Operative {user.name.split(" ")[0]}</h2>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:".5rem"}}>
+          <div style={{display:"flex",alignItems:"center",gap:".5rem",flexWrap:"wrap"}}>
             <button
               onClick={()=>valid?setWViewOpen(true):setWOpen(true)}
               style={{background:valid?"rgba(200,224,58,.12)":"rgba(192,57,43,.15)",border:`1px solid ${valid?"rgba(200,224,58,.4)":"rgba(192,57,43,.5)"}`,borderRadius:20,padding:".18rem .65rem",fontSize:".75rem",fontFamily:"var(--fd)",letterSpacing:".06em",textTransform:"uppercase",color:valid?"var(--accB)":"var(--dangerL)",cursor:"pointer",fontWeight:700,flexShrink:0}}>
@@ -269,11 +269,11 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
             </button>
             {!valid&&wDate&&<span style={{fontSize:".72rem",color:"var(--muted)"}}>Expired {fmtTS(wDate)}</span>}
           </div>
+          {user.canBook
+            ?<button className="btn btn-p" style={{flexShrink:0}} onClick={()=>setShowBook(true)}>+ Book Mission</button>
+            :<button className="btn btn-s sm-hide" style={{flexShrink:0,opacity:.6,cursor:"default"}} disabled>Booking agent coming soon!</button>
+          }
         </div>
-        {user.canBook
-          ?<button className="btn btn-p" style={{flexShrink:0}} onClick={()=>setShowBook(true)}>+ Book Mission</button>
-          :<button className="btn btn-s sm-hide" style={{flexShrink:0,opacity:.6,cursor:"default"}} disabled>Booking agent coming soon!</button>
-        }
       </div>
       {/* ── Top info row: Leaderboard + Rank combined · Store Credits ── */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:".75rem",marginBottom:"1.5rem"}}>
