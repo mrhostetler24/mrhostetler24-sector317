@@ -487,6 +487,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [editing, setEditing]                 = useState(false)
   const [editDraft, setEditDraft]             = useState({})
   const [editSaving, setEditSaving]           = useState(false)
+  const [zipInput, setZipInput]               = useState('')
+  const [zipStatus, setZipStatus]             = useState('idle') // idle | loading | found | error
 
   // Social links state
   const [socialLinks, setSocialLinks]         = useState(() => user.socialLinks ?? [])
@@ -718,6 +720,23 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     }
   }
 
+  // ── Zip code lookup ───────────────────────────────────────────────────────
+  async function lookupZip(zip) {
+    if (zip.length !== 5) return
+    setZipStatus('loading')
+    try {
+      const res = await fetch(`https://api.zippopotam.us/us/${zip}`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const place = data.places?.[0]
+      if (!place) throw new Error()
+      setEditDraft(d => ({ ...d, homeBaseCity: place['place name'], homeBaseState: place['state abbreviation'] }))
+      setZipStatus('found')
+    } catch {
+      setZipStatus('error')
+    }
+  }
+
   // ── Social profile edit ──────────────────────────────────────────────────
   function startEditing() {
     setEditDraft({
@@ -735,6 +754,8 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       hideHomeBase:   user.hideHomeBase   ?? false,
       hideBio:        user.hideBio        ?? false,
     })
+    setZipInput('')
+    setZipStatus('idle')
     setEditing(true)
   }
 
@@ -1032,9 +1053,19 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                   <label style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Home Base</label>
                   <PrivacyToggle checked={editDraft.hideHomeBase ?? false} onChange={v => setEditDraft(d => ({ ...d, hideHomeBase: v }))} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px', gap: '.5rem' }}>
-                  <input className="inp" style={{ width: '100%' }} placeholder="Indianapolis" value={editDraft.homeBaseCity} maxLength={60} onChange={e => setEditDraft(d => ({ ...d, homeBaseCity: e.target.value }))} />
-                  <input className="inp" placeholder="IN" value={editDraft.homeBaseState} maxLength={4} onChange={e => setEditDraft(d => ({ ...d, homeBaseState: e.target.value }))} />
+                <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input className="inp" placeholder="ZIP code" value={zipInput} maxLength={5} inputMode="numeric"
+                    style={{ width: 90, flexShrink: 0 }}
+                    onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 5); setZipInput(v); setZipStatus('idle'); if (v.length === 5) lookupZip(v); }} />
+                  {zipStatus === 'loading' && <span style={{ fontSize: '.82rem', color: 'var(--muted)' }}>Looking up…</span>}
+                  {zipStatus === 'error'   && <span style={{ fontSize: '.82rem', color: 'var(--danger)' }}>ZIP not found</span>}
+                  {zipStatus !== 'loading' && (editDraft.homeBaseCity || editDraft.homeBaseState) && (
+                    <>
+                      <span style={{ fontSize: '.87rem', color: 'var(--txt)' }}>{[editDraft.homeBaseCity, editDraft.homeBaseState].filter(Boolean).join(', ')}</span>
+                      <button type="button" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '.85rem', padding: '0 .1rem', lineHeight: 1 }}
+                        onClick={() => { setEditDraft(d => ({ ...d, homeBaseCity: '', homeBaseState: '' })); setZipInput(''); setZipStatus('idle'); }}>✕</button>
+                    </>
+                  )}
                 </div>
               </div>
 
