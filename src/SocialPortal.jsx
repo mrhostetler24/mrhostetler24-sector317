@@ -486,9 +486,11 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   const [avatarKey, setAvatarKey]             = useState(() => Date.now())
   const [editing, setEditing]                 = useState(false)
   const [editDraft, setEditDraft]             = useState({})
-  const [editSaving, setEditSaving]           = useState(false)
+  const [autoSaveStatus, setAutoSaveStatus]   = useState('idle') // idle | saving | saved | error
   const [zipInput, setZipInput]               = useState('')
   const [zipStatus, setZipStatus]             = useState('idle') // idle | loading | found | error
+  const autoSaveTimer                         = useRef(null)
+  const isFirstDraftRender                    = useRef(true)
 
   // Social links state
   const [socialLinks, setSocialLinks]         = useState(() => user.socialLinks ?? [])
@@ -739,7 +741,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
 
   // ── Social profile edit ──────────────────────────────────────────────────
   function startEditing() {
-    setEditDraft({
+    const draft = {
       motto:         user.motto         || '',
       profession:    user.profession    || '',
       homeBaseCity:  user.homeBaseCity  || '',
@@ -753,40 +755,51 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       hideProfession: user.hideProfession ?? false,
       hideHomeBase:   user.hideHomeBase   ?? false,
       hideBio:        user.hideBio        ?? false,
-    })
+    }
+    setEditDraft(draft)
     setZipInput('')
     setZipStatus('idle')
+    setAutoSaveStatus('idle')
+    isFirstDraftRender.current = true
     setEditing(true)
   }
 
-  async function handleSaveSocial() {
-    setEditSaving(true)
+  async function performSave(draft) {
+    setAutoSaveStatus('saving')
     try {
       const updated = await updateSocialProfile(user.id, {
         leaderboardName: user.leaderboardName ?? null,
         avatarUrl:       user.avatarUrl       ?? null,
-        motto:         editDraft.motto.trim()         || null,
-        profession:    editDraft.profession.trim()    || null,
-        homeBaseCity:  editDraft.homeBaseCity.trim()  || null,
-        homeBaseState: editDraft.homeBaseState.trim() || null,
-        bio:           editDraft.bio.trim().slice(0, MAX_BIO) || null,
-        hidePhone:      editDraft.hidePhone,
-        hideEmail:      editDraft.hideEmail,
-        hideName:       editDraft.hideName,
-        hideAvatar:     editDraft.hideAvatar,
-        hideMotto:      editDraft.hideMotto,
-        hideProfession: editDraft.hideProfession,
-        hideHomeBase:   editDraft.hideHomeBase,
-        hideBio:        editDraft.hideBio,
+        motto:         draft.motto.trim()         || null,
+        profession:    draft.profession.trim()    || null,
+        homeBaseCity:  draft.homeBaseCity.trim()  || null,
+        homeBaseState: draft.homeBaseState.trim() || null,
+        bio:           draft.bio.trim().slice(0, MAX_BIO) || null,
+        hidePhone:      draft.hidePhone,
+        hideEmail:      draft.hideEmail,
+        hideName:       draft.hideName,
+        hideAvatar:     draft.hideAvatar,
+        hideMotto:      draft.hideMotto,
+        hideProfession: draft.hideProfession,
+        hideHomeBase:   draft.hideHomeBase,
+        hideBio:        draft.hideBio,
       })
       setUsers(prev => prev.map(u => u.id === user.id ? updated : u))
-      setEditing(false)
+      setAutoSaveStatus('saved')
     } catch (err) {
-      alert('Save failed: ' + err.message)
-    } finally {
-      setEditSaving(false)
+      setAutoSaveStatus('error')
     }
   }
+
+  // Auto-save: debounce 1.5s after any draft change
+  useEffect(() => {
+    if (!editing) return
+    if (isFirstDraftRender.current) { isFirstDraftRender.current = false; return }
+    clearTimeout(autoSaveTimer.current)
+    setAutoSaveStatus('idle')
+    autoSaveTimer.current = setTimeout(() => performSave(editDraft), 1500)
+    return () => clearTimeout(autoSaveTimer.current)
+  }, [editDraft, editing])
 
   async function saveSocialLinks(newLinks) {
     setLinkSaving(true)
@@ -1079,11 +1092,13 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                 <textarea className="inp" rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Tell other operatives a little about yourself…" value={editDraft.bio} maxLength={MAX_BIO} onChange={e => setEditDraft(d => ({ ...d, bio: e.target.value.slice(0, MAX_BIO) }))} />
               </div>
 
-              <div style={{ display: 'flex', gap: '.5rem', paddingTop: '.25rem' }}>
-                <button className="btn btn-s" onClick={handleSaveSocial} disabled={editSaving} style={{ minWidth: 90 }}>
-                  {editSaving ? 'Saving…' : '✓ Save'}
+              <div style={{ display: 'flex', gap: '.65rem', paddingTop: '.25rem', alignItems: 'center' }}>
+                <button className="btn btn-p" onClick={() => { clearTimeout(autoSaveTimer.current); performSave(editDraft).then(() => setEditing(false)) }} disabled={autoSaveStatus==='saving'} style={{ minWidth: 90 }}>
+                  {autoSaveStatus==='saving' ? 'Saving…' : '✓ Done'}
                 </button>
-                <button className="btn btn-s btn-sm" onClick={() => setEditing(false)} disabled={editSaving}>Cancel</button>
+                {autoSaveStatus==='saving' && <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Saving…</span>}
+                {autoSaveStatus==='saved'   && <span style={{ fontSize: '.75rem', color: 'var(--ok)' }}>✓ Saved</span>}
+                {autoSaveStatus==='error'   && <span style={{ fontSize: '.75rem', color: 'var(--danger)' }}>Save failed — check connection</span>}
               </div>
             </div>
           )}
