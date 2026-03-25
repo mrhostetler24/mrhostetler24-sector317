@@ -784,7 +784,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
         hideHomeBase:   draft.hideHomeBase,
         hideBio:        draft.hideBio,
       })
-      setUsers(prev => prev.map(u => u.id === user.id ? updated : u))
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...updated, socialLinks: u.socialLinks } : u))
       setAutoSaveStatus('saved')
     } catch (err) {
       setAutoSaveStatus('error')
