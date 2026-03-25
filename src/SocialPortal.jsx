@@ -549,6 +549,11 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     ? fmtMonthYear(myRes.reduce((min, r) => r.date < min ? r.date : min, myRes[0].date))
     : null
 
+  // Sync socialLinks from parent users state (handles case where users load after mount)
+  useEffect(() => {
+    if (!linkSaving) setSocialLinks(user.socialLinks ?? [])
+  }, [user.socialLinks])
+
   // ── Friend helpers ───────────────────────────────────────────────────────
   const friendIds = new Set(
     friendships.map(f => f.user_id_1 === user.id ? f.user_id_2 : f.user_id_1)
