@@ -766,26 +766,30 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
 
   async function performSave(draft, zipCode) {
     setAutoSaveStatus('saving')
+    const saved = {
+      motto:         draft.motto.trim()         || null,
+      profession:    draft.profession.trim()    || null,
+      homeBaseCity:  draft.homeBaseCity.trim()  || null,
+      homeBaseState: draft.homeBaseState.trim() || null,
+      bio:           draft.bio.trim().slice(0, MAX_BIO) || null,
+      zipCode:       zipCode?.trim()            || null,
+      hidePhone:      draft.hidePhone,
+      hideEmail:      draft.hideEmail,
+      hideName:       draft.hideName,
+      hideAvatar:     draft.hideAvatar,
+      hideMotto:      draft.hideMotto,
+      hideProfession: draft.hideProfession,
+      hideHomeBase:   draft.hideHomeBase,
+      hideBio:        draft.hideBio,
+    }
     try {
-      const updated = await updateSocialProfile(user.id, {
+      await updateSocialProfile(user.id, {
         leaderboardName: user.leaderboardName ?? null,
         avatarUrl:       user.avatarUrl       ?? null,
-        motto:         draft.motto.trim()         || null,
-        profession:    draft.profession.trim()    || null,
-        homeBaseCity:  draft.homeBaseCity.trim()  || null,
-        homeBaseState: draft.homeBaseState.trim() || null,
-        bio:           draft.bio.trim().slice(0, MAX_BIO) || null,
-        zipCode:       zipCode?.trim()            || null,
-        hidePhone:      draft.hidePhone,
-        hideEmail:      draft.hideEmail,
-        hideName:       draft.hideName,
-        hideAvatar:     draft.hideAvatar,
-        hideMotto:      draft.hideMotto,
-        hideProfession: draft.hideProfession,
-        hideHomeBase:   draft.hideHomeBase,
-        hideBio:        draft.hideBio,
+        ...saved,
       })
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...updated, socialLinks: u.socialLinks } : u))
+      // Spread from existing user (u) to preserve in-memory fields like socialLinks
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, ...saved } : u))
       setAutoSaveStatus('saved')
     } catch (err) {
       setAutoSaveStatus('error')
