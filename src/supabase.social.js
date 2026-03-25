@@ -33,6 +33,7 @@ const toUser = r => r ? ({
   hideHomeBase:       r.hide_home_base  ?? false,
   hideBio:            r.hide_bio        ?? false,
   socialLinks:        r.social_links    ?? [],
+  zipCode:            r.zip_code        ?? null,
   credits:            r.credits         ?? 0,
   platoonTag:         r.platoon_tag        ?? null,
   platoonBadgeColor:  r.platoon_badge_color ?? null,
@@ -94,7 +95,7 @@ export async function updateOwnAvatar(userId, avatarUrl) {
 }
 
 /** Update social profile fields (motto, home base, profession, bio, privacy flags). */
-export async function updateSocialProfile(id, { leaderboardName, avatarUrl, motto, homeBaseCity, homeBaseState, profession, bio, hidePhone, hideEmail, hideName, hideAvatar, hideMotto, hideProfession, hideHomeBase, hideBio }) {
+export async function updateSocialProfile(id, { leaderboardName, avatarUrl, motto, homeBaseCity, homeBaseState, profession, bio, zipCode, hidePhone, hideEmail, hideName, hideAvatar, hideMotto, hideProfession, hideHomeBase, hideBio }) {
   const { error } = await supabase.rpc('update_social_profile', {
     p_user_id:          id,
     p_leaderboard_name: leaderboardName ?? null,
@@ -104,6 +105,7 @@ export async function updateSocialProfile(id, { leaderboardName, avatarUrl, mott
     p_home_base_state:  homeBaseState   ?? null,
     p_profession:       profession      ?? null,
     p_bio:              bio             ?? null,
+    p_zip_code:         zipCode         ?? null,
     p_hide_phone:       hidePhone       ?? false,
     p_hide_email:       hideEmail       ?? false,
     p_hide_name:        hideName        ?? false,

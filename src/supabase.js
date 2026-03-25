@@ -57,6 +57,7 @@ const toUser = r => r ? ({
   hideHomeBase:       r.hide_home_base  ?? false,
   hideBio:            r.hide_bio        ?? false,
   socialLinks:        r.social_links    ?? [],
+  zipCode:            r.zip_code        ?? null,
   credits:            r.credits         ?? 0,
   platoonTag:         r.platoon_tag        ?? null,
   platoonBadgeColor:  r.platoon_badge_color ?? null,

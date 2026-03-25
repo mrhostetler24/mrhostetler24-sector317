@@ -757,14 +757,14 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
       hideBio:        user.hideBio        ?? false,
     }
     setEditDraft(draft)
-    setZipInput('')
-    setZipStatus('idle')
+    setZipInput(user.zipCode ?? '')
+    setZipStatus(user.zipCode ? 'found' : 'idle')
     setAutoSaveStatus('idle')
     isFirstDraftRender.current = true
     setEditing(true)
   }
 
-  async function performSave(draft) {
+  async function performSave(draft, zipCode) {
     setAutoSaveStatus('saving')
     try {
       const updated = await updateSocialProfile(user.id, {
@@ -775,6 +775,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
         homeBaseCity:  draft.homeBaseCity.trim()  || null,
         homeBaseState: draft.homeBaseState.trim() || null,
         bio:           draft.bio.trim().slice(0, MAX_BIO) || null,
+        zipCode:       zipCode?.trim()            || null,
         hidePhone:      draft.hidePhone,
         hideEmail:      draft.hideEmail,
         hideName:       draft.hideName,
@@ -791,15 +792,15 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
     }
   }
 
-  // Auto-save: debounce 1.5s after any draft change
+  // Auto-save: debounce 1.5s after any draft or zip change
   useEffect(() => {
     if (!editing) return
     if (isFirstDraftRender.current) { isFirstDraftRender.current = false; return }
     clearTimeout(autoSaveTimer.current)
     setAutoSaveStatus('idle')
-    autoSaveTimer.current = setTimeout(() => performSave(editDraft), 1500)
+    autoSaveTimer.current = setTimeout(() => performSave(editDraft, zipInput), 1500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [editDraft, editing])
+  }, [editDraft, zipInput, editing])
 
   async function saveSocialLinks(newLinks) {
     setLinkSaving(true)
@@ -1093,7 +1094,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
               </div>
 
               <div style={{ display: 'flex', gap: '.65rem', paddingTop: '.25rem', alignItems: 'center' }}>
-                <button className="btn btn-p" onClick={() => { clearTimeout(autoSaveTimer.current); performSave(editDraft).then(() => setEditing(false)) }} disabled={autoSaveStatus==='saving'} style={{ minWidth: 90 }}>
+                <button className="btn btn-p" onClick={() => { clearTimeout(autoSaveTimer.current); performSave(editDraft, zipInput).then(() => setEditing(false)) }} disabled={autoSaveStatus==='saving'} style={{ minWidth: 90 }}>
                   {autoSaveStatus==='saving' ? 'Saving…' : '✓ Done'}
                 </button>
                 {autoSaveStatus==='saving' && <span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>Saving…</span>}
