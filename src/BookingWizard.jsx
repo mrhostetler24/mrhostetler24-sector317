@@ -41,13 +41,13 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   };
   const selType=bookable.find(rt=>rt.mode===selMode&&rt.style===selStyle);
   const allDates=get60Dates(sessionTemplates);
-  const availMap=useMemo(()=>{if(!selType)return{};const m={};allDates.forEach(d=>{m[d]=dateHasAvailability(d,selType.id,_allRes,resTypes,sessionTemplates);});return m;},[selType,_allRes,resTypes,sessionTemplates]);
+  const availMap=useMemo(()=>{if(!selType||step<3)return{};const m={};allDates.forEach(d=>{m[d]=dateHasAvailability(d,selType.id,_allRes,resTypes,sessionTemplates);});return m;},[selType,step,_allRes,resTypes,sessionTemplates]);
   const slotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
   const slotStatuses=useMemo(()=>slotsForDate.map(t=>({tmpl:t,status:selType?getSlotStatus(selDate,t.startTime,selType.id,_allRes,resTypes,sessionTemplates):{available:false},added:selSlots.some(s=>s.startTime===t.startTime)})),[selDate,selType,_allRes,resTypes,sessionTemplates,selSlots,slotsForDate]);
   const isPrivate=selStyle==="private";
   const isVersusOpen=selMode==="versus"&&selStyle==="open";
   // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
-  const firstSlotStatus=useMemo(()=>selSlots.length>0&&selType?getSlotStatus(selDate,selSlots[0].startTime,selType.id,reservations,resTypes,sessionTemplates):null,[selSlots,selType,selDate,reservations,resTypes,sessionTemplates]);
+  const firstSlotStatus=useMemo(()=>selSlots.length>0&&selType?getSlotStatus(selDate,selSlots[0].startTime,selType.id,_allRes,resTypes,sessionTemplates):null,[selSlots,selType,selDate,_allRes,resTypes,sessionTemplates]);
   const openMaxFromLane=firstSlotStatus?.spotsLeft??laneCapacity(selMode||"coop");
   const spotsLocked=isVersusOpen&&openMaxFromLane>0&&openMaxFromLane<4;
   const minP=isVersusOpen?(spotsLocked?openMaxFromLane:4):1;
@@ -63,6 +63,11 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const creditBalance=currentUser?.credits??0;
   const creditsApplied=applyCredits?Math.min(creditBalance,total):0;
   const amountDue=total-creditsApplied;
+  const alreadyPlayingAtTime=useMemo(()=>{
+    if(!selDate||selSlots.length===0)return false;
+    const selTimes=new Set(selSlots.map(s=>s.startTime));
+    return _allRes.some(r=>r.date===selDate&&selTimes.has(r.startTime)&&r.players?.some(p=>p.userId===currentUser.id));
+  },[_allRes,selDate,selSlots,currentUser.id]);
   useEffect(()=>{ setPlayerInputs(Array.from({length:Math.max(0,effPlayerCount-1)},(_,i)=>playerInputs[i]||{phone:"",userId:null,name:"",status:"idle"})); },[effPlayerCount]);
   useEffect(()=>{ if(!isPrivate) setPlayerCount(p=>Math.max(minP,Math.min(p,maxP))); },[maxP,minP]);
   const addSlot=st=>{
@@ -152,7 +157,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
                   <path d="M17.5 20v-2.5a3.5 3.5 0 017 0V20" stroke="#c8e03a" strokeWidth="1.8" strokeLinecap="round"/>
                   <circle cx="21" cy="24" r="1.5" fill="#c8e03a"/>
                 </svg>
-}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div className="mode-desc">{rt.description}{selMode==="versus"&&sty==="open"&&<div style={{marginTop:".5rem",fontSize:".74rem",color:"var(--warn)",fontWeight:600}}>⚠ Minimum 4 players per reservation for Versus open play.</div>}</div><div className="mode-price">{rt.pricingMode==="flat"?<>{fmtMoney(rt.price)} flat{flatDiscount(rt)!=null&&<span style={{color:"#4ade80",fontSize:".78rem",marginLeft:".4rem",fontWeight:600}}>({flatDiscount(rt)}% off full lane)</span>}</>:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
+}</div><div className="mode-name">{sty==="open"?"Open Play":"Private Team"}</div><div className="mode-desc">{rt.description}{selMode==="versus"&&sty==="open"&&<div style={{marginTop:".5rem",fontSize:".74rem",color:"var(--warn)",fontWeight:600}}>⚠ Minimum 4 players per reservation for Versus open play.</div>}</div><div className="mode-price">{rt.pricingMode==="flat"?<><div>{fmtMoney(rt.price)} flat</div>{flatDiscount(rt)!=null&&<div style={{color:"#4ade80",fontSize:".78rem",fontWeight:600}}>({flatDiscount(rt)}% off full lane)</div>}</>:`${fmtMoney(rt.price)}/player`}</div></div>;})} </div>}
       {step===3&&<>
         <p style={{fontSize:".85rem",color:"var(--muted)",marginBottom:".75rem"}}>Choose a date.</p>
         <div className="date-grid-hdr">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><div key={d} style={{textAlign:"center",fontSize:".62rem",color:"var(--muted)",padding:".2rem",textTransform:"uppercase"}}>{d}</div>)}</div>
@@ -285,6 +290,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
                           <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
                           <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
                         </div>
+                        {alreadyPlayingAtTime&&<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".35rem"}}>⚠ You're already playing at this time — select the remaining members of your group below.</div>}
                       </div>
                       <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
                         <input type="checkbox" checked={bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>
@@ -369,6 +375,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
                       <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(currentUser.name)}</span>
                       <strong style={{fontSize:".88rem"}}>{currentUser.name}</strong>
                     </div>
+                    {alreadyPlayingAtTime&&<div style={{fontSize:".74rem",color:"var(--warn)",marginTop:".35rem"}}>⚠ You're already playing at this time — select the remaining members of your group below.</div>}
                   </div>
                   <label style={{display:"flex",alignItems:"center",gap:".4rem",fontSize:".78rem",color:"var(--muted)",cursor:"pointer"}}>
                     <input type="checkbox" checked={bookingForOther} onChange={e=>{setBookingForOther(e.target.checked);setPlayer1Input({phone:"",userId:null,name:"",status:"idle"});}} style={{accentColor:"var(--acc)"}}/>

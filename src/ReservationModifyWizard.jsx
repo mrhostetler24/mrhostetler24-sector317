@@ -40,7 +40,7 @@ function DateCalendarGrid({ dates, getCell }) {
 function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservations,currentUser,isStaff=false,onClose,onReschedule,onUpgrade,onMoveAndUpgrade}){
   const rt=resTypes.find(x=>x.id===res.typeId);
   const privateType=resTypes.find(x=>x.mode===rt?.mode&&x.style==="private"&&x.active&&x.availableForBooking);
-  const allDates=get60Dates(sessionTemplates);
+  const allDates=useMemo(()=>get60Dates(sessionTemplates),[sessionTemplates]);
 
   // ── Reschedule state ──
   const [selDate,setSelDate]=useState(null);
@@ -67,7 +67,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
     const m={};
     allDates.forEach(d=>{m[d]=dateHasAvailability(d,privateType.id,reservations,resTypes,sessionTemplates);});
     return m;
-  },[privateType,reservations,resTypes,sessionTemplates]);
+  },[privateType,allDates,reservations,resTypes,sessionTemplates]);
 
   // ── Reschedule availability ──
   const reschedAvailMap=useMemo(()=>{
@@ -75,7 +75,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
     const m={};
     allDates.forEach(d=>{m[d]=dateHasAvailability(d,rt.id,reservations,resTypes,sessionTemplates);});
     return m;
-  },[rt,reservations,resTypes,sessionTemplates]);
+  },[rt,allDates,reservations,resTypes,sessionTemplates]);
 
   // Set of "date:startTime" where currentUser already has a non-cancelled booking (excluding the one being rescheduled)
   const userBookedTimes=useMemo(()=>{
