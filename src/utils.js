@@ -117,8 +117,9 @@ export function getSlotStatus(date,startTime,typeId,reservations,resTypes,templa
       : {available:false,reason:"Sold out!",lanes};
   }
   const cap = laneCapacity(desired.mode);
-  let bestLane = lanes.find(l=>l.type==="open"&&l.mode===desired.mode&&l.playerCount<cap);
-  if(!bestLane) bestLane = lanes.find(l=>l.type===null);
+  // Pick the lane with the most spots available so spotsLeft reflects the best option
+  const compatOpen = lanes.filter(l=>l.type==="open"&&l.mode===desired.mode&&l.playerCount<cap).sort((a,b)=>a.playerCount-b.playerCount);
+  let bestLane = compatOpen[0] ?? lanes.find(l=>l.type===null);
   if(!bestLane) return {available:false,reason:"Sold out!",lanes};
   const spotsInLane = bestLane.type===null ? cap : cap - bestLane.playerCount;
   const freeLanes = lanes.filter(l=>l.type===null).length;
