@@ -343,7 +343,7 @@ function TacticalProfile({ ext }) {
   </>)
 }
 
-function FriendProfileModal({ userId, users, onClose }) {
+function FriendProfileModal({ userId, users, friendIds, currentPlatoonTag, onClose }) {
   const [profile, setProfile] = useState(null)
   const [ext, setExt]         = useState(null)
   const [loading, setLoading] = useState(true)
@@ -378,23 +378,26 @@ function FriendProfileModal({ userId, users, onClose }) {
   const hasEnv = !!ext
   const hasProfile = profile && (profile.profession || profile.home_base_city || profile.home_base_state || profile.bio || profile.motto || profile.phone || profile.email)
 
+  const isFriendOrPlatoonmate = (friendIds?.has(userId) ?? false) || (currentPlatoonTag && currentPlatoonTag === profile?.platoon_tag)
+
   const handleDownloadVCard = () => {
     if (!profile) return
+    const displayName = profile.real_name || profile.leaderboard_name
     const lines = [
       'BEGIN:VCARD',
       'VERSION:3.0',
-      `FN:${profile.leaderboard_name}`,
-      profile.phone ? `TEL;TYPE=CELL:+1${profile.phone.replace(/\D/g,'')}` : null,
-      profile.email ? `EMAIL:${profile.email}` : null,
+      `FN:${displayName}`,
+      (!profile.hide_phone && profile.phone) ? `TEL;TYPE=CELL:+1${profile.phone.replace(/\D/g,'')}` : null,
+      (!profile.hide_email && profile.email) ? `EMAIL:${profile.email}` : null,
       'URL:https://www.sector317.com/',
-      'NOTE:Sector 317 player — sector317.com',
+      `NOTE:Sector 317 player ${profile.leaderboard_name}`,
       'END:VCARD',
     ].filter(Boolean).join('\r\n')
     const blob = new Blob([lines], { type: 'text/vcard' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${profile.leaderboard_name}.vcf`
+    a.download = `${displayName}.vcf`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -458,7 +461,7 @@ function FriendProfileModal({ userId, users, onClose }) {
               {profile.email && <div><span style={{ color: 'var(--muted)' }}>Email: </span><a href={`mailto:${profile.email}`} style={{ color: 'var(--accB)', wordBreak: 'break-all', textDecoration: 'none' }}>{profile.email}</a></div>}
               {profile.motto && <div style={{ fontStyle: 'italic', color: 'var(--muted)', marginTop: '.1rem' }}>"{profile.motto}"</div>}
               {profile.bio && <div style={{ color: 'var(--txt)', lineHeight: 1.5, marginTop: '.15rem' }}>{profile.bio}</div>}
-              {isMobile && (profile.phone || profile.email) && (
+              {isMobile && isFriendOrPlatoonmate && ((!profile.hide_phone && profile.phone) || (!profile.hide_email && profile.email)) && (
                 <button onClick={handleDownloadVCard} style={{ marginTop: '.6rem', background: 'none', border: '1px solid var(--bdr)', borderRadius: 5, color: 'var(--muted)', cursor: 'pointer', fontSize: '.78rem', padding: '.3rem .65rem', alignSelf: 'flex-start' }}>⬇ Save Contact</button>
               )}
             </div>
@@ -837,7 +840,7 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
   return (
     <>
       {profileModal && (
-        <FriendProfileModal userId={profileModal} users={users} onClose={() => setProfileModal(null)} />
+        <FriendProfileModal userId={profileModal} users={users} friendIds={friendIds} currentPlatoonTag={user.platoonTag} onClose={() => setProfileModal(null)} />
       )}
 
       {/* Platform picker modal */}
