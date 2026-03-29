@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-:root{--bg:#25261f;--bg2:#1e1f18;--surf:#2e2f27;--surf2:#363730;--bdr:#46473e;--acc:#c8e03a;--acc2:#9ab02e;--accB:#d4ec46;--accD:rgba(200,224,58,.12);--accGlow:rgba(200,224,58,.3);--danger:#c0392b;--dangerL:#e05c5c;--ok:#5a8a3a;--okB:#74a84a;--warn:#b8960c;--warnL:#e6b800;--txt:#e2dfd8;--muted:#8a8878;--fd:'Black Ops One',sans-serif;--fc:'Barlow Condensed',sans-serif;--fb:'Barlow',sans-serif;}
+:root{--bg:#25261f;--bg2:#1e1f18;--surf:#2e2f27;--surf2:#363730;--bdr:#46473e;--acc:#c8e03a;--acc2:#9ab02e;--accB:#d4ec46;--accD:rgba(200,224,58,.12);--accGlow:rgba(200,224,58,.3);--danger:#c0392b;--dangerL:#e05c5c;--ok:#5a8a3a;--okB:#74a84a;--warn:#b8960c;--warnL:#e6b800;--txt:#e2dfd8;--muted:#a8a898;--fd:'Black Ops One',sans-serif;--fc:'Barlow Condensed',sans-serif;--fb:'Barlow',sans-serif;}
 body{background:var(--bg2);color:var(--txt);font-family:var(--fb);min-height:100vh;}
 .app{display:flex;flex-direction:column;min-height:100vh;}
 .nav{background:rgba(17,18,9,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(200,224,58,.2);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:66px;position:sticky;top:0;z-index:100;}

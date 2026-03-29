@@ -13,6 +13,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const [selSlots,setSelSlots]=useState([]);
   const [addingMore,setAddingMore]=useState(false);
   const [secondLanePrompt,setSecondLanePrompt]=useState(null); // {startTime} when offer is pending
+  const [modeSwitchPrompt,setModeSwitchPrompt]=useState(null); // {startTime,altMode} when cross-mode slot clicked
   const [playerCount,setPlayerCount]=useState(1);
   const [playerInputs,setPlayerInputs]=useState([]);
   const [bookingForOther,setBookingForOther]=useState(false);
@@ -43,7 +44,8 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const allDates=get60Dates(sessionTemplates);
   const availMap=useMemo(()=>{if(!selType||step<3)return{};const m={};allDates.forEach(d=>{m[d]=dateHasAvailability(d,selType.id,_allRes,resTypes,sessionTemplates);});return m;},[selType,step,_allRes,resTypes,sessionTemplates]);
   const slotsForDate=useMemo(()=>selDate?getSessionsForDate(selDate,sessionTemplates):[],[selDate,sessionTemplates]);
-  const slotStatuses=useMemo(()=>slotsForDate.map(t=>({tmpl:t,status:selType?getSlotStatus(selDate,t.startTime,selType.id,_allRes,resTypes,sessionTemplates):{available:false},added:selSlots.some(s=>s.startTime===t.startTime)})),[selDate,selType,_allRes,resTypes,sessionTemplates,selSlots,slotsForDate]);
+  const altOpenType=useMemo(()=>{const am=selMode==="coop"?"versus":"coop";return bookable.find(rt=>rt.mode===am&&rt.style==="open")??null;},[selMode,resTypes]);
+  const slotStatuses=useMemo(()=>slotsForDate.map(t=>{const status=selType?getSlotStatus(selDate,t.startTime,selType.id,_allRes,resTypes,sessionTemplates):{available:false};const altStatus=altOpenType&&!status.available?getSlotStatus(selDate,t.startTime,altOpenType.id,_allRes,resTypes,sessionTemplates):null;return{tmpl:t,status,altStatus,added:selSlots.some(s=>s.startTime===t.startTime)};}), [selDate,selType,altOpenType,_allRes,resTypes,sessionTemplates,selSlots,slotsForDate]);
   const isPrivate=selStyle==="private";
   const isVersusOpen=selMode==="versus"&&selStyle==="open";
   // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
@@ -206,25 +208,30 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
           </div>}
           {/* ── SLOT PICKER (shown when no slots yet, or adding more) ── */}
           {(selSlots.length===0||addingMore)&&<>
-            <div className="slot-grid">{slotStatuses.map(({tmpl,status,added})=>{
+            {modeSwitchPrompt&&<div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.35)",borderRadius:6,padding:".85rem 1rem",marginBottom:".75rem"}}>
+              <div style={{fontFamily:"var(--fd)",fontSize:".78rem",letterSpacing:".08em",color:"var(--acc)",marginBottom:".3rem"}}>SWITCH TO {modeSwitchPrompt.altMode==="versus"?"VERSUS":"CO-OP"}?</div>
+              <div style={{fontSize:".84rem",color:"var(--txt)",marginBottom:".6rem"}}>{fmt12(modeSwitchPrompt.startTime)} has open spots for <strong>{modeSwitchPrompt.altMode==="versus"?"Versus":"Co-Op"}</strong>, but not {selMode==="coop"?"Co-Op":"Versus"}. Switch your booking to <strong>{modeSwitchPrompt.altMode==="versus"?"Versus":"Co-Op"} Open Play</strong>?</div>
+              <div style={{display:"flex",gap:".5rem",flexWrap:"wrap"}}>
+                <button className="btn btn-p btn-sm" onClick={()=>{const am=modeSwitchPrompt.altMode;setSelMode(am);setSelStyle("open");if(am==="versus")setPlayerCount(p=>Math.max(4,p));setModeSwitchPrompt(null);addSlot(modeSwitchPrompt.startTime);}}>Switch to {modeSwitchPrompt.altMode==="versus"?"Versus":"Co-Op"} →</button>
+                <button className="btn btn-s btn-sm" onClick={()=>setModeSwitchPrompt(null)}>Keep {selMode==="coop"?"Co-Op":"Versus"}</button>
+              </div>
+            </div>}
+            <div className="slot-grid">{slotStatuses.map(({tmpl,status,altStatus,added})=>{
               const laneInfo=status.lanes||[];
-              return <div key={tmpl.id} className={`slot-card${added?" added":!status.available?" unavail":""}`} onClick={()=>!added&&status.available&&addSlot(tmpl.startTime)}>
+              const canAltSwitch=!status.available&&(altStatus?.available??false)&&!isPrivate;
+              const renderLanes=(lanes,forMode)=>lanes?.length>0?<div style={{marginTop:".35rem",display:"flex",flexDirection:"column",gap:"2px"}}>{lanes.map(l=>{const cap=laneCapacity(l.mode||"coop");const isFull=l.type!==null&&(l.type==="private"||l.playerCount>=cap);const label=l.type===null?"Free":l.type==="private"?"Full":l.playerCount>=cap?"Full":l.mode==="coop"?`Co-Op ${l.playerCount}/6`:`Vs Open ${l.playerCount}/12`;const col=l.type===null?"rgba(200,224,58,.5)":isFull?"var(--muted)":l.mode===forMode?"var(--okB)":"var(--warn)";return<div key={l.laneNum} style={{fontSize:".6rem",fontFamily:"var(--fd)",letterSpacing:".04em",display:"flex",justifyContent:"space-between",color:col}}><span>Lane {l.laneNum}</span><span>{label}</span></div>;})}</div>:null;
+              return <div key={tmpl.id} className={`slot-card${added?" added":!status.available&&!canAltSwitch?" unavail":""}`} style={canAltSwitch?{cursor:"pointer",borderColor:"rgba(200,224,58,.3)"}:{}} onClick={()=>{if(added)return;if(status.available)addSlot(tmpl.startTime);else if(canAltSwitch)setModeSwitchPrompt({startTime:tmpl.startTime,altMode:altOpenType.mode});}}>
                 <div className="slot-time">{fmt12(tmpl.startTime)}</div>
                 {added?<div className="slot-info" style={{color:"var(--okB)"}}>✓ Added</div>:status.available?<>
                   <div className="slot-info" style={{color:"var(--okB)",fontSize:".72rem"}}>{(()=>{if(selType?.style==="private"){const total=(status.lanes||[]).length;const free=status.slotsLeft??total;return free<total?`${free} lane${free!==1?"s":""} free`:"Available";}else{const cap=laneCapacity(selMode||"coop");const spots=status.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";}})()}</div>
-                  {laneInfo.length>0&&<div style={{marginTop:".35rem",display:"flex",flexDirection:"column",gap:"2px"}}>
-                    {laneInfo.map(l=>{
-                      const cap=laneCapacity(l.mode||"coop");
-                      const isFull=l.type!==null&&(l.type==="private"||l.playerCount>=cap);
-                      const label=l.type===null?"Free":l.type==="private"?"Full":l.playerCount>=cap?"Full":l.mode==="coop"?`Co-Op ${l.playerCount}/6`:`Vs Open ${l.playerCount}/12`;
-                      const col=l.type===null?"rgba(200,224,58,.5)":isFull?"var(--muted)":l.mode===selType?.mode?"var(--okB)":"var(--warn)";
-                      return<div key={l.laneNum} style={{fontSize:".6rem",fontFamily:"var(--fd)",letterSpacing:".04em",display:"flex",justifyContent:"space-between",color:col}}>
-                        <span>Lane {l.laneNum}</span>
-                        <span>{label}</span>
-                      </div>;
-                    })}
-                  </div>}
-                </>:<div className="slot-reason">{status.reason==="Check-in closed"?"Full":status.reason}</div>}
+                  {renderLanes(laneInfo,selMode)}
+                </>:canAltSwitch?<>
+                  <div className="slot-info" style={{color:"var(--acc2)",fontSize:".72rem"}}>{altOpenType.mode==="versus"?"Versus":"Co-Op"} spots open →</div>
+                  {renderLanes(laneInfo,selMode)}
+                </>:<>
+                  <div className="slot-reason">{status.reason==="Check-in closed"?"Full":status.reason}</div>
+                  {renderLanes(laneInfo,selMode)}
+                </>}
               </div>;
             })}</div>
           </>}
