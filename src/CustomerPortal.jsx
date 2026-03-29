@@ -259,7 +259,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         </div>
       </div></div>}
       <div className="hero" style={{flexDirection:"column",alignItems:"stretch",gap:".5rem"}}>
-        {(()=>{const fn=user.name.split(" ")[0];const len=`Welcome, Operative ${fn}`.length;const fs=`clamp(.8rem,calc((100vw - 2.5rem) / ${(len*0.73).toFixed(2)}),1.6rem)`;return<h2 style={{whiteSpace:"nowrap",overflow:"hidden",fontSize:fs,marginBottom:0}}>Welcome, Operative {fn}</h2>;})()}
+        {(()=>{const fn=user.name.split(" ")[0];const len=`Welcome, Operative ${fn}`.length;const fs=`clamp(.7rem,calc((100vw - 8rem) / ${(len*0.79).toFixed(2)}),1.6rem)`;return<h2 style={{whiteSpace:"nowrap",overflow:"visible",fontSize:fs,marginBottom:0}}>Welcome, Operative {fn}</h2>;})()}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:".5rem"}}>
           <div style={{display:"flex",alignItems:"center",gap:".5rem",flexWrap:"wrap"}}>
             <button

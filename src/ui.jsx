@@ -378,7 +378,7 @@ export function PlayerPhoneInput({index,value,onChange,users,bookerUserId,showFu
                 <span style={{background:"var(--acc2)",color:"var(--bg2)",borderRadius:"50%",width:24,height:24,display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:".72rem",flexShrink:0}}>{getInitials(foundUser?.name||name)}</span>
                 {showFullName
                   ? <span>✓ <strong style={{color:"var(--txt)"}}>{foundUser?.name||name}</strong></span>
-                  : <span style={{color:"var(--okB)"}}>✓ Player found{foundUser?.authProvider&&<span style={{marginLeft:".35rem",fontSize:".68rem",color:"var(--muted)"}}>({foundUser.authProvider})</span>}</span>}
+                  : <span style={{color:"var(--okB)"}}>✓ Player found</span>}
                 {waiverOk===true&&<span style={{fontSize:".68rem",background:"rgba(100,200,100,.12)",color:"var(--okB)",border:"1px solid rgba(100,200,100,.3)",borderRadius:3,padding:"1px 5px"}}>✓ Waiver signed</span>}
                 {waiverOk===false&&<span style={{fontSize:".68rem",background:"rgba(192,57,43,.1)",color:"var(--dangerL)",border:"1px solid rgba(192,57,43,.3)",borderRadius:3,padding:"1px 5px"}}>⚠ No waiver</span>}
               </>}
