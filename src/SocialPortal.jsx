@@ -299,9 +299,9 @@ function TacticalProfile({ ext }) {
             {ext.coop_avg_score != null && <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Avg Score </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ext.coop_avg_score}</span></div>}
             {ext.coop_avg_time_sec != null && <div style={{ fontSize: '.8rem' }}><span style={{ color: 'var(--muted)' }}>Avg Time </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ext.coop_avg_time_sec)}</span></div>}
           </div>
-          <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'nowrap' }}>
-            {ext.coop_targets_pct != null && <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}><span style={{ color: 'var(--muted)' }}>Targets Elim </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_targets_pct}%</span></div>}
-            {ext.coop_obj_pct != null && <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}><span style={{ color: 'var(--muted)' }}>Obj Complete </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_obj_pct}%</span></div>}
+          <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'nowrap', overflow: 'hidden' }}>
+            {ext.coop_targets_pct != null && <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}><span style={{ color: 'var(--muted)' }}>Targets Elim </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_targets_pct}%</span></div>}
+            {ext.coop_obj_pct != null && <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}><span style={{ color: 'var(--muted)' }}>Obj Complete </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ext.coop_obj_pct}%</span></div>}
           </div>
         </div>
       )}
@@ -1145,15 +1145,15 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'nowrap' }}>
+                <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'nowrap', overflow: 'hidden' }}>
                   {ownExt.coop_targets_pct != null && (
-                    <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                       <span style={{ color: 'var(--muted)' }}>Targets Elim </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ownExt.coop_targets_pct}%</span>
                     </div>
                   )}
                   {ownExt.coop_obj_pct != null && (
-                    <div style={{ fontSize: '.8rem', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                       <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ownExt.coop_obj_pct}%</span>
                     </div>

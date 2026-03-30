@@ -18,13 +18,6 @@
 --   be correct.  Apply the app deploy (doScoreVersus fix) at the same
 --   time or immediately after this migration.
 --
--- DATA NOTE (Mar 10 test game):
---   Existing run 2 records used the OLD in-run slot convention:
---     run_number=2, team=1 → actually Red/original-team-2 as hunters
---     run_number=2, team=2 → actually Blue/original-team-1 as coyotes
---   After this migration the view reads team as stable, so those rows
---   will be joined to the wrong players until the data is corrected.
---   Run the DATA FIX section below (commented out) once to swap them.
 --
 -- SAFE TO RE-RUN: CREATE OR REPLACE view is idempotent.
 -- ============================================================
@@ -470,25 +463,3 @@ SELECT
 FROM player_agg;
 
 
--- ────────────────────────────────────────────────────────────
--- DATA FIX — Mar 10 test game run 2 records
---
--- These records were written using the OLD in-run slot convention.
--- Run 2 team:1 = Red hunters (should be team:2 for stable convention).
--- Run 2 team:2 = Blue coyotes (should be team:1 for stable convention).
---
--- UNCOMMENT AND RUN ONCE after applying this migration.
--- Replace <RESERVATION_ID_1> and <RESERVATION_ID_2> with the actual UUIDs.
--- ────────────────────────────────────────────────────────────
-
-/*
-UPDATE public.session_runs
-SET
-  team         = CASE team WHEN 1 THEN 2 WHEN 2 THEN 1 ELSE team END,
-  winning_team = CASE winning_team WHEN 1 THEN 2 WHEN 2 THEN 1 ELSE winning_team END
-WHERE run_number = 2
-  AND reservation_id IN (
-    '<RESERVATION_ID_1>',
-    '<RESERVATION_ID_2>'
-  );
-*/
