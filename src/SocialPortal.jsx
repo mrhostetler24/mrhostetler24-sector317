@@ -1127,19 +1127,19 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             {ownExt?.coop_runs > 0 && (
               <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem', marginBottom: '.5rem' }}>
                 <div style={{ fontSize: '.65rem', color: 'var(--acc)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Co-op</div>
-                <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
-                  <div style={{ fontSize: '.8rem' }}>
+                <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'nowrap', overflow: 'hidden', marginBottom: '.3rem' }}>
+                  <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                     <span style={{ color: 'var(--muted)' }}>Runs </span>
                     <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.coop_runs}</span>
                   </div>
                   {ownExt.coop_avg_score != null && (
-                    <div style={{ fontSize: '.8rem' }}>
+                    <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                       <span style={{ color: 'var(--muted)' }}>Avg Score </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.coop_avg_score}</span>
                     </div>
                   )}
                   {ownExt.coop_avg_time_sec != null && (
-                    <div style={{ fontSize: '.8rem' }}>
+                    <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                       <span style={{ color: 'var(--muted)' }}>Avg Time </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ownExt.coop_avg_time_sec)}</span>
                     </div>
@@ -1170,43 +1170,43 @@ export default function SocialPortal({ user, users, setUsers, reservations, resT
             {ownExt?.versus_runs > 0 && (
               <div style={{ background: 'var(--surf2)', border: '1px solid var(--bdr)', borderRadius: 5, padding: '.5rem .75rem' }}>
                 <div style={{ fontSize: '.65rem', color: '#f97316', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '.35rem' }}>Versus</div>
-                <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
-                  <div style={{ fontSize: '.8rem' }}>
+                <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'nowrap', overflow: 'hidden', marginBottom: '.3rem' }}>
+                  <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                     <span style={{ color: 'var(--muted)' }}>Sessions </span>
                     <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.versus_runs}</span>
                   </div>
                   {ownExt.versus_avg_session_score != null && (
-                    <div style={{ fontSize: '.8rem' }}>
+                    <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                       <span style={{ color: 'var(--muted)' }}>Avg Session </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{ownExt.versus_avg_session_score}</span>
                     </div>
                   )}
                 </div>
                 {(ownExt.versus_hunter_avg_sec != null || ownExt.versus_coyote_avg_sec != null) && (
-                  <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap', marginBottom: '.3rem' }}>
+                  <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'nowrap', overflow: 'hidden', marginBottom: '.3rem' }}>
                     {ownExt.versus_hunter_avg_sec != null && (
-                      <div style={{ fontSize: '.8rem' }}>
+                      <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                         <span style={{ color: 'var(--muted)' }}>Hunter Avg </span>
                         <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ownExt.versus_hunter_avg_sec)}</span>
                       </div>
                     )}
                     {ownExt.versus_coyote_avg_sec != null && (
-                      <div style={{ fontSize: '.8rem' }}>
+                      <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                         <span style={{ color: 'var(--muted)' }}>Coyote Avg </span>
                         <span style={{ fontFamily: 'var(--fd)', color: 'var(--txt)' }}>{fmtSec(ownExt.versus_coyote_avg_sec)}</span>
                       </div>
                     )}
                   </div>
                 )}
-                <div style={{ display: 'flex', columnGap: '1.25rem', rowGap: '.3rem', flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: '.8rem' }}>
+                <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'nowrap', overflow: 'hidden' }}>
+                  <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                     <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ownExt.versus_wins ?? 0}W</span>
                     {(ownExt.versus_ties ?? 0) > 0 && (<><span style={{ color: 'var(--muted)' }}> – </span><span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ownExt.versus_ties}T</span></>)}
                     <span style={{ color: 'var(--muted)' }}> – </span>
                     <span style={{ fontFamily: 'var(--fd)', color: 'var(--muted)' }}>{ownExt.versus_losses ?? 0}L</span>
                   </div>
                   {ownExt.versus_obj_pct != null && (
-                    <div style={{ fontSize: '.8rem' }}>
+                    <div style={{ fontSize: '.72rem', whiteSpace: 'nowrap' }}>
                       <span style={{ color: 'var(--muted)' }}>Obj Complete </span>
                       <span style={{ fontFamily: 'var(--fd)', color: 'var(--accB)' }}>{ownExt.versus_obj_pct}%</span>
                     </div>
