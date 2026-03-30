@@ -274,6 +274,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
   .date-cell{padding:.3rem .1rem;font-size:.65rem;}
   .dc-num{font-size:.9rem;}
 }
+/* Match stats container query — scales font up to .8rem when space allows */
+.ms-card { container-type: inline-size; }
+.ms-item { font-size: clamp(.68rem, 3.5cqw, .8rem); white-space: nowrap; }
+
 @media(orientation:landscape) and (max-height:500px){
   .nav{height:50px;}
   .nav-logo{height:34px;}
