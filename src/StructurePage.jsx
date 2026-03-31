@@ -9,7 +9,7 @@ import { TierImg, PlatoonTag } from './ui.jsx'
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY,
-  { auth: { persistSession: false, autoRefreshToken: false } }
+  { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'sb-structure-auth' } }
 )
 
 const VIZ_OPTS = [
