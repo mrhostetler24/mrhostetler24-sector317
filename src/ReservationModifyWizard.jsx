@@ -98,10 +98,13 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
     const m={};
     allDates.forEach(d=>{
       if(!reschedAvailMap[d]){m[d]=false;return;}
-      m[d]=getSessionsForDate(d,sessionTemplates).some(t=>
-        !userBookedTimes.has(d+':'+t.startTime)&&
-        getSlotStatus(d,t.startTime,rt.id,_allRes,resTypes,sessionTemplates).available
-      );
+      const isPrivateRes=rt.style==="private";
+      m[d]=getSessionsForDate(d,sessionTemplates).some(t=>{
+        if(userBookedTimes.has(d+':'+t.startTime))return false;
+        const st=getSlotStatus(d,t.startTime,rt.id,_allRes,resTypes,sessionTemplates);
+        if(!st.available)return false;
+        return isPrivateRes?(st.slotsLeft??0)>=1:(st.spotsLeft??0)>=res.playerCount;
+      });
     });
     return m;
   },[rt,showCalendar,reschedAvailMap,allDates,sessionTemplates,userBookedTimes,_allRes,resTypes,isStaff]);
@@ -254,11 +257,14 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
         <div className="slot-grid">{reschedSlotStatuses.map(({tmpl:t,st})=>{
           const isCurrent=selDate===res.date&&t.startTime===res.startTime;
           const userHasHere=!isStaff&&!isCurrent&&userBookedTimes.has(selDate+':'+t.startTime);
-          const isAvail=!isCurrent&&!userHasHere&&st.available;
+          const isPrivateRes=rt?.style==="private";
+          const hasCapacity=isPrivateRes?(st.slotsLeft??0)>=1:(st.spotsLeft??0)>=res.playerCount;
+          const isAvail=!isCurrent&&!userHasHere&&st.available&&hasCapacity;
           return <div key={t.id} className={`slot-card${isCurrent?" added":(!isAvail&&!isCurrent)?" unavail":""}`} onClick={()=>isAvail&&setSelTime(t.startTime)}>
             <div className="slot-time">{fmt12(t.startTime)}</div>
             {isCurrent?<div className="slot-info" style={{color:"var(--muted)"}}>Current</div>
              :userHasHere?<div className="slot-reason">Already booked</div>
+             :st.available&&!hasCapacity?<div className="slot-reason">Not enough spots ({st.spotsLeft??0} left, need {res.playerCount})</div>
              :st.available?<div className="slot-info" style={{color:"var(--okB)"}}>{(()=>{const cap=rt?.mode==="versus"?12:6;const spots=st.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";})()}</div>
              :<div className="slot-reason">{st.reason}</div>}
           </div>;
