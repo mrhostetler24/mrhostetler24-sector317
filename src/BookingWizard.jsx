@@ -3,6 +3,7 @@ import { get60Dates, getSessionsForDate, dateHasAvailability, getSlotStatus, ope
 import { PlayerPhoneInput, DateNav } from './ui.jsx';
 import { emailBookingConfirmation } from './emails.js';
 import { processPayment } from './payments.js';
+import { fetchAvailabilityReservations } from './supabase.js';
 
 function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,currentUser,users,activeWaiverDoc,onBook,onPayCreate,onFinalize,onClose}){
   const _allRes=allReservations??reservations;
@@ -479,6 +480,17 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         {step<steps.length
           ?<>{!paymentSuccess&&step===5
               ?<button className="btn btn-p" disabled={paying} onClick={async()=>{setPaying(true);setPayError(null);try{
+                // ── Pre-check: confirm slot still has capacity before charging
+                const freshRes=await fetchAvailabilityReservations();
+                const uniqueTimes=[...new Set(selSlots.map(s=>s.startTime))];
+                const lanesNeeded=lanesBooked??1;
+                const capacityOk=uniqueTimes.every(st=>{
+                  const s=getSlotStatus(selDate,st,selType.id,freshRes,resTypes,sessionTemplates);
+                  if(!s.available)return false;
+                  if(selStyle==="private")return s.slotsLeft>=lanesNeeded;
+                  return s.spotsLeft>=effPlayerCount;
+                });
+                if(!capacityOk){setPayError("This time slot was just booked by someone else. Please go back and select a different time.");setPaying(false);return;}
                 // ── Step 1: process payment
                 const txn=await processPayment({amount:amountDue,mode:'card_not_present',card:{number:cardNumber,expiry:cardExpiry,name:nameOnCard}});
                 if(!txn.ok)throw new Error('Payment declined');
