@@ -84,7 +84,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
     if(isPrivate){
       const alreadyTwo=selSlots.filter(s=>s.startTime===st).length>=1;
       if(!alreadyTwo){
-        const status=getSlotStatus(selDate,st,selType?.id,reservations,resTypes,sessionTemplates);
+        const status=getSlotStatus(selDate,st,selType?.id,_allRes,resTypes,sessionTemplates);
         const freeLanesAfter=(status.lanes||[]).filter(l=>l.type===null).length;
         if(freeLanesAfter>1) setSecondLanePrompt(st);
         else setSecondLanePrompt(null);
