@@ -264,7 +264,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
             <div className="slot-time">{fmt12(t.startTime)}</div>
             {isCurrent?<div className="slot-info" style={{color:"var(--muted)"}}>Current</div>
              :userHasHere?<div className="slot-reason">Already booked</div>
-             :st.available&&!hasCapacity?<div className="slot-reason">Not enough spots ({st.spotsLeft??0} left, need {res.playerCount})</div>
+             :st.available&&!hasCapacity?<div className="slot-reason">{st.spotsLeft??0} spot{(st.spotsLeft??0)!==1?"s":""} left</div>
              :st.available?<div className="slot-info" style={{color:"var(--okB)"}}>{(()=>{const cap=rt?.mode==="versus"?12:6;const spots=st.spotsLeft??cap;return spots<cap?`${spots} spot${spots!==1?"s":""} left`:"Available";})()}</div>
              :<div className="slot-reason">{st.reason}</div>}
           </div>;

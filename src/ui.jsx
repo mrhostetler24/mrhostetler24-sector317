@@ -439,3 +439,39 @@ export function DateNav({selected,today,onChange}){
     </div>
   );
 }
+
+// ── BookingTermsModal ─────────────────────────────────────────────
+export function BookingTermsModal({onClose}){
+  return(
+    <div className="mo" style={{zIndex:300}}>
+      <div className="mc" style={{maxWidth:540}}>
+        <div className="mt2">Booking Terms</div>
+        <div style={{fontSize:".85rem",color:"var(--txt)",display:"flex",flexDirection:"column",gap:".85rem",marginBottom:"1.25rem"}}>
+          <div>
+            <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--acc)",textTransform:"uppercase",marginBottom:".3rem"}}>Payment &amp; Refunds</div>
+            <p style={{color:"var(--muted)",margin:0}}>All reservations are <strong style={{color:"var(--txt)"}}>non-refundable</strong>. Payment is collected at time of booking and confirms your reservation. No refunds will be issued for no-shows, late arrivals, or unused time.</p>
+          </div>
+          <div>
+            <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--acc)",textTransform:"uppercase",marginBottom:".3rem"}}>Rescheduling</div>
+            <p style={{color:"var(--muted)",margin:0}}>Reservations may be rescheduled at no charge. Rescheduling requests made <strong style={{color:"var(--txt)"}}>within 24 hours</strong> of the original reservation time are limited to the <strong style={{color:"var(--txt)"}}>same day only</strong>. Rescheduling is subject to availability.</p>
+          </div>
+          <div>
+            <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--acc)",textTransform:"uppercase",marginBottom:".3rem"}}>Waivers</div>
+            <p style={{color:"var(--muted)",margin:0}}>All players must have a signed waiver on file before participating. Players without a valid waiver will not be permitted to play and no refund will be issued.</p>
+          </div>
+          <div>
+            <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--acc)",textTransform:"uppercase",marginBottom:".3rem"}}>Arrival</div>
+            <p style={{color:"var(--muted)",margin:0}}>Please arrive at least <strong style={{color:"var(--txt)"}}>15 minutes</strong> before your reservation time for check-in. Late arrivals may result in reduced session time with no adjustment to the booking amount.</p>
+          </div>
+          <div>
+            <div style={{fontFamily:"var(--fd)",fontSize:".72rem",letterSpacing:".08em",color:"var(--acc)",textTransform:"uppercase",marginBottom:".3rem"}}>Group Size</div>
+            <p style={{color:"var(--muted)",margin:0}}>Open play reservations are booked per player. Private reservations are booked per lane at a flat rate regardless of group size, up to the lane maximum.</p>
+          </div>
+        </div>
+        <div className="ma">
+          <button className="btn btn-p" onClick={onClose}>Got it</button>
+        </div>
+      </div>
+    </div>
+  );
+}

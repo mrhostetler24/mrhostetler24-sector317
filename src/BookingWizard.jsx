@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from "react";
 import { get60Dates, getSessionsForDate, dateHasAvailability, getSlotStatus, openPlayCapacity, fmt12, fmt, fmtMoney, addDaysStr, todayStr, laneCapacity, hasValidWaiver, getInitials } from './utils.js';
-import { PlayerPhoneInput, DateNav } from './ui.jsx';
+import { PlayerPhoneInput, DateNav, BookingTermsModal } from './ui.jsx';
 import { emailBookingConfirmation } from './emails.js';
 import { processPayment } from './payments.js';
 import { fetchAvailabilityReservations } from './supabase.js';
@@ -22,6 +22,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const [paymentSuccess,setPaymentSuccess]=useState(false);
   const [paying,setPaying]=useState(false);
   const [payError,setPayError]=useState(null);
+  const [showTerms,setShowTerms]=useState(false);
   const [applyCredits,setApplyCredits]=useState(false);
   const [cardNumber,setCardNumber]=useState('');
   const [cardExpiry,setCardExpiry]=useState('');
@@ -281,7 +282,9 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
           <div className="g2"><div className="f"><label>Name on Card</label><input placeholder="Full name" value={nameOnCard} onChange={e=>setNameOnCard(e.target.value)}/></div><div className="f"><label>CVV</label><input placeholder="•••" maxLength={4} inputMode="numeric"/></div></div></>}
           {amountDue===0&&creditBalance>0&&creditsApplied>0&&<div style={{background:"rgba(100,180,100,.1)",border:"1px solid rgba(100,180,100,.3)",borderRadius:5,padding:".6rem .85rem",fontSize:".82rem",color:"var(--okB)"}}>✓ Covered in full by store credits — no card required.</div>}
           {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
+          <div style={{fontSize:".74rem",color:"var(--muted)",marginTop:".75rem",textAlign:"center"}}>By completing this reservation you agree to the <button onClick={()=>setShowTerms(true)} style={{background:"none",border:"none",padding:0,color:"var(--accB)",cursor:"pointer",fontSize:".74rem",textDecoration:"underline"}}>Booking Terms</button>.</div>
         </>}
+        {showTerms&&<BookingTermsModal onClose={()=>setShowTerms(false)}/>}
         {paymentSuccess&&<div style={{background:"rgba(100,200,100,.1)",border:"1px solid rgba(100,200,100,.35)",borderRadius:6,padding:".85rem 1rem",marginTop:".5rem",display:"flex",alignItems:"center",gap:".75rem"}}>
           <span style={{fontSize:"1.4rem"}}>✅</span>
           <div><div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--okB)",letterSpacing:".06em",marginBottom:".15rem"}}>PAYMENT SUCCESSFUL</div>
@@ -362,7 +365,9 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
           <div className="g2"><div className="f"><label>Name on Card</label><input placeholder="Full name" value={nameOnCard} onChange={e=>setNameOnCard(e.target.value)}/></div><div className="f"><label>CVV</label><input placeholder="•••" maxLength={4} inputMode="numeric"/></div></div></>}
           {amountDue===0&&creditBalance>0&&creditsApplied>0&&<div style={{background:"rgba(100,180,100,.1)",border:"1px solid rgba(100,180,100,.3)",borderRadius:5,padding:".6rem .85rem",fontSize:".82rem",color:"var(--okB)"}}>✓ Covered in full by store credits — no card required.</div>}
           {payError&&<div style={{background:"rgba(192,57,43,.1)",border:"1px solid var(--danger)",borderRadius:5,padding:".6rem .85rem",fontSize:".8rem",color:"var(--dangerL)",marginTop:".5rem"}}>⚠ Payment failed: {payError}</div>}
+          <div style={{fontSize:".74rem",color:"var(--muted)",marginTop:".75rem",textAlign:"center"}}>By completing this reservation you agree to the <button onClick={()=>setShowTerms(true)} style={{background:"none",border:"none",padding:0,color:"var(--accB)",cursor:"pointer",fontSize:".74rem",textDecoration:"underline"}}>Booking Terms</button>.</div>
         </>}
+        {showTerms&&<BookingTermsModal onClose={()=>setShowTerms(false)}/>}
         {paymentSuccess&&<div style={{background:"rgba(100,200,100,.1)",border:"1px solid rgba(100,200,100,.35)",borderRadius:6,padding:".85rem 1rem",marginTop:".5rem",display:"flex",alignItems:"center",gap:".75rem"}}>
           <span style={{fontSize:"1.4rem"}}>✅</span>
           <div><div style={{fontFamily:"var(--fd)",fontSize:".82rem",color:"var(--okB)",letterSpacing:".06em",marginBottom:".15rem"}}>PAYMENT SUCCESSFUL</div>
