@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { get60Dates, getSessionsForDate, getSlotStatus, dateHasAvailability, fmt, fmtMoney, fmt12 } from "./utils.js"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -63,20 +63,23 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   const upgradeBalance=Math.max(0, privatePrice - alreadyPaid);
 
   // For "move and upgrade": find slots where they'd be sole private booker
+  const [showCalendar,setShowCalendar]=useState(false);
+  useEffect(()=>{if(mode==="reschedule"){const id=setTimeout(()=>setShowCalendar(true),0);return()=>clearTimeout(id);}},[mode]);
+
   const availMap=useMemo(()=>{
-    if(!privateType||mode!=="upgrade") return {};
+    if(!privateType||!showCalendar) return {};
     const m={};
     allDates.forEach(d=>{m[d]=dateHasAvailability(d,privateType.id,_allRes,resTypes,sessionTemplates);});
     return m;
-  },[privateType,mode,allDates,_allRes,resTypes,sessionTemplates]);
+  },[privateType,showCalendar,allDates,_allRes,resTypes,sessionTemplates]);
 
   // ── Reschedule availability ──
   const reschedAvailMap=useMemo(()=>{
-    if(!rt||mode!=="reschedule") return {};
+    if(!rt||!showCalendar) return {};
     const m={};
     allDates.forEach(d=>{m[d]=dateHasAvailability(d,rt.id,_allRes,resTypes,sessionTemplates);});
     return m;
-  },[rt,mode,allDates,_allRes,resTypes,sessionTemplates]);
+  },[rt,showCalendar,allDates,_allRes,resTypes,sessionTemplates]);
 
   // Set of "date:startTime" where currentUser already has a non-cancelled booking (excluding the one being rescheduled)
   const userBookedTimes=useMemo(()=>{
@@ -90,18 +93,18 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
 
   // Availability map accounting for user's existing bookings (for date picker)
   const reschedAvailMapForUser=useMemo(()=>{
-    if(!rt) return {};
+    if(!rt||!showCalendar) return {};
     if(isStaff) return reschedAvailMap;
     const m={};
     allDates.forEach(d=>{
       if(!reschedAvailMap[d]){m[d]=false;return;}
       m[d]=getSessionsForDate(d,sessionTemplates).some(t=>
         !userBookedTimes.has(d+':'+t.startTime)&&
-        getSlotStatus(d,t.startTime,rt.id,reservations,resTypes,sessionTemplates).available
+        getSlotStatus(d,t.startTime,rt.id,_allRes,resTypes,sessionTemplates).available
       );
     });
     return m;
-  },[rt,reschedAvailMap,allDates,sessionTemplates,userBookedTimes,reservations,resTypes,isStaff]);
+  },[rt,showCalendar,reschedAvailMap,allDates,sessionTemplates,userBookedTimes,_allRes,resTypes,isStaff]);
 
   const slotsForDate=selDate?getSessionsForDate(selDate,sessionTemplates):[];
 
@@ -164,7 +167,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
         <div style={{display:"flex",justifyContent:"space-between",fontWeight:700,borderTop:"1px solid var(--bdr)",paddingTop:".4rem",marginTop:".3rem"}}><span>Balance due if moved</span><span style={{color:upgradeBalance>0?"var(--warn)":"var(--okB)"}}>{upgradeBalance>0?fmtMoney(upgradeBalance):"No additional charge 🎉"}</span></div>
       </div>
       <div className="ma" style={{flexDirection:"column",gap:".6rem",alignItems:"stretch"}}>
-        <button className="btn btn-p" style={{width:"100%"}} onClick={()=>setUpgradeChoice("move")}>Pick a New Slot & Upgrade →</button>
+        <button className="btn btn-p" style={{width:"100%"}} onClick={()=>{setShowCalendar(true);setUpgradeChoice("move");}}>Pick a New Slot & Upgrade →</button>
         <button className="btn btn-s" style={{width:"100%"}} onClick={onClose}>Keep Current Booking</button>
       </div>
     </div></div>;
