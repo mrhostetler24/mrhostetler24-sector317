@@ -264,7 +264,17 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
         {creditBalance>0&&<div className="pay-row" style={{color:"var(--okB)",cursor:"pointer"}} onClick={()=>setApplyCredits(a=>!a)}><span><input type="checkbox" checked={applyCredits} readOnly style={{accentColor:"var(--okB)",marginRight:".4rem"}}/>{applyCredits?`Credits Applied`:`Apply Credits (${fmtMoney(creditBalance)} available)`}</span><span style={{color:"var(--okB)"}}>{applyCredits?`-${fmtMoney(creditsApplied)}`:""}</span></div>}
         {creditsApplied>0&&<div className="pay-row tot"><span>Amount Due</span><span>{fmtMoney(amountDue)}</span></div>}
         </div>;})()}
-        {!paymentSuccess&&(()=>{const pvt=bookable.find(rt=>rt.mode===selMode&&rt.style==='private');const pvtTotal=pvt?pvt.price*selSlots.length:null;return pvtTotal!=null&&total>=pvtTotal?<div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.4)",borderRadius:6,padding:".75rem 1rem",marginBottom:".75rem",fontSize:".84rem",color:"var(--txt)"}}>💡 <strong style={{color:"var(--acc)"}}>Private Team booking</strong> for the same slot{selSlots.length>1?"s":""} is only <strong style={{color:"var(--acc)"}}>{fmtMoney(pvtTotal)}</strong> — you'd save <strong style={{color:"var(--acc)"}}>{fmtMoney(total-pvtTotal)}</strong>. Go back to switch to Private Team.</div>:null;})()}
+        {!paymentSuccess&&(()=>{
+          const pvt=bookable.find(rt=>rt.mode===selMode&&rt.style==='private');
+          const pvtTotal=pvt?pvt.price*selSlots.length:null;
+          const targetLane=firstSlotStatus?.lanes?.find(l=>l.laneNum===firstSlotStatus.laneNum);
+          const laneIsEmpty=targetLane?.type===null;
+          if(!laneIsEmpty||pvtTotal==null||total<pvtTotal)return null;
+          return<div style={{background:"rgba(200,224,58,.06)",border:"1px solid rgba(200,224,58,.4)",borderRadius:6,padding:".75rem 1rem",marginBottom:".75rem",fontSize:".84rem",color:"var(--txt)"}}>
+            <div style={{marginBottom:".5rem"}}>💡 <strong style={{color:"var(--acc)"}}>Private Team booking</strong> for the same slot{selSlots.length>1?"s":""} is only <strong style={{color:"var(--acc)"}}>{fmtMoney(pvtTotal)}</strong> — you'd save <strong style={{color:"var(--acc)"}}>{fmtMoney(total-pvtTotal)}</strong>.</div>
+            <button className="btn btn-p btn-sm" onClick={()=>setSelStyle('private')}>Switch to Private Team →</button>
+          </div>;
+        })()}
         {!paymentSuccess&&<>
           <div className="gd-badge"><span style={{color:"var(--okB)"}}>🔒</span><div><strong style={{color:"var(--txt)"}}>Secured by GoDaddy Payments</strong></div></div>
           {amountDue>0&&<><div className="g2"><div className="f"><label>Card Number</label><input placeholder="•••• •••• •••• ••••" value={cardNumber} onChange={handleCardNumber} maxLength={19} inputMode="numeric"/></div><div className="f"><label>Expiry (MM/YY)</label><input placeholder="MM/YY" value={cardExpiry} onChange={handleCardExpiry} maxLength={5} inputMode="numeric"/></div></div>
