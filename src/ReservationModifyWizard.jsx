@@ -223,7 +223,7 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
   // ── RESCHEDULE ─────────────────────────────────────────────────────────
   if(isReschedule){
     const reschedSlots=selDate?getSessionsForDate(selDate,sessionTemplates):[];
-    const reschedSlotStatuses=useMemo(()=>reschedSlots.map(t=>({tmpl:t,st:getSlotStatus(selDate,t.startTime,rt?.id,reservations,resTypes,sessionTemplates)})),[reschedSlots,selDate,rt,reservations,resTypes,sessionTemplates]);
+    const reschedSlotStatuses=useMemo(()=>reschedSlots.map(t=>({tmpl:t,st:getSlotStatus(selDate,t.startTime,rt?.id,_allRes,resTypes,sessionTemplates)})),[reschedSlots,selDate,rt,_allRes,resTypes,sessionTemplates]);
     const resDateTime=new Date(`${res.date}T${res.startTime}`);
     const hoursUntil=(resDateTime-Date.now())/(1000*60*60);
     const isWithin24h=!isStaff&&hoursUntil>0&&hoursUntil<24;

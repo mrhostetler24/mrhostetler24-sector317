@@ -33,7 +33,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [showBook,setShowBook]=useState(false);
   useEffect(()=>{if(autoBook){setShowBook(true);onAutoBookDone?.();}},[]);// eslint-disable-line react-hooks/exhaustive-deps
   const [availRes,setAvailRes]=useState([]);
-  useEffect(()=>{if(showBook)fetchAvailabilityReservations().then(setAvailRes).catch(()=>{});},[showBook]);// eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{if(showBook||modifyRes)fetchAvailabilityReservations().then(setAvailRes).catch(()=>{});},[showBook,modifyRes]);// eslint-disable-line react-hooks/exhaustive-deps
   const [wOpen,setWOpen]=useState(false);
   const [wViewOpen,setWViewOpen]=useState(false);
   const [showAccount,setShowAccount]=useState(false);
