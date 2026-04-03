@@ -169,6 +169,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         resTypes={resTypes}
         sessionTemplates={sessionTemplates}
         reservations={reservations}
+        allReservations={availRes.length?availRes:reservations}
         currentUser={user}
         onClose={()=>setModifyRes(null)}
         onReschedule={(id,date,startTime)=>{

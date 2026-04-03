@@ -37,7 +37,8 @@ function DateCalendarGrid({ dates, getCell }) {
 // ReservationModifyWizard
 // Handles: reschedule (any type) and upgrade open→private (only when sole booker)
 // ─────────────────────────────────────────────────────────────────────────────
-function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservations,currentUser,isStaff=false,onClose,onReschedule,onUpgrade,onMoveAndUpgrade}){
+function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservations,allReservations,currentUser,isStaff=false,onClose,onReschedule,onUpgrade,onMoveAndUpgrade}){
+  const _allRes=allReservations??reservations;
   const rt=resTypes.find(x=>x.id===res.typeId);
   const privateType=resTypes.find(x=>x.mode===rt?.mode&&x.style==="private"&&x.active&&x.availableForBooking);
   const allDates=useMemo(()=>get60Dates(sessionTemplates),[sessionTemplates]);
@@ -63,19 +64,19 @@ function ReservationModifyWizard({res,mode,resTypes,sessionTemplates,reservation
 
   // For "move and upgrade": find slots where they'd be sole private booker
   const availMap=useMemo(()=>{
-    if(!privateType) return {};
+    if(!privateType||mode!=="upgrade") return {};
     const m={};
-    allDates.forEach(d=>{m[d]=dateHasAvailability(d,privateType.id,reservations,resTypes,sessionTemplates);});
+    allDates.forEach(d=>{m[d]=dateHasAvailability(d,privateType.id,_allRes,resTypes,sessionTemplates);});
     return m;
-  },[privateType,allDates,reservations,resTypes,sessionTemplates]);
+  },[privateType,mode,allDates,_allRes,resTypes,sessionTemplates]);
 
   // ── Reschedule availability ──
   const reschedAvailMap=useMemo(()=>{
-    if(!rt) return {};
+    if(!rt||mode!=="reschedule") return {};
     const m={};
-    allDates.forEach(d=>{m[d]=dateHasAvailability(d,rt.id,reservations,resTypes,sessionTemplates);});
+    allDates.forEach(d=>{m[d]=dateHasAvailability(d,rt.id,_allRes,resTypes,sessionTemplates);});
     return m;
-  },[rt,allDates,reservations,resTypes,sessionTemplates]);
+  },[rt,mode,allDates,_allRes,resTypes,sessionTemplates]);
 
   // Set of "date:startTime" where currentUser already has a non-cancelled booking (excluding the one being rescheduled)
   const userBookedTimes=useMemo(()=>{
