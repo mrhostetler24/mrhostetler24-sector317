@@ -32,8 +32,6 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [lbError,setLbError]=useState(null);
   const [showBook,setShowBook]=useState(false);
   useEffect(()=>{if(autoBook){setShowBook(true);onAutoBookDone?.();}},[]);// eslint-disable-line react-hooks/exhaustive-deps
-  const [availRes,setAvailRes]=useState([]);
-  useEffect(()=>{if(showBook||modifyRes)fetchAvailabilityReservations().then(setAvailRes).catch(()=>{});},[showBook,modifyRes]);// eslint-disable-line react-hooks/exhaustive-deps
   const [wOpen,setWOpen]=useState(false);
   const [wViewOpen,setWViewOpen]=useState(false);
   const [showAccount,setShowAccount]=useState(false);
@@ -44,6 +42,8 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
   const [saveGroupError,setSaveGroupError]=useState(null);
   const [saveGroupBusy,setSaveGroupBusy]=useState(false);
   const [modifyRes,setModifyRes]=useState(null); // {res, mode:'reschedule'|'upgrade'}
+  const [availRes,setAvailRes]=useState([]);
+  useEffect(()=>{if(showBook||modifyRes)fetchAvailabilityReservations().then(setAvailRes).catch(()=>{});},[showBook,modifyRes]);// eslint-disable-line react-hooks/exhaustive-deps
   const [now,setNow]=useState(()=>new Date());
   useEffect(()=>{const id=setInterval(()=>setNow(new Date()),60000);return()=>clearInterval(id);},[]);
   const [playerInputs,setPlayerInputs]=useState([]);
