@@ -52,7 +52,7 @@ function BookingWizard({resTypes,sessionTemplates,reservations,allReservations,c
   const isVersusOpen=selMode==="versus"&&selStyle==="open";
   // For open versus: max is 12 minus already-booked players in the target lane (computed from first selected slot)
   const firstSlotStatus=useMemo(()=>selSlots.length>0&&selType?getSlotStatus(selDate,selSlots[0].startTime,selType.id,_allRes,resTypes,sessionTemplates):null,[selSlots,selType,selDate,_allRes,resTypes,sessionTemplates]);
-  const openMaxFromLane=firstSlotStatus?.spotsLeft??laneCapacity(selMode||"coop");
+  const openMaxFromLane=firstSlotStatus?openPlayCapacity(selMode||"coop",firstSlotStatus.lanes??[]).maxSingle:laneCapacity(selMode||"coop");
   const spotsLocked=isVersusOpen&&openMaxFromLane>0&&openMaxFromLane<4;
   const minP=isVersusOpen?(spotsLocked?openMaxFromLane:4):1;
   // For private: capacity scales with lanes booked at the same startTime
