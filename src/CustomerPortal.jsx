@@ -449,7 +449,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
         const ResCard=({r,isUpcoming,expandId,togExpand,inGroup})=>{
           const rt=resTypes.find(x=>x.id===r.typeId);
           const resRuns=runs.filter(rn=>rn.reservationId===r.id);
-          const openSlots=r.playerCount-(r.players?.length??0);
+          const playersFilled=r.players?.length??0;const userIsListed=(r.players??[]).some(p=>p.userId===user.id);const openSlots=r.playerCount-Math.max(playersFilled,userIsListed||(playersFilled===0&&r.userId===user.id)?1:0);
           const isExp=expandId===r.id;
           const hasRuns=!isUpcoming&&resRuns.length>0;
           const canExp=isUpcoming||hasRuns;
@@ -502,7 +502,7 @@ function CustomerPortal({user,reservations,setReservations,resTypes,sessionTempl
           const rt=resTypes.find(x=>x.id===group.items[0]?.typeId);
           const allP=[];const seenP=new Set();
           group.items.forEach(r=>(r.players??[]).forEach(p=>{const k=p.userId||p.name;if(!seenP.has(k)){seenP.add(k);allP.push(p);}}));
-          const openSlots=group.items.reduce((s,r)=>s+(r.playerCount-(r.players?.length??0)),0);
+          const firstOwnedIdx=group.items.findIndex(r=>r.userId===user.id);const openSlots=group.items.reduce((s,r,idx)=>{const pf=r.players?.length??0;const uListed=(r.players??[]).some(p=>p.userId===user.id);const isFirstOwned=idx===firstOwnedIdx;const assumedMin=uListed||(pf===0&&isFirstOwned)?1:0;return s+(r.playerCount-Math.max(pf,assumedMin));},0);
           return<div style={{background:'var(--surf2)',border:'1px solid var(--bdr)',borderRadius:8,marginBottom:'.65rem',overflow:'hidden'}}>
             <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem',padding:'.65rem .85rem',cursor:'pointer',userSelect:'none',borderBottom:isOpen?'1px solid var(--bdr)':'none'}} onClick={()=>togGrp(group.key)}>
               <div style={{textAlign:'center',minWidth:52,flexShrink:0}}>
